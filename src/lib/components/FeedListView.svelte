@@ -5,14 +5,25 @@
 
 	type Props = {
 		feeds: Feed[];
+		isRefreshing: boolean;
 		items: FeedItem[];
+		onRefresh: (feedId: string) => Promise<void>;
 		selectedFeed: Feed | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedItem) => void;
 	};
 
-	let { feeds, items, selectedFeed, selectedSection, onMarkRead, onPlay }: Props = $props();
+	let {
+		feeds,
+		isRefreshing,
+		items,
+		onRefresh,
+		selectedFeed,
+		selectedSection,
+		onMarkRead,
+		onPlay
+	}: Props = $props();
 
 	function headingForSection(section: SidebarSection): string {
 		if (selectedFeed) {
@@ -48,8 +59,25 @@
 			<h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
 				{headingForSection(selectedSection)}
 			</h2>
+			{#if selectedFeed}
+				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{selectedFeed.url}</p>
+			{/if}
 		</div>
-		<p class="text-sm text-slate-500 dark:text-slate-400">{items.length} items in this view</p>
+		<div class="flex items-center gap-3">
+			<p class="text-sm text-slate-500 dark:text-slate-400">{items.length} items in this view</p>
+			{#if selectedFeed}
+				<button
+					class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+					disabled={isRefreshing}
+					type="button"
+					onclick={() => {
+						void onRefresh(selectedFeed.id);
+					}}
+				>
+					{isRefreshing ? 'Refreshing...' : 'Refresh'}
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	{#if items.length === 0}

@@ -4,6 +4,7 @@
 
 	type Props = {
 		feeds: Feed[];
+		refreshingFeedIds: string[];
 		selectedFeedId: string | null;
 		selectedSection: SidebarSection;
 		onRemoveFeed: (feedId: string) => Promise<void>;
@@ -13,6 +14,7 @@
 
 	let {
 		feeds,
+		refreshingFeedIds,
 		selectedFeedId,
 		selectedSection,
 		onRemoveFeed,
@@ -101,6 +103,9 @@
 							</p>
 							<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
 								{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
+								{#if refreshingFeedIds.includes(feed.id)}
+									• Syncing...
+								{/if}
 							</p>
 						</button>
 						<button

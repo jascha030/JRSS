@@ -3,6 +3,7 @@ import {
 	listFeeds,
 	listItems,
 	markRead,
+	refreshFeed,
 	removeFeed,
 	savePlayback
 } from '$lib/services/feedService';
@@ -16,6 +17,8 @@ export const selectedSection = writable<SidebarSection>('all');
 export const feeds = writable<Feed[]>([]);
 export const items = writable<FeedItem[]>([]);
 export const currentPlaybackState = writable<PlaybackState | null>(null);
+export const isCreatingFeed = writable(false);
+export const syncingFeedIds = writable<string[]>([]);
 
 export const selectedFeed = derived([feeds, selectedFeedId], ([$feeds, $selectedFeedId]) => {
 	return $feeds.find((feed) => feed.id === $selectedFeedId) ?? null;
@@ -87,11 +90,23 @@ async function refreshData(): Promise<void> {
 	});
 }
 
+function addSyncingFeedId(feedId: string): void {
+	syncingFeedIds.update((currentIds) =>
+		currentIds.includes(feedId) ? currentIds : [...currentIds, feedId]
+	);
+}
+
+function removeSyncingFeedId(feedId: string): void {
+	syncingFeedIds.update((currentIds) => currentIds.filter((currentId) => currentId !== feedId));
+}
+
 export async function initializeApp(): Promise<void> {
 	await refreshData();
 	selectSection('all');
 	selectedFeedId.set(null);
 	currentPlaybackState.set(null);
+	isCreatingFeed.set(false);
+	syncingFeedIds.set([]);
 }
 
 export function selectFeed(feedId: string | null): void {
@@ -107,11 +122,32 @@ export function selectSection(section: SidebarSection): void {
 	}
 }
 
-export async function createFeed(url: string): Promise<void> {
-	const createdFeed = await addFeed(url);
-	await refreshData();
-	selectedFeedId.set(createdFeed.id);
-	selectedSection.set('all');
+export async function createFeed(url: string): Promise<Feed> {
+	isCreatingFeed.set(true);
+
+	try {
+		const createdFeed = await addFeed(url);
+		await refreshData();
+		selectedFeedId.set(createdFeed.id);
+		selectedSection.set('all');
+
+		return createdFeed;
+	} finally {
+		isCreatingFeed.set(false);
+	}
+}
+
+export async function refreshExistingFeed(feedId: string): Promise<Feed> {
+	addSyncingFeedId(feedId);
+
+	try {
+		const refreshedFeed = await refreshFeed(feedId);
+		await refreshData();
+
+		return refreshedFeed;
+	} finally {
+		removeSyncingFeedId(feedId);
+	}
 }
 
 export async function deleteFeed(feedId: string): Promise<void> {
@@ -128,6 +164,8 @@ export async function deleteFeed(feedId: string): Promise<void> {
 	if (activeAudioItem?.feedId === feedId) {
 		currentPlaybackState.set(null);
 	}
+
+	removeSyncingFeedId(feedId);
 }
 
 export async function markItemRead(itemId: string, read: boolean): Promise<void> {

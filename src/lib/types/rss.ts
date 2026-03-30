@@ -8,6 +8,7 @@ export interface Feed {
 	kind: FeedKind;
 	siteUrl?: string;
 	createdAt: string;
+	lastFetchedAt?: string;
 }
 
 export interface MediaEnclosure {

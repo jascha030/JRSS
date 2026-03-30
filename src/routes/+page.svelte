@@ -9,8 +9,11 @@
 		deleteFeed,
 		feeds,
 		initializeApp,
+		isCreatingFeed,
 		markItemRead,
 		playAudioItem,
+		refreshExistingFeed,
+		syncingFeedIds,
 		selectedFeed,
 		selectedFeedId,
 		selectedSection,
@@ -25,6 +28,9 @@
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
+	const isSelectedFeedRefreshing = $derived(
+		$selectedFeed ? $syncingFeedIds.includes($selectedFeed.id) : false
+	);
 
 	onMount(() => {
 		void initializeApp();
@@ -41,9 +47,20 @@
 		try {
 			await createFeed(candidateUrl);
 			newFeedUrl = '';
-			notice = 'Feed added. Parser sync can plug in here later.';
+			notice = 'Feed loaded and saved locally.';
 		} catch (error: unknown) {
 			notice = error instanceof Error ? error.message : 'Unable to add that feed.';
+		}
+	}
+
+	async function handleRefreshFeed(feedId: string) {
+		notice = '';
+
+		try {
+			await refreshExistingFeed(feedId);
+			notice = 'Feed refreshed.';
+		} catch (error: unknown) {
+			notice = error instanceof Error ? error.message : 'Unable to refresh that feed.';
 		}
 	}
 </script>
@@ -60,6 +77,7 @@
 	<div class="flex min-h-screen flex-col lg:flex-row">
 		<Sidebar
 			feeds={$feeds}
+			refreshingFeedIds={$syncingFeedIds}
 			selectedFeedId={$selectedFeedId}
 			selectedSection={$selectedSection}
 			onRemoveFeed={deleteFeed}
@@ -99,14 +117,16 @@
 						<input
 							bind:value={newFeedUrl}
 							class="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+							disabled={$isCreatingFeed}
 							placeholder="https://example.com/feed.xml"
 							type="url"
 						/>
 						<button
 							class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+							disabled={$isCreatingFeed}
 							type="submit"
 						>
-							Add feed
+							{$isCreatingFeed ? 'Adding...' : 'Add feed'}
 						</button>
 					</form>
 				</div>
@@ -130,8 +150,8 @@
 							Add your first RSS feed or podcast
 						</h2>
 						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							The app shell, service layer, and stores are ready. Use the input above to seed a new
-							source and swap the mock service for real parsing later.
+							Add an RSS or Atom URL above and the app will try to fetch, parse, and persist real
+							feed entries locally.
 						</p>
 					</div>
 				</section>
@@ -157,7 +177,9 @@
 			{:else}
 				<FeedListView
 					feeds={$feeds}
+					isRefreshing={isSelectedFeedRefreshing}
 					items={$visibleItems}
+					onRefresh={handleRefreshFeed}
 					selectedFeed={$selectedFeed}
 					selectedSection={$selectedSection}
 					onMarkRead={markItemRead}

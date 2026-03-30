@@ -34,9 +34,22 @@ src/
 
 The app keeps feed/item/playback logic behind `src/lib/services/feedService.ts` instead of building around SvelteKit server routes.
 
-- Today, the service uses mock seed data plus browser local storage persistence.
-- Stores and UI call service functions like `listFeeds`, `listItems`, `markRead`, and `savePlayback`.
-- Later, that same surface can be swapped for Tauri commands or another local backend with minimal UI changes.
+- Today, the service orchestrates browser feed fetching/parsing and stores normalized data in local storage through `src/lib/services/feedRepository.ts`.
+- Stores and UI call service functions like `listFeeds`, `addFeed`, `refreshFeed`, `listItems`, `markRead`, and `savePlayback`.
+- Later, the repository can move to SQLite and the fetch/parse call can move to Tauri commands without changing most UI code.
+
+## Feed Ingestion Notes
+
+- Adding a feed now immediately fetches and parses real RSS or Atom XML.
+- Parsed feed metadata and items are mapped into the app's `Feed` and `FeedItem` types and persisted locally.
+- Item updates are merged by deterministic IDs so refreshes do not create duplicates and existing read/saved/playback state is preserved.
+
+## Browser CORS Limitations
+
+- This MVP still runs fully in the browser, so some feeds will fail direct fetches if they do not send permissive CORS headers.
+- The parser tries a direct browser fetch first, then falls back to a temporary public proxy via `allorigins.win`.
+- That proxy is only a stopgap for development. It can still fail, rate limit, or be unavailable.
+- A future Tauri or local backend path removes most of these browser-only CORS limits.
 
 ## Static SPA Notes
 
