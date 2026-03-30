@@ -1,42 +1,46 @@
-# sv
+# JRSS
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Minimal SvelteKit MVP foundation for a local-first RSS reader and podcast app.
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
+## Run With Bun
 
 ```sh
-# create a new project
-npx sv create my-app
+bun install
+bun run dev
 ```
 
-To recreate this project with the same configuration:
+Useful scripts:
 
 ```sh
-# recreate this project
-bun x sv@0.13.0 create --template minimal --types ts --add tailwindcss="plugins:none" eslint prettier --install bun JRSS
+bun run check
+bun run lint
+bun run build
 ```
 
-## Developing
+## Project Structure
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```text
+src/
+  lib/
+    components/   UI shell pieces like the sidebar, list view, and audio player
+    services/     frontend service boundary for feeds, items, and playback persistence
+    stores/       app state for selection, lists, and playback
+    types/        domain types for feeds, items, enclosures, and playback
+    utils/        small formatting helpers
+  routes/         SPA entry layout and starter page
 ```
 
-## Building
+## Service Layer And Future Tauri Migration
 
-To create a production version of your app:
+The app keeps feed/item/playback logic behind `src/lib/services/feedService.ts` instead of building around SvelteKit server routes.
 
-```sh
-npm run build
-```
+- Today, the service uses mock seed data plus browser local storage persistence.
+- Stores and UI call service functions like `listFeeds`, `listItems`, `markRead`, and `savePlayback`.
+- Later, that same surface can be swapped for Tauri commands or another local backend with minimal UI changes.
 
-You can preview the production build with `npm run preview`.
+## Static SPA Notes
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- Uses `@sveltejs/adapter-static`
+- Generates SPA-friendly output with `fallback: 'index.html'`
+- Disables SSR globally in `src/routes/+layout.ts`
+- Stays runnable in the browser with `bun run dev`
