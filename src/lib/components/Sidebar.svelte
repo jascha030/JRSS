@@ -105,6 +105,8 @@
 								{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
 								{#if refreshingFeedIds.includes(feed.id)}
 									• Syncing...
+								{:else if feed.lastFetchedAt}
+									• Local
 								{/if}
 							</p>
 						</button>
