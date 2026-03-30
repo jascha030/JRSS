@@ -61,6 +61,11 @@
 			</h2>
 			{#if selectedFeed}
 				<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{selectedFeed.url}</p>
+				{#if selectedFeed.lastFetchedAt}
+					<p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+						Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
+					</p>
+				{/if}
 			{/if}
 		</div>
 		<div class="flex items-center gap-3">

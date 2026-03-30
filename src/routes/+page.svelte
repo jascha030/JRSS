@@ -150,8 +150,8 @@
 							Add your first RSS feed or podcast
 						</h2>
 						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							Add an RSS or Atom URL above and the app will try to fetch, parse, and persist real
-							feed entries locally.
+							Add an RSS or Atom URL above and the desktop app will fetch, parse, and persist real
+							feed entries in local SQLite.
 						</p>
 					</div>
 				</section>
@@ -169,8 +169,8 @@
 							Foundation-only for now
 						</h2>
 						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							This MVP keeps everything in the browser with stores plus a feed service abstraction.
-							That keeps the UI easy to migrate to Tauri commands or another local backend later.
+							The UI still talks to the same frontend service layer, but feed ingestion and
+							persistence now run through Tauri commands backed by local SQLite.
 						</p>
 					</div>
 				</section>
