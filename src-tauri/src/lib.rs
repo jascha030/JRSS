@@ -2,6 +2,7 @@ mod commands;
 mod db;
 mod feed_ingest;
 mod models;
+mod reader_extract;
 
 use db::DatabaseState;
 use tauri::Manager;
@@ -30,7 +31,8 @@ pub fn run() {
             commands::remove_feed,
             commands::list_items,
             commands::mark_read,
-            commands::save_playback
+            commands::save_playback,
+            commands::load_reader_content
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

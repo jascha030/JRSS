@@ -1,4 +1,5 @@
 export type FeedKind = 'rss' | 'podcast';
+export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
 
 export interface Feed {
 	id: string;
@@ -28,6 +29,13 @@ export interface FeedItem {
 	summaryHtml?: string;
 	contentText?: string;
 	contentHtml?: string;
+	readerStatus: ReaderStatus;
+	readerTitle?: string;
+	readerByline?: string;
+	readerExcerpt?: string;
+	readerContentHtml?: string;
+	readerContentText?: string;
+	readerFetchedAt?: string;
 	publishedAt: string;
 	read: boolean;
 	saved: boolean;

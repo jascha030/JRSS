@@ -51,3 +51,7 @@ export async function savePlayback(itemId: string, positionSeconds: number): Pro
 		positionSeconds: Math.max(0, Math.floor(positionSeconds))
 	});
 }
+
+export async function loadReaderContent(itemId: string): Promise<FeedItem> {
+	return invokeCommand<FeedItem>('load_reader_content', { itemId });
+}

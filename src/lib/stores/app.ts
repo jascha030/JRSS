@@ -2,6 +2,7 @@ import {
 	addFeed,
 	listFeeds,
 	listItems,
+	loadReaderContent,
 	markRead,
 	refreshFeed,
 	removeFeed,
@@ -20,6 +21,7 @@ export const items = writable<FeedItem[]>([]);
 export const currentPlaybackState = writable<PlaybackState | null>(null);
 export const isCreatingFeed = writable(false);
 export const syncingFeedIds = writable<string[]>([]);
+export const readerLoadingItemIds = writable<string[]>([]);
 
 export const selectedFeed = derived([feeds, selectedFeedId], ([$feeds, $selectedFeedId]) => {
 	return $feeds.find((feed) => feed.id === $selectedFeedId) ?? null;
@@ -137,6 +139,18 @@ function removeSyncingFeedId(feedId: string): void {
 	syncingFeedIds.update((currentIds) => currentIds.filter((currentId) => currentId !== feedId));
 }
 
+function addReaderLoadingItemId(itemId: string): void {
+	readerLoadingItemIds.update((currentIds) =>
+		currentIds.includes(itemId) ? currentIds : [...currentIds, itemId]
+	);
+}
+
+function removeReaderLoadingItemId(itemId: string): void {
+	readerLoadingItemIds.update((currentIds) =>
+		currentIds.filter((currentId) => currentId !== itemId)
+	);
+}
+
 export async function initializeApp(): Promise<void> {
 	await refreshData();
 	selectedFeedId.set(null);
@@ -145,6 +159,7 @@ export async function initializeApp(): Promise<void> {
 	currentPlaybackState.set(null);
 	isCreatingFeed.set(false);
 	syncingFeedIds.set([]);
+	readerLoadingItemIds.set([]);
 }
 
 export function selectFeed(feedId: string | null): void {
@@ -218,6 +233,22 @@ export async function markItemRead(itemId: string, read: boolean): Promise<void>
 	items.update((currentItems) =>
 		currentItems.map((item) => (item.id === itemId ? { ...item, read } : item))
 	);
+}
+
+export async function loadReaderView(itemId: string): Promise<FeedItem> {
+	addReaderLoadingItemId(itemId);
+
+	try {
+		const updatedItem = await loadReaderContent(itemId);
+
+		items.update((currentItems) =>
+			currentItems.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+		);
+
+		return updatedItem;
+	} finally {
+		removeReaderLoadingItemId(itemId);
+	}
 }
 
 export function playAudioItem(item: FeedItem): void {

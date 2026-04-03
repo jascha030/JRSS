@@ -34,6 +34,13 @@ pub struct FeedItemRecord {
     pub summary_html: Option<String>,
     pub content_text: Option<String>,
     pub content_html: Option<String>,
+    pub reader_status: String,
+    pub reader_title: Option<String>,
+    pub reader_byline: Option<String>,
+    pub reader_excerpt: Option<String>,
+    pub reader_content_html: Option<String>,
+    pub reader_content_text: Option<String>,
+    pub reader_fetched_at: Option<String>,
     pub published_at: String,
     pub read: bool,
     pub saved: bool,
@@ -62,4 +69,14 @@ pub struct ParsedFeedItem {
     pub content_html: Option<String>,
     pub published_at: String,
     pub media_enclosure: Option<MediaEnclosureRecord>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReaderContentRecord {
+    pub title: String,
+    pub byline: Option<String>,
+    pub excerpt: Option<String>,
+    pub content_html: Option<String>,
+    pub content_text: Option<String>,
+    pub fetched_at: String,
 }
