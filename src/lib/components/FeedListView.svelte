@@ -142,9 +142,7 @@
 								{item.title}
 							</h3>
 
-							<p
-								class="mt-4 text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-300"
-							>
+							<p class="mt-4 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
 								{getListPreview(item)}
 							</p>
 						</button>
