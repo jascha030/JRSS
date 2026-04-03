@@ -20,6 +20,7 @@ tauri-build = { version = "2.5.6", features = [] }
 [dependencies]
 atom_syndication = "0.12"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+html-escape = "0.2"
 log = "0.4"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
