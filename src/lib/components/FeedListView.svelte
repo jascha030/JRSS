@@ -59,8 +59,8 @@
 	}
 </script>
 
-<section class="flex h-full flex-1 flex-col overflow-y-auto py-8">
-	<div class="mb-6 px-6 lg:px-8">
+<section class="flex h-full flex-1 flex-col overflow-hidden">
+	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
 				<h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
@@ -68,9 +68,7 @@
 				</h2>
 
 				{#if selectedFeed}
-					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-						{selectedFeed.url}
-					</p>
+					<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{selectedFeed.url}</p>
 
 					{#if selectedFeed.lastFetchedAt}
 						<p class="mt-1 text-xs text-slate-400 dark:text-slate-500">
@@ -81,9 +79,7 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				<p class="text-sm text-slate-500 dark:text-slate-400">
-					{items.length} items in this view
-				</p>
+				<p class="text-sm text-slate-500 dark:text-slate-400">{items.length} items in this view</p>
 
 				{#if selectedFeed}
 					<button
@@ -118,33 +114,40 @@
 		</div>
 	</div>
 
-	{#if items.length === 0}
-		<div class="px-6 lg:px-8">
-			<div
-				class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
-			>
-				<h3 class="text-xl font-semibold text-slate-950 dark:text-white">Nothing here yet</h3>
-				<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-					This view is wired up, but there are no matching items right now. Add more feeds or switch
-					filters to keep exploring the shell.
-				</p>
-			</div>
-		</div>
-	{:else}
-		<div class="divide-y divide-slate-200 dark:divide-slate-800">
-			{#each items as item (item.id)}
-				<article
-					class={`flex min-h-56 flex-col px-6 py-5 transition lg:px-8 ${
-						selectedItemId === item.id
-							? 'bg-slate-50 dark:bg-slate-900/60'
-							: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
-					}`}
+	<div class="min-h-0 flex-1 overflow-y-auto">
+		{#if items.length === 0}
+			<div class="px-6 py-8 lg:px-8">
+				<div
+					class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
 				>
-					<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+					<h3 class="text-xl font-semibold text-slate-950 dark:text-white">Nothing here yet</h3>
+					<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+						This view is wired up, but there are no matching items right now. Add more feeds or
+						switch filters to keep exploring the shell.
+					</p>
+				</div>
+			</div>
+		{:else}
+			<div class="divide-y divide-slate-200 dark:divide-slate-800">
+				{#each items as item (item.id)}
+					<article
+						class={`relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
+							selectedItemId === item.id
+								? 'bg-slate-50 dark:bg-slate-900/60'
+								: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
+						}`}
+						aria-labelledby={`feed-item-title-${item.id}`}
+					>
 						<button
-							class="flex min-w-0 flex-1 flex-col overflow-hidden p-1 text-left transition outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-700"
 							type="button"
+							class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset dark:focus-visible:ring-slate-700"
+							aria-label={`Open article: ${item.title}`}
+							aria-pressed={selectedItemId === item.id}
 							onclick={() => onSelectItem(item.id)}
+						></button>
+
+						<div
+							class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
 						>
 							<div
 								class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
@@ -154,65 +157,70 @@
 								<span>{formatDate(item.publishedAt)}</span>
 							</div>
 
-							<h3 class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white">
+							<h3
+								id={`feed-item-title-${item.id}`}
+								class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
+							>
 								{item.title}
 							</h3>
 
 							<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
 								{getListPreview(item)}
 							</p>
-						</button>
-					</div>
-
-					<div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3">
-						<div class="flex flex-wrap items-center gap-2">
-							<span
-								class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-							>
-								{item.read ? 'Read' : 'Unread'}
-							</span>
-
-							{#if item.mediaEnclosure}
-								<span
-									class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-								>
-									Podcast
-								</span>
-							{/if}
-
-							{#if item.playbackPositionSeconds > 0}
-								<span
-									class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-								>
-									Resumes at {formatDuration(item.playbackPositionSeconds)}
-								</span>
-							{/if}
 						</div>
 
-						<div class="flex flex-wrap gap-2">
-							{#if item.mediaEnclosure}
+						<div
+							class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
+						>
+							<div class="flex flex-wrap items-center gap-2">
+								<span
+									class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+								>
+									{item.read ? 'Read' : 'Unread'}
+								</span>
+
+								{#if item.mediaEnclosure}
+									<span
+										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+									>
+										Podcast
+									</span>
+								{/if}
+
+								{#if item.playbackPositionSeconds > 0}
+									<span
+										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+									>
+										Resumes at {formatDuration(item.playbackPositionSeconds)}
+									</span>
+								{/if}
+							</div>
+
+							<div class="pointer-events-auto flex flex-wrap gap-2">
+								{#if item.mediaEnclosure}
+									<button
+										class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+										type="button"
+										onclick={() => onPlay(item)}
+									>
+										{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+									</button>
+								{/if}
+
 								<button
-									class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+									class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 									type="button"
-									onclick={() => onPlay(item)}
+									onclick={() => {
+										void onMarkRead(item.id, !item.read);
+									}}
 								>
-									{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+									{item.read ? 'Mark unread' : 'Mark read'}
 								</button>
-							{/if}
-
-							<button
-								class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-								type="button"
-								onclick={() => {
-									void onMarkRead(item.id, !item.read);
-								}}
-							>
-								{item.read ? 'Mark unread' : 'Mark read'}
-							</button>
+							</div>
 						</div>
-					</div>
-				</article>
-			{/each}
-		</div>
-	{/if}
+					</article>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </section>
