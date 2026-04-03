@@ -74,8 +74,8 @@
 	/>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-100/80 dark:bg-slate-950">
-	<div class="flex min-h-screen overflow-hidden">
+<div class="flex h-screen flex-col overflow-hidden bg-slate-100/80 dark:bg-slate-950">
+	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<Sidebar
 			collapsed={isSidebarCollapsed}
 			feeds={$feeds}
@@ -90,7 +90,7 @@
 			}}
 		/>
 
-		<main class="flex min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+		<main class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
 				class="border-b border-slate-200/70 bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
 			>
@@ -142,7 +142,7 @@
 			</header>
 
 			{#if $feeds.length === 0}
-				<section class="flex flex-1 items-center justify-center px-6 py-12 lg:px-8">
+				<section class="flex flex-1 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8">
 					<div
 						class="max-w-lg rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
 					>
@@ -161,7 +161,7 @@
 					</div>
 				</section>
 			{:else if $selectedSection === 'settings'}
-				<section class="flex-1 px-6 py-8 lg:px-8">
+				<section class="flex-1 overflow-y-auto px-6 py-8 lg:px-8">
 					<div
 						class="max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 					>
@@ -180,8 +180,10 @@
 					</div>
 				</section>
 			{:else}
-				<div class="flex min-h-0 flex-1">
-					<div class="min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800">
+				<div class="flex min-h-0 flex-1 overflow-hidden">
+					<div
+						class="min-h-0 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+					>
 						<FeedListView
 							feeds={$feeds}
 							isRefreshing={isSelectedFeedRefreshing}
@@ -195,7 +197,7 @@
 					</div>
 
 					<aside
-						class="hidden min-w-0 flex-1 flex-col justify-between bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+						class="hidden min-h-0 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
 						<div>
 							<p
