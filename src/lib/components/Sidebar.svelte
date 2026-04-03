@@ -47,11 +47,6 @@
 					JR
 				</div>
 			{:else}
-				<p
-					class="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-				>
-					Workspace
-				</p>
 				<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
 			{/if}
 		</div>

@@ -151,19 +151,10 @@
 			>
 				<div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
 					<div class="space-y-2">
-						<p
-							class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-						>
-							Local-first RSS + podcasts
-						</p>
 						<div>
 							<h1 class="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
 								JRSS MVP
 							</h1>
-							<p class="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-								Client-side foundation with a small service layer, mock data, and static output
-								ready for a later Tauri move.
-							</p>
 						</div>
 					</div>
 
