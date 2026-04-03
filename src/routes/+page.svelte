@@ -150,16 +150,8 @@
 				class="border-b border-slate-200/70 bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
 			>
 				<div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-					<div class="space-y-2">
-						<div>
-							<h1 class="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-								JRSS MVP
-							</h1>
-						</div>
-					</div>
-
 					<form
-						class="flex flex-col gap-3 sm:flex-row xl:min-w-[28rem]"
+						class="flex flex-col gap-3 sm:flex-row min-w-full"
 						onsubmit={(event) => {
 							event.preventDefault();
 							void handleAddFeed();
