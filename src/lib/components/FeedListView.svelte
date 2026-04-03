@@ -8,7 +8,9 @@
 		isRefreshing: boolean;
 		items: FeedItem[];
 		onRefresh: (feedId: string) => Promise<void>;
+		onSelectItem: (itemId: string) => void;
 		selectedFeed: Feed | null;
+		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedItem) => void;
@@ -19,7 +21,9 @@
 		isRefreshing,
 		items,
 		onRefresh,
+		onSelectItem,
 		selectedFeed,
+		selectedItemId,
 		selectedSection,
 		onMarkRead,
 		onPlay
@@ -99,10 +103,14 @@
 		<div class="grid gap-4">
 			{#each items as item (item.id)}
 				<article
-					class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+					class={`rounded-3xl border p-5 shadow-sm transition ${selectedItemId === item.id ? 'border-slate-400 bg-slate-50 ring-1 ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:ring-slate-700' : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700'}`}
 				>
 					<div class="flex flex-wrap items-start justify-between gap-3">
-						<div class="min-w-0 flex-1">
+						<button
+							class="min-w-0 flex-1 rounded-2xl p-1 text-left transition outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-700"
+							type="button"
+							onclick={() => onSelectItem(item.id)}
+						>
 							<div
 								class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
 							>
@@ -113,7 +121,13 @@
 							<h3 class="mt-3 text-lg font-semibold text-slate-950 dark:text-white">
 								{item.title}
 							</h3>
-						</div>
+
+							<p
+								class="mt-4 text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-300"
+							>
+								{item.summary}
+							</p>
+						</button>
 
 						<div class="flex flex-wrap gap-2">
 							{#if item.mediaEnclosure}
@@ -136,10 +150,6 @@
 							</button>
 						</div>
 					</div>
-
-					<p class="mt-4 text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-300">
-						{item.summary}
-					</p>
 
 					<div
 						class="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400"

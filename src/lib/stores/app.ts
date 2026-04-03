@@ -13,6 +13,7 @@ import { derived, get, writable } from 'svelte/store';
 export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'saved' | 'settings';
 
 export const selectedFeedId = writable<string | null>(null);
+export const selectedItemId = writable<string | null>(null);
 export const selectedSection = writable<SidebarSection>('all');
 export const feeds = writable<Feed[]>([]);
 export const items = writable<FeedItem[]>([]);
@@ -51,6 +52,21 @@ export const visibleItems = derived(
 	}
 );
 
+export const selectedItem = derived(
+	[visibleItems, selectedItemId],
+	([$visibleItems, $selectedItemId]) => {
+		return $visibleItems.find((item) => item.id === $selectedItemId) ?? null;
+	}
+);
+
+export const selectedItemFeed = derived([feeds, selectedItem], ([$feeds, $selectedItem]) => {
+	if (!$selectedItem) {
+		return null;
+	}
+
+	return $feeds.find((feed) => feed.id === $selectedItem.feedId) ?? null;
+});
+
 export const currentAudioItem = derived(
 	[items, currentPlaybackState],
 	([$items, $playbackState]) => {
@@ -63,6 +79,27 @@ export const currentAudioItem = derived(
 		return matchingItem?.mediaEnclosure ? matchingItem : null;
 	}
 );
+
+visibleItems.subscribe(($visibleItems) => {
+	const currentSelectedItemId = get(selectedItemId);
+
+	if ($visibleItems.length === 0) {
+		if (currentSelectedItemId !== null) {
+			selectedItemId.set(null);
+		}
+
+		return;
+	}
+
+	if (!currentSelectedItemId) {
+		selectedItemId.set($visibleItems[0].id);
+		return;
+	}
+
+	if (!$visibleItems.some((item) => item.id === currentSelectedItemId)) {
+		selectedItemId.set($visibleItems[0].id);
+	}
+});
 
 async function refreshData(): Promise<void> {
 	const [nextFeeds, nextItems] = await Promise.all([listFeeds(), listItems()]);
@@ -102,19 +139,22 @@ function removeSyncingFeedId(feedId: string): void {
 
 export async function initializeApp(): Promise<void> {
 	await refreshData();
-	selectSection('all');
 	selectedFeedId.set(null);
+	selectSection('all');
+	selectedItemId.set(get(visibleItems)[0]?.id ?? null);
 	currentPlaybackState.set(null);
 	isCreatingFeed.set(false);
 	syncingFeedIds.set([]);
 }
 
 export function selectFeed(feedId: string | null): void {
+	selectedItemId.set(null);
 	selectedFeedId.set(feedId);
 	selectedSection.set('all');
 }
 
 export function selectSection(section: SidebarSection): void {
+	selectedItemId.set(null);
 	selectedSection.set(section);
 
 	if (section !== 'all') {
@@ -128,6 +168,7 @@ export async function createFeed(url: string): Promise<Feed> {
 	try {
 		const createdFeed = await addFeed(url);
 		await refreshData();
+		selectedItemId.set(null);
 		selectedFeedId.set(createdFeed.id);
 		selectedSection.set('all');
 
@@ -166,6 +207,10 @@ export async function deleteFeed(feedId: string): Promise<void> {
 	}
 
 	removeSyncingFeedId(feedId);
+}
+
+export function selectItem(itemId: string): void {
+	selectedItemId.set(itemId);
 }
 
 export async function markItemRead(itemId: string, read: boolean): Promise<void> {

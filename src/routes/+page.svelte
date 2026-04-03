@@ -2,6 +2,7 @@
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import { formatDate, formatDuration } from '$lib/utils/format';
 	import {
 		createFeed,
 		currentAudioItem,
@@ -13,11 +14,15 @@
 		markItemRead,
 		playAudioItem,
 		refreshExistingFeed,
+		selectedItem,
+		selectedItemFeed,
+		selectedItemId,
 		syncingFeedIds,
 		selectedFeed,
 		selectedFeedId,
 		selectedSection,
 		selectFeed,
+		selectItem,
 		selectSection,
 		setPlaybackPlaying,
 		stopPlayback,
@@ -189,7 +194,9 @@
 							isRefreshing={isSelectedFeedRefreshing}
 							items={$visibleItems}
 							onRefresh={handleRefreshFeed}
+							onSelectItem={selectItem}
 							selectedFeed={$selectedFeed}
+							selectedItemId={$selectedItemId}
 							selectedSection={$selectedSection}
 							onMarkRead={markItemRead}
 							onPlay={playAudioItem}
@@ -199,29 +206,116 @@
 					<aside
 						class="hidden min-h-0 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
-						<div>
-							<p
-								class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-							>
-								Reader
-							</p>
-							<h2 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-								Reader pane coming next
-							</h2>
-							<p class="mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-								The current feed and item list stays fully powered by the existing working list
-								view. This pane is only a desktop-shell placeholder for the next step.
-							</p>
-						</div>
+						{#if $selectedItem}
+							<div class="space-y-8">
+								<div>
+									<p
+										class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+									>
+										{$selectedItemFeed?.title ?? 'Unknown feed'}
+									</p>
+									<h2
+										class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
+									>
+										{$selectedItem.title}
+									</h2>
+									<div
+										class="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400"
+									>
+										<span>{formatDate($selectedItem.publishedAt)}</span>
+										{#if $selectedItem.mediaEnclosure}
+											<span
+												class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+											>
+												Podcast
+											</span>
+										{/if}
+										<span
+											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+										>
+											{$selectedItem.read ? 'Read' : 'Unread'}
+										</span>
+									</div>
+								</div>
 
-						<div
-							class="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
-						>
-							<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
-								No item is selected yet. Feed switching, refresh, playback, and the current list
-								workflow remain unchanged.
-							</p>
-						</div>
+								<div class="flex flex-wrap gap-3">
+									<button
+										class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+										type="button"
+										onclick={() => window.open($selectedItem.url, '_blank', 'noopener,noreferrer')}
+									>
+										Open original
+									</button>
+
+									{#if $selectedItem.mediaEnclosure}
+										<button
+											class="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+											type="button"
+											onclick={() => playAudioItem($selectedItem)}
+										>
+											{$selectedItem.playbackPositionSeconds > 0
+												? 'Resume playback'
+												: 'Start playback'}
+										</button>
+									{/if}
+								</div>
+
+								<div
+									class="rounded-[2rem] border border-slate-200 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+								>
+									<p
+										class="text-sm leading-7 whitespace-pre-line text-slate-700 dark:text-slate-200"
+									>
+										{$selectedItem.summary.trim() ||
+											'No summary or content is available for this item yet.'}
+									</p>
+								</div>
+
+								{#if $selectedItem.mediaEnclosure}
+									<div
+										class="rounded-[2rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
+									>
+										<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
+											Podcast controls remain available here and in the footer player.
+											{#if $selectedItem.mediaEnclosure.durationSeconds}
+												Duration {formatDuration($selectedItem.mediaEnclosure.durationSeconds)}.
+											{/if}
+											{#if $selectedItem.playbackPositionSeconds > 0}
+												Resume point {formatDuration($selectedItem.playbackPositionSeconds)}.
+											{/if}
+										</p>
+									</div>
+								{/if}
+							</div>
+						{:else}
+							<div class="flex h-full min-h-[22rem] flex-col justify-between">
+								<div>
+									<p
+										class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+									>
+										Reader
+									</p>
+									<h2
+										class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
+									>
+										No item selected
+									</h2>
+									<p class="mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+										Pick an item from the list to read its details here. When a view has visible
+										items, the first one is selected automatically.
+									</p>
+								</div>
+
+								<div
+									class="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+								>
+									<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
+										This reader pane is still plain-text-only for now. Feed switching, refresh,
+										playback, and the current list workflow remain unchanged.
+									</p>
+								</div>
+							</div>
+						{/if}
 					</aside>
 				</div>
 			{/if}
