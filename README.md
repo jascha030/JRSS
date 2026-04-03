@@ -1,4 +1,4 @@
-# JRSS
+# JRSS | Jassie's Really Simple Syndication Application
 
 Local-first RSS reader and podcast desktop MVP built with SvelteKit, Tauri, and SQLite.
 
