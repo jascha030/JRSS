@@ -36,7 +36,7 @@
 </script>
 
 <aside
-	class={`flex shrink-0 flex-col border-r border-slate-200 bg-white/85 p-4 backdrop-blur transition-[width,padding] duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${collapsed ? 'w-20 px-3' : 'w-80 p-6'}`}
+	class={`flex h-full shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white/85 p-4 backdrop-blur transition-[width,padding] duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${collapsed ? 'w-20 px-3' : 'w-80 p-6'}`}
 >
 	<div class="flex items-center justify-between gap-3">
 		<div class="min-w-0 flex-1">

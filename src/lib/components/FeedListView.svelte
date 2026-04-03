@@ -50,7 +50,7 @@
 	}
 </script>
 
-<section class="flex-1 px-6 py-8 lg:px-8">
+<section class="flex h-full flex-1 flex-col overflow-y-auto px-6 py-8 lg:px-8">
 	<div class="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 		<div>
 			<p class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400">
