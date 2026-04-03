@@ -142,9 +142,13 @@
 								{item.title}
 							</h3>
 
-							<p class="mt-4 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-								{getListPreview(item)}
-							</p>
+							<div class="mt-4 flex-1">
+								<p
+									class="line-clamp-2 min-h-[3rem] text-sm leading-6 text-slate-600 dark:text-slate-300"
+								>
+									{getListPreview(item)}
+								</p>
+							</div>
 						</button>
 
 						<div class="flex flex-wrap gap-2">
