@@ -1,5 +1,6 @@
 use crate::db::AppResult;
 use crate::models::{MediaEnclosureRecord, ParsedFeed, ParsedFeedItem};
+use ammonia::Builder;
 use atom_syndication::{Entry as AtomEntry, Feed as AtomFeed, Link as AtomLink, Text, TextType};
 use chrono::{DateTime, Utc};
 use html_escape::decode_html_entities;
@@ -106,9 +107,10 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
     let content_html = item
         .content()
         .and_then(raw_html_value)
-        .filter(|value| looks_like_html(value));
+        .filter(|value| looks_like_html(value))
+        .and_then(|html| sanitize_feed_html(&html));
     let summary_text = extract_rss_summary_text(item);
-    let summary_html = extract_rss_summary_html(item);
+    let summary_html = extract_rss_summary_html(item).and_then(|html| sanitize_feed_html(&html));
     let summary = item
         .content()
         .and_then(clean_summary)
@@ -205,9 +207,9 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         .unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(Some(entry.title().as_str()), None, "Untitled item");
     let summary_text = extract_atom_summary_text(entry);
-    let summary_html = extract_atom_summary_html(entry);
+    let summary_html = extract_atom_summary_html(entry).and_then(|html| sanitize_feed_html(&html));
     let content_text = extract_atom_content_text(entry);
-    let content_html = extract_atom_content_html(entry);
+    let content_html = extract_atom_content_html(entry).and_then(|html| sanitize_feed_html(&html));
     let summary = extract_atom_summary(entry).unwrap_or_else(|| "No summary provided.".to_string());
     let enclosure = entry
         .links()
@@ -414,6 +416,26 @@ fn raw_atom_text_html(summary: &Text) -> Option<String> {
 
 fn looks_like_html(candidate: &str) -> bool {
     candidate.contains('<') && candidate.contains('>')
+}
+
+fn sanitize_feed_html(candidate: &str) -> Option<String> {
+    if candidate.trim().is_empty() {
+        return None;
+    }
+
+    let mut sanitizer = Builder::default();
+    sanitizer
+        .add_tag_attributes("a", &["target"])
+        .set_tag_attribute_value("a", "target", "_blank");
+
+    let sanitized = sanitizer.clean(candidate).to_string();
+    let trimmed = sanitized.trim();
+
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn normalize_preview_text(candidate: &str, suppress_heavy_blocks: bool) -> Option<String> {
