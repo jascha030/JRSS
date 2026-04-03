@@ -102,8 +102,8 @@ pub async fn load_reader_content(
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || {
-        let item = db::get_item_by_id(&db_path, &item_id)?
-            .ok_or_else(|| "Item not found.".to_string())?;
+        let item =
+            db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())?;
 
         if item.media_enclosure.is_some() || item.reader_status == "ready" {
             return Ok(item);
