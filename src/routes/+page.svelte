@@ -151,7 +151,7 @@
 			>
 				<div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
 					<form
-						class="flex flex-col gap-3 sm:flex-row min-w-full"
+						class="flex min-w-full flex-col gap-3 sm:flex-row"
 						onsubmit={(event) => {
 							event.preventDefault();
 							void handleAddFeed();

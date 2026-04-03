@@ -106,13 +106,32 @@ pub async fn load_reader_content(
             db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())?;
 
         if item.media_enclosure.is_some() || item.reader_status == "ready" {
+            log::debug!("Reader Mode: using cached reader content for item {}", item_id);
             return Ok(item);
         }
 
+        log::info!(
+            "Reader Mode: loading fresh content for item {} (URL: {})",
+            item_id,
+            item.url
+        );
+
         match reader_extract::fetch_reader_content(&item.url, &item.title) {
-            Ok(reader_content) => db::save_reader_content(&db_path, &item_id, &reader_content)?,
+            Ok(reader_content) => {
+                log::info!(
+                    "Reader Mode: successfully extracted content for item {} (title: {})",
+                    item_id,
+                    reader_content.title
+                );
+                db::save_reader_content(&db_path, &item_id, &reader_content)?;
+            }
             Err(error) => {
-                log::warn!("Reader extraction failed for {}: {}", item.url, error);
+                log::warn!(
+                    "Reader Mode: extraction failed for item {} ({}): {}",
+                    item_id,
+                    item.url,
+                    error
+                );
                 db::save_reader_failure(&db_path, &item_id)?;
             }
         }
