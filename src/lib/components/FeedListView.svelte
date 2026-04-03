@@ -53,9 +53,6 @@
 <section class="flex h-full flex-1 flex-col overflow-y-auto px-6 py-8 lg:px-8">
 	<div class="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 		<div>
-			<p class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400">
-				Current view
-			</p>
 			<h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
 				{headingForSection(selectedSection)}
 			</h2>
@@ -72,6 +69,7 @@
 			<p class="text-sm text-slate-500 dark:text-slate-400">{items.length} items in this view</p>
 			{#if selectedFeed}
 				<button
+					title="Refresh feed"
 					class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 					disabled={isRefreshing}
 					type="button"
@@ -79,7 +77,23 @@
 						void onRefresh(selectedFeed.id);
 					}}
 				>
-					{isRefreshing ? 'Refreshing...' : 'Refresh'}
+					{#key isRefreshing}
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
+							stroke="currentColor"
+							class="size-6"
+							class:animate-spin={isRefreshing}
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+							/>
+						</svg>
+					{/key}
 				</button>
 			{/if}
 		</div>
