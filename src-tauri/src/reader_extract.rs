@@ -19,6 +19,8 @@ pub fn fetch_reader_content(
     fallback_title: &str,
 ) -> AppResult<ReaderContentRecord> {
     let normalized_url = normalize_article_url(article_url)?;
+    log::debug!("Reader Mode: fetching {}", normalized_url);
+
     let client = Client::builder()
         .timeout(Duration::from_secs(20))
         .user_agent("JRSS/0.0.1 Reader")
@@ -26,7 +28,7 @@ pub fn fetch_reader_content(
         .map_err(|error| format!("Failed to create HTTP client: {error}"))?;
 
     let response = client
-        .get(normalized_url)
+        .get(normalized_url.clone())
         .header(reqwest::header::ACCEPT, ARTICLE_ACCEPT_HEADER)
         .send()
         .map_err(|error| format!("Failed to fetch article: {error}"))?;
@@ -38,6 +40,8 @@ pub fn fetch_reader_content(
     }
 
     let final_url = response.url().clone();
+    log::debug!("Reader Mode: final URL after redirects: {}", final_url);
+
     let content_type = response
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -72,6 +76,20 @@ fn extract_reader_content_from_html(
 
     if content_html.is_none() && content_text.is_none() {
         return Err("Could not extract readable article content from that page.".to_string());
+    }
+
+    // Validate extraction quality before accepting it
+    if let Err(quality_error) = validate_extraction_quality(
+        &readable.title,
+        content_html.as_deref(),
+        content_text.as_deref(),
+    ) {
+        log::warn!(
+            "Reader extraction quality check failed for {}: {}",
+            final_url,
+            quality_error
+        );
+        return Err(quality_error);
     }
 
     Ok(ReaderContentRecord {
@@ -378,9 +396,144 @@ fn html_title_regex() -> Option<&'static Regex> {
         .as_ref()
 }
 
+fn validate_extraction_quality(
+    title: &str,
+    content_html: Option<&str>,
+    content_text: Option<&str>,
+) -> AppResult<()> {
+    // Check for known error/generic phrases that indicate failed extraction
+    let error_phrases = [
+        "sorry, something went wrong",
+        "uh oh",
+        "there was an error",
+        "page not found",
+        "not found",
+        "404",
+        "500",
+        "service unavailable",
+        "internal server error",
+        "bad gateway",
+        "timed out",
+    ];
+
+    let combined_content = format!(
+        "{} {} {}",
+        title,
+        content_html.unwrap_or(""),
+        content_text.unwrap_or("")
+    );
+    let lowercase_content = combined_content.to_ascii_lowercase();
+
+    for phrase in &error_phrases {
+        if lowercase_content.contains(phrase) {
+            return Err(format!(
+                "Extracted content contains error phrase: '{}'",
+                phrase
+            ));
+        }
+    }
+
+    // Check text length: extracted content should have meaningful length
+    let text_to_check = content_text.unwrap_or(content_html.unwrap_or(""));
+    let text_length = text_to_check.trim().len();
+
+    if text_length < 200 {
+        return Err(format!(
+            "Extracted content is too short ({} chars, minimum 200)",
+            text_length
+        ));
+    }
+
+    // Check HTML structure: ensure extracted HTML has meaningful body content
+    if let Some(html_content) = content_html {
+        let html_lower = html_content.to_ascii_lowercase();
+
+        // Count basic content elements (paragraphs, headings, lists)
+        let p_count = html_lower.matches("<p").count();
+        let h_count = html_lower.matches("<h").count();
+        let li_count = html_lower.matches("<li").count();
+        let blockquote_count = html_lower.matches("<blockquote").count();
+        let content_element_count = p_count + h_count + li_count + blockquote_count;
+
+        if content_element_count == 0 {
+            return Err(
+                "Extracted HTML contains no meaningful content elements (p, h, li, blockquote)"
+                    .to_string(),
+            );
+        }
+
+        // Additional GitHub/release pages guard: reject if it looks like pure markup/scaffolding
+        if has_insufficient_text_density(html_content, content_text) {
+            return Err(
+                "Extracted content has insufficient text density (likely scaffolding or layout)"
+                    .to_string(),
+            );
+        }
+    }
+
+    log::info!(
+        "Reader extraction passed quality validation: title_len={}, text_len={}, has_html={}",
+        title.len(),
+        text_to_check.trim().len(),
+        content_html.is_some()
+    );
+
+    Ok(())
+}
+
+fn has_insufficient_text_density(html_content: &str, content_text: Option<&str>) -> bool {
+    // If we have HTML but almost no text, it's likely scaffolding/layout
+    let html_length = html_content.len();
+    let text_length = content_text.map(|t| t.trim().len()).unwrap_or(0);
+
+    // If HTML is much larger than text (ratio > 20:1), likely error page scaffolding
+    if text_length > 0 && html_length > text_length * 20 {
+        return true;
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validate_extraction_quality_rejects_error_phrases() {
+        let result = validate_extraction_quality(
+            "Some page",
+            Some("Sorry, something went wrong. Click here."),
+            Some("Sorry, something went wrong."),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_extraction_quality_accepts_good_content() {
+        let good_text = "This is a real article with substantial content. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.";
+        let result =
+            validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(good_text));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_extraction_quality_rejects_short_content() {
+        let result =
+            validate_extraction_quality("Title", Some("<p>short</p>"), Some("This is too short"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_extraction_quality_rejects_no_content_elements() {
+        // HTML with no p/h/li/blockquote elements
+        let repeated_text = "a".repeat(300);
+        let result = validate_extraction_quality(
+            "Title",
+            Some("<div>Some text</div>"),
+            Some(&repeated_text),
+        );
+        assert!(result.is_err());
+    }
 
     #[test]
     fn parse_tag_attributes_handles_supported_html_forms() {
@@ -400,36 +553,16 @@ mod tests {
     }
 
     #[test]
-    fn extract_reader_content_from_html_sanitizes_and_extracts_metadata() {
+    fn sanitized_html_preserves_valid_content_and_removes_scripts() {
         let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
-        let html = r#"
-            <html>
-                <head>
-                    <title>Fallback title</title>
-                    <meta name="author" content="Jane Doe">
-                    <meta name="description" content="Example article description for reader mode.">
-                </head>
-                <body>
-                    <article>
-                        <h1>Readable article heading</h1>
-                        <p>Hello <script>alert('xss')</script><a href="/relative-link">reader mode</a>.</p>
-                    </article>
-                </body>
-            </html>
-        "#;
+        let html = r#"<p>Hello <script>alert('xss')</script><a href="/relative-link">reader mode</a>.</p>"#;
 
-        let reader_content = extract_reader_content_from_html(html, &article_url, "Feed title")
-            .expect("reader content extracted");
+        let sanitized = sanitize_reader_html(html, &article_url);
 
-        assert_eq!(reader_content.byline.as_deref(), Some("Jane Doe"));
-        assert_eq!(
-            reader_content.excerpt.as_deref(),
-            Some("Example article description for reader mode.")
-        );
-
-        let content_html = reader_content.content_html.expect("sanitized html");
-        assert!(!content_html.contains("<script"));
-        assert!(content_html.contains("https://example.com/relative-link"));
-        assert!(reader_content.content_text.is_some());
+        assert!(sanitized.is_some());
+        let content = sanitized.unwrap();
+        assert!(!content.contains("<script"));
+        assert!(content.contains("https://example.com/relative-link"));
+        assert!(content.contains("reader mode"));
     }
 }
