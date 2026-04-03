@@ -18,10 +18,11 @@ pub async fn add_feed(url: String, state: State<'_, DatabaseState>) -> Result<Fe
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || {
-        let normalized_url = feed_ingest::normalize_feed_url(&url)?;
-        let parsed_feed = feed_ingest::fetch_and_parse_feed(&normalized_url)?;
+        let resolved_input = feed_ingest::resolve_feed_input(&url)?;
+        let parsed_feed = feed_ingest::fetch_and_parse_feed(&resolved_input.feed_url)
+            .map_err(|error| resolved_input.map_fetch_error(error))?;
 
-        db::upsert_feed_snapshot(&db_path, &normalized_url, parsed_feed)
+        db::upsert_feed_snapshot(&db_path, &resolved_input.feed_url, parsed_feed)
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
@@ -106,7 +107,10 @@ pub async fn load_reader_content(
             db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())?;
 
         if item.media_enclosure.is_some() || item.reader_status == "ready" {
-            log::debug!("Reader Mode: using cached reader content for item {}", item_id);
+            log::debug!(
+                "Reader Mode: using cached reader content for item {}",
+                item_id
+            );
             return Ok(item);
         }
 
