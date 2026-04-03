@@ -24,6 +24,8 @@ export interface FeedItem {
 	title: string;
 	url: string;
 	summary: string;
+	contentText?: string;
+	contentHtml?: string;
 	publishedAt: string;
 	read: boolean;
 	saved: boolean;

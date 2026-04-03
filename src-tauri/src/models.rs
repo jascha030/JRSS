@@ -30,6 +30,8 @@ pub struct FeedItemRecord {
     pub title: String,
     pub url: String,
     pub summary: String,
+    pub content_text: Option<String>,
+    pub content_html: Option<String>,
     pub published_at: String,
     pub read: bool,
     pub saved: bool,
@@ -52,6 +54,8 @@ pub struct ParsedFeedItem {
     pub title: String,
     pub url: String,
     pub summary: String,
+    pub content_text: Option<String>,
+    pub content_html: Option<String>,
     pub published_at: String,
     pub media_enclosure: Option<MediaEnclosureRecord>,
 }

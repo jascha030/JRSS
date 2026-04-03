@@ -102,6 +102,8 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
     let link_url =
         resolve_optional_url(item.link(), feed_url).unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(item.title(), None, "Untitled item");
+    let content_text = item.content().and_then(clean_text);
+    let content_html = item.content().and_then(raw_content_value);
     let summary = item
         .content()
         .and_then(clean_summary)
@@ -125,6 +127,8 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        content_text,
+        content_html,
         published_at,
         media_enclosure: enclosure,
     }
@@ -179,6 +183,8 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
     let link_url = select_atom_link(entry.links(), feed_url, "alternate")
         .unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(Some(entry.title().as_str()), None, "Untitled item");
+    let content_text = extract_atom_content_text(entry);
+    let content_html = extract_atom_content_html(entry);
     let summary = extract_atom_summary(entry).unwrap_or_else(|| "No summary provided.".to_string());
     let enclosure = entry
         .links()
@@ -194,6 +200,8 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        content_text,
+        content_html,
         published_at,
         media_enclosure: enclosure,
     }
@@ -223,6 +231,30 @@ fn extract_atom_summary(entry: &AtomEntry) -> Option<String> {
                 .and_then(|content| content.value())
                 .and_then(clean_summary)
         })
+}
+
+fn extract_atom_content_text(entry: &AtomEntry) -> Option<String> {
+    entry
+        .content()
+        .and_then(|content| content.value())
+        .and_then(clean_text)
+}
+
+fn extract_atom_content_html(entry: &AtomEntry) -> Option<String> {
+    entry.content().and_then(|content| {
+        let raw_value = content.value().and_then(raw_content_value)?;
+        let content_type = content
+            .content_type()
+            .unwrap_or("text")
+            .trim()
+            .to_ascii_lowercase();
+
+        if matches!(content_type.as_str(), "html" | "xhtml") || raw_value.contains('<') {
+            Some(raw_value)
+        } else {
+            None
+        }
+    })
 }
 
 fn build_enclosure(
@@ -322,6 +354,16 @@ fn clean_summary(candidate: &str) -> Option<String> {
 
 fn clean_text(candidate: &str) -> Option<String> {
     normalize_preview_text(candidate, false)
+}
+
+fn raw_content_value(candidate: &str) -> Option<String> {
+    let trimmed = candidate.trim();
+
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn normalize_preview_text(candidate: &str, suppress_heavy_blocks: bool) -> Option<String> {
