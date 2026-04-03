@@ -195,7 +195,7 @@
 					</div>
 
 					<aside
-						class="hidden w-[22rem] flex-col justify-between bg-white/70 p-6 xl:flex dark:bg-slate-950/70"
+						class="hidden min-w-0 flex-1 flex-col justify-between bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
 						<div>
 							<p
@@ -203,19 +203,19 @@
 							>
 								Reader
 							</p>
-							<h2 class="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
+							<h2 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
 								Reader pane coming next
 							</h2>
-							<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+							<p class="mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
 								The current feed and item list stays fully powered by the existing working list
 								view. This pane is only a desktop-shell placeholder for the next step.
 							</p>
 						</div>
 
 						<div
-							class="rounded-3xl border border-dashed border-slate-300 p-4 dark:border-slate-800"
+							class="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
 						>
-							<p class="text-sm text-slate-500 dark:text-slate-400">
+							<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
 								No item is selected yet. Feed switching, refresh, playback, and the current list
 								workflow remain unchanged.
 							</p>
