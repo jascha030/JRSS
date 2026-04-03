@@ -56,10 +56,18 @@ pub fn fetch_reader_content(
         return Err("Original article page was empty.".to_string());
     }
 
+    extract_reader_content_from_html(&html, &final_url, fallback_title)
+}
+
+fn extract_reader_content_from_html(
+    html: &str,
+    final_url: &Url,
+    fallback_title: &str,
+) -> AppResult<ReaderContentRecord> {
     let mut cursor = Cursor::new(html.as_bytes());
     let readable = extract(&mut cursor, &final_url, ExtractOptions::default())
         .map_err(|error| format!("Failed to extract readable article content: {error}"))?;
-    let content_html = sanitize_reader_html(&readable.content, &final_url);
+    let content_html = sanitize_reader_html(&readable.content, final_url);
     let content_text = normalize_reader_text(&readable.text);
 
     if content_html.is_none() && content_text.is_none() {
@@ -123,7 +131,7 @@ fn extract_title(html: &str) -> Option<String> {
     extract_meta_content(html, &[("property", "og:title"), ("name", "twitter:title")]).or_else(
         || {
             html_title_regex()
-                .captures(html)
+                .and_then(|regex| regex.captures(html))
                 .and_then(|captures| captures.get(1))
                 .and_then(|value| clean_metadata_value(value.as_str()))
         },
@@ -157,7 +165,11 @@ fn extract_excerpt(html: &str) -> Option<String> {
 }
 
 fn extract_meta_content(html: &str, candidates: &[(&str, &str)]) -> Option<String> {
-    for meta_tag in meta_tag_regex().find_iter(html) {
+    let Some(meta_tag_regex) = meta_tag_regex() else {
+        return None;
+    };
+
+    for meta_tag in meta_tag_regex.find_iter(html) {
         let attributes = parse_tag_attributes(meta_tag.as_str());
         let content = attributes
             .iter()
@@ -180,19 +192,91 @@ fn extract_meta_content(html: &str, candidates: &[(&str, &str)]) -> Option<Strin
 }
 
 fn parse_tag_attributes(tag_html: &str) -> Vec<(String, String)> {
-    attribute_regex()
-        .captures_iter(tag_html)
-        .filter_map(|captures| {
-            let name = captures.get(1)?.as_str().trim().to_ascii_lowercase();
-            let value = captures.get(3)?.as_str().trim().to_string();
+    let mut attributes = Vec::new();
+    let bytes = tag_html.as_bytes();
+    let mut index = 0;
 
-            if name.is_empty() {
-                None
-            } else {
-                Some((name, value))
+    while index < bytes.len() {
+        while index < bytes.len()
+            && (bytes[index].is_ascii_whitespace()
+                || matches!(bytes[index], b'<' | b'>' | b'/' | b'?'))
+        {
+            index += 1;
+        }
+
+        if index >= bytes.len() {
+            break;
+        }
+
+        let name_start = index;
+
+        while index < bytes.len() && is_attribute_name_char(bytes[index]) {
+            index += 1;
+        }
+
+        if name_start == index {
+            index += 1;
+            continue;
+        }
+
+        let name = tag_html[name_start..index].trim().to_ascii_lowercase();
+
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+
+        if index >= bytes.len() || bytes[index] != b'=' {
+            continue;
+        }
+
+        index += 1;
+
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+
+        if index >= bytes.len() {
+            break;
+        }
+
+        let value = match bytes[index] {
+            b'\'' | b'"' => {
+                let quote = bytes[index];
+                index += 1;
+                let value_start = index;
+
+                while index < bytes.len() && bytes[index] != quote {
+                    index += 1;
+                }
+
+                let value = tag_html[value_start..index].trim().to_string();
+
+                if index < bytes.len() {
+                    index += 1;
+                }
+
+                value
             }
-        })
-        .collect()
+            _ => {
+                let value_start = index;
+
+                while index < bytes.len()
+                    && !bytes[index].is_ascii_whitespace()
+                    && !matches!(bytes[index], b'>' | b'/')
+                {
+                    index += 1;
+                }
+
+                tag_html[value_start..index].trim().to_string()
+            }
+        };
+
+        if !name.is_empty() {
+            attributes.push((name, value));
+        }
+    }
+
+    attributes
 }
 
 fn normalize_reader_text(candidate: &str) -> Option<String> {
@@ -273,30 +357,79 @@ fn build_excerpt_from_text(candidate: &str) -> Option<String> {
 }
 
 fn normalize_inline_whitespace(candidate: &str) -> String {
-    whitespace_regex()
-        .replace_all(candidate.trim(), " ")
-        .into_owned()
+    candidate.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn meta_tag_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"(?is)<meta\b[^>]*>").expect("valid meta tag regex"))
+fn is_attribute_name_char(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-')
 }
 
-fn attribute_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| {
-        Regex::new(r#"(?is)([a-zA-Z_:][a-zA-Z0-9_:.-]*)\s*=\s*(['\"])(.*?)\2"#)
-            .expect("valid HTML attribute regex")
-    })
+fn meta_tag_regex() -> Option<&'static Regex> {
+    static REGEX: OnceLock<Option<Regex>> = OnceLock::new();
+    REGEX
+        .get_or_init(|| Regex::new(r"(?is)<meta\b[^>]*>").ok())
+        .as_ref()
 }
 
-fn html_title_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"(?is)<title[^>]*>(.*?)</title>").expect("valid title regex"))
+fn html_title_regex() -> Option<&'static Regex> {
+    static REGEX: OnceLock<Option<Regex>> = OnceLock::new();
+    REGEX
+        .get_or_init(|| Regex::new(r"(?is)<title[^>]*>(.*?)</title>").ok())
+        .as_ref()
 }
 
-fn whitespace_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"\s+").expect("valid whitespace regex"))
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_tag_attributes_handles_supported_html_forms() {
+        let attributes = parse_tag_attributes(
+            r#"<meta property='og:title' content="Hello world" data-id=abc123>"#,
+        );
+
+        assert!(attributes
+            .iter()
+            .any(|(name, value)| name == "property" && value == "og:title"));
+        assert!(attributes
+            .iter()
+            .any(|(name, value)| name == "content" && value == "Hello world"));
+        assert!(attributes
+            .iter()
+            .any(|(name, value)| name == "data-id" && value == "abc123"));
+    }
+
+    #[test]
+    fn extract_reader_content_from_html_sanitizes_and_extracts_metadata() {
+        let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
+        let html = r#"
+            <html>
+                <head>
+                    <title>Fallback title</title>
+                    <meta name="author" content="Jane Doe">
+                    <meta name="description" content="Example article description for reader mode.">
+                </head>
+                <body>
+                    <article>
+                        <h1>Readable article heading</h1>
+                        <p>Hello <script>alert('xss')</script><a href="/relative-link">reader mode</a>.</p>
+                    </article>
+                </body>
+            </html>
+        "#;
+
+        let reader_content = extract_reader_content_from_html(html, &article_url, "Feed title")
+            .expect("reader content extracted");
+
+        assert_eq!(reader_content.byline.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            reader_content.excerpt.as_deref(),
+            Some("Example article description for reader mode.")
+        );
+
+        let content_html = reader_content.content_html.expect("sanitized html");
+        assert!(!content_html.contains("<script"));
+        assert!(content_html.contains("https://example.com/relative-link"));
+        assert!(reader_content.content_text.is_some());
+    }
 }
