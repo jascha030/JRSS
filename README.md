@@ -17,9 +17,9 @@ Local-first RSS reader and podcast desktop MVP built with SvelteKit, Tauri, and 
 ```text
 src/
   lib/
-    components/   UI shell pieces like the sidebar, list view, and audio player
+    components/   UI shell pieces: sidebar, feed list, audio player, reader article view
     services/     frontend service boundary and Tauri command wrapper
-    stores/       app state for selection, lists, and playback
+    stores/       app state for selection, lists, playback, and reader content
     types/        shared frontend domain types
     utils/        small formatting helpers
   routes/         SPA entry layout and page shell
@@ -29,6 +29,7 @@ src-tauri/
     commands.rs   Tauri invoke commands exposed to the frontend
     db.rs         SQLite schema and persistence helpers
     feed_ingest.rs native feed fetching and RSS/Atom parsing
+    reader_extract.rs article content extraction and HTML sanitization
     models.rs     serialized DTOs returned to the frontend
 ```
 
@@ -54,17 +55,18 @@ The current MVP uses `CREATE TABLE IF NOT EXISTS` setup on open instead of a ful
 
 ## Frontend Contract
 
-The frontend still uses the same service surface:
+The frontend exposes these service commands:
 
-- `listFeeds()`
-- `addFeed(url)`
-- `refreshFeed(id)`
-- `removeFeed(id)`
-- `listItems(feedId?)`
-- `markRead(itemId, read)`
-- `savePlayback(itemId, positionSeconds)`
+- `listFeeds()` — retrieve all subscribed feeds
+- `addFeed(url)` — fetch and ingest a new feed
+- `refreshFeed(id)` — refresh an existing feed
+- `removeFeed(id)` — remove a feed subscription
+- `listItems(feedId?)` — list all items, optionally filtered by feed
+- `markRead(itemId, read)` — mark item as read/unread
+- `savePlayback(itemId, positionSeconds)` — persist audio playback position
+- `loadReaderContent(itemId)` — extract and cache article full-text content
 
-That keeps the stores and UI mostly unchanged while moving the real work native-side.
+Stores manage selection, feed list state, audio playback, and reader content.
 
 ## Feed Ingestion
 
@@ -74,6 +76,15 @@ That keeps the stores and UI mostly unchanged while moving the real work native-
 - Podcast/audio detection happens from RSS enclosures and Atom enclosure links
 - Refreshes upsert items without duplicating them
 - Existing `read`, `saved`, and playback state are preserved across refreshes
+
+## Article Reader
+
+- Native content extraction using the `readability` crate
+- Full-text article content cached in `reader_content` table
+- HTML sanitized with `ammonia` to prevent XSS
+- Fallback to feed item summary if extraction fails
+- Lazy extraction on first read; status tracked as `pending`, `ready`, or `failed`
+- Supports both feed summaries and extracted article text in reader view
 
 ## Run With Bun
 
@@ -137,3 +148,5 @@ bun run tauri:build
 - `bun run dev` only runs the frontend shell; native feed/database features require `bun run tauri:dev`
 - The app is still single-device and offline-first only; no sync is implemented
 - External article links still use the existing frontend behavior and can be refined later if needed
+- Reader extraction works best on well-formed HTML; some sites may fail or return partial content
+- No user-configurable content extraction rules yet (font sizes, article boundaries, etc.)
