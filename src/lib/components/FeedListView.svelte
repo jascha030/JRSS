@@ -48,6 +48,16 @@
 	function feedTitle(feedId: string): string {
 		return feeds.find((feed) => feed.id === feedId)?.title ?? 'Unknown feed';
 	}
+
+	function getListPreview(item: FeedItem): string {
+		// Prefer clean text content, or fallback to summary
+		return (
+			item.contentText?.trim() ||
+			item.summaryText?.trim() ||
+			item.summary.trim() ||
+			'No summary or content available.'
+		);
+	}
 </script>
 
 <section class="flex h-full flex-1 flex-col overflow-y-auto px-6 py-8 lg:px-8">
@@ -135,7 +145,7 @@
 							<p
 								class="mt-4 text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-300"
 							>
-								{item.summary}
+								{getListPreview(item)}
 							</p>
 						</button>
 

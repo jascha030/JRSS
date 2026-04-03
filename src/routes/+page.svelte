@@ -1,10 +1,10 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
+	import FeedArticle from '$lib/components/FeedArticle.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
-	import { formatDate, formatDuration } from '$lib/utils/format';
-	import type { FeedItem } from '$lib/types/rss';
+	import { formatDuration } from '$lib/utils/format';
 	import {
 		createFeed,
 		currentAudioItem,
@@ -89,15 +89,6 @@
 		} catch (error: unknown) {
 			notice = error instanceof Error ? error.message : 'Unable to refresh that feed.';
 		}
-	}
-
-	function getFeedBodyText(item: FeedItem): string {
-		return (
-			item.contentText?.trim() ||
-			item.summaryText?.trim() ||
-			item.summary.trim() ||
-			'No summary or content is available for this item yet.'
-		);
 	}
 
 	async function handleLoadReaderView(itemId: string) {
@@ -316,45 +307,16 @@
 										text={$selectedItem.readerContentText}
 									/>
 								{:else}
-									<div>
-										<p
-											class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-										>
-											{$selectedItemFeed?.title ?? 'Unknown feed'}
-										</p>
-										<h2
-											class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
-										>
-											{$selectedItem.title}
-										</h2>
-										<div
-											class="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400"
-										>
-											<span>{formatDate($selectedItem.publishedAt)}</span>
-											{#if $selectedItem.mediaEnclosure}
-												<span
-													class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-												>
-													Podcast
-												</span>
-											{/if}
-											<span
-												class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-											>
-												{$selectedItem.read ? 'Read' : 'Unread'}
-											</span>
-										</div>
-									</div>
-
-									<div
-										class="rounded-[2rem] border border-slate-200 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
-									>
-										<p
-											class="text-sm leading-7 whitespace-pre-line text-slate-700 dark:text-slate-200"
-										>
-											{getFeedBodyText($selectedItem)}
-										</p>
-									</div>
+									<FeedArticle
+										feedTitle={$selectedItemFeed?.title}
+										title={$selectedItem.title}
+										publishedAt={$selectedItem.publishedAt}
+										contentHtml={$selectedItem.contentHtml}
+										contentText={$selectedItem.contentText}
+										summaryHtml={$selectedItem.summaryHtml}
+										summaryText={$selectedItem.summaryText}
+										summary={$selectedItem.summary}
+									/>
 
 									{#if $selectedItem.mediaEnclosure}
 										<div
