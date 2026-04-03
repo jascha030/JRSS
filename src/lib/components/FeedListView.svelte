@@ -96,7 +96,7 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid gap-4 xl:grid-cols-2">
+		<div class="grid gap-4">
 			{#each items as item (item.id)}
 				<article
 					class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
