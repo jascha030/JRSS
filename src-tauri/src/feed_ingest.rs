@@ -2,6 +2,7 @@ use crate::db::AppResult;
 use crate::models::{MediaEnclosureRecord, ParsedFeed, ParsedFeedItem};
 use atom_syndication::{Entry as AtomEntry, Feed as AtomFeed, Link as AtomLink};
 use chrono::{DateTime, Utc};
+use html_escape::decode_html_entities;
 use regex::Regex;
 use reqwest::blocking::Client;
 use rss::{Channel as RssChannel, Item as RssItem};
@@ -12,6 +13,7 @@ use url::Url;
 
 const FEED_ACCEPT_HEADER: &str =
     "application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8";
+const SUMMARY_PREVIEW_MAX_CHARS: usize = 420;
 
 pub fn normalize_feed_url(url: &str) -> AppResult<String> {
     let parsed_url = Url::parse(url).map_err(|_| "Enter a valid feed URL.".to_string())?;
@@ -80,7 +82,7 @@ fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
                 .as_deref(),
             "Untitled feed",
         ),
-        description: clean_summary(channel.description())
+        description: clean_text(channel.description())
             .unwrap_or_else(|| "No description provided.".to_string()),
         site_url: resolve_optional_url(Some(channel.link()), feed_url),
         kind: if is_podcast {
@@ -157,7 +159,7 @@ fn parse_atom(feed: AtomFeed, feed_url: &str) -> ParsedFeed {
         title: fallback_string(Some(feed.title().as_str()), None, "Untitled feed"),
         description: feed
             .subtitle()
-            .and_then(|subtitle| clean_summary(subtitle.as_str()))
+            .and_then(|subtitle| clean_text(subtitle.as_str()))
             .unwrap_or_else(|| "No description provided.".to_string()),
         site_url: select_atom_link(feed.links(), feed_url, "alternate"),
         kind: if has_audio {
@@ -177,16 +179,7 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
     let link_url = select_atom_link(entry.links(), feed_url, "alternate")
         .unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(Some(entry.title().as_str()), None, "Untitled item");
-    let summary = entry
-        .summary()
-        .and_then(|summary| clean_summary(summary.as_str()))
-        .or_else(|| {
-            entry
-                .content()
-                .and_then(|content| content.value())
-                .and_then(clean_summary)
-        })
-        .unwrap_or_else(|| "No summary provided.".to_string());
+    let summary = extract_atom_summary(entry).unwrap_or_else(|| "No summary provided.".to_string());
     let enclosure = entry
         .links()
         .iter()
@@ -218,6 +211,18 @@ fn parse_atom_enclosure(link: &AtomLink, feed_url: &str) -> Option<MediaEnclosur
         link.length(),
         None,
     )
+}
+
+fn extract_atom_summary(entry: &AtomEntry) -> Option<String> {
+    entry
+        .summary()
+        .and_then(|summary| clean_summary(summary.as_str()))
+        .or_else(|| {
+            entry
+                .content()
+                .and_then(|content| content.value())
+                .and_then(clean_summary)
+        })
 }
 
 fn build_enclosure(
@@ -310,13 +315,28 @@ fn parse_duration_seconds(candidate: &str) -> Option<i64> {
 }
 
 fn clean_summary(candidate: &str) -> Option<String> {
-    let without_tags = html_tag_regex().replace_all(candidate, " ");
-    let normalized = without_tags
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .to_string();
+    let normalized = normalize_preview_text(candidate, true)?;
+
+    Some(truncate_preview(&normalized, SUMMARY_PREVIEW_MAX_CHARS))
+}
+
+fn clean_text(candidate: &str) -> Option<String> {
+    normalize_preview_text(candidate, false)
+}
+
+fn normalize_preview_text(candidate: &str, suppress_heavy_blocks: bool) -> Option<String> {
+    let decoded = decode_entities(candidate);
+    let without_heavy_blocks = if suppress_heavy_blocks {
+        heavy_html_block_regex()
+            .replace_all(&decoded, " ")
+            .into_owned()
+    } else {
+        decoded
+    };
+    let structured_text = preserve_html_structure(&without_heavy_blocks);
+    let without_tags = html_tag_regex().replace_all(&structured_text, " ");
+    let without_github_noise = remove_github_noise(&without_tags);
+    let normalized = normalize_preview_lines(&without_github_noise);
 
     if normalized.is_empty() {
         None
@@ -325,16 +345,190 @@ fn clean_summary(candidate: &str) -> Option<String> {
     }
 }
 
+fn decode_entities(candidate: &str) -> String {
+    let mut decoded = candidate.to_string();
+
+    for _ in 0..2 {
+        let next = decode_html_entities(&decoded).to_string();
+
+        if next == decoded {
+            break;
+        }
+
+        decoded = next;
+    }
+
+    decoded
+}
+
+fn preserve_html_structure(candidate: &str) -> String {
+    let with_list_items = li_open_regex().replace_all(candidate, "\n• ");
+    let with_list_breaks = li_close_regex().replace_all(&with_list_items, "\n");
+    let with_line_breaks = br_regex().replace_all(&with_list_breaks, "\n");
+    let with_paragraph_breaks = paragraph_close_regex().replace_all(&with_line_breaks, "\n");
+
+    heading_close_regex()
+        .replace_all(&with_paragraph_breaks, "\n")
+        .into_owned()
+}
+
+fn remove_github_noise(candidate: &str) -> String {
+    let without_pr_metadata = github_pr_metadata_regex().replace_all(candidate, " ");
+
+    github_hash_regex()
+        .replace_all(&without_pr_metadata, " ")
+        .into_owned()
+}
+
+fn normalize_preview_lines(candidate: &str) -> String {
+    let mut normalized_lines: Vec<String> = Vec::new();
+    let mut previous_blank = false;
+
+    for raw_line in candidate.lines() {
+        let trimmed_line = raw_line
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .trim()
+            .to_string();
+
+        if trimmed_line.is_empty() {
+            if !previous_blank && !normalized_lines.is_empty() {
+                normalized_lines.push(String::new());
+                previous_blank = true;
+            }
+
+            continue;
+        }
+
+        normalized_lines.push(trimmed_line);
+        previous_blank = false;
+    }
+
+    while normalized_lines.last().is_some_and(String::is_empty) {
+        normalized_lines.pop();
+    }
+
+    normalized_lines.join("\n")
+}
+
 fn html_tag_regex() -> &'static Regex {
     static HTML_TAG_REGEX: OnceLock<Regex> = OnceLock::new();
 
     HTML_TAG_REGEX.get_or_init(|| Regex::new(r"(?is)<[^>]+>").expect("valid HTML tag regex"))
 }
 
+fn li_open_regex() -> &'static Regex {
+    static LI_OPEN_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    LI_OPEN_REGEX
+        .get_or_init(|| Regex::new(r"(?is)<li\b[^>]*>").expect("valid list item open regex"))
+}
+
+fn li_close_regex() -> &'static Regex {
+    static LI_CLOSE_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    LI_CLOSE_REGEX.get_or_init(|| Regex::new(r"(?is)</li>").expect("valid list item close regex"))
+}
+
+fn br_regex() -> &'static Regex {
+    static BR_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    BR_REGEX.get_or_init(|| Regex::new(r"(?is)<br\s*/?>").expect("valid br regex"))
+}
+
+fn paragraph_close_regex() -> &'static Regex {
+    static PARAGRAPH_CLOSE_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    PARAGRAPH_CLOSE_REGEX
+        .get_or_init(|| Regex::new(r"(?is)</p>").expect("valid paragraph close regex"))
+}
+
+fn heading_close_regex() -> &'static Regex {
+    static HEADING_CLOSE_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    HEADING_CLOSE_REGEX
+        .get_or_init(|| Regex::new(r"(?is)</h[1-6]>").expect("valid heading close regex"))
+}
+
+fn heavy_html_block_regex() -> &'static Regex {
+    static HEAVY_HTML_BLOCK_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    HEAVY_HTML_BLOCK_REGEX.get_or_init(|| {
+        Regex::new(r"(?is)<(?:pre|details)\b[^>]*>.*?</(?:pre|details)>")
+            .expect("valid heavy HTML block regex")
+    })
+}
+
+fn github_hash_regex() -> &'static Regex {
+    static GITHUB_HASH_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    GITHUB_HASH_REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\b[0-9a-f]{7,40}\b").expect("valid GitHub hash cleanup regex")
+    })
+}
+
+fn github_pr_metadata_regex() -> &'static Regex {
+    static GITHUB_PR_METADATA_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    GITHUB_PR_METADATA_REGEX.get_or_init(|| {
+        Regex::new(r"\s*\(\s*#\d+(?:\s+by\s+@[^)]+)?\s*\)").expect("valid GitHub PR metadata regex")
+    })
+}
+
+fn truncate_preview(candidate: &str, max_chars: usize) -> String {
+    if candidate.chars().count() <= max_chars {
+        return candidate.to_string();
+    }
+
+    let lines = candidate.lines().collect::<Vec<_>>();
+    let mut preview_lines: Vec<&str> = Vec::new();
+    let mut current_chars = 0_usize;
+    let mut bullet_count = 0_usize;
+
+    for (index, line) in lines.iter().enumerate() {
+        let separator_chars = if preview_lines.is_empty() { 0 } else { 1 };
+        let line_chars = line.chars().count();
+
+        if current_chars + separator_chars + line_chars > max_chars {
+            break;
+        }
+
+        preview_lines.push(line);
+        current_chars += separator_chars + line_chars;
+
+        if line.trim_start().starts_with('•') {
+            bullet_count += 1;
+        }
+
+        if bullet_count >= 3 && index + 1 < lines.len() && current_chars >= max_chars / 2 {
+            break;
+        }
+    }
+
+    if preview_lines.is_empty() {
+        let truncated_at = candidate
+            .char_indices()
+            .nth(max_chars)
+            .map(|(index, _)| index)
+            .unwrap_or(candidate.len());
+
+        return format!("{}...", candidate[..truncated_at].trim_end());
+    }
+
+    let preview = preview_lines.join("\n");
+
+    if preview.chars().count() == candidate.chars().count() {
+        return preview;
+    }
+
+    format!("{}\n...", preview.trim_end())
+}
+
 fn fallback_string(primary: Option<&str>, secondary: Option<&str>, fallback: &str) -> String {
     primary
-        .and_then(clean_summary)
-        .or_else(|| secondary.and_then(clean_summary))
+        .and_then(clean_text)
+        .or_else(|| secondary.and_then(clean_text))
         .unwrap_or_else(|| fallback.to_string())
 }
 
