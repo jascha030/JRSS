@@ -11,7 +11,7 @@ import {
 import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
 import { derived, get, writable } from 'svelte/store';
 
-export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'settings';
+export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'settings' | null;
 
 export const selectedFeedId = writable<string | null>(null);
 export const selectedItemId = writable<string | null>(null);
@@ -161,16 +161,13 @@ export async function initializeApp(): Promise<void> {
 export function selectFeed(feedId: string | null): void {
 	selectedItemId.set(null);
 	selectedFeedId.set(feedId);
-	selectedSection.set('all');
+	selectedSection.set(feedId ? null : 'all');
 }
 
 export function selectSection(section: SidebarSection): void {
 	selectedItemId.set(null);
+	selectedFeedId.set(null);
 	selectedSection.set(section);
-
-	if (section !== 'all') {
-		selectedFeedId.set(null);
-	}
 }
 
 export async function createFeed(url: string): Promise<Feed> {

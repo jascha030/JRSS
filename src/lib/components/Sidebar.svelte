@@ -37,30 +37,17 @@
 <aside
 	class={`flex h-full shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white/85 p-4 backdrop-blur transition-[width,padding] duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${collapsed ? 'w-20 px-3' : 'w-80 p-6'}`}
 >
-	<div class="flex items-center justify-between gap-3">
+	<div class={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'justify-between'}`}>
 		{#if !collapsed}
-			<div class="min-w-0 flex-1">
-				<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
-			</div>
-
-			<button
-				class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
-				type="button"
-				onclick={onToggleCollapse}
-			>
-				{collapsed ? '>>' : '<<'}
-			</button>
-		{:else}
-			<div class="min-w-full flex justify-center">
-				<button
-					class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
-					type="button"
-					onclick={onToggleCollapse}
-				>
-					{collapsed ? '>>' : '<<'}
-				</button>
-			</div>
+			<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
 		{/if}
+		<button
+			class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
+			type="button"
+			onclick={onToggleCollapse}
+		>
+			{collapsed ? '>>' : '<<'}
+		</button>
 	</div>
 
 	{#if !collapsed}
@@ -96,15 +83,6 @@
 			>
 				{collapsed ? 'Feeds' : 'My feeds'}
 			</h3>
-			{#if selectedFeedId && !collapsed}
-				<button
-					class="text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-					type="button"
-					onclick={() => onSelectFeed(null)}
-				>
-					Clear
-				</button>
-			{/if}
 		</div>
 
 		<div class="grid gap-2">
@@ -149,6 +127,7 @@
 						</button>
 						{#if !collapsed}
 							<button
+								title="Remove feed"
 								class="rounded-xl px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-white"
 								type="button"
 								onclick={(event) => {
@@ -156,7 +135,20 @@
 									void onRemoveFeed(feed.id);
 								}}
 							>
-								Remove
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+									class="size-6"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+									/>
+								</svg>
 							</button>
 						{/if}
 					</div>
