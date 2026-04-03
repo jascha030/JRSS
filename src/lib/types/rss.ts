@@ -38,7 +38,6 @@ export interface FeedItem {
 	readerFetchedAt?: string;
 	publishedAt: string;
 	read: boolean;
-	saved: boolean;
 	playbackPositionSeconds: number;
 	mediaEnclosure?: MediaEnclosure;
 }
