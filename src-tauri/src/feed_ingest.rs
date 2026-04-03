@@ -1,6 +1,6 @@
 use crate::db::AppResult;
 use crate::models::{MediaEnclosureRecord, ParsedFeed, ParsedFeedItem};
-use atom_syndication::{Entry as AtomEntry, Feed as AtomFeed, Link as AtomLink};
+use atom_syndication::{Entry as AtomEntry, Feed as AtomFeed, Link as AtomLink, Text, TextType};
 use chrono::{DateTime, Utc};
 use html_escape::decode_html_entities;
 use regex::Regex;
@@ -103,7 +103,12 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         resolve_optional_url(item.link(), feed_url).unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(item.title(), None, "Untitled item");
     let content_text = item.content().and_then(clean_text);
-    let content_html = item.content().and_then(raw_content_value);
+    let content_html = item
+        .content()
+        .and_then(raw_html_value)
+        .filter(|value| looks_like_html(value));
+    let summary_text = extract_rss_summary_text(item);
+    let summary_html = extract_rss_summary_html(item);
     let summary = item
         .content()
         .and_then(clean_summary)
@@ -127,11 +132,27 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        summary_text,
+        summary_html,
         content_text,
         content_html,
         published_at,
         media_enclosure: enclosure,
     }
+}
+
+fn extract_rss_summary_text(item: &RssItem) -> Option<String> {
+    item.description().and_then(clean_text).or_else(|| {
+        item.itunes_ext()
+            .and_then(|itunes| itunes.summary())
+            .and_then(clean_text)
+    })
+}
+
+fn extract_rss_summary_html(item: &RssItem) -> Option<String> {
+    item.description()
+        .and_then(raw_html_value)
+        .filter(|value| looks_like_html(value))
 }
 
 fn parse_rss_enclosure(item: &RssItem, feed_url: &str) -> Option<MediaEnclosureRecord> {
@@ -183,6 +204,8 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
     let link_url = select_atom_link(entry.links(), feed_url, "alternate")
         .unwrap_or_else(|| feed_url.to_string());
     let title = fallback_string(Some(entry.title().as_str()), None, "Untitled item");
+    let summary_text = extract_atom_summary_text(entry);
+    let summary_html = extract_atom_summary_html(entry);
     let content_text = extract_atom_content_text(entry);
     let content_html = extract_atom_content_html(entry);
     let summary = extract_atom_summary(entry).unwrap_or_else(|| "No summary provided.".to_string());
@@ -200,6 +223,8 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        summary_text,
+        summary_html,
         content_text,
         content_html,
         published_at,
@@ -233,6 +258,16 @@ fn extract_atom_summary(entry: &AtomEntry) -> Option<String> {
         })
 }
 
+fn extract_atom_summary_text(entry: &AtomEntry) -> Option<String> {
+    entry
+        .summary()
+        .and_then(|summary| clean_text(summary.as_str()))
+}
+
+fn extract_atom_summary_html(entry: &AtomEntry) -> Option<String> {
+    entry.summary().and_then(raw_atom_text_html)
+}
+
 fn extract_atom_content_text(entry: &AtomEntry) -> Option<String> {
     entry
         .content()
@@ -242,14 +277,14 @@ fn extract_atom_content_text(entry: &AtomEntry) -> Option<String> {
 
 fn extract_atom_content_html(entry: &AtomEntry) -> Option<String> {
     entry.content().and_then(|content| {
-        let raw_value = content.value().and_then(raw_content_value)?;
+        let raw_value = content.value().and_then(raw_html_value)?;
         let content_type = content
             .content_type()
             .unwrap_or("text")
             .trim()
             .to_ascii_lowercase();
 
-        if matches!(content_type.as_str(), "html" | "xhtml") || raw_value.contains('<') {
+        if matches!(content_type.as_str(), "html" | "xhtml") || looks_like_html(&raw_value) {
             Some(raw_value)
         } else {
             None
@@ -356,14 +391,29 @@ fn clean_text(candidate: &str) -> Option<String> {
     normalize_preview_text(candidate, false)
 }
 
-fn raw_content_value(candidate: &str) -> Option<String> {
-    let trimmed = candidate.trim();
+fn raw_html_value(candidate: &str) -> Option<String> {
+    let decoded = decode_entities(candidate);
+    let trimmed = decoded.trim();
 
     if trimmed.is_empty() {
         None
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn raw_atom_text_html(summary: &Text) -> Option<String> {
+    let raw_value = raw_html_value(summary.as_str())?;
+
+    if matches!(summary.r#type, TextType::Html | TextType::Xhtml) || looks_like_html(&raw_value) {
+        Some(raw_value)
+    } else {
+        None
+    }
+}
+
+fn looks_like_html(candidate: &str) -> bool {
+    candidate.contains('<') && candidate.contains('>')
 }
 
 fn normalize_preview_text(candidate: &str, suppress_heavy_blocks: bool) -> Option<String> {
