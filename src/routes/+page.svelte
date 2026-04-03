@@ -266,7 +266,8 @@
 									<p
 										class="text-sm leading-7 whitespace-pre-line text-slate-700 dark:text-slate-200"
 									>
-										{$selectedItem.summary.trim() ||
+										{$selectedItem.contentText?.trim() ||
+											$selectedItem.summary.trim() ||
 											'No summary or content is available for this item yet.'}
 									</p>
 								</div>

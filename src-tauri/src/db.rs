@@ -63,6 +63,8 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	title TEXT NOT NULL,
 			 	url TEXT NOT NULL,
 			 	summary TEXT NOT NULL,
+			 	content_text TEXT,
+			 	content_html TEXT,
 			 	published_at TEXT NOT NULL,
 			 	read INTEGER NOT NULL DEFAULT 0,
 			 	saved INTEGER NOT NULL DEFAULT 0,
@@ -86,7 +88,40 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
         )
         .map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
+    ensure_item_content_columns(&connection)?;
+
     Ok(connection)
+}
+
+fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(items)")
+        .map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "content_text")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN content_text TEXT", [])
+            .map_err(|error| format!("Failed to add items.content_text column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "content_html")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN content_html TEXT", [])
+            .map_err(|error| format!("Failed to add items.content_html column: {error}"))?;
+    }
+
+    Ok(())
 }
 
 fn stable_hash(value: &str) -> String {
@@ -115,10 +150,10 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
 }
 
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
-    let enclosure_url: Option<String> = row.get(8)?;
-    let enclosure_mime_type: Option<String> = row.get(9)?;
-    let enclosure_size_bytes: Option<i64> = row.get(10)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(11)?;
+    let enclosure_url: Option<String> = row.get(10)?;
+    let enclosure_mime_type: Option<String> = row.get(11)?;
+    let enclosure_size_bytes: Option<i64> = row.get(12)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(13)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -136,10 +171,12 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         title: row.get(2)?,
         url: row.get(3)?,
         summary: row.get(4)?,
-        published_at: row.get(5)?,
-        read: row.get::<_, i64>(6)? != 0,
-        saved: row.get::<_, i64>(7)? != 0,
-        playback_position_seconds: row.get(12)?,
+        content_text: row.get(5)?,
+        content_html: row.get(6)?,
+        published_at: row.get(7)?,
+        read: row.get::<_, i64>(8)? != 0,
+        saved: row.get::<_, i64>(9)? != 0,
+        playback_position_seconds: row.get(14)?,
         media_enclosure,
     })
 }
@@ -197,9 +234,9 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
 pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedItemRecord>> {
     let connection = open_connection(db_path)?;
 
-    let query =
-        "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.published_at, i.read, i.saved,
-			 i.enclosure_url, i.enclosure_mime_type, i.enclosure_size_bytes, i.enclosure_duration_seconds,
+    let query = "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.content_text, i.content_html,
+			 i.published_at, i.read, i.saved, i.enclosure_url, i.enclosure_mime_type,
+			 i.enclosure_size_bytes, i.enclosure_duration_seconds,
 			 COALESCE(p.position_seconds, 0)
 		 FROM items i
 		 LEFT JOIN playback_state p ON p.item_id = i.id";
@@ -332,6 +369,8 @@ pub fn upsert_feed_snapshot(
 					title,
 					url,
 					summary,
+					content_text,
+					content_html,
 					published_at,
 					read,
 					saved,
@@ -340,11 +379,13 @@ pub fn upsert_feed_snapshot(
 					enclosure_size_bytes,
 					enclosure_duration_seconds
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, 0, ?9, ?10, ?11, ?12)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title,
 					url = excluded.url,
 					summary = excluded.summary,
+					content_text = excluded.content_text,
+					content_html = excluded.content_html,
 					published_at = excluded.published_at,
 					enclosure_url = excluded.enclosure_url,
 					enclosure_mime_type = excluded.enclosure_mime_type,
@@ -357,6 +398,8 @@ pub fn upsert_feed_snapshot(
                     parsed_item.title,
                     parsed_item.url,
                     parsed_item.summary,
+                    parsed_item.content_text,
+                    parsed_item.content_html,
                     parsed_item.published_at,
                     media_enclosure
                         .as_ref()
