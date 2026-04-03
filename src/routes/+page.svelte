@@ -152,8 +152,8 @@
 							bind:value={newFeedUrl}
 							class="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
 							disabled={$isCreatingFeed}
-							placeholder="https://example.com/feed.xml"
-							type="url"
+							placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
+							type="text"
 						/>
 						<button
 							class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
@@ -184,8 +184,8 @@
 							Add your first RSS feed or podcast
 						</h2>
 						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							Add an RSS or Atom URL above and the desktop app will fetch, parse, and persist real
-							feed entries in local SQLite.
+							Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The desktop
+							app resolves the feed and persists it in local SQLite.
 						</p>
 					</div>
 				</section>

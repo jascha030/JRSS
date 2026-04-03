@@ -1,8 +1,8 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
 import type { Feed, FeedItem } from '$lib/types/rss';
 
-function normalizeFeedUrl(url: string): string {
-	return new URL(url).toString();
+function normalizeFeedInput(url: string): string {
+	return url.trim();
 }
 
 export async function listFeeds(): Promise<Feed[]> {
@@ -14,15 +14,13 @@ export async function listFeeds(): Promise<Feed[]> {
 }
 
 export async function addFeed(url: string): Promise<Feed> {
-	let normalizedUrl: string;
+	const normalizedInput = normalizeFeedInput(url);
 
-	try {
-		normalizedUrl = normalizeFeedUrl(url);
-	} catch {
-		throw new Error('Enter a valid feed URL.');
+	if (!normalizedInput) {
+		throw new Error('Enter a feed URL, Apple Podcasts URL, or Apple Podcasts ID.');
 	}
 
-	return invokeCommand<Feed>('add_feed', { url: normalizedUrl });
+	return invokeCommand<Feed>('add_feed', { url: normalizedInput });
 }
 
 export async function refreshFeed(id: string): Promise<Feed> {

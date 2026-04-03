@@ -7,14 +7,95 @@ use html_escape::decode_html_entities;
 use regex::Regex;
 use reqwest::blocking::Client;
 use rss::{Channel as RssChannel, Item as RssItem};
+use serde::Deserialize;
 use std::io::Cursor;
 use std::sync::OnceLock;
 use std::time::Duration;
 use url::Url;
 
+const APPLE_LOOKUP_URL: &str = "https://itunes.apple.com/lookup";
+const APPLE_LOOKUP_ACCEPT_HEADER: &str = "application/json";
 const FEED_ACCEPT_HEADER: &str =
     "application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8";
 const SUMMARY_PREVIEW_MAX_CHARS: usize = 420;
+
+#[derive(Debug, Clone)]
+pub struct ResolvedFeedInput {
+    pub feed_url: String,
+    source: FeedInputSource,
+}
+
+impl ResolvedFeedInput {
+    fn new(feed_url: String, source: FeedInputSource) -> Self {
+        Self { feed_url, source }
+    }
+
+    pub fn map_fetch_error(&self, error: String) -> String {
+        if self.source != FeedInputSource::ApplePodcasts {
+            return error;
+        }
+
+        if is_feed_fetch_error(&error) {
+            return format!("Resolved Apple Podcasts feed could not be fetched. {error}");
+        }
+
+        format!("Resolved Apple Podcasts feed could not be parsed. {error}")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FeedInputSource {
+    DirectUrl,
+    ApplePodcasts,
+}
+
+#[derive(Debug, Deserialize)]
+struct AppleLookupResponse {
+    results: Vec<AppleLookupResult>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppleLookupResult {
+    kind: Option<String>,
+    feed_url: Option<String>,
+}
+
+pub fn resolve_feed_input(input: &str) -> AppResult<ResolvedFeedInput> {
+    let candidate = input.trim();
+
+    if candidate.is_empty() {
+        return Err("Enter a feed URL, Apple Podcasts URL, or Apple Podcasts ID.".to_string());
+    }
+
+    if let Some(podcast_id) = extract_raw_apple_podcast_id(candidate) {
+        let feed_url = lookup_apple_podcast_feed_url(&podcast_id)?;
+        return Ok(ResolvedFeedInput::new(
+            feed_url,
+            FeedInputSource::ApplePodcasts,
+        ));
+    }
+
+    let parsed_url = Url::parse(candidate).map_err(|_| {
+        "Enter a valid feed URL, Apple Podcasts URL, or Apple Podcasts ID.".to_string()
+    })?;
+
+    if is_apple_podcasts_url(&parsed_url) {
+        let podcast_id = extract_apple_podcast_id_from_url(&parsed_url)
+            .ok_or_else(|| "Could not extract an Apple Podcasts ID from this URL.".to_string())?;
+        let feed_url = lookup_apple_podcast_feed_url(&podcast_id)?;
+
+        return Ok(ResolvedFeedInput::new(
+            feed_url,
+            FeedInputSource::ApplePodcasts,
+        ));
+    }
+
+    Ok(ResolvedFeedInput::new(
+        normalize_feed_url(candidate)?,
+        FeedInputSource::DirectUrl,
+    ))
+}
 
 pub fn normalize_feed_url(url: &str) -> AppResult<String> {
     let parsed_url = Url::parse(url).map_err(|_| "Enter a valid feed URL.".to_string())?;
@@ -28,11 +109,7 @@ pub fn normalize_feed_url(url: &str) -> AppResult<String> {
 }
 
 pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(20))
-        .user_agent("JRSS/0.0.1")
-        .build()
-        .map_err(|error| format!("Failed to create HTTP client: {error}"))?;
+    let client = build_http_client()?;
 
     let response = client
         .get(feed_url)
@@ -51,6 +128,110 @@ pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
         .map_err(|error| format!("Failed to read feed response body: {error}"))?;
 
     parse_feed(&bytes, feed_url)
+}
+
+fn build_http_client() -> AppResult<Client> {
+    Client::builder()
+        .timeout(Duration::from_secs(20))
+        .user_agent("JRSS/0.0.1")
+        .build()
+        .map_err(|error| format!("Failed to create HTTP client: {error}"))
+}
+
+fn extract_raw_apple_podcast_id(input: &str) -> Option<String> {
+    let candidate = input.trim();
+
+    if candidate.is_empty()
+        || !candidate
+            .chars()
+            .all(|character| character.is_ascii_digit())
+    {
+        return None;
+    }
+
+    Some(candidate.to_string())
+}
+
+fn is_apple_podcasts_url(url: &Url) -> bool {
+    matches!(
+        url.host_str(),
+        Some("podcasts.apple.com") | Some("itunes.apple.com")
+    )
+}
+
+fn extract_apple_podcast_id_from_url(url: &Url) -> Option<String> {
+    apple_podcast_id_regex()
+        .captures(url.path())
+        .and_then(|captures| captures.get(1))
+        .map(|capture| capture.as_str().to_string())
+}
+
+fn lookup_apple_podcast_feed_url(podcast_id: &str) -> AppResult<String> {
+    let client = build_http_client()?;
+    let lookup_url = Url::parse_with_params(APPLE_LOOKUP_URL, &[("id", podcast_id)])
+        .map_err(|error| format!("Failed to build Apple Podcasts lookup URL: {error}"))?;
+    let response = client
+        .get(lookup_url)
+        .header(reqwest::header::ACCEPT, APPLE_LOOKUP_ACCEPT_HEADER)
+        .send()
+        .map_err(|error| format!("Apple Podcasts lookup request failed: {error}"))?;
+    let status = response.status();
+
+    if !status.is_success() {
+        return Err(format!(
+            "Apple Podcasts lookup request failed with status {status}."
+        ));
+    }
+
+    let bytes = response
+        .bytes()
+        .map_err(|error| format!("Failed to read Apple Podcasts lookup response: {error}"))?;
+    let lookup_response =
+        serde_json::from_slice::<AppleLookupResponse>(&bytes).map_err(|error| {
+            format!("Apple Podcasts returned an unreadable lookup response: {error}")
+        })?;
+
+    select_apple_lookup_feed_url(lookup_response)
+}
+
+fn select_apple_lookup_feed_url(response: AppleLookupResponse) -> AppResult<String> {
+    if response.results.is_empty() {
+        return Err("Apple Podcasts did not return any results for this show.".to_string());
+    }
+
+    if let Some(feed_url) = response
+        .results
+        .first()
+        .and_then(normalized_lookup_feed_url)
+    {
+        return Ok(feed_url);
+    }
+
+    if let Some(feed_url) = response
+        .results
+        .iter()
+        .filter(|result| result.kind.as_deref() == Some("podcast"))
+        .find_map(normalized_lookup_feed_url)
+    {
+        return Ok(feed_url);
+    }
+
+    Err("Apple Podcasts did not return a public RSS feed for this show.".to_string())
+}
+
+fn normalized_lookup_feed_url(result: &AppleLookupResult) -> Option<String> {
+    result
+        .feed_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| normalize_feed_url(value).ok())
+}
+
+fn is_feed_fetch_error(error: &str) -> bool {
+    error.starts_with("Failed to fetch feed:")
+        || error.starts_with("Feed request failed with status")
+        || error.starts_with("Failed to read feed response body:")
 }
 
 fn parse_feed(xml_bytes: &[u8], feed_url: &str) -> AppResult<ParsedFeed> {
@@ -532,6 +713,13 @@ fn html_tag_regex() -> &'static Regex {
     HTML_TAG_REGEX.get_or_init(|| Regex::new(r"(?is)<[^>]+>").expect("valid HTML tag regex"))
 }
 
+fn apple_podcast_id_regex() -> &'static Regex {
+    static APPLE_PODCAST_ID_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    APPLE_PODCAST_ID_REGEX
+        .get_or_init(|| Regex::new(r"(?i)\bid(\d+)\b").expect("valid Apple podcast ID regex"))
+}
+
 fn li_open_regex() -> &'static Regex {
     static LI_OPEN_REGEX: OnceLock<Regex> = OnceLock::new();
 
@@ -699,4 +887,92 @@ fn parse_i64(candidate: &str) -> Option<i64> {
 
 fn now_iso_string() -> String {
     Utc::now().to_rfc3339()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_raw_apple_podcast_id_accepts_numeric_ids() {
+        assert_eq!(
+            extract_raw_apple_podcast_id("1840442757"),
+            Some("1840442757".to_string())
+        );
+        assert_eq!(
+            extract_raw_apple_podcast_id(" 1840442757 "),
+            Some("1840442757".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_apple_podcast_id_from_url_reads_show_id() {
+        let url = Url::parse("https://podcasts.apple.com/us/podcast/show-name/id1840442757")
+            .expect("valid Apple Podcasts URL");
+
+        assert!(is_apple_podcasts_url(&url));
+        assert_eq!(
+            extract_apple_podcast_id_from_url(&url),
+            Some("1840442757".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_apple_podcast_id_from_url_returns_none_without_id() {
+        let url = Url::parse("https://podcasts.apple.com/us/podcast/show-name")
+            .expect("valid Apple Podcasts URL");
+
+        assert_eq!(extract_apple_podcast_id_from_url(&url), None);
+    }
+
+    #[test]
+    fn select_apple_lookup_feed_url_prefers_first_result_feed_url() {
+        let response = AppleLookupResponse {
+            results: vec![AppleLookupResult {
+                kind: Some("podcast".to_string()),
+                feed_url: Some("https://example.com/feed.xml".to_string()),
+            }],
+        };
+
+        assert_eq!(
+            select_apple_lookup_feed_url(response),
+            Ok("https://example.com/feed.xml".to_string())
+        );
+    }
+
+    #[test]
+    fn select_apple_lookup_feed_url_falls_back_to_later_podcast_result() {
+        let response = AppleLookupResponse {
+            results: vec![
+                AppleLookupResult {
+                    kind: Some("ebook".to_string()),
+                    feed_url: None,
+                },
+                AppleLookupResult {
+                    kind: Some("podcast".to_string()),
+                    feed_url: Some("https://example.com/podcast.xml".to_string()),
+                },
+            ],
+        };
+
+        assert_eq!(
+            select_apple_lookup_feed_url(response),
+            Ok("https://example.com/podcast.xml".to_string())
+        );
+    }
+
+    #[test]
+    fn select_apple_lookup_feed_url_errors_without_public_feed_url() {
+        let response = AppleLookupResponse {
+            results: vec![AppleLookupResult {
+                kind: Some("podcast".to_string()),
+                feed_url: None,
+            }],
+        };
+
+        assert_eq!(
+            select_apple_lookup_feed_url(response),
+            Err("Apple Podcasts did not return a public RSS feed for this show.".to_string())
+        );
+    }
 }
