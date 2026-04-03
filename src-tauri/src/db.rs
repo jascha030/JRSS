@@ -1,4 +1,6 @@
-use crate::models::{FeedItemRecord, FeedRecord, MediaEnclosureRecord, ParsedFeed};
+use crate::models::{
+    FeedItemRecord, FeedRecord, MediaEnclosureRecord, ParsedFeed, ReaderContentRecord,
+};
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
 use sha1_smol::Sha1;
@@ -7,6 +9,18 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 pub type AppResult<T> = Result<T, String>;
+
+const READER_STATUS_UNFETCHED: &str = "unfetched";
+const READER_STATUS_READY: &str = "ready";
+const READER_STATUS_FAILED: &str = "failed";
+const ITEM_SELECT_QUERY: &str =
+    "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.summary_text, i.summary_html,
+             i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
+             i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
+             i.published_at, i.read, i.saved, i.enclosure_url, i.enclosure_mime_type,
+             i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+         FROM items i
+         LEFT JOIN playback_state p ON p.item_id = i.id";
 
 pub struct DatabaseState {
     db_path: PathBuf,
@@ -67,6 +81,13 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	summary_html TEXT,
 			 	content_text TEXT,
 			 	content_html TEXT,
+			 	reader_status TEXT NOT NULL DEFAULT 'unfetched' CHECK(reader_status IN ('unfetched', 'ready', 'failed')),
+			 	reader_title TEXT,
+			 	reader_byline TEXT,
+			 	reader_excerpt TEXT,
+			 	reader_content_html TEXT,
+			 	reader_content_text TEXT,
+			 	reader_fetched_at TEXT,
 			 	published_at TEXT NOT NULL,
 			 	read INTEGER NOT NULL DEFAULT 0,
 			 	saved INTEGER NOT NULL DEFAULT 0,
@@ -141,6 +162,79 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
             .map_err(|error| format!("Failed to add items.content_html column: {error}"))?;
     }
 
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_status")
+    {
+        connection
+            .execute(
+                "ALTER TABLE items ADD COLUMN reader_status TEXT NOT NULL DEFAULT 'unfetched' CHECK(reader_status IN ('unfetched', 'ready', 'failed'))",
+                [],
+            )
+            .map_err(|error| format!("Failed to add items.reader_status column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_title")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_title TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_title column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_byline")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_byline TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_byline column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_excerpt")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_excerpt TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_excerpt column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_content_html")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_content_html TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_content_html column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_content_text")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_content_text TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_content_text column: {error}"))?;
+    }
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "reader_fetched_at")
+    {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN reader_fetched_at TEXT", [])
+            .map_err(|error| format!("Failed to add items.reader_fetched_at column: {error}"))?;
+    }
+
+    connection
+        .execute(
+            "UPDATE items SET reader_status = ?1 WHERE reader_status IS NULL OR trim(reader_status) = ''",
+            [READER_STATUS_UNFETCHED],
+        )
+        .map_err(|error| format!("Failed to backfill items.reader_status values: {error}"))?;
+
     Ok(())
 }
 
@@ -170,10 +264,10 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
 }
 
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
-    let enclosure_url: Option<String> = row.get(12)?;
-    let enclosure_mime_type: Option<String> = row.get(13)?;
-    let enclosure_size_bytes: Option<i64> = row.get(14)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(15)?;
+    let enclosure_url: Option<String> = row.get(19)?;
+    let enclosure_mime_type: Option<String> = row.get(20)?;
+    let enclosure_size_bytes: Option<i64> = row.get(21)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(22)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -195,10 +289,17 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         summary_html: row.get(6)?,
         content_text: row.get(7)?,
         content_html: row.get(8)?,
-        published_at: row.get(9)?,
-        read: row.get::<_, i64>(10)? != 0,
-        saved: row.get::<_, i64>(11)? != 0,
-        playback_position_seconds: row.get(16)?,
+        reader_status: row.get(9)?,
+        reader_title: row.get(10)?,
+        reader_byline: row.get(11)?,
+        reader_excerpt: row.get(12)?,
+        reader_content_html: row.get(13)?,
+        reader_content_text: row.get(14)?,
+        reader_fetched_at: row.get(15)?,
+        published_at: row.get(16)?,
+        read: row.get::<_, i64>(17)? != 0,
+        saved: row.get::<_, i64>(18)? != 0,
+        playback_position_seconds: row.get(23)?,
         media_enclosure,
     })
 }
@@ -255,18 +356,10 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
 
 pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedItemRecord>> {
     let connection = open_connection(db_path)?;
-
-    let query = "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.summary_text, i.summary_html,
-			 i.content_text, i.content_html, i.published_at, i.read, i.saved,
-			 i.enclosure_url, i.enclosure_mime_type, i.enclosure_size_bytes, i.enclosure_duration_seconds,
-			 COALESCE(p.position_seconds, 0)
-		 FROM items i
-		 LEFT JOIN playback_state p ON p.item_id = i.id";
-
     let query = if feed_id.is_some() {
-        format!("{query} WHERE i.feed_id = ?1 ORDER BY i.published_at DESC, i.id DESC")
+        format!("{ITEM_SELECT_QUERY} WHERE i.feed_id = ?1 ORDER BY i.published_at DESC, i.id DESC")
     } else {
-        format!("{query} ORDER BY i.published_at DESC, i.id DESC")
+        format!("{ITEM_SELECT_QUERY} ORDER BY i.published_at DESC, i.id DESC")
     };
 
     let mut statement = connection
@@ -292,6 +385,19 @@ pub fn remove_feed(db_path: &Path, id: &str) -> AppResult<()> {
         .map_err(|error| format!("Failed to remove feed: {error}"))?;
 
     Ok(())
+}
+
+pub fn get_item_by_id(db_path: &Path, id: &str) -> AppResult<Option<FeedItemRecord>> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .query_row(
+            &format!("{ITEM_SELECT_QUERY} WHERE i.id = ?1"),
+            [id],
+            map_item_row,
+        )
+        .optional()
+        .map_err(|error| format!("Failed to query item by ID: {error}"))
 }
 
 pub fn mark_read(db_path: &Path, item_id: &str, read: bool) -> AppResult<()> {
@@ -321,6 +427,61 @@ pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> Ap
             params![item_id, safe_position, Utc::now().to_rfc3339()],
         )
         .map_err(|error| format!("Failed to save playback state: {error}"))?;
+
+    Ok(())
+}
+
+pub fn save_reader_content(
+    db_path: &Path,
+    item_id: &str,
+    reader_content: &ReaderContentRecord,
+) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "UPDATE items
+             SET reader_status = ?2,
+                 reader_title = ?3,
+                 reader_byline = ?4,
+                 reader_excerpt = ?5,
+                 reader_content_html = ?6,
+                 reader_content_text = ?7,
+                 reader_fetched_at = ?8
+             WHERE id = ?1",
+            params![
+                item_id,
+                READER_STATUS_READY,
+                reader_content.title,
+                reader_content.byline,
+                reader_content.excerpt,
+                reader_content.content_html,
+                reader_content.content_text,
+                reader_content.fetched_at,
+            ],
+        )
+        .map_err(|error| format!("Failed to save reader content: {error}"))?;
+
+    Ok(())
+}
+
+pub fn save_reader_failure(db_path: &Path, item_id: &str) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "UPDATE items
+             SET reader_status = ?2,
+                 reader_title = NULL,
+                 reader_byline = NULL,
+                 reader_excerpt = NULL,
+                 reader_content_html = NULL,
+                 reader_content_text = NULL,
+                 reader_fetched_at = ?3
+             WHERE id = ?1",
+            params![item_id, READER_STATUS_FAILED, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to save reader failure state: {error}"))?;
 
     Ok(())
 }

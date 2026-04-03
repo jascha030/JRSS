@@ -1,6 +1,7 @@
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{FeedItemRecord, FeedRecord};
+use crate::reader_extract;
 use tauri::State;
 
 #[tauri::command]
@@ -88,6 +89,36 @@ pub async fn save_playback(
 
     tauri::async_runtime::spawn_blocking(move || {
         db::save_playback(&db_path, &item_id, position_seconds)
+    })
+    .await
+    .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn load_reader_content(
+    item_id: String,
+    state: State<'_, DatabaseState>,
+) -> Result<FeedItemRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let item = db::get_item_by_id(&db_path, &item_id)?
+            .ok_or_else(|| "Item not found.".to_string())?;
+
+        if item.media_enclosure.is_some() || item.reader_status == "ready" {
+            return Ok(item);
+        }
+
+        match reader_extract::fetch_reader_content(&item.url, &item.title) {
+            Ok(reader_content) => db::save_reader_content(&db_path, &item_id, &reader_content)?,
+            Err(error) => {
+                log::warn!("Reader extraction failed for {}: {}", item.url, error);
+                db::save_reader_failure(&db_path, &item_id)?;
+            }
+        }
+
+        db::get_item_by_id(&db_path, &item_id)?
+            .ok_or_else(|| "Item not found after reader update.".to_string())
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
