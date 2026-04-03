@@ -137,7 +137,9 @@
 						</div>
 					</div>
 
-					<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.summary}</p>
+					<p class="mt-4 text-sm leading-6 whitespace-pre-line text-slate-600 dark:text-slate-300">
+						{item.summary}
+					</p>
 
 					<div
 						class="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400"
