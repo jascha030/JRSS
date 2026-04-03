@@ -38,24 +38,29 @@
 	class={`flex h-full shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white/85 p-4 backdrop-blur transition-[width,padding] duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${collapsed ? 'w-20 px-3' : 'w-80 p-6'}`}
 >
 	<div class="flex items-center justify-between gap-3">
-		<div class="min-w-0 flex-1">
-			{#if collapsed}
-				<div
-					class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-				>
-					JR
-				</div>
-			{:else}
+		{#if !collapsed}
+			<div class="min-w-0 flex-1">
 				<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
-			{/if}
-		</div>
-		<button
-			class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
-			type="button"
-			onclick={onToggleCollapse}
-		>
-			{collapsed ? '>>' : '<<'}
-		</button>
+			</div>
+
+			<button
+				class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
+				type="button"
+				onclick={onToggleCollapse}
+			>
+				{collapsed ? '>>' : '<<'}
+			</button>
+		{:else}
+			<div class="min-w-full flex justify-center">
+				<button
+					class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
+					type="button"
+					onclick={onToggleCollapse}
+				>
+					{collapsed ? '>>' : '<<'}
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	{#if !collapsed}
