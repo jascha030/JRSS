@@ -3,6 +3,7 @@
 	import type { Feed } from '$lib/types/rss';
 
 	type Props = {
+		collapsed: boolean;
 		feeds: Feed[];
 		refreshingFeedIds: string[];
 		selectedFeedId: string | null;
@@ -10,16 +11,19 @@
 		onRemoveFeed: (feedId: string) => Promise<void>;
 		onSelectFeed: (feedId: string | null) => void;
 		onSelectSection: (section: SidebarSection) => void;
+		onToggleCollapse: () => void;
 	};
 
 	let {
+		collapsed,
 		feeds,
 		refreshingFeedIds,
 		selectedFeedId,
 		selectedSection,
 		onRemoveFeed,
 		onSelectFeed,
-		onSelectSection
+		onSelectSection,
+		onToggleCollapse
 	}: Props = $props();
 
 	const sections: Array<{ id: SidebarSection; label: string }> = [
@@ -32,31 +36,54 @@
 </script>
 
 <aside
-	class="w-full border-b border-slate-200 bg-white/85 p-4 backdrop-blur lg:w-80 lg:border-r lg:border-b-0 lg:p-6 dark:border-slate-800 dark:bg-slate-950/85"
+	class={`flex shrink-0 flex-col border-r border-slate-200 bg-white/85 p-4 backdrop-blur transition-[width,padding] duration-200 dark:border-slate-800 dark:bg-slate-950/85 ${collapsed ? 'w-20 px-3' : 'w-80 p-6'}`}
 >
 	<div class="flex items-center justify-between gap-3">
-		<div>
-			<p class="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400">
-				Workspace
-			</p>
-			<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
+		<div class="min-w-0 flex-1">
+			{#if collapsed}
+				<div
+					class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+				>
+					JR
+				</div>
+			{:else}
+				<p
+					class="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+				>
+					Workspace
+				</p>
+				<h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">Library</h2>
+			{/if}
 		</div>
+		<button
+			class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-white"
+			type="button"
+			onclick={onToggleCollapse}
+		>
+			{collapsed ? '>>' : '<<'}
+		</button>
+	</div>
+
+	{#if !collapsed}
 		<span
-			class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+			class="mt-4 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
 		>
 			{feeds.length} feeds
 		</span>
-	</div>
+	{/if}
 
 	<nav class="mt-6 grid gap-2">
 		{#each sections as section (section.id)}
 			<button
+				title={collapsed ? section.label : undefined}
 				class={`flex items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${selectedSection === section.id && selectedFeedId === null ? 'bg-slate-200 text-slate-950 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'}`}
 				type="button"
 				onclick={() => onSelectSection(section.id)}
 			>
-				<span>{section.label}</span>
-				{#if section.id === 'all'}
+				<span class={`${collapsed ? 'mx-auto' : ''}`}>
+					{collapsed ? section.label.charAt(0) : section.label}
+				</span>
+				{#if section.id === 'all' && !collapsed}
 					<span class="text-xs text-slate-400 dark:text-slate-500">Home</span>
 				{/if}
 			</button>
@@ -64,13 +91,13 @@
 	</nav>
 
 	<section class="mt-8">
-		<div class="mb-3 flex items-center justify-between gap-2">
+		<div class={`mb-3 flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-between'}`}>
 			<h3
 				class="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
 			>
-				My feeds
+				{collapsed ? 'Feeds' : 'My feeds'}
 			</h3>
-			{#if selectedFeedId}
+			{#if selectedFeedId && !collapsed}
 				<button
 					class="text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
 					type="button"
@@ -91,35 +118,48 @@
 			{:else}
 				{#each feeds as feed (feed.id)}
 					<div
-						class="group flex items-center gap-2 rounded-2xl border border-transparent p-1 transition hover:border-slate-200 dark:hover:border-slate-800"
+						class={`group flex items-center gap-2 rounded-2xl border border-transparent p-1 transition hover:border-slate-200 dark:hover:border-slate-800 ${collapsed ? 'justify-center' : ''}`}
 					>
 						<button
+							title={feed.title}
 							class={`min-w-0 flex-1 rounded-[1rem] px-3 py-3 text-left transition ${selectedFeedId === feed.id ? 'bg-slate-200 text-slate-950 dark:bg-slate-800 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-900'}`}
 							type="button"
 							onclick={() => onSelectFeed(feed.id)}
 						>
-							<p class="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-								{feed.title}
-							</p>
-							<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-								{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
-								{#if refreshingFeedIds.includes(feed.id)}
-									• Syncing...
-								{:else if feed.lastFetchedAt}
-									• Local
-								{/if}
-							</p>
+							{#if collapsed}
+								<div class="flex justify-center">
+									<span
+										class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+									>
+										{feed.title.charAt(0).toUpperCase()}
+									</span>
+								</div>
+							{:else}
+								<p class="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+									{feed.title}
+								</p>
+								<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+									{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
+									{#if refreshingFeedIds.includes(feed.id)}
+										• Syncing...
+									{:else if feed.lastFetchedAt}
+										• Local
+									{/if}
+								</p>
+							{/if}
 						</button>
-						<button
-							class="rounded-xl px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-white"
-							type="button"
-							onclick={(event) => {
-								event.stopPropagation();
-								void onRemoveFeed(feed.id);
-							}}
-						>
-							Remove
-						</button>
+						{#if !collapsed}
+							<button
+								class="rounded-xl px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-white"
+								type="button"
+								onclick={(event) => {
+									event.stopPropagation();
+									void onRemoveFeed(feed.id);
+								}}
+							>
+								Remove
+							</button>
+						{/if}
 					</div>
 				{/each}
 			{/if}

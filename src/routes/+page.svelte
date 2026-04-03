@@ -28,6 +28,7 @@
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
+	let isSidebarCollapsed = $state(false);
 	const isSelectedFeedRefreshing = $derived(
 		$selectedFeed ? $syncingFeedIds.includes($selectedFeed.id) : false
 	);
@@ -74,8 +75,9 @@
 </svelte:head>
 
 <div class="min-h-screen bg-slate-100/80 dark:bg-slate-950">
-	<div class="flex min-h-screen flex-col lg:flex-row">
+	<div class="flex min-h-screen overflow-hidden">
 		<Sidebar
+			collapsed={isSidebarCollapsed}
 			feeds={$feeds}
 			refreshingFeedIds={$syncingFeedIds}
 			selectedFeedId={$selectedFeedId}
@@ -83,9 +85,12 @@
 			onRemoveFeed={deleteFeed}
 			onSelectFeed={selectFeed}
 			onSelectSection={selectSection}
+			onToggleCollapse={() => {
+				isSidebarCollapsed = !isSidebarCollapsed;
+			}}
 		/>
 
-		<main class="flex min-w-0 flex-1 flex-col">
+		<main class="flex min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
 				class="border-b border-slate-200/70 bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
 			>
@@ -175,16 +180,48 @@
 					</div>
 				</section>
 			{:else}
-				<FeedListView
-					feeds={$feeds}
-					isRefreshing={isSelectedFeedRefreshing}
-					items={$visibleItems}
-					onRefresh={handleRefreshFeed}
-					selectedFeed={$selectedFeed}
-					selectedSection={$selectedSection}
-					onMarkRead={markItemRead}
-					onPlay={playAudioItem}
-				/>
+				<div class="flex min-h-0 flex-1">
+					<div class="min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800">
+						<FeedListView
+							feeds={$feeds}
+							isRefreshing={isSelectedFeedRefreshing}
+							items={$visibleItems}
+							onRefresh={handleRefreshFeed}
+							selectedFeed={$selectedFeed}
+							selectedSection={$selectedSection}
+							onMarkRead={markItemRead}
+							onPlay={playAudioItem}
+						/>
+					</div>
+
+					<aside
+						class="hidden w-[22rem] flex-col justify-between bg-white/70 p-6 xl:flex dark:bg-slate-950/70"
+					>
+						<div>
+							<p
+								class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+							>
+								Reader
+							</p>
+							<h2 class="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
+								Reader pane coming next
+							</h2>
+							<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+								The current feed and item list stays fully powered by the existing working list
+								view. This pane is only a desktop-shell placeholder for the next step.
+							</p>
+						</div>
+
+						<div
+							class="rounded-3xl border border-dashed border-slate-300 p-4 dark:border-slate-800"
+						>
+							<p class="text-sm text-slate-500 dark:text-slate-400">
+								No item is selected yet. Feed switching, refresh, playback, and the current list
+								workflow remain unchanged.
+							</p>
+						</div>
+					</aside>
+				</div>
 			{/if}
 		</main>
 	</div>
