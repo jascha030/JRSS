@@ -43,7 +43,6 @@ pub struct FeedItemRecord {
     pub reader_fetched_at: Option<String>,
     pub published_at: String,
     pub read: bool,
-    pub saved: bool,
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
 }

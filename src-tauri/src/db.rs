@@ -17,7 +17,7 @@ const ITEM_SELECT_QUERY: &str =
     "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.summary_text, i.summary_html,
              i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
              i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
-             i.published_at, i.read, i.saved, i.enclosure_url, i.enclosure_mime_type,
+             i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
              i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
          FROM items i
          LEFT JOIN playback_state p ON p.item_id = i.id";
@@ -88,10 +88,9 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	reader_content_html TEXT,
 			 	reader_content_text TEXT,
 			 	reader_fetched_at TEXT,
-			 	published_at TEXT NOT NULL,
-			 	read INTEGER NOT NULL DEFAULT 0,
-			 	saved INTEGER NOT NULL DEFAULT 0,
-			 	enclosure_url TEXT,
+			 published_at TEXT NOT NULL,
+			 read INTEGER NOT NULL DEFAULT 0,
+			 enclosure_url TEXT,
 			 	enclosure_mime_type TEXT,
 			 	enclosure_size_bytes INTEGER,
 			 	enclosure_duration_seconds INTEGER,
@@ -264,10 +263,10 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
 }
 
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
-    let enclosure_url: Option<String> = row.get(19)?;
-    let enclosure_mime_type: Option<String> = row.get(20)?;
-    let enclosure_size_bytes: Option<i64> = row.get(21)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(22)?;
+    let enclosure_url: Option<String> = row.get(18)?;
+    let enclosure_mime_type: Option<String> = row.get(19)?;
+    let enclosure_size_bytes: Option<i64> = row.get(20)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(21)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -298,8 +297,7 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         reader_fetched_at: row.get(15)?,
         published_at: row.get(16)?,
         read: row.get::<_, i64>(17)? != 0,
-        saved: row.get::<_, i64>(18)? != 0,
-        playback_position_seconds: row.get(23)?,
+        playback_position_seconds: row.get(22)?,
         media_enclosure,
     })
 }
@@ -558,13 +556,12 @@ pub fn upsert_feed_snapshot(
 					content_html,
 					published_at,
 					read,
-					saved,
 					enclosure_url,
 					enclosure_mime_type,
 					enclosure_size_bytes,
 					enclosure_duration_seconds
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, 0, ?12, ?13, ?14, ?15)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, ?12, ?13, ?14, ?15)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title,
 					url = excluded.url,

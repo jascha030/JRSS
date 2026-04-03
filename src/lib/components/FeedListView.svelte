@@ -42,10 +42,6 @@
 			return 'Podcasts';
 		}
 
-		if (section === 'saved') {
-			return 'Saved';
-		}
-
 		return 'All feeds';
 	}
 
@@ -157,9 +153,6 @@
 						<span class="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">
 							{item.read ? 'Read' : 'Unread'}
 						</span>
-						{#if item.saved}
-							<span class="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">Saved</span>
-						{/if}
 						{#if item.mediaEnclosure}
 							<span class="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-slate-800">Podcast</span>
 						{/if}

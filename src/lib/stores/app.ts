@@ -11,7 +11,7 @@ import {
 import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
 import { derived, get, writable } from 'svelte/store';
 
-export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'saved' | 'settings';
+export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'settings';
 
 export const selectedFeedId = writable<string | null>(null);
 export const selectedItemId = writable<string | null>(null);
@@ -40,10 +40,6 @@ export const visibleItems = derived(
 
 		if ($selectedSection === 'podcasts') {
 			filteredItems = filteredItems.filter((item) => Boolean(item.mediaEnclosure));
-		}
-
-		if ($selectedSection === 'saved') {
-			filteredItems = filteredItems.filter((item) => item.saved);
 		}
 
 		if ($selectedSection === 'settings') {

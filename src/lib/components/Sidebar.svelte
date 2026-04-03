@@ -30,7 +30,6 @@
 		{ id: 'all', label: 'All feeds' },
 		{ id: 'unread', label: 'Unread' },
 		{ id: 'podcasts', label: 'Podcasts' },
-		{ id: 'saved', label: 'Saved' },
 		{ id: 'settings', label: 'Settings' }
 	];
 </script>
