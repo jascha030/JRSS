@@ -35,6 +35,10 @@
 	} from '$lib/stores/app';
 	import { onMount } from 'svelte';
 
+	type ViewTransitionDocument = Document & {
+		startViewTransition?: (callback: () => void) => void;
+	};
+
 	let newFeedUrl = $state('');
 	let notice = $state('');
 	let isSidebarCollapsed = $state(false);
@@ -61,6 +65,23 @@
 			lastSelectedItemId = $selectedItemId;
 		}
 	});
+
+	function toggleSidebar() {
+		const apply = () => {
+			isSidebarCollapsed = !isSidebarCollapsed;
+		};
+
+		const doc = document as ViewTransitionDocument;
+
+		if (!doc.startViewTransition) {
+			apply();
+			return;
+		}
+
+		doc.startViewTransition(() => {
+			apply();
+		});
+	}
 
 	onMount(() => {
 		void initializeApp();
@@ -125,19 +146,19 @@
 
 <div class="bg-slate-101/80 flex h-screen flex-col overflow-hidden dark:bg-slate-950">
 	<div class="flex min-h-1 flex-1 overflow-hidden">
-		<Sidebar
-			collapsed={isSidebarCollapsed}
-			feeds={$feeds}
-			refreshingFeedIds={$syncingFeedIds}
-			selectedFeedId={$selectedFeedId}
-			selectedSection={$selectedSection}
-			onRemoveFeed={deleteFeed}
-			onSelectFeed={selectFeed}
-			onSelectSection={selectSection}
-			onToggleCollapse={() => {
-				isSidebarCollapsed = !isSidebarCollapsed;
-			}}
-		/>
+		<div class="vt-sidebar">
+			<Sidebar
+				collapsed={isSidebarCollapsed}
+				feeds={$feeds}
+				refreshingFeedIds={$syncingFeedIds}
+				selectedFeedId={$selectedFeedId}
+				selectedSection={$selectedSection}
+				onRemoveFeed={deleteFeed}
+				onSelectFeed={selectFeed}
+				onSelectSection={selectSection}
+				onToggleCollapse={toggleSidebar}
+			/>
+		</div>
 
 		<main class="flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
@@ -214,7 +235,7 @@
 			{:else}
 				<div class="flex min-h-1 flex-1 overflow-hidden">
 					<div
-						class="min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+						class="vt-feed-pane min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
 					>
 						<FeedListView
 							feeds={$feeds}
@@ -231,7 +252,7 @@
 					</div>
 
 					<aside
-						class="hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+						class="vt-reader-pane hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
 						{#if $selectedItem}
 							<div class="space-y-9">
@@ -381,3 +402,44 @@
 		onTimeChange={updatePlaybackPosition}
 	/>
 </div>
+
+<style>
+	.vt-sidebar {
+		view-transition-name: app-sidebar;
+	}
+
+	.vt-feed-pane {
+		view-transition-name: app-feed-pane;
+	}
+
+	.vt-reader-pane {
+		view-transition-name: app-reader-pane;
+	}
+
+	:global(::view-transition-group(app-sidebar)),
+	:global(::view-transition-group(app-feed-pane)),
+	:global(::view-transition-group(app-reader-pane)),
+	:global(::view-transition-old(app-sidebar)),
+	:global(::view-transition-new(app-sidebar)),
+	:global(::view-transition-old(app-feed-pane)),
+	:global(::view-transition-new(app-feed-pane)),
+	:global(::view-transition-old(app-reader-pane)),
+	:global(::view-transition-new(app-reader-pane)) {
+		animation-duration: 180ms;
+		animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(::view-transition-group(app-sidebar)),
+		:global(::view-transition-group(app-feed-pane)),
+		:global(::view-transition-group(app-reader-pane)),
+		:global(::view-transition-old(app-sidebar)),
+		:global(::view-transition-new(app-sidebar)),
+		:global(::view-transition-old(app-feed-pane)),
+		:global(::view-transition-new(app-feed-pane)),
+		:global(::view-transition-old(app-reader-pane)),
+		:global(::view-transition-new(app-reader-pane)) {
+			animation-duration: 0ms;
+		}
+	}
+</style>
