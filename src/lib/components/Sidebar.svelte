@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SidebarSection } from '$lib/stores/app';
 	import type { Feed } from '$lib/types/rss';
+	import { fade } from 'svelte/transition';
 
 	type Props = {
 		collapsed: boolean;
@@ -66,259 +67,274 @@
 		return selectedSection === sectionId && selectedFeedId === null;
 	}
 
-	function feedInitial(title: string) {
-		return (title?.trim()?.[0] ?? '?').toUpperCase();
-	}
-
 	function isRefreshing(feedId: string) {
 		return refreshingFeedIds.includes(feedId);
 	}
+
+	function feedInitial(title: string) {
+		return (title?.trim()?.[0] ?? '?').toUpperCase();
+	}
 </script>
 
-<aside
-	data-collapsed={collapsed ? 'true' : 'false'}
-	class={`sidebar hidden h-dvh shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950 ${collapsed ? 'w-24' : 'w-72'}`}
->
-	<div
-		class="sidebar-header flex h-16 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800"
+{#if collapsed}
+	<aside
+		in:fade={{ duration: 90 }}
+		out:fade={{ duration: 70 }}
+		class="hidden h-dvh w-24 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
 		<div
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"
+			class="flex h-16 shrink-0 items-center justify-center border-b border-zinc-200 px-2 dark:border-zinc-800"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.8"
-				class="h-5 w-5"
+			<button
+				type="button"
+				onclick={onToggleCollapse}
+				title="Expand sidebar"
+				aria-label="Expand sidebar"
+				class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-500"
 			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M4.75 6.75h14.5M4.75 12h14.5M4.75 17.25h9.5"
-				/>
-			</svg>
-		</div>
-
-		<div class="sidebar-title min-w-0 flex-1 overflow-hidden">
-			<h1 class="truncate text-base font-semibold text-zinc-900 dark:text-white">Library</h1>
-		</div>
-
-		<button
-			type="button"
-			onclick={onToggleCollapse}
-			title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-			aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.8"
-				class={`h-5 w-5 transition-transform duration-150 ease-out ${collapsed ? 'rotate-180' : ''}`}
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-			</svg>
-		</button>
-	</div>
-
-	<div class="sidebar-badge px-3 py-3">
-		<span
-			class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
-		>
-			{feeds.length}
-			{feeds.length === 1 ? 'feed' : 'feeds'}
-		</span>
-	</div>
-
-	<nav class="flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
-		<div class="space-y-1">
-			{#each sections as section (section.id)}
-				<button
-					type="button"
-					title={collapsed ? section.label : undefined}
-					class={`sidebar-row flex w-full items-center rounded-xl text-sm font-medium transition-colors duration-150 ease-out ${
-						isSectionActive(section.id)
-							? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
-							: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
-					}`}
-					onclick={() => onSelectSection(section.id)}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					class="h-5 w-5"
 				>
-					<span class="flex h-10 w-10 shrink-0 items-center justify-center">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke-width="1.5"
-							stroke="currentColor"
-							class="h-5 w-5"
-						>
-							{#each section.paths as path (path)}
-								<path stroke-linecap="round" stroke-linejoin="round" d={path} />
-							{/each}
-						</svg>
-					</span>
-
-					<span class="sidebar-label min-w-0 flex-1 truncate">
-						{section.label}
-					</span>
-				</button>
-			{/each}
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="M4.75 6.75h14.5M4.75 12h14.5M4.75 17.25h9.5"
+					/>
+				</svg>
+			</button>
 		</div>
 
-		<div class="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-			<div class="sidebar-heading px-3">
+		<nav class="flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
+			<div class="space-y-1">
+				{#each sections as section (section.id)}
+					<button
+						type="button"
+						title={section.label}
+						class={`flex w-full items-center justify-center rounded-xl px-2 py-3 text-sm font-medium transition-colors duration-150 ease-out ${
+							isSectionActive(section.id)
+								? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+								: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+						}`}
+						onclick={() => onSelectSection(section.id)}
+					>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke-width="1.5"
+								stroke="currentColor"
+								class="h-5 w-5"
+							>
+								{#each section.paths as path (path)}
+									<path stroke-linecap="round" stroke-linejoin="round" d={path} />
+								{/each}
+							</svg>
+						</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+				<div class="space-y-1">
+					{#each feeds as feed (feed.id)}
+						<button
+							type="button"
+							title={feed.title}
+							class={`flex w-full items-center justify-center rounded-xl px-2 py-3 text-left transition-colors duration-150 ease-out ${
+								selectedFeedId === feed.id
+									? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+									: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+							}`}
+							onclick={() => onSelectFeed(feed.id)}
+						>
+							<span
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
+							>
+								{feedInitial(feed.title)}
+							</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		</nav>
+	</aside>
+{:else}
+	<aside
+		in:fade={{ duration: 90 }}
+		out:fade={{ duration: 70 }}
+		class="hidden h-dvh w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
+	>
+		<div class="flex h-16 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
+			<div
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					class="h-5 w-5"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="M4.75 6.75h14.5M4.75 12h14.5M4.75 17.25h9.5"
+					/>
+				</svg>
+			</div>
+
+			<div class="ml-3 min-w-0 flex-1">
+				<h1 class="truncate text-base font-semibold text-zinc-900 dark:text-white">Library</h1>
+			</div>
+
+			<button
+				type="button"
+				onclick={onToggleCollapse}
+				title="Collapse sidebar"
+				aria-label="Collapse sidebar"
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					class="h-5 w-5"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+				</svg>
+			</button>
+		</div>
+
+		<div class="px-3 py-3">
+			<span
+				class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+			>
+				{feeds.length}
+				{feeds.length === 1 ? 'feed' : 'feeds'}
+			</span>
+		</div>
+
+		<nav class="flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
+			<div class="space-y-1">
+				{#each sections as section (section.id)}
+					<button
+						type="button"
+						class={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-out ${
+							isSectionActive(section.id)
+								? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+								: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+						}`}
+						onclick={() => onSelectSection(section.id)}
+					>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke-width="1.5"
+								stroke="currentColor"
+								class="h-5 w-5"
+							>
+								{#each section.paths as path (path)}
+									<path stroke-linecap="round" stroke-linejoin="round" d={path} />
+								{/each}
+							</svg>
+						</span>
+
+						<span class="min-w-0 truncate">{section.label}</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
 				<h2
-					class="mb-3 text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400"
+					class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400"
 				>
 					My feeds
 				</h2>
-			</div>
 
-			<div class="space-y-1">
-				{#if feeds.length === 0}
-					<div class="sidebar-empty px-3 py-6">
-						<p
-							class="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
-						>
-							No feeds added yet
-						</p>
-					</div>
-				{:else}
-					{#each feeds as feed (feed.id)}
-						<div class="group flex items-center">
-							<button
-								type="button"
-								title={feed.title}
-								class={`sidebar-row flex flex-1 items-center rounded-xl text-left transition-colors duration-150 ease-out ${
-									selectedFeedId === feed.id
-										? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
-										: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
-								}`}
-								onclick={() => onSelectFeed(feed.id)}
+				<div class="space-y-1">
+					{#if feeds.length === 0}
+						<div class="px-3 py-6">
+							<p
+								class="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
 							>
-								<span
-									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
-								>
-									{feedInitial(feed.title)}
-								</span>
-
-								<span class="sidebar-feed-meta min-w-0 flex-1">
-									<span class="block truncate text-sm font-medium">
-										{feed.title}
-									</span>
-									<span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
-										{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
-										{#if isRefreshing(feed.id)}
-											• Syncing...
-										{:else if feed.lastFetchedAt}
-											• Local
-										{/if}
-									</span>
-								</span>
-							</button>
-
-							<button
-								type="button"
-								title="Remove feed"
-								aria-label={`Remove ${feed.title}`}
-								class="sidebar-remove ml-1 flex w-9 shrink-0 items-center justify-center rounded-lg px-2 py-2 text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-								onclick={(event) => {
-									event.stopPropagation();
-									void onRemoveFeed(feed.id);
-								}}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="1.5"
-									stroke="currentColor"
-									class="h-4 w-4"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-									/>
-								</svg>
-							</button>
+								No feeds added yet
+							</p>
 						</div>
-					{/each}
-				{/if}
+					{:else}
+						{#each feeds as feed (feed.id)}
+							<div class="group flex items-center">
+								<button
+									type="button"
+									title={feed.title}
+									class={`flex flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-150 ease-out ${
+										selectedFeedId === feed.id
+											? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+											: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+									}`}
+									onclick={() => onSelectFeed(feed.id)}
+								>
+									<span
+										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
+									>
+										{feedInitial(feed.title)}
+									</span>
+
+									<span class="min-w-0 flex-1">
+										<span class="block truncate text-sm font-medium">
+											{feed.title}
+										</span>
+										<span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+											{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
+											{#if isRefreshing(feed.id)}
+												• Syncing...
+											{:else if feed.lastFetchedAt}
+												• Local
+											{/if}
+										</span>
+									</span>
+								</button>
+
+								<button
+									type="button"
+									title="Remove feed"
+									aria-label={`Remove ${feed.title}`}
+									class="ml-1 flex w-9 shrink-0 items-center justify-center rounded-lg px-2 py-2 text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+									onclick={(event) => {
+										event.stopPropagation();
+										void onRemoveFeed(feed.id);
+									}}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="1.5"
+										stroke="currentColor"
+										class="h-4 w-4"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+										/>
+									</svg>
+								</button>
+							</div>
+						{/each}
+					{/if}
+				</div>
 			</div>
-		</div>
-	</nav>
-</aside>
-
-<style>
-	.sidebar-row {
-		gap: 0.75rem;
-		padding: 0.625rem 0.75rem;
-	}
-
-	.sidebar-title,
-	.sidebar-label,
-	.sidebar-feed-meta {
-		min-width: 0;
-		overflow: hidden;
-	}
-
-	.sidebar-title,
-	.sidebar-label,
-	.sidebar-feed-meta {
-		margin-left: 0;
-	}
-
-	.sidebar[data-collapsed='true'] .sidebar-header {
-		gap: 0;
-		padding-right: 0.5rem;
-		padding-left: 0.5rem;
-	}
-
-	.sidebar[data-collapsed='true'] .sidebar-row {
-		justify-content: center;
-		gap: 0;
-		padding-right: 0.5rem;
-		padding-left: 0.5rem;
-	}
-
-	.sidebar[data-collapsed='true'] .sidebar-title,
-	.sidebar[data-collapsed='true'] .sidebar-label,
-	.sidebar[data-collapsed='true'] .sidebar-feed-meta,
-	.sidebar[data-collapsed='true'] .sidebar-badge,
-	.sidebar[data-collapsed='true'] .sidebar-heading,
-	.sidebar[data-collapsed='true'] .sidebar-empty {
-		width: 0;
-		min-width: 0;
-		margin: 0;
-		padding-top: 0;
-		padding-bottom: 0;
-		padding-left: 0;
-		padding-right: 0;
-		opacity: 0;
-		overflow: hidden;
-		pointer-events: none;
-		white-space: nowrap;
-	}
-
-	.sidebar[data-collapsed='true'] .sidebar-remove {
-		width: 0;
-		min-width: 0;
-		margin-left: 0;
-		padding-right: 0;
-		padding-left: 0;
-		opacity: 0;
-		overflow: hidden;
-		pointer-events: none;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.sidebar :global(svg) {
-			transition: none;
-		}
-	}
-</style>
+		</nav>
+	</aside>
+{/if}
