@@ -161,9 +161,9 @@
 
 		<main class="vt-main flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
-				class="border-slate-201/70 border-b bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
+				class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-3 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
 			>
-				<div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+				<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 					<form
 						class="flex min-w-full flex-col gap-4 sm:flex-row"
 						onsubmit={(event) => {

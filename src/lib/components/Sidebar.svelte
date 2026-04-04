@@ -83,14 +83,14 @@
 		class="hidden h-dvh w-24 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
 		<div
-			class="flex h-16 shrink-0 items-center justify-center border-b border-zinc-200 px-2 dark:border-zinc-800"
+			class="flex py-5 shrink-0 items-center justify-center border-b border-zinc-200 px-2 dark:border-zinc-800"
 		>
 			<button
 				type="button"
 				onclick={onToggleCollapse}
 				title="Expand sidebar"
 				aria-label="Expand sidebar"
-				class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-500"
+				class="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-500"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -98,7 +98,7 @@
 					fill="none"
 					stroke="currentColor"
 					stroke-width="1.8"
-					class="h-5 w-5"
+					class="size-5"
 				>
 					<path
 						stroke-linecap="round"
@@ -122,14 +122,14 @@
 						}`}
 						onclick={() => onSelectSection(section.id)}
 					>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center">
+						<span class="flex size-10 shrink-0 items-center justify-center">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke-width="1.5"
 								stroke="currentColor"
-								class="h-5 w-5"
+								class="size-5"
 							>
 								{#each section.paths as path (path)}
 									<path stroke-linecap="round" stroke-linejoin="round" d={path} />
@@ -154,7 +154,7 @@
 							onclick={() => onSelectFeed(feed.id)}
 						>
 							<span
-								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
+								class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
 							>
 								{feedInitial(feed.title)}
 							</span>
@@ -170,9 +170,9 @@
 		out:fade={{ duration: 70 }}
 		class="hidden h-dvh w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
-		<div class="flex h-16 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
+		<div class="flex py-5 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
 			<div
-				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"
+				class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -180,7 +180,7 @@
 					fill="none"
 					stroke="currentColor"
 					stroke-width="1.8"
-					class="h-5 w-5"
+					class="size-5"
 				>
 					<path
 						stroke-linecap="round"
@@ -199,7 +199,7 @@
 				onclick={onToggleCollapse}
 				title="Collapse sidebar"
 				aria-label="Collapse sidebar"
-				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
+				class="flex size-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -207,7 +207,7 @@
 					fill="none"
 					stroke="currentColor"
 					stroke-width="1.8"
-					class="h-5 w-5"
+					class="size-5"
 				>
 					<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
 				</svg>
@@ -235,14 +235,14 @@
 						}`}
 						onclick={() => onSelectSection(section.id)}
 					>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center">
+						<span class="flex size-10 shrink-0 items-center justify-center">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke-width="1.5"
 								stroke="currentColor"
-								class="h-5 w-5"
+								class="size-5"
 							>
 								{#each section.paths as path (path)}
 									<path stroke-linecap="round" stroke-linejoin="round" d={path} />
@@ -285,7 +285,7 @@
 									onclick={() => onSelectFeed(feed.id)}
 								>
 									<span
-										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
+										class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
 									>
 										{feedInitial(feed.title)}
 									</span>
