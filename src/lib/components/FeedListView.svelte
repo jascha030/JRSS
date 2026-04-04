@@ -45,8 +45,10 @@
 		return 'All feeds';
 	}
 
+	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
+
 	function feedTitle(feedId: string): string {
-		return feeds.find((feed) => feed.id === feedId)?.title ?? 'Unknown feed';
+		return feedTitleById.get(feedId) ?? 'Unknown feed';
 	}
 
 	function getListPreview(item: FeedItem): string {
@@ -131,7 +133,7 @@
 			<div class="divide-y divide-slate-200 dark:divide-slate-800">
 				{#each items as item (item.id)}
 					<article
-						class={`relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
+						class={`feed-row relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 							selectedItemId === item.id
 								? 'bg-slate-50 dark:bg-slate-900/60'
 								: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
@@ -224,3 +226,10 @@
 		{/if}
 	</div>
 </section>
+
+<style>
+	.feed-row {
+		content-visibility: auto;
+		contain-intrinsic-size: 224px;
+	}
+</style>

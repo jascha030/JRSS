@@ -33,7 +33,7 @@
 		updatePlaybackPosition,
 		visibleItems
 	} from '$lib/stores/app';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type ViewTransitionDocument = Document & {
 		startViewTransition?: (callback: () => void) => void;
@@ -78,8 +78,9 @@
 			return;
 		}
 
-		doc.startViewTransition(() => {
+		doc.startViewTransition(async () => {
 			apply();
+			await tick();
 		});
 	}
 
@@ -146,21 +147,19 @@
 
 <div class="bg-slate-101/80 flex h-screen flex-col overflow-hidden dark:bg-slate-950">
 	<div class="flex min-h-1 flex-1 overflow-hidden">
-		<div class="vt-sidebar">
-			<Sidebar
-				collapsed={isSidebarCollapsed}
-				feeds={$feeds}
-				refreshingFeedIds={$syncingFeedIds}
-				selectedFeedId={$selectedFeedId}
-				selectedSection={$selectedSection}
-				onRemoveFeed={deleteFeed}
-				onSelectFeed={selectFeed}
-				onSelectSection={selectSection}
-				onToggleCollapse={toggleSidebar}
-			/>
-		</div>
+		<Sidebar
+			collapsed={isSidebarCollapsed}
+			feeds={$feeds}
+			refreshingFeedIds={$syncingFeedIds}
+			selectedFeedId={$selectedFeedId}
+			selectedSection={$selectedSection}
+			onRemoveFeed={deleteFeed}
+			onSelectFeed={selectFeed}
+			onSelectSection={selectSection}
+			onToggleCollapse={toggleSidebar}
+		/>
 
-		<main class="flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+		<main class="vt-main flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
 				class="border-slate-201/70 border-b bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
 			>
@@ -235,7 +234,7 @@
 			{:else}
 				<div class="flex min-h-1 flex-1 overflow-hidden">
 					<div
-						class="vt-feed-pane min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+						class="min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
 					>
 						<FeedListView
 							feeds={$feeds}
@@ -252,7 +251,7 @@
 					</div>
 
 					<aside
-						class="vt-reader-pane hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+						class="hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
 						{#if $selectedItem}
 							<div class="space-y-9">
@@ -404,42 +403,19 @@
 </div>
 
 <style>
-	.vt-sidebar {
-		view-transition-name: app-sidebar;
+	.vt-main {
+		view-transition-name: app-main;
 	}
 
-	.vt-feed-pane {
-		view-transition-name: app-feed-pane;
-	}
-
-	.vt-reader-pane {
-		view-transition-name: app-reader-pane;
-	}
-
-	:global(::view-transition-group(app-sidebar)),
-	:global(::view-transition-group(app-feed-pane)),
-	:global(::view-transition-group(app-reader-pane)),
-	:global(::view-transition-old(app-sidebar)),
-	:global(::view-transition-new(app-sidebar)),
-	:global(::view-transition-old(app-feed-pane)),
-	:global(::view-transition-new(app-feed-pane)),
-	:global(::view-transition-old(app-reader-pane)),
-	:global(::view-transition-new(app-reader-pane)) {
-		animation-duration: 180ms;
+	:global(::view-transition-group(app-main)),
+	:global(::view-transition-old(app-main)),
+	:global(::view-transition-new(app-main)) {
+		animation-duration: 220ms;
 		animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		:global(::view-transition-group(app-sidebar)),
-		:global(::view-transition-group(app-feed-pane)),
-		:global(::view-transition-group(app-reader-pane)),
-		:global(::view-transition-old(app-sidebar)),
-		:global(::view-transition-new(app-sidebar)),
-		:global(::view-transition-old(app-feed-pane)),
-		:global(::view-transition-new(app-feed-pane)),
-		:global(::view-transition-old(app-reader-pane)),
-		:global(::view-transition-new(app-reader-pane)) {
-			animation-duration: 0ms;
-		}
+	:global(::view-transition-old(app-main)),
+	:global(::view-transition-new(app-main)) {
+		mix-blend-mode: normal;
 	}
 </style>
