@@ -29,21 +29,16 @@
 		onPlay
 	}: Props = $props();
 
-	function headingForSection(section: SidebarSection): string {
-		if (selectedFeed) {
-			return selectedFeed.title;
-		}
+	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
+		all: 'All feeds',
+		unread: 'Unread',
+		podcasts: 'Podcasts',
+		settings: 'Settings'
+	};
 
-		if (section === 'unread') {
-			return 'Unread';
-		}
-
-		if (section === 'podcasts') {
-			return 'Podcasts';
-		}
-
-		return 'All feeds';
-	}
+	const pageHeading = $derived(
+		selectedFeed?.title ?? (selectedSection ? sectionHeadings[selectedSection] : 'All feeds')
+	);
 
 	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
 
@@ -66,7 +61,7 @@
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
 				<h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-					{headingForSection(selectedSection)}
+					{pageHeading}
 				</h2>
 
 				{#if selectedFeed}
