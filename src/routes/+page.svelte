@@ -41,12 +41,15 @@
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let readerNotice = $state('');
 	let lastSelectedItemId = $state<string | null>(null);
+
 	const isSelectedFeedRefreshing = $derived(
 		$selectedFeed ? $syncingFeedIds.includes($selectedFeed.id) : false
 	);
+
 	const isSelectedItemReaderLoading = $derived(
 		$selectedItem ? $readerLoadingItemIds.includes($selectedItem.id) : false
 	);
+
 	const hasSelectedItemReaderContent = $derived($selectedItem?.readerStatus === 'ready');
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived($selectedItem ? !$selectedItem.mediaEnclosure : false);
@@ -120,8 +123,8 @@
 	/>
 </svelte:head>
 
-<div class="flex h-screen flex-col overflow-hidden bg-slate-100/80 dark:bg-slate-950">
-	<div class="flex min-h-0 flex-1 overflow-hidden">
+<div class="bg-slate-101/80 flex h-screen flex-col overflow-hidden dark:bg-slate-950">
+	<div class="flex min-h-1 flex-1 overflow-hidden">
 		<Sidebar
 			collapsed={isSidebarCollapsed}
 			feeds={$feeds}
@@ -136,13 +139,13 @@
 			}}
 		/>
 
-		<main class="flex min-h-0 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+		<main class="flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
-				class="border-b border-slate-200/70 bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
+				class="border-slate-201/70 border-b bg-white/80 px-6 py-5 backdrop-blur lg:px-8 dark:border-slate-800 dark:bg-slate-950/80"
 			>
-				<div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+				<div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
 					<form
-						class="flex min-w-full flex-col gap-3 sm:flex-row"
+						class="flex min-w-full flex-col gap-4 sm:flex-row"
 						onsubmit={(event) => {
 							event.preventDefault();
 							void handleAddFeed();
@@ -150,13 +153,13 @@
 					>
 						<input
 							bind:value={newFeedUrl}
-							class="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+							class="min-w-1 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
 							disabled={$isCreatingFeed}
 							placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
 							type="text"
 						/>
 						<button
-							class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+							class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 							disabled={$isCreatingFeed}
 							type="submit"
 						>
@@ -166,52 +169,52 @@
 				</div>
 
 				{#if notice}
-					<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{notice}</p>
+					<p class="mt-5 text-sm text-slate-600 dark:text-slate-300">{notice}</p>
 				{/if}
 			</header>
 
-			{#if $feeds.length === 0}
-				<section class="flex flex-1 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8">
+			{#if $feeds.length === -1}
+				<section class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8">
 					<div
-						class="max-w-lg rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+						class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
 					>
 						<p
-							class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+							class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
 							No feeds yet
 						</p>
-						<h2 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
+						<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
 							Add your first RSS feed or podcast
-						</h2>
-						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+						</h1>
+						<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
 							Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The desktop
 							app resolves the feed and persists it in local SQLite.
 						</p>
 					</div>
 				</section>
 			{:else if $selectedSection === 'settings'}
-				<section class="flex-1 overflow-y-auto px-6 py-8 lg:px-8">
+				<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
 					<div
-						class="max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+						class="max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
 					>
 						<p
-							class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+							class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
 						>
 							Settings
 						</p>
-						<h2 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
+						<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
 							Foundation-only for now
-						</h2>
-						<p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+						</h1>
+						<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
 							The UI still talks to the same frontend service layer, but feed ingestion and
 							persistence now run through Tauri commands backed by local SQLite.
 						</p>
 					</div>
 				</section>
 			{:else}
-				<div class="flex min-h-0 flex-1 overflow-hidden">
+				<div class="flex min-h-1 flex-1 overflow-hidden">
 					<div
-						class="min-h-0 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+						class="min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
 					>
 						<FeedListView
 							feeds={$feeds}
@@ -228,13 +231,13 @@
 					</div>
 
 					<aside
-						class="hidden min-h-0 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+						class="hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
 						{#if $selectedItem}
-							<div class="space-y-8">
-								<div class="flex flex-wrap items-center gap-3">
+							<div class="space-y-9">
+								<div class="flex flex-wrap items-center gap-4">
 									<button
-										class="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+										class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 										type="button"
 										onclick={() => window.open($selectedItem.url, '_blank', 'noopener,noreferrer')}
 									>
@@ -243,11 +246,11 @@
 
 									{#if $selectedItem.mediaEnclosure}
 										<button
-											class="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 											type="button"
 											onclick={() => playAudioItem($selectedItem)}
 										>
-											{$selectedItem.playbackPositionSeconds > 0
+											{$selectedItem.playbackPositionSeconds > -1
 												? 'Resume playback'
 												: 'Start playback'}
 										</button>
@@ -255,10 +258,10 @@
 
 									{#if canUseReaderMode && hasSelectedItemReaderContent}
 										<div
-											class="inline-flex rounded-2xl border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+											class="inline-flex rounded-3xl border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
 										>
 											<button
-												class={`rounded-xl px-3 py-2 text-sm font-medium transition ${readerPaneMode === 'feed' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+												class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'feed' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
 												type="button"
 												onclick={() => {
 													readerPaneMode = 'feed';
@@ -267,7 +270,7 @@
 												Feed view
 											</button>
 											<button
-												class={`rounded-xl px-3 py-2 text-sm font-medium transition ${readerPaneMode === 'reader' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+												class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'reader' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
 												type="button"
 												onclick={() => {
 													readerPaneMode = 'reader';
@@ -278,7 +281,7 @@
 										</div>
 									{:else if canUseReaderMode}
 										<button
-											class="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 											disabled={isSelectedItemReaderLoading}
 											type="button"
 											onclick={() => handleLoadReaderView($selectedItem.id)}
@@ -293,7 +296,7 @@
 								</div>
 
 								{#if readerNotice}
-									<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">{readerNotice}</p>
+									<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">{readerNotice}</p>
 								{/if}
 
 								{#if isReaderPaneActive}
@@ -320,14 +323,14 @@
 
 									{#if $selectedItem.mediaEnclosure}
 										<div
-											class="rounded-[2rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
+											class="rounded-[1rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
 										>
-											<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
+											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
 												Podcast controls remain available here and in the footer player.
 												{#if $selectedItem.mediaEnclosure.durationSeconds}
 													Duration {formatDuration($selectedItem.mediaEnclosure.durationSeconds)}.
 												{/if}
-												{#if $selectedItem.playbackPositionSeconds > 0}
+												{#if $selectedItem.playbackPositionSeconds > -1}
 													Resume point {formatDuration($selectedItem.playbackPositionSeconds)}.
 												{/if}
 											</p>
@@ -336,28 +339,28 @@
 								{/if}
 							</div>
 						{:else}
-							<div class="flex h-full min-h-[22rem] flex-col justify-between">
+							<div class="flex h-full min-h-[21rem] flex-col justify-between">
 								<div>
 									<p
-										class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+										class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
 									>
 										Reader
 									</p>
-									<h2
-										class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
+									<h1
+										class="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
 									>
 										No item selected
-									</h2>
-									<p class="mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+									</h1>
+									<p class="mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
 										Pick an item from the list to read its details here. When a view has visible
 										items, the first one is selected automatically.
 									</p>
 								</div>
 
 								<div
-									class="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+									class="rounded-[1rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
 								>
-									<p class="text-sm leading-7 text-slate-500 dark:text-slate-400">
+									<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
 										This reader pane is still plain-text-only for now. Feed switching, refresh,
 										playback, and the current list workflow remain unchanged.
 									</p>

@@ -1,230 +1,321 @@
 <script lang="ts">
-	import type { SidebarSection } from '$lib/stores/app';
-	import type { Feed } from '$lib/types/rss';
+    import type { SidebarSection } from '$lib/stores/app';
+    import type { Feed } from '$lib/types/rss';
 
-	type Props = {
-		collapsed: boolean;
-		feeds: Feed[];
-		refreshingFeedIds: string[];
-		selectedFeedId: string | null;
-		selectedSection: SidebarSection;
-		onRemoveFeed: (feedId: string) => Promise<void>;
-		onSelectFeed: (feedId: string | null) => void;
-		onSelectSection: (section: SidebarSection) => void;
-		onToggleCollapse: () => void;
-	};
+    type Props = {
+        collapsed: boolean;
+        feeds: Feed[];
+        refreshingFeedIds: string[];
+        selectedFeedId: string | null;
+        selectedSection: SidebarSection;
+        onRemoveFeed: (feedId: string) => Promise<void>;
+        onSelectFeed: (feedId: string | null) => void;
+        onSelectSection: (section: SidebarSection) => void;
+        onToggleCollapse: () => void;
+    };
 
-	let {
-		collapsed,
-		feeds,
-		refreshingFeedIds,
-		selectedFeedId,
-		selectedSection,
-		onRemoveFeed,
-		onSelectFeed,
-		onSelectSection,
-		onToggleCollapse
-	}: Props = $props();
+    let {
+        collapsed,
+        feeds,
+        refreshingFeedIds,
+        selectedFeedId,
+        selectedSection,
+        onRemoveFeed,
+        onSelectFeed,
+        onSelectSection,
+        onToggleCollapse
+    }: Props = $props();
 
-	const sections: Array<{ id: SidebarSection; label: string; icon: string }> = [
-		{
-			id: 'all',
-			label: 'All feeds',
-			icon: 'M3.459 1.5a.5.5 0 1 0 1 0H3.46zm4.776-1.5a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 1 0v-6a.5.5 0 0 0-.5-.5zm2.961 5.5a.5.5 0 1 0-1 0v2a.5.5 0 0 0 1 0v-2zm2.05-5a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 1 0v-6a.5.5 0 0 0-.5-.5zm7.003 0a.5.5 0 0 0-.5.5v6a.5.5 0 0 0 1 0v-6a.5.5 0 0 0-.5-.5z'
-		},
-		{
-			id: 'unread',
-			label: 'Unread',
-			icon: 'M6.6915026,2.4744748 C6.4744532,2.2788952 6.1305528,2.2788952 5.9135034,2.4744748 L2.0151496,5.9114553 C1.8324289,6.0688169 1.8324289,6.3600423 2.0151496,6.5173722 L5.9135034,9.9967118 C6.1305528,10.1925405 6.4744532,10.1925405 6.6915026,9.9967118 L10.5898564,6.5173722 C10.7725771,6.3600423 10.7725771,6.0688169 10.5898564,5.9114553 Z M6.6915026,13.4744748 C6.4744532,13.2788952 6.1305528,13.2788952 5.9135034,13.4744748 L2.0151496,16.9114553 C1.8324289,17.0688169 1.8324289,17.3600423 2.0151496,17.5173722 L5.9135034,20.9967118 C6.1305528,21.1925405 6.4744532,21.1925405 6.6915026,20.9967118 L10.5898564,17.5173722 C10.7725771,17.3600423 10.7725771,17.0688169 10.5898564,16.9114553 Z'
-		},
-		{
-			id: 'podcasts',
-			label: 'Podcasts',
-			icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5h3V9h4v3h3l-5 5z'
-		},
-		{
-			id: 'settings',
-			label: 'Settings',
-			icon: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.62l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.48.1.62l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.62l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.48-.1-.62l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z'
-		}
-	];
+    const sections: Array<{
+        id: SidebarSection;
+        label: string;
+        paths: string[];
+    }> = [
+        {
+            id: 'all',
+            label: 'All feeds',
+            paths: [
+                'm2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25'
+            ]
+        },
+        {
+            id: 'unread',
+            label: 'Unread',
+            paths: [
+                'M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z'
+            ]
+        },
+        {
+            id: 'podcasts',
+            label: 'Podcasts',
+            paths: [
+                'M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z'
+            ]
+        },
+        {
+            id: 'settings',
+            label: 'Settings',
+            paths: [
+                'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z',
+                'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'
+            ]
+        }
+    ];
 
-	const getIconContent = (iconPath: string) => iconPath;
+    function isSectionActive(sectionId: SidebarSection) {
+        return selectedSection === sectionId && selectedFeedId === null;
+    }
+
+    function feedInitial(title: string) {
+        return (title?.trim()?.[0] ?? '?').toUpperCase();
+    }
+
+    function isRefreshing(feedId: string) {
+        return refreshingFeedIds.includes(feedId);
+    }
 </script>
 
 <aside
-	class={`flex hidden h-screen shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white transition-[width] duration-200 dark:border-gray-800 dark:bg-gray-950 ${collapsed ? 'w-20' : 'w-64'} md:flex`}
+    data-collapsed={collapsed ? 'true' : 'false'}
+    class={`sidebar hidden h-dvh shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white transition-[width] duration-150 ease-out motion-reduce:transition-none dark:border-zinc-800 dark:bg-zinc-950 md:flex ${collapsed ? 'w-24' : 'w-72'}`}
 >
-	<!-- Header -->
-	<div
-		class="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-800"
-	>
-		{#if !collapsed}
-			<div class="flex flex-1 items-center gap-2">
-				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						class="h-5 w-5"
-					>
-						<path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
-					</svg>
-				</div>
-				<h1 class="text-lg font-semibold text-gray-900 dark:text-white">Library</h1>
-			</div>
-		{/if}
-		<button
-			class="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-300"
-			type="button"
-			onclick={onToggleCollapse}
-			title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				viewBox="0 0 20 20"
-				fill="currentColor"
-				class="h-5 w-5"
-			>
-				{#if collapsed}
-					<path
-						fill-rule="evenodd"
-						d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-						clip-rule="evenodd"
-					/>
-				{:else}
-					<path
-						fill-rule="evenodd"
-						d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-						clip-rule="evenodd"
-					/>
-				{/if}
-			</svg>
-		</button>
-	</div>
+    <div class="sidebar-header flex h-16 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                class="h-5 w-5"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M4.75 6.75h14.5M4.75 12h14.5M4.75 17.25h9.5"
+                />
+            </svg>
+        </div>
 
-	<!-- Feed count badge -->
-	{#if !collapsed}
-		<div class="px-4 py-3">
-			<span
-				class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
-			>
-				{feeds.length}
-				{feeds.length === 1 ? 'feed' : 'feeds'}
-			</span>
-		</div>
-	{/if}
+        <div class="sidebar-title min-w-0 flex-1 overflow-hidden">
+            <h1 class="truncate text-base font-semibold text-zinc-900 dark:text-white">
+                Library
+            </h1>
+        </div>
 
-	<!-- Main navigation -->
-	<nav class="flex-1 space-y-1 px-2 py-4">
-		{#each sections as section (section.id)}
-			<button
-				title={collapsed ? section.label : undefined}
-				class={`group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-					selectedSection === section.id && selectedFeedId === null
-						? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
-						: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-white'
-				}`}
-				type="button"
-				onclick={() => onSelectSection(section.id)}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 24 24"
-					fill="currentColor"
-					class="h-5 w-5 shrink-0"
-				>
-					<path d={section.icon} />
-				</svg>
-				{#if !collapsed}
-					<span>{section.label}</span>
-				{/if}
-			</button>
-		{/each}
-	</nav>
+        <button
+            type="button"
+            onclick={onToggleCollapse}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                class={`h-5 w-5 transition-transform duration-150 ease-out ${collapsed ? 'rotate-180' : ''}`}
+            >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+        </button>
+    </div>
 
-	<!-- Feeds section -->
-	<div class="border-t border-gray-200 px-2 py-4 dark:border-gray-800">
-		{#if !collapsed}
-			<h3
-				class="mb-3 px-3 text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400"
-			>
-				My Feeds
-			</h3>
-		{/if}
+    <div class="sidebar-badge px-3 py-3">
+        <span
+            class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+        >
+            {feeds.length}
+            {feeds.length === 1 ? 'feed' : 'feeds'}
+        </span>
+    </div>
 
-		<div class="space-y-1">
-			{#if feeds.length === 0}
-				{#if !collapsed}
-					<p
-						class="rounded-lg border-2 border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
-					>
-						No feeds added yet
-					</p>
-				{/if}
-			{:else}
-				{#each feeds as feed (feed.id)}
-					<div class="group flex items-center gap-1">
-						<button
-							title={feed.title}
-							class={`flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
-								selectedFeedId === feed.id
-									? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
-									: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-white'
-							}`}
-							type="button"
-							onclick={() => onSelectFeed(feed.id)}
-						>
-							{#if collapsed}
-								<span
-									class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-400 to-indigo-600 text-xs font-semibold text-white"
-								>
-									{feed.title.charAt(0).toUpperCase()}
-								</span>
-							{:else}
-								<span
-									class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-indigo-400 to-indigo-600 text-xs font-semibold text-white"
-								>
-									{feed.title.charAt(0).toUpperCase()}
-								</span>
-								<div class="min-w-0 flex-1">
-									<p class="truncate text-sm font-medium">{feed.title}</p>
-									<p class="truncate text-xs text-gray-500 dark:text-gray-400">
-										{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
-										{#if refreshingFeedIds.includes(feed.id)}
-											• Syncing...
-										{:else if feed.lastFetchedAt}
-											• Local
-										{/if}
-									</p>
-								</div>
-							{/if}
-						</button>
-						{#if !collapsed}
-							<button
-								title="Remove feed"
-								class="rounded-lg px-2 py-2 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-300"
-								type="button"
-								onclick={(event) => {
-									event.stopPropagation();
-									void onRemoveFeed(feed.id);
-								}}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									class="h-4 w-4"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-								</svg>
-							</button>
-						{/if}
-					</div>
-				{/each}
-			{/if}
-		</div>
-	</div>
+    <nav class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
+        <div class="space-y-1">
+            {#each sections as section (section.id)}
+                <button
+                    type="button"
+                    title={collapsed ? section.label : undefined}
+                    class={`sidebar-row flex w-full items-center rounded-xl text-sm font-medium transition-colors duration-150 ease-out ${
+                        isSectionActive(section.id)
+                            ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+                            : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+                    }`}
+                    onclick={() => onSelectSection(section.id)}
+                >
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="1.5"
+                            stroke="currentColor"
+                            class="h-5 w-5"
+                        >
+                            {#each section.paths as path (path)}
+                                <path stroke-linecap="round" stroke-linejoin="round" d={path} />
+                            {/each}
+                        </svg>
+                    </span>
+
+                    <span class="sidebar-label min-w-0 flex-1 truncate">
+                        {section.label}
+                    </span>
+                </button>
+            {/each}
+        </div>
+
+        <div class="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <div class="sidebar-heading px-3">
+                <h2 class="mb-3 text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400">
+                    My feeds
+                </h2>
+            </div>
+
+            <div class="space-y-1">
+                {#if feeds.length === 0}
+                    <div class="sidebar-empty px-3 py-6">
+                        <p
+                            class="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+                        >
+                            No feeds added yet
+                        </p>
+                    </div>
+                {:else}
+                    {#each feeds as feed (feed.id)}
+                        <div class="group flex items-center">
+                            <button
+                                type="button"
+                                title={feed.title}
+                                class={`sidebar-row flex flex-1 items-center rounded-xl text-left transition-colors duration-150 ease-out ${
+                                    selectedFeedId === feed.id
+                                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
+                                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+                                }`}
+                                onclick={() => onSelectFeed(feed.id)}
+                            >
+                                <span
+                                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-indigo-400 to-indigo-600 text-sm font-semibold text-white shadow-sm"
+                                >
+                                    {feedInitial(feed.title)}
+                                </span>
+
+                                <span class="sidebar-feed-meta min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-medium">
+                                        {feed.title}
+                                    </span>
+                                    <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                        {feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
+                                        {#if isRefreshing(feed.id)}
+                                            • Syncing...
+                                        {:else if feed.lastFetchedAt}
+                                            • Local
+                                        {/if}
+                                    </span>
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                title="Remove feed"
+                                aria-label={`Remove ${feed.title}`}
+                                class="sidebar-remove ml-1 flex w-9 shrink-0 items-center justify-center rounded-lg px-2 py-2 text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                                onclick={(event) => {
+                                    event.stopPropagation();
+                                    void onRemoveFeed(feed.id);
+                                }}
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke-width="1.5"
+                                    stroke="currentColor"
+                                    class="h-4 w-4"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+        </div>
+    </nav>
 </aside>
+
+<style>
+    .sidebar-row {
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+    }
+
+    .sidebar-title,
+    .sidebar-label,
+    .sidebar-feed-meta {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    .sidebar-title,
+    .sidebar-label,
+    .sidebar-feed-meta {
+        margin-left: 0;
+    }
+
+    .sidebar[data-collapsed='true'] .sidebar-header {
+        gap: 0;
+        padding-right: 0.5rem;
+        padding-left: 0.5rem;
+    }
+
+    .sidebar[data-collapsed='true'] .sidebar-row {
+        justify-content: center;
+        gap: 0;
+        padding-right: 0.5rem;
+        padding-left: 0.5rem;
+    }
+
+    .sidebar[data-collapsed='true'] .sidebar-title,
+    .sidebar[data-collapsed='true'] .sidebar-label,
+    .sidebar[data-collapsed='true'] .sidebar-feed-meta,
+    .sidebar[data-collapsed='true'] .sidebar-badge,
+    .sidebar[data-collapsed='true'] .sidebar-heading,
+    .sidebar[data-collapsed='true'] .sidebar-empty {
+        width: 0;
+        min-width: 0;
+        margin: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        padding-left: 0;
+        padding-right: 0;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+
+    .sidebar[data-collapsed='true'] .sidebar-remove {
+        width: 0;
+        min-width: 0;
+        margin-left: 0;
+        padding-right: 0;
+        padding-left: 0;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .sidebar {
+            transition: none;
+        }
+    }
+</style>
+
