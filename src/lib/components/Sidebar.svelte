@@ -83,7 +83,7 @@
 		class="hidden h-dvh w-24 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
 		<div
-			class="flex py-5 shrink-0 items-center justify-center border-b border-zinc-200 px-2 dark:border-zinc-800"
+			class="flex shrink-0 items-center justify-center border-b border-zinc-200 px-2 py-5 dark:border-zinc-800"
 		>
 			<button
 				type="button"
@@ -170,7 +170,7 @@
 		out:fade={{ duration: 70 }}
 		class="hidden h-dvh w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
-		<div class="flex py-5 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
+		<div class="flex shrink-0 items-center border-b border-zinc-200 px-3 py-5 dark:border-zinc-800">
 			<div
 				class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"
 			>
