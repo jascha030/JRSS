@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+
 	import type { SidebarSection } from '$lib/stores/app';
 	import type { Feed, FeedItem } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
@@ -41,6 +44,25 @@
 	);
 
 	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
+	const ESTIMATED_ROW_HEIGHT = 224;
+	const OVERSCAN_ITEMS = 6;
+
+	type VisibleRow = {
+		index: number;
+		item: FeedItem;
+		top: number;
+	};
+
+	let scrollViewport = $state<HTMLDivElement | null>(null);
+	let viewportHeight = $state(0);
+	let viewportWidth = $state(0);
+	let scrollTop = $state(0);
+	let pendingScrollTop = 0;
+	let scrollFrame = 0;
+	let measureFrame = 0;
+	let measuredViewportWidth = 0;
+	let itemHeights = $state<Record<string, number>>({});
+	const rowElements = new SvelteMap<string, HTMLElement>();
 
 	function feedTitle(feedId: string): string {
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
@@ -54,6 +76,177 @@
 			'No summary or content available.'
 		);
 	}
+
+	const itemLayout = $derived.by(() => {
+		const offsets: number[] = new Array(items.length);
+		let totalHeight = 0;
+
+		for (let index = 0; index < items.length; index += 1) {
+			offsets[index] = totalHeight;
+			totalHeight += itemHeights[items[index].id] ?? ESTIMATED_ROW_HEIGHT;
+		}
+
+		return { offsets, totalHeight };
+	});
+
+	const visibleRows = $derived.by((): VisibleRow[] => {
+		if (items.length === 0) {
+			return [];
+		}
+
+		const viewportBottom = scrollTop + Math.max(viewportHeight, ESTIMATED_ROW_HEIGHT);
+		const startIndex = Math.max(0, findStartIndex(itemLayout.offsets, scrollTop) - OVERSCAN_ITEMS);
+		let endIndex = startIndex;
+
+		while (endIndex < items.length && itemLayout.offsets[endIndex] < viewportBottom) {
+			endIndex += 1;
+		}
+
+		endIndex = Math.min(items.length, endIndex + OVERSCAN_ITEMS);
+
+		const rows: VisibleRow[] = [];
+
+		for (let index = startIndex; index < endIndex; index += 1) {
+			rows.push({
+				index,
+				item: items[index],
+				top: itemLayout.offsets[index]
+			});
+		}
+
+		return rows;
+	});
+
+	function findStartIndex(offsets: number[], target: number): number {
+		let low = 0;
+		let high = offsets.length - 1;
+		let result = 0;
+
+		while (low <= high) {
+			const middle = Math.floor((low + high) / 2);
+
+			if (offsets[middle] <= target) {
+				result = middle;
+				low = middle + 1;
+			} else {
+				high = middle - 1;
+			}
+		}
+
+		return result;
+	}
+
+	function scheduleScrollTop(nextScrollTop: number): void {
+		pendingScrollTop = nextScrollTop;
+
+		if (scrollFrame !== 0) {
+			return;
+		}
+
+		scrollFrame = requestAnimationFrame(() => {
+			scrollTop = pendingScrollTop;
+			scrollFrame = 0;
+		});
+	}
+
+	function handleScroll(event: Event): void {
+		const currentTarget = event.currentTarget;
+
+		if (!(currentTarget instanceof HTMLDivElement)) {
+			return;
+		}
+
+		scheduleScrollTop(currentTarget.scrollTop);
+	}
+
+	function registerRow(node: HTMLElement, itemId: string) {
+		let currentItemId = itemId;
+
+		rowElements.set(currentItemId, node);
+		scheduleVisibleRowMeasurement();
+
+		return {
+			update(nextItemId: string) {
+				rowElements.delete(currentItemId);
+				currentItemId = nextItemId;
+				rowElements.set(currentItemId, node);
+				scheduleVisibleRowMeasurement();
+			},
+			destroy() {
+				rowElements.delete(currentItemId);
+			}
+		};
+	}
+
+	function scheduleVisibleRowMeasurement(): void {
+		if (measureFrame !== 0) {
+			return;
+		}
+
+		measureFrame = requestAnimationFrame(() => {
+			measureFrame = 0;
+
+			const nextHeights = measuredViewportWidth === viewportWidth ? { ...itemHeights } : {};
+			let changed = measuredViewportWidth !== viewportWidth;
+
+			for (const { item } of visibleRows) {
+				const rowElement = rowElements.get(item.id);
+
+				if (!rowElement) {
+					continue;
+				}
+
+				const nextHeight = rowElement.offsetHeight;
+
+				if (nextHeights[item.id] === nextHeight) {
+					continue;
+				}
+
+				nextHeights[item.id] = nextHeight;
+				changed = true;
+			}
+
+			measuredViewportWidth = viewportWidth;
+
+			if (!changed) {
+				return;
+			}
+
+			itemHeights = nextHeights;
+		});
+	}
+
+	$effect(() => {
+		if (!scrollViewport) {
+			return;
+		}
+
+		scrollTop = scrollViewport.scrollTop;
+	});
+
+	$effect(() => {
+		if (
+			viewportWidth === 0 ||
+			(measuredViewportWidth === viewportWidth &&
+				visibleRows.every(({ item }) => itemHeights[item.id] !== undefined))
+		) {
+			return;
+		}
+
+		scheduleVisibleRowMeasurement();
+	});
+
+	onMount(() => {
+		return () => {
+			if (scrollFrame !== 0) {
+				cancelAnimationFrame(scrollFrame);
+			}
+
+			if (measureFrame !== 0) {
+				cancelAnimationFrame(measureFrame);
+			}
+		};
+	});
 </script>
 
 <section class="flex h-full flex-1 flex-col overflow-hidden">
@@ -111,7 +304,13 @@
 		</div>
 	</div>
 
-	<div class="min-h-0 flex-1 overflow-y-auto">
+	<div
+		bind:this={scrollViewport}
+		bind:clientHeight={viewportHeight}
+		bind:clientWidth={viewportWidth}
+		class="min-h-0 flex-1 overflow-y-auto"
+		onscroll={handleScroll}
+	>
 		{#if items.length === 0}
 			<div class="px-6 py-8 lg:px-8">
 				<div
@@ -125,97 +324,102 @@
 				</div>
 			</div>
 		{:else}
-			<div class="divide-y divide-slate-200 dark:divide-slate-800">
-				{#each items as item (item.id)}
-					<article
-						class={`feed-row relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
-							selectedItemId === item.id
-								? 'bg-slate-50 dark:bg-slate-900/60'
-								: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
-						}`}
-						aria-labelledby={`feed-item-title-${item.id}`}
-					>
-						<button
-							type="button"
-							class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset dark:focus-visible:ring-slate-700"
-							aria-label={`Open article: ${item.title}`}
-							aria-pressed={selectedItemId === item.id}
-							onclick={() => onSelectItem(item.id)}
-						></button>
-
-						<div
-							class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
+			<div class="relative" style={`height: ${itemLayout.totalHeight}px;`}>
+				{#each visibleRows as { item, index, top } (item.id)}
+					<div class="absolute inset-x-0 top-0" style={`transform: translateY(${top}px);`}>
+						<article
+							use:registerRow={item.id}
+							class={`feed-row relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
+								index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
+							}${
+								selectedItemId === item.id
+									? 'bg-slate-50 dark:bg-slate-900/60'
+									: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
+							}`}
+							aria-labelledby={`feed-item-title-${item.id}`}
 						>
+							<button
+								type="button"
+								class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset dark:focus-visible:ring-slate-700"
+								aria-label={`Open article: ${item.title}`}
+								aria-pressed={selectedItemId === item.id}
+								onclick={() => onSelectItem(item.id)}
+							></button>
+
 							<div
-								class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+								class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
 							>
-								<span>{feedTitle(item.feedId)}</span>
-								<span>&bull;</span>
-								<span>{formatDate(item.publishedAt)}</span>
-							</div>
-
-							<h3
-								id={`feed-item-title-${item.id}`}
-								class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
-							>
-								{item.title}
-							</h3>
-
-							<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-								{getListPreview(item)}
-							</p>
-						</div>
-
-						<div
-							class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
-						>
-							<div class="flex flex-wrap items-center gap-2">
-								<span
-									class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+								<div
+									class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
 								>
-									{item.read ? 'Read' : 'Unread'}
-								</span>
+									<span>{feedTitle(item.feedId)}</span>
+									<span>&bull;</span>
+									<span>{formatDate(item.publishedAt)}</span>
+								</div>
 
-								{#if item.mediaEnclosure}
-									<span
-										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-									>
-										Podcast
-									</span>
-								{/if}
+								<h3
+									id={`feed-item-title-${item.id}`}
+									class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
+								>
+									{item.title}
+								</h3>
 
-								{#if item.playbackPositionSeconds > 0}
-									<span
-										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-									>
-										Resumes at {formatDuration(item.playbackPositionSeconds)}
-									</span>
-								{/if}
+								<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+									{getListPreview(item)}
+								</p>
 							</div>
 
-							<div class="pointer-events-auto flex flex-wrap gap-2">
-								{#if item.mediaEnclosure}
+							<div
+								class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
+							>
+								<div class="flex flex-wrap items-center gap-2">
+									<span
+										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+									>
+										{item.read ? 'Read' : 'Unread'}
+									</span>
+
+									{#if item.mediaEnclosure}
+										<span
+											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+										>
+											Podcast
+										</span>
+									{/if}
+
+									{#if item.playbackPositionSeconds > 0}
+										<span
+											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+										>
+											Resumes at {formatDuration(item.playbackPositionSeconds)}
+										</span>
+									{/if}
+								</div>
+
+								<div class="pointer-events-auto flex flex-wrap gap-2">
+									{#if item.mediaEnclosure}
+										<button
+											class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+											type="button"
+											onclick={() => onPlay(item)}
+										>
+											{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+										</button>
+									{/if}
+
 									<button
-										class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+										class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 										type="button"
-										onclick={() => onPlay(item)}
+										onclick={() => {
+											void onMarkRead(item.id, !item.read);
+										}}
 									>
-										{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+										{item.read ? 'Mark unread' : 'Mark read'}
 									</button>
-								{/if}
-
-								<button
-									class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-									type="button"
-									onclick={() => {
-										void onMarkRead(item.id, !item.read);
-									}}
-								>
-									{item.read ? 'Mark unread' : 'Mark read'}
-								</button>
+								</div>
 							</div>
-						</div>
-					</article>
+						</article>
+					</div>
 				{/each}
 			</div>
 		{/if}
@@ -224,7 +428,6 @@
 
 <style>
 	.feed-row {
-		content-visibility: auto;
-		contain-intrinsic-size: 224px;
+		contain: layout paint;
 	}
 </style>
