@@ -45,7 +45,7 @@
 
 	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
 	const ESTIMATED_ROW_HEIGHT = 224;
-	const OVERSCAN_ITEMS = 6;
+	const OVERSCAN_ITEMS = 2;
 
 	type VisibleRow = {
 		index: number;

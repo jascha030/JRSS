@@ -72,8 +72,9 @@
 		};
 
 		const doc = document as ViewTransitionDocument;
+		const shouldSkipTransition = $visibleItems.length > 40;
 
-		if (!doc.startViewTransition) {
+		if (!doc.startViewTransition || shouldSkipTransition) {
 			apply();
 			return;
 		}
