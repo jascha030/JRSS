@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SvelteMap } from 'svelte/reactivity';
 
 	import type { SidebarSection } from '$lib/stores/app';
 	import type { Feed, FeedItem } from '$lib/types/rss';
@@ -44,8 +43,9 @@
 	);
 
 	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
-	const ESTIMATED_ROW_HEIGHT = 224;
-	const OVERSCAN_ITEMS = 2;
+	const DESKTOP_ROW_HEIGHT = 256;
+	const MOBILE_ROW_HEIGHT = 304;
+	const OVERSCAN_ROWS = 1;
 
 	type VisibleRow = {
 		index: number;
@@ -55,14 +55,10 @@
 
 	let scrollViewport = $state<HTMLDivElement | null>(null);
 	let viewportHeight = $state(0);
-	let viewportWidth = $state(0);
+	let windowWidth = $state(0);
 	let scrollTop = $state(0);
 	let pendingScrollTop = 0;
 	let scrollFrame = 0;
-	let measureFrame = 0;
-	let measuredViewportWidth = 0;
-	let itemHeights = $state<Record<string, number>>({});
-	const rowElements = new SvelteMap<string, HTMLElement>();
 
 	function feedTitle(feedId: string): string {
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
@@ -77,32 +73,17 @@
 		);
 	}
 
-	const itemLayout = $derived.by(() => {
-		const offsets: number[] = new Array(items.length);
-		let totalHeight = 0;
-
-		for (let index = 0; index < items.length; index += 1) {
-			offsets[index] = totalHeight;
-			totalHeight += itemHeights[items[index].id] ?? ESTIMATED_ROW_HEIGHT;
-		}
-
-		return { offsets, totalHeight };
-	});
+	const rowHeight = $derived(windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT);
+	const totalHeight = $derived(items.length * rowHeight);
 
 	const visibleRows = $derived.by((): VisibleRow[] => {
 		if (items.length === 0) {
 			return [];
 		}
 
-		const viewportBottom = scrollTop + Math.max(viewportHeight, ESTIMATED_ROW_HEIGHT);
-		const startIndex = Math.max(0, findStartIndex(itemLayout.offsets, scrollTop) - OVERSCAN_ITEMS);
-		let endIndex = startIndex;
-
-		while (endIndex < items.length && itemLayout.offsets[endIndex] < viewportBottom) {
-			endIndex += 1;
-		}
-
-		endIndex = Math.min(items.length, endIndex + OVERSCAN_ITEMS);
+		const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
+		const visibleCount = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
+		const endIndex = Math.min(items.length, startIndex + visibleCount);
 
 		const rows: VisibleRow[] = [];
 
@@ -110,31 +91,12 @@
 			rows.push({
 				index,
 				item: items[index],
-				top: itemLayout.offsets[index]
+				top: index * rowHeight
 			});
 		}
 
 		return rows;
 	});
-
-	function findStartIndex(offsets: number[], target: number): number {
-		let low = 0;
-		let high = offsets.length - 1;
-		let result = 0;
-
-		while (low <= high) {
-			const middle = Math.floor((low + high) / 2);
-
-			if (offsets[middle] <= target) {
-				result = middle;
-				low = middle + 1;
-			} else {
-				high = middle - 1;
-			}
-		}
-
-		return result;
-	}
 
 	function scheduleScrollTop(nextScrollTop: number): void {
 		pendingScrollTop = nextScrollTop;
@@ -159,63 +121,6 @@
 		scheduleScrollTop(currentTarget.scrollTop);
 	}
 
-	function registerRow(node: HTMLElement, itemId: string) {
-		let currentItemId = itemId;
-
-		rowElements.set(currentItemId, node);
-		scheduleVisibleRowMeasurement();
-
-		return {
-			update(nextItemId: string) {
-				rowElements.delete(currentItemId);
-				currentItemId = nextItemId;
-				rowElements.set(currentItemId, node);
-				scheduleVisibleRowMeasurement();
-			},
-			destroy() {
-				rowElements.delete(currentItemId);
-			}
-		};
-	}
-
-	function scheduleVisibleRowMeasurement(): void {
-		if (measureFrame !== 0) {
-			return;
-		}
-
-		measureFrame = requestAnimationFrame(() => {
-			measureFrame = 0;
-
-			const nextHeights = measuredViewportWidth === viewportWidth ? { ...itemHeights } : {};
-			let changed = measuredViewportWidth !== viewportWidth;
-
-			for (const { item } of visibleRows) {
-				const rowElement = rowElements.get(item.id);
-
-				if (!rowElement) {
-					continue;
-				}
-
-				const nextHeight = rowElement.offsetHeight;
-
-				if (nextHeights[item.id] === nextHeight) {
-					continue;
-				}
-
-				nextHeights[item.id] = nextHeight;
-				changed = true;
-			}
-
-			measuredViewportWidth = viewportWidth;
-
-			if (!changed) {
-				return;
-			}
-
-			itemHeights = nextHeights;
-		});
-	}
-
 	$effect(() => {
 		if (!scrollViewport) {
 			return;
@@ -224,30 +129,16 @@
 		scrollTop = scrollViewport.scrollTop;
 	});
 
-	$effect(() => {
-		if (
-			viewportWidth === 0 ||
-			(measuredViewportWidth === viewportWidth &&
-				visibleRows.every(({ item }) => itemHeights[item.id] !== undefined))
-		) {
-			return;
-		}
-
-		scheduleVisibleRowMeasurement();
-	});
-
 	onMount(() => {
 		return () => {
 			if (scrollFrame !== 0) {
 				cancelAnimationFrame(scrollFrame);
 			}
-
-			if (measureFrame !== 0) {
-				cancelAnimationFrame(measureFrame);
-			}
 		};
 	});
 </script>
+
+<svelte:window bind:innerWidth={windowWidth} />
 
 <section class="flex h-full flex-1 flex-col overflow-hidden">
 	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
@@ -307,7 +198,6 @@
 	<div
 		bind:this={scrollViewport}
 		bind:clientHeight={viewportHeight}
-		bind:clientWidth={viewportWidth}
 		class="min-h-0 flex-1 overflow-y-auto"
 		onscroll={handleScroll}
 	>
@@ -324,12 +214,14 @@
 				</div>
 			</div>
 		{:else}
-			<div class="relative" style={`height: ${itemLayout.totalHeight}px;`}>
+			<div class="relative" style={`height: ${totalHeight}px;`}>
 				{#each visibleRows as { item, index, top } (item.id)}
-					<div class="absolute inset-x-0 top-0" style={`transform: translateY(${top}px);`}>
+					<div
+						class="absolute inset-x-0 top-0"
+						style={`height: ${rowHeight}px; transform: translateY(${top}px);`}
+					>
 						<article
-							use:registerRow={item.id}
-							class={`feed-row relative flex min-h-56 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
+							class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 								index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
 							}${
 								selectedItemId === item.id
