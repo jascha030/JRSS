@@ -14,7 +14,7 @@
 	let { feedTitle, title, byline, excerpt, publishedAt, html, text }: Props = $props();
 </script>
 
-<article class="reader-surface mx-auto w-full max-w-3xl pb-12">
+<article class="reader-surface mx-auto w-full min-w-3xl max-w-3xl pb-12">
 	<header class="border-b border-slate-200/80 pb-8 dark:border-slate-800/80">
 		{#if feedTitle}
 			<p
