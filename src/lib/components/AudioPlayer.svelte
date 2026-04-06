@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { FeedItem, PlaybackState } from '$lib/types/rss';
+	import type { FeedListItem, PlaybackState } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
 
 	type Props = {
-		item: FeedItem | null;
+		item: FeedListItem | null;
 		playbackState: PlaybackState | null;
 		onPlayingChange: (isPlaying: boolean) => void;
 		onStop: () => void;

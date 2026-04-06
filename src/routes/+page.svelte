@@ -13,6 +13,7 @@
 		feeds,
 		initializeApp,
 		isCreatingFeed,
+		loadItemDetails,
 		loadReaderView,
 		markItemRead,
 		playAudioItem,
@@ -64,6 +65,22 @@
 			readerNotice = '';
 			lastSelectedItemId = $selectedItemId;
 		}
+	});
+
+	$effect(() => {
+		const currentSelectedItemId = $selectedItemId;
+
+		if (!currentSelectedItemId) {
+			return;
+		}
+
+		void loadItemDetails(currentSelectedItemId).catch((error: unknown) => {
+			if ($selectedItemId !== currentSelectedItemId) {
+				return;
+			}
+
+			notice = error instanceof Error ? error.message : 'Unable to load article details.';
+		});
 	});
 
 	function toggleSidebar() {
