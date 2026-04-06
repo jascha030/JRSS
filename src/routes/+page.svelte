@@ -456,21 +456,3 @@
 		onStop={stopPlayback}
 	/>
 </div>
-
-<style>
-	.vt-main {
-		view-transition-name: app-main;
-	}
-
-	:global(::view-transition-group(app-main)),
-	:global(::view-transition-old(app-main)),
-	:global(::view-transition-new(app-main)) {
-		animation-duration: 220ms;
-		animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	:global(::view-transition-old(app-main)),
-	:global(::view-transition-new(app-main)) {
-		mix-blend-mode: normal;
-	}
-</style>
