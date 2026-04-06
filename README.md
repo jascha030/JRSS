@@ -9,13 +9,13 @@ JRSS local-first RSS reader with podcast support.
 - One place for articles and podcasts
 - Fast, simple reading experience
 - Offline-friendly by design
-- Local storage only
 
-## What you can do
+## Features
 
 - Subscribe to RSS and Atom feeds
 - Read full articles in a focused reader view
-- Listen to podcast episodes
+- Play audio for RSS podcast feeds
+- Automatically resolve rss feed from Apple Podcast link using apple.itunes.com lookup endpoint
 - Pick up playback where you left off
 
 ## Run locally
