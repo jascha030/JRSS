@@ -6,15 +6,20 @@
 		item: FeedListItem | null;
 		playbackState: PlaybackState | null;
 		onPlayingChange: (isPlaying: boolean) => void;
+		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
+		onPositionPersist: (positionSeconds: number, durationSeconds: number) => Promise<void>;
 		onStop: () => void;
-		onTimeChange: (positionSeconds: number, durationSeconds: number) => Promise<void>;
 	};
 
-	let { item, playbackState, onPlayingChange, onStop, onTimeChange }: Props = $props();
+	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
+
+	let { item, playbackState, onPlayingChange, onPositionChange, onPositionPersist, onStop }: Props =
+		$props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
 	let activeItemId: string | null = $state(null);
 	let lastSyncedSecond = $state(-1);
+	let lastPersistedSecond = $state(-1);
 
 	function durationForPlayer(): number {
 		if (!item) {
@@ -40,7 +45,28 @@
 		}
 
 		lastSyncedSecond = currentSecond;
-		void onTimeChange(currentSecond, durationForPlayer());
+		onPositionChange(currentSecond, durationForPlayer());
+
+		if (
+			lastPersistedSecond < 0 ||
+			Math.abs(currentSecond - lastPersistedSecond) >= PLAYBACK_PERSIST_INTERVAL_SECONDS
+		) {
+			lastPersistedSecond = currentSecond;
+			void onPositionPersist(currentSecond, durationForPlayer());
+		}
+	}
+
+	function persistPlaybackPosition() {
+		if (!audioElement) {
+			return;
+		}
+
+		const currentSecond = Math.floor(audioElement.currentTime);
+
+		lastSyncedSecond = currentSecond;
+		lastPersistedSecond = currentSecond;
+		onPositionChange(currentSecond, durationForPlayer());
+		void onPositionPersist(currentSecond, durationForPlayer());
 	}
 
 	function togglePlayback() {
@@ -57,13 +83,22 @@
 	}
 
 	$effect(() => {
-		if (!item || !audioElement) {
+		if (!audioElement) {
+			return;
+		}
+
+		if (activeItemId && item?.id !== activeItemId) {
+			persistPlaybackPosition();
+		}
+
+		if (!item) {
 			return;
 		}
 
 		if (item.id !== activeItemId) {
 			activeItemId = item.id;
 			lastSyncedSecond = Math.floor(item.playbackPositionSeconds);
+			lastPersistedSecond = Math.floor(item.playbackPositionSeconds);
 			audioElement.currentTime = item.playbackPositionSeconds;
 			audioElement.pause();
 		}
@@ -104,6 +139,7 @@
 					type="button"
 					onclick={() => {
 						audioElement?.pause();
+						persistPlaybackPosition();
 						onStop();
 					}}
 				>
@@ -116,14 +152,15 @@
 			bind:this={audioElement}
 			onended={() => {
 				onPlayingChange(false);
-				void onTimeChange(0, durationForPlayer());
+				onPositionChange(0, durationForPlayer());
+				void onPositionPersist(0, durationForPlayer());
 			}}
 			onloadedmetadata={() => {
 				syncPlaybackPosition();
 			}}
 			onpause={() => {
 				onPlayingChange(false);
-				syncPlaybackPosition();
+				persistPlaybackPosition();
 			}}
 			onplay={() => onPlayingChange(true)}
 			ontimeupdate={syncPlaybackPosition}

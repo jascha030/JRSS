@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { SidebarSection } from '$lib/stores/app';
+	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed } from '$lib/types/rss';
+	import { fade } from 'svelte/transition';
 
 	type Props = {
 		collapsed: boolean;
@@ -62,40 +63,24 @@
 		}
 	];
 
-	function isSectionActive(sectionId: SidebarSection): boolean {
+	function isSectionActive(sectionId: SidebarSection) {
 		return selectedSection === sectionId && selectedFeedId === null;
 	}
 
-	function isRefreshing(feedId: string): boolean {
+	function isRefreshing(feedId: string) {
 		return refreshingFeedIds.includes(feedId);
 	}
 
-	function feedInitial(title: string): string {
+	function feedInitial(title: string) {
 		return (title?.trim()?.[0] ?? '?').toUpperCase();
 	}
 </script>
 
-<!-- Scrim: visible when drawer is open, click to close -->
-{#if !collapsed}
-	<button
-		type="button"
-		class="sidebar-scrim fixed inset-0 z-30 hidden bg-black/20 md:block"
-		class:sidebar-scrim--visible={!collapsed}
-		aria-label="Close sidebar"
-		onclick={onToggleCollapse}
-		tabindex="-1"
-	></button>
-{/if}
-
-<!--
-	Layout: the outer wrapper always reserves rail width (w-24) in flex flow.
-	The expanded drawer is positioned absolutely so it overlays content
-	without causing layout reflow on the main pane.
--->
-<div class="sidebar-root relative z-40 hidden h-dvh w-24 shrink-0 md:flex">
-	<!-- Rail: always visible, always w-24 -->
+{#if collapsed}
 	<aside
-		class="relative z-10 flex h-full w-24 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+		in:fade={{ duration: 90 }}
+		out:fade={{ duration: 70 }}
+		class="hidden h-dvh w-24 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
 		<div
 			class="flex shrink-0 items-center justify-center border-b border-zinc-200 px-2 py-5 dark:border-zinc-800"
@@ -103,8 +88,8 @@
 			<button
 				type="button"
 				onclick={onToggleCollapse}
-				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+				title="Expand sidebar"
+				aria-label="Expand sidebar"
 				class="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition-colors hover:bg-indigo-500"
 			>
 				<svg
@@ -179,13 +164,11 @@
 			</div>
 		</nav>
 	</aside>
-
-	<!-- Drawer: slides out from behind the rail, overlaying the main content area -->
+{:else}
 	<aside
-		class="sidebar-drawer absolute top-0 left-0 z-0 flex h-full w-72 flex-col overflow-hidden border-r border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
-		class:sidebar-drawer--open={!collapsed}
-		aria-hidden={collapsed}
-		inert={collapsed ? true : undefined}
+		in:fade={{ duration: 90 }}
+		out:fade={{ duration: 70 }}
+		class="hidden h-dvh w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-white md:flex dark:border-zinc-800 dark:bg-zinc-950"
 	>
 		<div class="flex shrink-0 items-center border-b border-zinc-200 px-3 py-5 dark:border-zinc-800">
 			<div
@@ -354,46 +337,4 @@
 			</div>
 		</nav>
 	</aside>
-</div>
-
-<style>
-	/*
-	 * Drawer animation: only transform + opacity → compositor-only, zero reflow.
-	 * The drawer sits behind the rail (z-0 vs z-10) and slides right to reveal.
-	 */
-	.sidebar-drawer {
-		transform: translateX(0);
-		opacity: 0;
-		pointer-events: none;
-		transition:
-			transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
-			opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
-		will-change: transform, opacity;
-	}
-
-	.sidebar-drawer--open {
-		/* Slide the full drawer width out to the right, then back by the rail width
-		   so the drawer's left edge aligns flush with the rail's right edge. */
-		transform: translateX(calc(100% - 6rem));
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	.sidebar-scrim {
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	.sidebar-scrim--visible {
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.sidebar-drawer,
-		.sidebar-scrim {
-			transition-duration: 0ms;
-		}
-	}
-</style>
+{/if}

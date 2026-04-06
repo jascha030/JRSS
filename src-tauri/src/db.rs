@@ -1,6 +1,6 @@
 use crate::models::{
-    FeedItemRecord, FeedListItemRecord, FeedRecord, MediaEnclosureRecord, ParsedFeed,
-    ReaderContentRecord,
+    FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord,
+    MediaEnclosureRecord, ParsedFeed, ReaderContentRecord,
 };
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
@@ -25,17 +25,28 @@ const ITEM_SELECT_QUERY: &str =
 
 const ITEM_LIST_SELECT_QUERY: &str =
     "SELECT i.id, i.feed_id, i.title, i.url, i.summary,
-             CASE
-                 WHEN i.content_text IS NOT NULL AND trim(i.content_text) <> '' THEN substr(trim(i.content_text), 1, 600)
-                 WHEN i.summary_text IS NOT NULL AND trim(i.summary_text) <> '' THEN substr(trim(i.summary_text), 1, 600)
-                 WHEN trim(i.summary) <> '' THEN substr(trim(i.summary), 1, 600)
-                 ELSE 'No summary or content available.'
-             END,
+             i.preview_text,
              i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
              i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
              i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
-         FROM items i
-         LEFT JOIN playback_state p ON p.item_id = i.id";
+             FROM items i
+             LEFT JOIN playback_state p ON p.item_id = i.id";
+
+const ITEM_LIST_FILTER_QUERY: &str = " WHERE (?1 IS NULL OR i.feed_id = ?1)
+        AND (?2 <> 'unread' OR i.read = 0)
+        AND (?2 <> 'podcasts' OR i.enclosure_url IS NOT NULL)";
+
+const ITEM_LIST_COUNT_QUERY: &str = "SELECT COUNT(*) FROM items i";
+
+const PREVIEW_TEXT_BACKFILL_QUERY: &str =
+    "UPDATE items
+        SET preview_text = CASE
+            WHEN content_text IS NOT NULL AND trim(content_text) <> '' THEN substr(trim(content_text), 1, 420)
+            WHEN summary_text IS NOT NULL AND trim(summary_text) <> '' THEN substr(trim(summary_text), 1, 420)
+            WHEN trim(summary) <> '' THEN substr(trim(summary), 1, 420)
+            ELSE 'No summary or content available.'
+        END
+      WHERE preview_text IS NULL OR trim(preview_text) = ''";
 
 pub struct DatabaseState {
     db_path: PathBuf,
@@ -55,7 +66,7 @@ impl DatabaseState {
             db_path: app_data_dir.join("jrss.sqlite3"),
         };
 
-        open_connection(&state.db_path)?;
+        initialize_database(&state.db_path)?;
 
         Ok(state)
     }
@@ -72,9 +83,19 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
     connection
         .execute_batch(
             "PRAGMA foreign_keys = ON;
-			 PRAGMA journal_mode = WAL;
+			 PRAGMA journal_mode = WAL;",
+        )
+        .map_err(|error| format!("Failed to configure SQLite connection: {error}"))?;
 
-			 CREATE TABLE IF NOT EXISTS feeds (
+    Ok(connection)
+}
+
+pub fn initialize_database(db_path: &Path) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS feeds (
 			 	id TEXT PRIMARY KEY,
 			 	url TEXT NOT NULL UNIQUE,
 			 	title TEXT NOT NULL,
@@ -92,6 +113,7 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	title TEXT NOT NULL,
 			 	url TEXT NOT NULL,
 			 	summary TEXT NOT NULL,
+			 	preview_text TEXT NOT NULL DEFAULT '',
 			 	summary_text TEXT,
 			 	summary_html TEXT,
 			 	content_text TEXT,
@@ -103,9 +125,9 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	reader_content_html TEXT,
 			 	reader_content_text TEXT,
 			 	reader_fetched_at TEXT,
-			 published_at TEXT NOT NULL,
-			 read INTEGER NOT NULL DEFAULT 0,
-			 enclosure_url TEXT,
+			 	published_at TEXT NOT NULL,
+			 	read INTEGER NOT NULL DEFAULT 0,
+			 	enclosure_url TEXT,
 			 	enclosure_mime_type TEXT,
 			 	enclosure_size_bytes INTEGER,
 			 	enclosure_duration_seconds INTEGER,
@@ -118,16 +140,23 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 			 	updated_at TEXT NOT NULL
 			 );
 
-			 CREATE INDEX IF NOT EXISTS idx_items_feed_id_published_at
-			 	ON items(feed_id, published_at DESC);
-			 CREATE INDEX IF NOT EXISTS idx_items_published_at
-			 	ON items(published_at DESC);",
+			 CREATE INDEX IF NOT EXISTS idx_items_feed_id_published_at_id
+			 	ON items(feed_id, published_at DESC, id DESC);
+			 CREATE INDEX IF NOT EXISTS idx_items_published_at_id
+			 	ON items(published_at DESC, id DESC);
+			 CREATE INDEX IF NOT EXISTS idx_items_unread_published_at_id
+			 	ON items(published_at DESC, id DESC)
+			 	WHERE read = 0;
+			 CREATE INDEX IF NOT EXISTS idx_items_podcast_published_at_id
+			 	ON items(published_at DESC, id DESC)
+			 	WHERE enclosure_url IS NOT NULL;",
         )
         .map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
     ensure_item_content_columns(&connection)?;
+    backfill_preview_text(&connection)?;
 
-    Ok(connection)
+    Ok(())
 }
 
 fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
@@ -139,6 +168,18 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
         .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "preview_text")
+    {
+        connection
+            .execute(
+                "ALTER TABLE items ADD COLUMN preview_text TEXT NOT NULL DEFAULT ''",
+                [],
+            )
+            .map_err(|error| format!("Failed to add items.preview_text column: {error}"))?;
+    }
 
     if !existing_columns
         .iter()
@@ -248,6 +289,14 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
             [READER_STATUS_UNFETCHED],
         )
         .map_err(|error| format!("Failed to backfill items.reader_status values: {error}"))?;
+
+    Ok(())
+}
+
+fn backfill_preview_text(connection: &Connection) -> AppResult<()> {
+    connection
+        .execute(PREVIEW_TEXT_BACKFILL_QUERY, [])
+        .map_err(|error| format!("Failed to backfill items.preview_text values: {error}"))?;
 
     Ok(())
 }
@@ -402,29 +451,41 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
     Ok(feeds)
 }
 
-pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedListItemRecord>> {
+pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResult<ItemPageRecord> {
     let connection = open_connection(db_path)?;
-    let query = if feed_id.is_some() {
-        format!(
-            "{ITEM_LIST_SELECT_QUERY} WHERE i.feed_id = ?1 ORDER BY i.published_at DESC, i.id DESC"
+    let safe_limit = query.limit.clamp(1, 500);
+    let safe_offset = query.offset.max(0);
+    let count_query = format!("{ITEM_LIST_COUNT_QUERY}{ITEM_LIST_FILTER_QUERY}");
+    let total_count = connection
+        .query_row(
+            &count_query,
+            params![query.feed_id.as_deref(), query.section.as_str()],
+            |row| row.get(0),
         )
-    } else {
-        format!("{ITEM_LIST_SELECT_QUERY} ORDER BY i.published_at DESC, i.id DESC")
-    };
+        .map_err(|error| format!("Failed to count items: {error}"))?;
 
+    let page_query = format!(
+        "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY i.published_at DESC, i.id DESC LIMIT ?3 OFFSET ?4"
+    );
     let mut statement = connection
-        .prepare(&query)
-        .map_err(|error| format!("Failed to prepare item query: {error}"))?;
+        .prepare(&page_query)
+        .map_err(|error| format!("Failed to prepare paged item query: {error}"))?;
+    let rows = statement
+        .query_map(
+            params![
+                query.feed_id.as_deref(),
+                query.section.as_str(),
+                safe_limit,
+                safe_offset
+            ],
+            map_item_list_row,
+        )
+        .map_err(|error| format!("Failed to query item page: {error}"))?;
+    let items = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read paged items: {error}"))?;
 
-    let rows = if let Some(feed_id) = feed_id {
-        statement.query_map([feed_id], map_item_list_row)
-    } else {
-        statement.query_map([], map_item_list_row)
-    }
-    .map_err(|error| format!("Failed to list items: {error}"))?;
-
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("Failed to read items: {error}"))
+    Ok(ItemPageRecord { items, total_count })
 }
 
 pub fn remove_feed(db_path: &Path, id: &str) -> AppResult<()> {
@@ -602,6 +663,7 @@ pub fn upsert_feed_snapshot(
 					title,
 					url,
 					summary,
+					preview_text,
 					summary_text,
 					summary_html,
 					content_text,
@@ -613,11 +675,12 @@ pub fn upsert_feed_snapshot(
 					enclosure_size_bytes,
 					enclosure_duration_seconds
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, ?12, ?13, ?14, ?15)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title,
 					url = excluded.url,
 					summary = excluded.summary,
+					preview_text = excluded.preview_text,
 					summary_text = excluded.summary_text,
 					summary_html = excluded.summary_html,
 					content_text = excluded.content_text,
@@ -634,6 +697,7 @@ pub fn upsert_feed_snapshot(
                     parsed_item.title,
                     parsed_item.url,
                     parsed_item.summary,
+                    parsed_item.preview_text,
                     parsed_item.summary_text,
                     parsed_item.summary_html,
                     parsed_item.content_text,
