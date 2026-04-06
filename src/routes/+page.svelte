@@ -34,11 +34,7 @@
 		updatePlaybackPosition,
 		visibleItems
 	} from '$lib/stores/app';
-	import { onMount, tick } from 'svelte';
-
-	type ViewTransitionDocument = Document & {
-		startViewTransition?: (callback: () => void) => void;
-	};
+	import { onMount } from 'svelte';
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
@@ -83,22 +79,8 @@
 		});
 	});
 
-	function toggleSidebar() {
-		const apply = () => {
-			isSidebarCollapsed = !isSidebarCollapsed;
-		};
-
-		const doc = document as ViewTransitionDocument;
-
-		if (!doc.startViewTransition) {
-			apply();
-			return;
-		}
-
-		doc.startViewTransition(async () => {
-			apply();
-			await tick();
-		});
+	function toggleSidebar(): void {
+		isSidebarCollapsed = !isSidebarCollapsed;
 	}
 
 	onMount(() => {
@@ -176,7 +158,7 @@
 			onToggleCollapse={toggleSidebar}
 		/>
 
-		<main class="vt-main flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+		<main class="flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
 				class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-3 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
 			>
@@ -418,21 +400,3 @@
 		onTimeChange={updatePlaybackPosition}
 	/>
 </div>
-
-<style>
-	.vt-main {
-		view-transition-name: app-main;
-	}
-
-	:global(::view-transition-group(app-main)),
-	:global(::view-transition-old(app-main)),
-	:global(::view-transition-new(app-main)) {
-		animation-duration: 220ms;
-		animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	:global(::view-transition-old(app-main)),
-	:global(::view-transition-new(app-main)) {
-		mix-blend-mode: normal;
-	}
-</style>
