@@ -1,6 +1,6 @@
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
-use crate::models::{FeedItemRecord, FeedRecord};
+use crate::models::{FeedItemRecord, FeedListItemRecord, FeedRecord};
 use crate::reader_extract;
 use tauri::State;
 
@@ -59,12 +59,26 @@ pub async fn remove_feed(id: String, state: State<'_, DatabaseState>) -> Result<
 pub async fn list_items(
     feed_id: Option<String>,
     state: State<'_, DatabaseState>,
-) -> Result<Vec<FeedItemRecord>, String> {
+) -> Result<Vec<FeedListItemRecord>, String> {
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || db::list_items(&db_path, feed_id.as_deref()))
         .await
         .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn get_item_details(
+    item_id: String,
+    state: State<'_, DatabaseState>,
+) -> Result<FeedItemRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())
+    })
+    .await
+    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]

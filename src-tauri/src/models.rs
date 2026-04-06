@@ -24,6 +24,26 @@ pub struct MediaEnclosureRecord {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FeedListItemRecord {
+    pub id: String,
+    pub feed_id: String,
+    pub title: String,
+    pub url: String,
+    pub summary: String,
+    pub preview_text: String,
+    pub reader_status: String,
+    pub reader_title: Option<String>,
+    pub reader_byline: Option<String>,
+    pub reader_excerpt: Option<String>,
+    pub reader_fetched_at: Option<String>,
+    pub published_at: String,
+    pub read: bool,
+    pub playback_position_seconds: i64,
+    pub media_enclosure: Option<MediaEnclosureRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FeedItemRecord {
     pub id: String,
     pub feed_id: String,

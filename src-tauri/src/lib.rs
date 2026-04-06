@@ -30,6 +30,7 @@ pub fn run() {
             commands::refresh_feed,
             commands::remove_feed,
             commands::list_items,
+            commands::get_item_details,
             commands::mark_read,
             commands::save_playback,
             commands::load_reader_content

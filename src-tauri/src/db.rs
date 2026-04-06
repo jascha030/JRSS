@@ -1,5 +1,6 @@
 use crate::models::{
-    FeedItemRecord, FeedRecord, MediaEnclosureRecord, ParsedFeed, ReaderContentRecord,
+    FeedItemRecord, FeedListItemRecord, FeedRecord, MediaEnclosureRecord, ParsedFeed,
+    ReaderContentRecord,
 };
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
@@ -17,6 +18,20 @@ const ITEM_SELECT_QUERY: &str =
     "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.summary_text, i.summary_html,
              i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
              i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
+             i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
+             i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+         FROM items i
+         LEFT JOIN playback_state p ON p.item_id = i.id";
+
+const ITEM_LIST_SELECT_QUERY: &str =
+    "SELECT i.id, i.feed_id, i.title, i.url, i.summary,
+             CASE
+                 WHEN i.content_text IS NOT NULL AND trim(i.content_text) <> '' THEN substr(trim(i.content_text), 1, 600)
+                 WHEN i.summary_text IS NOT NULL AND trim(i.summary_text) <> '' THEN substr(trim(i.summary_text), 1, 600)
+                 WHEN trim(i.summary) <> '' THEN substr(trim(i.summary), 1, 600)
+                 ELSE 'No summary or content available.'
+             END,
+             i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
              i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
              i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
          FROM items i
@@ -302,6 +317,41 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
     })
 }
 
+fn map_item_list_row(row: &Row<'_>) -> rusqlite::Result<FeedListItemRecord> {
+    let enclosure_url: Option<String> = row.get(13)?;
+    let enclosure_mime_type: Option<String> = row.get(14)?;
+    let enclosure_size_bytes: Option<i64> = row.get(15)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(16)?;
+
+    let media_enclosure = match (enclosure_url, enclosure_mime_type) {
+        (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
+            url,
+            mime_type,
+            size_bytes: enclosure_size_bytes,
+            duration_seconds: enclosure_duration_seconds,
+        }),
+        _ => None,
+    };
+
+    Ok(FeedListItemRecord {
+        id: row.get(0)?,
+        feed_id: row.get(1)?,
+        title: row.get(2)?,
+        url: row.get(3)?,
+        summary: row.get(4)?,
+        preview_text: row.get(5)?,
+        reader_status: row.get(6)?,
+        reader_title: row.get(7)?,
+        reader_byline: row.get(8)?,
+        reader_excerpt: row.get(9)?,
+        reader_fetched_at: row.get(10)?,
+        published_at: row.get(11)?,
+        read: row.get::<_, i64>(12)? != 0,
+        playback_position_seconds: row.get(17)?,
+        media_enclosure,
+    })
+}
+
 fn get_feed_by_url_in_tx(
     transaction: &Transaction<'_>,
     url: &str,
@@ -352,12 +402,14 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
     Ok(feeds)
 }
 
-pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedItemRecord>> {
+pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedListItemRecord>> {
     let connection = open_connection(db_path)?;
     let query = if feed_id.is_some() {
-        format!("{ITEM_SELECT_QUERY} WHERE i.feed_id = ?1 ORDER BY i.published_at DESC, i.id DESC")
+        format!(
+            "{ITEM_LIST_SELECT_QUERY} WHERE i.feed_id = ?1 ORDER BY i.published_at DESC, i.id DESC"
+        )
     } else {
-        format!("{ITEM_SELECT_QUERY} ORDER BY i.published_at DESC, i.id DESC")
+        format!("{ITEM_LIST_SELECT_QUERY} ORDER BY i.published_at DESC, i.id DESC")
     };
 
     let mut statement = connection
@@ -365,9 +417,9 @@ pub fn list_items(db_path: &Path, feed_id: Option<&str>) -> AppResult<Vec<FeedIt
         .map_err(|error| format!("Failed to prepare item query: {error}"))?;
 
     let rows = if let Some(feed_id) = feed_id {
-        statement.query_map([feed_id], map_item_row)
+        statement.query_map([feed_id], map_item_list_row)
     } else {
-        statement.query_map([], map_item_row)
+        statement.query_map([], map_item_list_row)
     }
     .map_err(|error| format!("Failed to list items: {error}"))?;
 
