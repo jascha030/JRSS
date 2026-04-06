@@ -4,6 +4,9 @@ JRSS local-first RSS reader with podcast support.
 
 ### This app is still under development 🚧
 
+![podcast](https://github.com/jascha030/JRSS/blob/main/img/scr1.png?raw=true)
+![article](https://github.com/jascha030/JRSS/blob/main/img/scr2.png?raw=true)
+
 ## Why JRSS
 
 - One place for articles and podcasts
