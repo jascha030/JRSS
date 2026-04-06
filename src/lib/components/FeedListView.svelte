@@ -156,7 +156,7 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full flex-1 flex-col overflow-hidden">
+<section class="flex h-full flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
 	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
@@ -284,16 +284,20 @@
 										<span>{formatDate(item.publishedAt)}</span>
 									</div>
 
-									<h3
-										id={`feed-item-title-${item.id}`}
-										class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
-									>
-										{item.title}
-									</h3>
+									<div class="">
+										<h3
+											id={`feed-item-title-${item.id}`}
+											class="mt-3 text-lg font-semibold text-slate-950 dark:text-white"
+										>
+											{item.title}
+										</h3>
 
-									<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-										{getListPreview(item)}
-									</p>
+										<p
+											class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
+										>
+											{getListPreview(item)}
+										</p>
+									</div>
 								</div>
 
 								<div
