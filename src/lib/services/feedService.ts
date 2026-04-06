@@ -1,5 +1,5 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
-import type { Feed, FeedItem } from '$lib/types/rss';
+import type { Feed, FeedItem, FeedListItem } from '$lib/types/rss';
 
 function normalizeFeedInput(url: string): string {
 	return url.trim();
@@ -31,12 +31,16 @@ export async function removeFeed(id: string): Promise<void> {
 	await invokeCommand('remove_feed', { id });
 }
 
-export async function listItems(feedId?: string): Promise<FeedItem[]> {
+export async function listItems(feedId?: string): Promise<FeedListItem[]> {
 	if (!isTauriRuntime()) {
 		return [];
 	}
 
-	return invokeCommand<FeedItem[]>('list_items', { feedId: feedId ?? null });
+	return invokeCommand<FeedListItem[]>('list_items', { feedId: feedId ?? null });
+}
+
+export async function getItemDetails(itemId: string): Promise<FeedItem> {
+	return invokeCommand<FeedItem>('get_item_details', { itemId });
 }
 
 export async function markRead(itemId: string, read: boolean): Promise<void> {

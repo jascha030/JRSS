@@ -2,20 +2,20 @@
 	import { onMount } from 'svelte';
 
 	import type { SidebarSection } from '$lib/stores/app';
-	import type { Feed, FeedItem } from '$lib/types/rss';
+	import type { Feed, FeedListItem } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
 
 	type Props = {
 		feeds: Feed[];
 		isRefreshing: boolean;
-		items: FeedItem[];
+		items: FeedListItem[];
 		onRefresh: (feedId: string) => Promise<void>;
 		onSelectItem: (itemId: string) => void;
 		selectedFeed: Feed | null;
 		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
-		onPlay: (item: FeedItem) => void;
+		onPlay: (item: FeedListItem) => void;
 	};
 
 	let {
@@ -49,7 +49,7 @@
 
 	type VisibleRow = {
 		index: number;
-		item: FeedItem;
+		item: FeedListItem;
 		top: number;
 	};
 
@@ -64,13 +64,8 @@
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
 	}
 
-	function getListPreview(item: FeedItem): string {
-		return (
-			item.contentText?.trim() ||
-			item.summaryText?.trim() ||
-			item.summary.trim() ||
-			'No summary or content available.'
-		);
+	function getListPreview(item: FeedListItem) {
+		return item.previewText;
 	}
 
 	const rowHeight = $derived(windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT);
