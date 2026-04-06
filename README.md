@@ -1,152 +1,52 @@
-# JRSS | Jassie's Really Simple Syndication Application
+# JRSS | Jassie's Really Simple Syndication (Application)
 
-Local-first RSS reader and podcast desktop MVP built with SvelteKit, Tauri, and SQLite.
+JRSS local-first RSS reader with podcast support.
 
-## Current Architecture
+### This app is still under development 🚧
 
-- SvelteKit still owns the UI, routes, stores, and Tailwind styling.
-- The frontend service layer in `src/lib/services/feedService.ts` is now a thin wrapper around Tauri commands.
-- Native Tauri code in `src-tauri/src` handles:
-  - feed fetching
-  - RSS / Atom parsing
-  - SQLite reads and writes
-- The frontend no longer depends on browser CORS workarounds or `localStorage` persistence.
+## Why JRSS
 
-## Project Structure
+- One place for articles and podcasts
+- Fast, simple reading experience
+- Offline-friendly by design
+- Local storage only
 
-```text
-src/
-  lib/
-    components/   UI shell pieces: sidebar, feed list, audio player, reader article view
-    services/     frontend service boundary and Tauri command wrapper
-    stores/       app state for selection, lists, playback, and reader content
-    types/        shared frontend domain types
-    utils/        small formatting helpers
-  routes/         SPA entry layout and page shell
+## What you can do
 
-src-tauri/
-  src/
-    commands.rs   Tauri invoke commands exposed to the frontend
-    db.rs         SQLite schema and persistence helpers
-    feed_ingest.rs native feed fetching and RSS/Atom parsing
-    reader_extract.rs article content extraction and HTML sanitization
-    models.rs     serialized DTOs returned to the frontend
-```
+- Subscribe to RSS and Atom feeds
+- Read full articles in a focused reader view
+- Listen to podcast episodes
+- Pick up playback where you left off
 
-## SQLite
+## Run locally
 
-JRSS stores data in a local SQLite database named `jrss.sqlite3` inside the Tauri app data directory.
+### Requirements
 
-The MVP schema is created automatically on startup.
+- [Bun](https://bun.sh/)
+- Rust/Cargo
 
-Tables:
-
-- `feeds`
-- `items`
-- `playback_state`
-
-Schema responsibilities:
-
-- `feeds`: feed metadata and refresh timestamps
-- `items`: normalized feed entries, read state, saved state, enclosure metadata
-- `playback_state`: per-item playback position persisted separately from item metadata
-
-The current MVP uses `CREATE TABLE IF NOT EXISTS` setup on open instead of a full migration framework.
-
-## Frontend Contract
-
-The frontend exposes these service commands:
-
-- `listFeeds()` — retrieve all subscribed feeds
-- `addFeed(url)` — fetch and ingest a new feed
-- `refreshFeed(id)` — refresh an existing feed
-- `removeFeed(id)` — remove a feed subscription
-- `listItems(feedId?)` — list all items, optionally filtered by feed
-- `markRead(itemId, read)` — mark item as read/unread
-- `savePlayback(itemId, positionSeconds)` — persist audio playback position
-- `loadReaderContent(itemId)` — extract and cache article full-text content
-
-Stores manage selection, feed list state, audio playback, and reader content.
-
-## Feed Ingestion
-
-- Feed fetching now runs natively through Rust `reqwest`
-- RSS parsing uses the `rss` crate
-- Atom parsing uses the `atom_syndication` crate
-- Podcast/audio detection happens from RSS enclosures and Atom enclosure links
-- Refreshes upsert items without duplicating them
-- Existing `read`, `saved`, and playback state are preserved across refreshes
-
-## Article Reader
-
-- Native content extraction using the `readability` crate
-- Full-text article content cached in `reader_content` table
-- HTML sanitized with `ammonia` to prevent XSS
-- Fallback to feed item summary if extraction fails
-- Lazy extraction on first read; status tracked as `pending`, `ready`, or `failed`
-- Supports both feed summaries and extracted article text in reader view
-
-## Run With Bun
-
-Install JS dependencies:
+### Install
 
 ```sh
 bun install
 ```
 
-Frontend-only browser shell:
-
-```sh
-bun run dev
-```
-
-Desktop app in development:
+### Start the app
 
 ```sh
 bun run tauri:dev
 ```
 
-Useful checks:
+### Optional commands
 
 ```sh
+bun run dev
 bun run check
 bun run lint
 bun run build
-```
-
-Desktop build:
-
-```sh
 bun run tauri:build
 ```
 
-## How Tauri Connects To The Existing Service Layer
+## Data
 
-1. Svelte components call store actions.
-2. Stores call `src/lib/services/feedService.ts`.
-3. That service calls `invoke(...)` through `@tauri-apps/api/core`.
-4. Rust commands in `src-tauri/src/commands.rs` run native logic.
-5. SQLite helpers in `src-tauri/src/db.rs` persist and query local data.
-
-## Static Frontend Setup
-
-- Uses `@sveltejs/adapter-static`
-- Generates SPA-friendly output with `fallback: 'index.html'`
-- Disables SSR globally in `src/routes/+layout.ts`
-- Tauri loads the built frontend from `build/`
-
-## Manual Setup Notes
-
-- Rust and Cargo must be installed
-- Platform build prerequisites for Tauri still apply
-  - macOS: Xcode Command Line Tools
-  - Linux: WebKitGTK and related native packages
-  - Windows: MSVC build tools
-
-## Remaining Rough Edges
-
-- `bun run dev` only runs the frontend shell; native feed/database features require `bun run tauri:dev`
-- The app is still single-device and offline-first only; no sync is implemented
-- External article links still use the existing frontend behavior and can be refined later if needed
-- Reader extraction works best on well-formed HTML; some sites may fail or return partial content
-- No user-configurable content extraction rules yet (font sizes, article boundaries, etc.)
+JRSS stores its data locally on your machine.
