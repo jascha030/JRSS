@@ -302,6 +302,11 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
                 .and_then(clean_summary)
         })
         .unwrap_or_else(|| "No summary provided.".to_string());
+    let preview_text = build_preview_text(
+        content_text.as_deref(),
+        summary_text.as_deref(),
+        Some(summary.as_str()),
+    );
     let enclosure = parse_rss_enclosure(item, feed_url);
     let external_id = item
         .guid()
@@ -315,6 +320,7 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        preview_text,
         summary_text,
         summary_html,
         content_text,
@@ -392,6 +398,11 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
     let content_text = extract_atom_content_text(entry);
     let content_html = extract_atom_content_html(entry).and_then(|html| sanitize_feed_html(&html));
     let summary = extract_atom_summary(entry).unwrap_or_else(|| "No summary provided.".to_string());
+    let preview_text = build_preview_text(
+        content_text.as_deref(),
+        summary_text.as_deref(),
+        Some(summary.as_str()),
+    );
     let enclosure = entry
         .links()
         .iter()
@@ -406,6 +417,7 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         title,
         url: link_url,
         summary,
+        preview_text,
         summary_text,
         summary_html,
         content_text,
@@ -572,6 +584,30 @@ fn clean_summary(candidate: &str) -> Option<String> {
 
 fn clean_text(candidate: &str) -> Option<String> {
     normalize_preview_text(candidate, false)
+}
+
+fn build_preview_text(
+    content_text: Option<&str>,
+    summary_text: Option<&str>,
+    summary: Option<&str>,
+) -> String {
+    content_text
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| truncate_preview(value, SUMMARY_PREVIEW_MAX_CHARS))
+        .or_else(|| {
+            summary_text
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| truncate_preview(value, SUMMARY_PREVIEW_MAX_CHARS))
+        })
+        .or_else(|| {
+            summary
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(|value| truncate_preview(value, SUMMARY_PREVIEW_MAX_CHARS))
+        })
+        .unwrap_or_else(|| "No summary or content available.".to_string())
 }
 
 fn raw_html_value(candidate: &str) -> Option<String> {

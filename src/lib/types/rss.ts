@@ -1,5 +1,6 @@
 export type FeedKind = 'rss' | 'podcast';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
+export type ItemListSection = 'all' | 'unread' | 'podcasts';
 
 export interface Feed {
 	id: string;
@@ -54,4 +55,16 @@ export interface PlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+}
+
+export interface ItemPageQuery {
+	feedId?: string;
+	section: ItemListSection;
+	offset: number;
+	limit: number;
+}
+
+export interface ItemPage<T> {
+	items: T[];
+	totalCount: number;
 }

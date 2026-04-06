@@ -1,4 +1,38 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ItemListSection {
+    All,
+    Unread,
+    Podcasts,
+}
+
+impl ItemListSection {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Unread => "unread",
+            Self::Podcasts => "podcasts",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemPageQueryRecord {
+    pub feed_id: Option<String>,
+    pub section: ItemListSection,
+    pub offset: i64,
+    pub limit: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemPageRecord {
+    pub items: Vec<FeedListItemRecord>,
+    pub total_count: i64,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,6 +116,7 @@ pub struct ParsedFeedItem {
     pub title: String,
     pub url: String,
     pub summary: String,
+    pub preview_text: String,
     pub summary_text: Option<String>,
     pub summary_html: Option<String>,
     pub content_text: Option<String>,

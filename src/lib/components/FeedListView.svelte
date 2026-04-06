@@ -1,34 +1,42 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import type { SidebarSection } from '$lib/stores/app';
+	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
 
 	type Props = {
 		feeds: Feed[];
+		itemIdsByIndex: Record<number, string>;
+		itemsById: Record<string, FeedListItem>;
 		isRefreshing: boolean;
-		items: FeedListItem[];
+		isInitialLoading: boolean;
 		onRefresh: (feedId: string) => Promise<void>;
+		onVisibleRangeChange: (startIndex: number, endIndex: number) => Promise<void> | void;
 		onSelectItem: (itemId: string) => void;
 		selectedFeed: Feed | null;
 		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedListItem) => void;
+		totalCount: number;
 	};
 
 	let {
 		feeds,
+		itemIdsByIndex,
+		itemsById,
 		isRefreshing,
-		items,
+		isInitialLoading,
 		onRefresh,
+		onVisibleRangeChange,
 		onSelectItem,
 		selectedFeed,
 		selectedItemId,
 		selectedSection,
 		onMarkRead,
-		onPlay
+		onPlay,
+		totalCount
 	}: Props = $props();
 
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
@@ -49,7 +57,7 @@
 
 	type VisibleRow = {
 		index: number;
-		item: FeedListItem;
+		item: FeedListItem | null;
 		top: number;
 	};
 
@@ -69,23 +77,25 @@
 	}
 
 	const rowHeight = $derived(windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT);
-	const totalHeight = $derived(items.length * rowHeight);
+	const totalHeight = $derived(totalCount * rowHeight);
 
 	const visibleRows = $derived.by((): VisibleRow[] => {
-		if (items.length === 0) {
+		if (totalCount === 0) {
 			return [];
 		}
 
 		const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
 		const visibleCount = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
-		const endIndex = Math.min(items.length, startIndex + visibleCount);
-
+		const endIndex = Math.min(totalCount, startIndex + visibleCount);
 		const rows: VisibleRow[] = [];
 
 		for (let index = startIndex; index < endIndex; index += 1) {
+			const itemId = itemIdsByIndex[index];
+			const item = itemId ? (itemsById[itemId] ?? null) : null;
+
 			rows.push({
 				index,
-				item: items[index],
+				item,
 				top: index * rowHeight
 			});
 		}
@@ -124,6 +134,17 @@
 		scrollTop = scrollViewport.scrollTop;
 	});
 
+	$effect(() => {
+		if (visibleRows.length === 0) {
+			return;
+		}
+
+		const startIndex = visibleRows[0].index;
+		const endIndex = visibleRows[visibleRows.length - 1].index;
+
+		void onVisibleRangeChange(startIndex, endIndex);
+	});
+
 	onMount(() => {
 		return () => {
 			if (scrollFrame !== 0) {
@@ -155,7 +176,7 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				<p class="text-sm text-slate-500 dark:text-slate-400">{items.length} items in this view</p>
+				<p class="text-sm text-slate-500 dark:text-slate-400">{totalCount} items in this view</p>
 
 				{#if selectedFeed}
 					<button
@@ -196,7 +217,25 @@
 		class="min-h-0 flex-1 overflow-y-auto"
 		onscroll={handleScroll}
 	>
-		{#if items.length === 0}
+		{#if isInitialLoading}
+			<div class="px-6 py-4 lg:px-8">
+				<div class="space-y-4">
+					{#each Array.from({ length: 4 }) as _, index (index)}
+						<div
+							class="rounded-3xl border border-slate-200/80 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-900"
+						>
+							<div class="h-3 w-32 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+							<div class="mt-5 h-6 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+							<div class="mt-3 space-y-2">
+								<div class="h-3 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+								<div class="h-3 w-11/12 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+								<div class="h-3 w-2/3 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:else if totalCount === 0}
 			<div class="px-6 py-8 lg:px-8">
 				<div
 					class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -210,102 +249,118 @@
 			</div>
 		{:else}
 			<div class="relative" style={`height: ${totalHeight}px;`}>
-				{#each visibleRows as { item, index, top } (item.id)}
+				{#each visibleRows as { item, index, top } (item?.id ?? index)}
 					<div
 						class="absolute inset-x-0 top-0"
 						style={`height: ${rowHeight}px; transform: translateY(${top}px);`}
 					>
-						<article
-							class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
-								index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
-							}${
-								selectedItemId === item.id
-									? 'bg-slate-50 dark:bg-slate-900/60'
-									: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
-							}`}
-							aria-labelledby={`feed-item-title-${item.id}`}
-						>
-							<button
-								type="button"
-								class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset dark:focus-visible:ring-slate-700"
-								aria-label={`Open article: ${item.title}`}
-								aria-pressed={selectedItemId === item.id}
-								onclick={() => onSelectItem(item.id)}
-							></button>
-
-							<div
-								class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
+						{#if item}
+							<article
+								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
+									index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
+								}${
+									selectedItemId === item.id
+										? 'bg-slate-50 dark:bg-slate-900/60'
+										: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
+								}`}
+								aria-labelledby={`feed-item-title-${item.id}`}
 							>
+								<button
+									type="button"
+									class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-inset dark:focus-visible:ring-slate-700"
+									aria-label={`Open article: ${item.title}`}
+									aria-pressed={selectedItemId === item.id}
+									onclick={() => onSelectItem(item.id)}
+								></button>
+
 								<div
-									class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
+									class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
 								>
-									<span>{feedTitle(item.feedId)}</span>
-									<span>&bull;</span>
-									<span>{formatDate(item.publishedAt)}</span>
-								</div>
-
-								<h3
-									id={`feed-item-title-${item.id}`}
-									class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
-								>
-									{item.title}
-								</h3>
-
-								<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-									{getListPreview(item)}
-								</p>
-							</div>
-
-							<div
-								class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
-							>
-								<div class="flex flex-wrap items-center gap-2">
-									<span
-										class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+									<div
+										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400"
 									>
-										{item.read ? 'Read' : 'Unread'}
-									</span>
+										<span>{feedTitle(item.feedId)}</span>
+										<span>&bull;</span>
+										<span>{formatDate(item.publishedAt)}</span>
+									</div>
 
-									{#if item.mediaEnclosure}
-										<span
-											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-										>
-											Podcast
-										</span>
-									{/if}
+									<h3
+										id={`feed-item-title-${item.id}`}
+										class="mt-3 line-clamp-2 text-lg font-semibold text-slate-950 dark:text-white"
+									>
+										{item.title}
+									</h3>
 
-									{#if item.playbackPositionSeconds > 0}
-										<span
-											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-										>
-											Resumes at {formatDuration(item.playbackPositionSeconds)}
-										</span>
-									{/if}
+									<p class="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+										{getListPreview(item)}
+									</p>
 								</div>
 
-								<div class="pointer-events-auto flex flex-wrap gap-2">
-									{#if item.mediaEnclosure}
+								<div
+									class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
+								>
+									<div class="flex flex-wrap items-center gap-2">
+										<span
+											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+										>
+											{item.read ? 'Read' : 'Unread'}
+										</span>
+
+										{#if item.mediaEnclosure}
+											<span
+												class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+											>
+												Podcast
+											</span>
+										{/if}
+
+										{#if item.playbackPositionSeconds > 0}
+											<span
+												class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+											>
+												Resumes at {formatDuration(item.playbackPositionSeconds)}
+											</span>
+										{/if}
+									</div>
+
+									<div class="pointer-events-auto flex flex-wrap gap-2">
+										{#if item.mediaEnclosure}
+											<button
+												class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+												type="button"
+												onclick={() => onPlay(item)}
+											>
+												{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+											</button>
+										{/if}
+
 										<button
-											class="rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+											class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 											type="button"
-											onclick={() => onPlay(item)}
+											onclick={() => {
+												void onMarkRead(item.id, !item.read);
+											}}
 										>
-											{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+											{item.read ? 'Mark unread' : 'Mark read'}
 										</button>
-									{/if}
-
-									<button
-										class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-										type="button"
-										onclick={() => {
-											void onMarkRead(item.id, !item.read);
-										}}
-									>
-										{item.read ? 'Mark unread' : 'Mark read'}
-									</button>
+									</div>
+								</div>
+							</article>
+						{:else}
+							<div
+								class={`feed-row flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 lg:px-8 ${
+									index > 0 ? 'border-t border-slate-200 dark:border-slate-800' : ''
+								}`}
+							>
+								<div class="h-3 w-32 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+								<div class="mt-5 h-6 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+								<div class="mt-3 space-y-2">
+									<div class="h-3 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+									<div class="h-3 w-11/12 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+									<div class="h-3 w-2/3 rounded-full bg-slate-200 dark:bg-slate-800"></div>
 								</div>
 							</div>
-						</article>
+						{/if}
 					</div>
 				{/each}
 			</div>

@@ -1,5 +1,6 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
-import type { Feed, FeedItem, FeedListItem } from '$lib/types/rss';
+import type { Feed, FeedItem, FeedListItem, ItemPage, ItemPageQuery } from '$lib/types/rss';
+import { measurePerfAsync } from '$lib/utils/perfDebug';
 
 function normalizeFeedInput(url: string): string {
 	return url.trim();
@@ -31,12 +32,32 @@ export async function removeFeed(id: string): Promise<void> {
 	await invokeCommand('remove_feed', { id });
 }
 
-export async function listItems(feedId?: string): Promise<FeedListItem[]> {
+export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<FeedListItem>> {
 	if (!isTauriRuntime()) {
-		return [];
+		return {
+			items: [],
+			totalCount: 0
+		};
 	}
 
-	return invokeCommand<FeedListItem[]>('list_items', { feedId: feedId ?? null });
+	return measurePerfAsync(
+		'tauri.query_items_page',
+		() =>
+			invokeCommand<ItemPage<FeedListItem>>('query_items_page', {
+				query: {
+					feedId: query.feedId ?? null,
+					section: query.section,
+					offset: query.offset,
+					limit: query.limit
+				}
+			}),
+		{
+			feedId: query.feedId ?? null,
+			section: query.section,
+			offset: query.offset,
+			limit: query.limit
+		}
+	);
 }
 
 export async function getItemDetails(itemId: string): Promise<FeedItem> {

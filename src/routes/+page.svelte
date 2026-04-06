@@ -4,37 +4,39 @@
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
-	import { formatDuration } from '$lib/utils/format';
 	import {
+		app,
 		createFeed,
-		currentAudioItem,
-		currentPlaybackState,
 		deleteFeed,
-		feeds,
+		ensureVisibleRangeLoaded,
+		getActiveItemIdsByIndex,
+		getActiveTotalCount,
+		getCurrentAudioItem,
+		getIsActiveInitialLoading,
+		getSelectedFeed,
+		getSelectedItem,
+		getSelectedItemFeed,
 		initializeApp,
-		isCreatingFeed,
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
+		persistPlaybackPosition,
 		playAudioItem,
-		readerLoadingItemIds,
 		refreshExistingFeed,
-		selectedItem,
-		selectedItemFeed,
-		selectedItemId,
-		syncingFeedIds,
-		selectedFeed,
-		selectedFeedId,
-		selectedSection,
 		selectFeed,
 		selectItem,
 		selectSection,
 		setPlaybackPlaying,
 		stopPlayback,
-		updatePlaybackPosition,
-		visibleItems
-	} from '$lib/stores/app';
-	import { onMount } from 'svelte';
+		updatePlaybackPosition
+	} from '$lib/stores/app.svelte';
+	import { isPerfDebugEnabled, isPerfDebugFlagEnabled, logPerf } from '$lib/utils/perfDebug';
+	import { formatDuration } from '$lib/utils/format';
+	import { onMount, tick } from 'svelte';
+
+	type ViewTransitionDocument = Document & {
+		startViewTransition?: (callback: () => void) => ViewTransition;
+	};
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
@@ -43,35 +45,52 @@
 	let readerNotice = $state('');
 	let lastSelectedItemId = $state<string | null>(null);
 
+	const feeds = $derived(app.feeds);
+	const isCreatingFeed = $derived(app.isCreatingFeed);
+	const syncingFeedIds = $derived(app.syncingFeedIds);
+	const readerLoadingItemIds = $derived(app.readerLoadingItemIds);
+	const selectedFeedId = $derived(app.selectedFeedId);
+	const selectedItemId = $derived(app.selectedItemId);
+	const selectedSection = $derived(app.selectedSection);
+	const selectedFeed = $derived(getSelectedFeed());
+	const selectedItem = $derived(getSelectedItem());
+	const selectedItemFeed = $derived(getSelectedItemFeed());
+	const currentAudioItem = $derived(getCurrentAudioItem());
+	const currentPlaybackState = $derived(app.currentPlaybackState);
+	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
+	const totalCount = $derived(getActiveTotalCount());
+	const isInitialLoading = $derived(getIsActiveInitialLoading());
+	const itemSummariesById = $derived(app.itemSummariesById);
+
 	const isSelectedFeedRefreshing = $derived(
-		$selectedFeed ? $syncingFeedIds.includes($selectedFeed.id) : false
+		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
 	);
 
 	const isSelectedItemReaderLoading = $derived(
-		$selectedItem ? $readerLoadingItemIds.includes($selectedItem.id) : false
+		selectedItem ? readerLoadingItemIds.includes(selectedItem.id) : false
 	);
 
-	const hasSelectedItemReaderContent = $derived($selectedItem?.readerStatus === 'ready');
+	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
-	const canUseReaderMode = $derived($selectedItem ? !$selectedItem.mediaEnclosure : false);
+	const canUseReaderMode = $derived(selectedItem ? !selectedItem.mediaEnclosure : false);
 
 	$effect(() => {
-		if ($selectedItemId !== lastSelectedItemId) {
+		if (selectedItemId !== lastSelectedItemId) {
 			readerPaneMode = 'feed';
 			readerNotice = '';
-			lastSelectedItemId = $selectedItemId;
+			lastSelectedItemId = selectedItemId;
 		}
 	});
 
 	$effect(() => {
-		const currentSelectedItemId = $selectedItemId;
+		const currentSelectedItemId = selectedItemId;
 
 		if (!currentSelectedItemId) {
 			return;
 		}
 
 		void loadItemDetails(currentSelectedItemId).catch((error: unknown) => {
-			if ($selectedItemId !== currentSelectedItemId) {
+			if (selectedItemId !== currentSelectedItemId) {
 				return;
 			}
 
@@ -79,8 +98,40 @@
 		});
 	});
 
-	function toggleSidebar(): void {
-		isSidebarCollapsed = !isSidebarCollapsed;
+	function toggleSidebar() {
+		const startedAt = isPerfDebugEnabled() ? performance.now() : 0;
+		const apply = () => {
+			isSidebarCollapsed = !isSidebarCollapsed;
+		};
+
+		const doc = document as ViewTransitionDocument;
+
+		if (!doc.startViewTransition || isPerfDebugFlagEnabled('disableViewTransition')) {
+			apply();
+			if (isPerfDebugEnabled()) {
+				requestAnimationFrame(() => {
+					logPerf('ui.sidebarToggle.noViewTransition', {
+						collapsed: isSidebarCollapsed,
+						durationMs: Number((performance.now() - startedAt).toFixed(2))
+					});
+				});
+			}
+			return;
+		}
+
+		const transition = doc.startViewTransition(async () => {
+			apply();
+			await tick();
+		});
+
+		if (isPerfDebugEnabled()) {
+			void transition.finished.then(() => {
+				logPerf('ui.sidebarToggle.viewTransition', {
+					collapsed: isSidebarCollapsed,
+					durationMs: Number((performance.now() - startedAt).toFixed(2))
+				});
+			});
+		}
 	}
 
 	onMount(() => {
@@ -148,17 +199,17 @@
 	<div class="flex min-h-1 flex-1 overflow-hidden">
 		<Sidebar
 			collapsed={isSidebarCollapsed}
-			feeds={$feeds}
-			refreshingFeedIds={$syncingFeedIds}
-			selectedFeedId={$selectedFeedId}
-			selectedSection={$selectedSection}
+			{feeds}
+			refreshingFeedIds={syncingFeedIds}
+			{selectedFeedId}
+			{selectedSection}
 			onRemoveFeed={deleteFeed}
 			onSelectFeed={selectFeed}
 			onSelectSection={selectSection}
 			onToggleCollapse={toggleSidebar}
 		/>
 
-		<main class="flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+		<main class="vt-main flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
 			<header
 				class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-3 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
 			>
@@ -173,16 +224,16 @@
 						<input
 							bind:value={newFeedUrl}
 							class="min-w-1 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
-							disabled={$isCreatingFeed}
+							disabled={isCreatingFeed}
 							placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
 							type="text"
 						/>
 						<button
 							class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-							disabled={$isCreatingFeed}
+							disabled={isCreatingFeed}
 							type="submit"
 						>
-							{$isCreatingFeed ? 'Adding...' : 'Add feed'}
+							{isCreatingFeed ? 'Adding...' : 'Add feed'}
 						</button>
 					</form>
 				</div>
@@ -192,7 +243,7 @@
 				{/if}
 			</header>
 
-			{#if $feeds.length === -1}
+			{#if feeds.length === 0 && !isInitialLoading}
 				<section class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8">
 					<div
 						class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -211,7 +262,7 @@
 						</p>
 					</div>
 				</section>
-			{:else if $selectedSection === 'settings'}
+			{:else if selectedSection === 'settings'}
 				<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
 					<div
 						class="max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
@@ -236,40 +287,44 @@
 						class="min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
 					>
 						<FeedListView
-							feeds={$feeds}
+							{feeds}
+							{itemIdsByIndex}
+							itemsById={itemSummariesById}
 							isRefreshing={isSelectedFeedRefreshing}
-							items={$visibleItems}
+							{isInitialLoading}
 							onRefresh={handleRefreshFeed}
+							onVisibleRangeChange={ensureVisibleRangeLoaded}
 							onSelectItem={selectItem}
-							selectedFeed={$selectedFeed}
-							selectedItemId={$selectedItemId}
-							selectedSection={$selectedSection}
+							{selectedFeed}
+							{selectedItemId}
+							{selectedSection}
 							onMarkRead={markItemRead}
 							onPlay={playAudioItem}
+							{totalCount}
 						/>
 					</div>
 
 					<aside
 						class="hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
 					>
-						{#if $selectedItem}
+						{#if selectedItem}
 							<div class="space-y-9">
 								<div class="flex flex-wrap items-center gap-4">
 									<button
 										class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 										type="button"
-										onclick={() => window.open($selectedItem.url, '_blank', 'noopener,noreferrer')}
+										onclick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
 									>
 										Open original
 									</button>
 
-									{#if $selectedItem.mediaEnclosure}
+									{#if selectedItem.mediaEnclosure}
 										<button
 											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 											type="button"
-											onclick={() => playAudioItem($selectedItem)}
+											onclick={() => playAudioItem(selectedItem)}
 										>
-											{$selectedItem.playbackPositionSeconds > -1
+											{selectedItem.playbackPositionSeconds > -1
 												? 'Resume playback'
 												: 'Start playback'}
 										</button>
@@ -303,11 +358,11 @@
 											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
 											disabled={isSelectedItemReaderLoading}
 											type="button"
-											onclick={() => handleLoadReaderView($selectedItem.id)}
+											onclick={() => handleLoadReaderView(selectedItem.id)}
 										>
 											{isSelectedItemReaderLoading
 												? 'Loading reader view...'
-												: $selectedItem.readerStatus === 'failed'
+												: selectedItem.readerStatus === 'failed'
 													? 'Retry Reader View'
 													: 'Load Reader View'}
 										</button>
@@ -320,37 +375,37 @@
 
 								{#if isReaderPaneActive}
 									<ReaderArticle
-										feedTitle={$selectedItemFeed?.title}
-										title={$selectedItem.readerTitle ?? $selectedItem.title}
-										byline={$selectedItem.readerByline}
-										excerpt={$selectedItem.readerExcerpt}
-										publishedAt={$selectedItem.publishedAt}
-										html={$selectedItem.readerContentHtml}
-										text={$selectedItem.readerContentText}
+										feedTitle={selectedItemFeed?.title}
+										title={selectedItem.readerTitle ?? selectedItem.title}
+										byline={selectedItem.readerByline}
+										excerpt={selectedItem.readerExcerpt}
+										publishedAt={selectedItem.publishedAt}
+										html={selectedItem.readerContentHtml}
+										text={selectedItem.readerContentText}
 									/>
 								{:else}
 									<FeedArticle
-										feedTitle={$selectedItemFeed?.title}
-										title={$selectedItem.title}
-										publishedAt={$selectedItem.publishedAt}
-										contentHtml={$selectedItem.contentHtml}
-										contentText={$selectedItem.contentText}
-										summaryHtml={$selectedItem.summaryHtml}
-										summaryText={$selectedItem.summaryText}
-										summary={$selectedItem.summary}
+										feedTitle={selectedItemFeed?.title}
+										title={selectedItem.title}
+										publishedAt={selectedItem.publishedAt}
+										contentHtml={selectedItem.contentHtml}
+										contentText={selectedItem.contentText}
+										summaryHtml={selectedItem.summaryHtml}
+										summaryText={selectedItem.summaryText}
+										summary={selectedItem.summary}
 									/>
 
-									{#if $selectedItem.mediaEnclosure}
+									{#if selectedItem.mediaEnclosure}
 										<div
 											class="rounded-[1rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
 										>
 											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
 												Podcast controls remain available here and in the footer player.
-												{#if $selectedItem.mediaEnclosure.durationSeconds}
-													Duration {formatDuration($selectedItem.mediaEnclosure.durationSeconds)}.
+												{#if selectedItem.mediaEnclosure.durationSeconds}
+													Duration {formatDuration(selectedItem.mediaEnclosure.durationSeconds)}.
 												{/if}
-												{#if $selectedItem.playbackPositionSeconds > -1}
-													Resume point {formatDuration($selectedItem.playbackPositionSeconds)}.
+												{#if selectedItem.playbackPositionSeconds > -1}
+													Resume point {formatDuration(selectedItem.playbackPositionSeconds)}.
 												{/if}
 											</p>
 										</div>
@@ -393,10 +448,29 @@
 	</div>
 
 	<AudioPlayer
-		item={$currentAudioItem}
-		playbackState={$currentPlaybackState}
+		item={currentAudioItem}
+		playbackState={currentPlaybackState}
 		onPlayingChange={setPlaybackPlaying}
+		onPositionChange={updatePlaybackPosition}
+		onPositionPersist={persistPlaybackPosition}
 		onStop={stopPlayback}
-		onTimeChange={updatePlaybackPosition}
 	/>
 </div>
+
+<style>
+	.vt-main {
+		view-transition-name: app-main;
+	}
+
+	:global(::view-transition-group(app-main)),
+	:global(::view-transition-old(app-main)),
+	:global(::view-transition-new(app-main)) {
+		animation-duration: 220ms;
+		animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	:global(::view-transition-old(app-main)),
+	:global(::view-transition-new(app-main)) {
+		mix-blend-mode: normal;
+	}
+</style>
