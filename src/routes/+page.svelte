@@ -30,13 +30,8 @@
 		stopPlayback,
 		updatePlaybackPosition
 	} from '$lib/stores/app.svelte';
-	import { isPerfDebugEnabled, isPerfDebugFlagEnabled, logPerf } from '$lib/utils/perfDebug';
 	import { formatDuration } from '$lib/utils/format';
-	import { onMount, tick } from 'svelte';
-
-	type ViewTransitionDocument = Document & {
-		startViewTransition?: (callback: () => void) => ViewTransition;
-	};
+	import { onMount } from 'svelte';
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
@@ -99,39 +94,7 @@
 	});
 
 	function toggleSidebar() {
-		const startedAt = isPerfDebugEnabled() ? performance.now() : 0;
-		const apply = () => {
-			isSidebarCollapsed = !isSidebarCollapsed;
-		};
-
-		const doc = document as ViewTransitionDocument;
-
-		if (!doc.startViewTransition || isPerfDebugFlagEnabled('disableViewTransition')) {
-			apply();
-			if (isPerfDebugEnabled()) {
-				requestAnimationFrame(() => {
-					logPerf('ui.sidebarToggle.noViewTransition', {
-						collapsed: isSidebarCollapsed,
-						durationMs: Number((performance.now() - startedAt).toFixed(2))
-					});
-				});
-			}
-			return;
-		}
-
-		const transition = doc.startViewTransition(async () => {
-			apply();
-			await tick();
-		});
-
-		if (isPerfDebugEnabled()) {
-			void transition.finished.then(() => {
-				logPerf('ui.sidebarToggle.viewTransition', {
-					collapsed: isSidebarCollapsed,
-					durationMs: Number((performance.now() - startedAt).toFixed(2))
-				});
-			});
-		}
+		isSidebarCollapsed = !isSidebarCollapsed;
 	}
 
 	onMount(() => {
@@ -195,264 +158,287 @@
 	/>
 </svelte:head>
 
-<div class="bg-slate-101/80 flex h-screen flex-col overflow-hidden dark:bg-slate-950">
-	<div class="flex min-h-1 flex-1 overflow-hidden">
-		<Sidebar
-			collapsed={isSidebarCollapsed}
-			{feeds}
-			refreshingFeedIds={syncingFeedIds}
-			{selectedFeedId}
-			{selectedSection}
-			onRemoveFeed={deleteFeed}
-			onSelectFeed={selectFeed}
-			onSelectSection={selectSection}
-			onToggleCollapse={toggleSidebar}
-		/>
+<div class="h-screen overflow-hidden bg-slate-100/80 dark:bg-slate-950">
+	<div class="relative h-full overflow-hidden">
+		<div class="absolute inset-y-0 left-0 z-20 hidden md:block">
+			<Sidebar
+				collapsed={isSidebarCollapsed}
+				{feeds}
+				refreshingFeedIds={syncingFeedIds}
+				{selectedFeedId}
+				{selectedSection}
+				onRemoveFeed={deleteFeed}
+				onSelectFeed={selectFeed}
+				onSelectSection={selectSection}
+				onToggleCollapse={toggleSidebar}
+			/>
+		</div>
 
-		<main class="vt-main flex min-h-1 min-w-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
-			<header
-				class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-3 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
+		<div
+			class={`relative z-30 h-full transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none md:absolute md:inset-y-0 md:left-0 ${
+				isSidebarCollapsed
+					? 'md:w-[calc(100%+6rem)] md:translate-x-24'
+					: 'md:w-[calc(100%+18rem)] md:translate-x-72'
+			}`}
+		>
+			<div
+				class={`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden ${
+					isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
+				}`}
 			>
-				<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-					<form
-						class="flex min-w-full flex-col gap-4 sm:flex-row"
-						onsubmit={(event) => {
-							event.preventDefault();
-							void handleAddFeed();
-						}}
+				<main class="flex min-h-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+					<header
+						class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
 					>
-						<input
-							bind:value={newFeedUrl}
-							class="min-w-1 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
-							disabled={isCreatingFeed}
-							placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
-							type="text"
-						/>
-						<button
-							class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-							disabled={isCreatingFeed}
-							type="submit"
+						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+							<form
+								class="flex min-w-full flex-col gap-4 sm:flex-row"
+								onsubmit={(event) => {
+									event.preventDefault();
+									void handleAddFeed();
+								}}
+							>
+								<input
+									bind:value={newFeedUrl}
+									class="min-w-1 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+									disabled={isCreatingFeed}
+									placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
+									type="text"
+								/>
+								<button
+									class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+									disabled={isCreatingFeed}
+									type="submit"
+								>
+									{isCreatingFeed ? 'Adding...' : 'Add feed'}
+								</button>
+							</form>
+						</div>
+
+						{#if notice}
+							<p class="mt-5 text-sm text-slate-600 dark:text-slate-300">{notice}</p>
+						{/if}
+					</header>
+
+					{#if feeds.length === 0 && !isInitialLoading}
+						<section
+							class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8"
 						>
-							{isCreatingFeed ? 'Adding...' : 'Add feed'}
-						</button>
-					</form>
-				</div>
+							<div
+								class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+							>
+								<p
+									class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+								>
+									No feeds yet
+								</p>
+								<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
+									Add your first RSS feed or podcast
+								</h1>
+								<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+									Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The
+									desktop app resolves the feed and persists it in local SQLite.
+								</p>
+							</div>
+						</section>
+					{:else if selectedSection === 'settings'}
+						<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
+							<div
+								class="max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+							>
+								<p
+									class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+								>
+									Settings
+								</p>
+								<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
+									Foundation-only for now
+								</h1>
+								<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+									The UI still talks to the same frontend service layer, but feed ingestion and
+									persistence now run through Tauri commands backed by local SQLite.
+								</p>
+							</div>
+						</section>
+					{:else}
+						<div class="flex min-h-0 flex-1 overflow-hidden">
+							<div
+								class="min-h-0 min-w-0 grow-[1] xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+							>
+								<FeedListView
+									{feeds}
+									{itemIdsByIndex}
+									itemsById={itemSummariesById}
+									isRefreshing={isSelectedFeedRefreshing}
+									{isInitialLoading}
+									onRefresh={handleRefreshFeed}
+									onVisibleRangeChange={ensureVisibleRangeLoaded}
+									onSelectItem={selectItem}
+									{selectedFeed}
+									{selectedItemId}
+									{selectedSection}
+									onMarkRead={markItemRead}
+									onPlay={playAudioItem}
+									{totalCount}
+								/>
+							</div>
 
-				{#if notice}
-					<p class="mt-5 text-sm text-slate-600 dark:text-slate-300">{notice}</p>
-				{/if}
-			</header>
-
-			{#if feeds.length === 0 && !isInitialLoading}
-				<section class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8">
-					<div
-						class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
-					>
-						<p
-							class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
-						>
-							No feeds yet
-						</p>
-						<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
-							Add your first RSS feed or podcast
-						</h1>
-						<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The desktop
-							app resolves the feed and persists it in local SQLite.
-						</p>
-					</div>
-				</section>
-			{:else if selectedSection === 'settings'}
-				<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
-					<div
-						class="max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-					>
-						<p
-							class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
-						>
-							Settings
-						</p>
-						<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
-							Foundation-only for now
-						</h1>
-						<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-							The UI still talks to the same frontend service layer, but feed ingestion and
-							persistence now run through Tauri commands backed by local SQLite.
-						</p>
-					</div>
-				</section>
-			{:else}
-				<div class="flex min-h-1 flex-1 overflow-hidden">
-					<div
-						class="min-h-1 min-w-0 flex-1 xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
-					>
-						<FeedListView
-							{feeds}
-							{itemIdsByIndex}
-							itemsById={itemSummariesById}
-							isRefreshing={isSelectedFeedRefreshing}
-							{isInitialLoading}
-							onRefresh={handleRefreshFeed}
-							onVisibleRangeChange={ensureVisibleRangeLoaded}
-							onSelectItem={selectItem}
-							{selectedFeed}
-							{selectedItemId}
-							{selectedSection}
-							onMarkRead={markItemRead}
-							onPlay={playAudioItem}
-							{totalCount}
-						/>
-					</div>
-
-					<aside
-						class="hidden min-h-1 min-w-0 flex-1 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
-					>
-						{#if selectedItem}
-							<div class="space-y-9">
-								<div class="flex flex-wrap items-center gap-4">
-									<button
-										class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-										type="button"
-										onclick={() => window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
-									>
-										Open original
-									</button>
-
-									{#if selectedItem.mediaEnclosure}
-										<button
-											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-											type="button"
-											onclick={() => playAudioItem(selectedItem)}
-										>
-											{selectedItem.playbackPositionSeconds > -1
-												? 'Resume playback'
-												: 'Start playback'}
-										</button>
-									{/if}
-
-									{#if canUseReaderMode && hasSelectedItemReaderContent}
-										<div
-											class="inline-flex rounded-3xl border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
-										>
+							<aside
+								class="hidden min-h-0 min-w-0 grow-[2] flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+							>
+								{#if selectedItem}
+									<div class="space-y-9">
+										<div class="flex flex-wrap items-center gap-4">
 											<button
-												class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'feed' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+												class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 												type="button"
-												onclick={() => {
-													readerPaneMode = 'feed';
-												}}
+												onclick={() =>
+													window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
 											>
-												Feed view
+												Open original
 											</button>
-											<button
-												class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'reader' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
-												type="button"
-												onclick={() => {
-													readerPaneMode = 'reader';
-												}}
-											>
-												Reader view
-											</button>
+
+											{#if selectedItem.mediaEnclosure}
+												<button
+													class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+													type="button"
+													onclick={() => playAudioItem(selectedItem)}
+												>
+													{selectedItem.playbackPositionSeconds > -1
+														? 'Resume playback'
+														: 'Start playback'}
+												</button>
+											{/if}
+
+											{#if canUseReaderMode && hasSelectedItemReaderContent}
+												<div
+													class="inline-flex rounded-3xl border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+												>
+													<button
+														class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'feed' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+														type="button"
+														onclick={() => {
+															readerPaneMode = 'feed';
+														}}
+													>
+														Feed view
+													</button>
+													<button
+														class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'reader' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+														type="button"
+														onclick={() => {
+															readerPaneMode = 'reader';
+														}}
+													>
+														Reader view
+													</button>
+												</div>
+											{:else if canUseReaderMode}
+												<button
+													class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+													disabled={isSelectedItemReaderLoading}
+													type="button"
+													onclick={() => handleLoadReaderView(selectedItem.id)}
+												>
+													{isSelectedItemReaderLoading
+														? 'Loading reader view...'
+														: selectedItem.readerStatus === 'failed'
+															? 'Retry Reader View'
+															: 'Load Reader View'}
+												</button>
+											{/if}
 										</div>
-									{:else if canUseReaderMode}
-										<button
-											class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-											disabled={isSelectedItemReaderLoading}
-											type="button"
-											onclick={() => handleLoadReaderView(selectedItem.id)}
-										>
-											{isSelectedItemReaderLoading
-												? 'Loading reader view...'
-												: selectedItem.readerStatus === 'failed'
-													? 'Retry Reader View'
-													: 'Load Reader View'}
-										</button>
-									{/if}
-								</div>
 
-								{#if readerNotice}
-									<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">{readerNotice}</p>
-								{/if}
-
-								{#if isReaderPaneActive}
-									<ReaderArticle
-										feedTitle={selectedItemFeed?.title}
-										title={selectedItem.readerTitle ?? selectedItem.title}
-										byline={selectedItem.readerByline}
-										excerpt={selectedItem.readerExcerpt}
-										publishedAt={selectedItem.publishedAt}
-										html={selectedItem.readerContentHtml}
-										text={selectedItem.readerContentText}
-									/>
-								{:else}
-									<FeedArticle
-										feedTitle={selectedItemFeed?.title}
-										title={selectedItem.title}
-										publishedAt={selectedItem.publishedAt}
-										contentHtml={selectedItem.contentHtml}
-										contentText={selectedItem.contentText}
-										summaryHtml={selectedItem.summaryHtml}
-										summaryText={selectedItem.summaryText}
-										summary={selectedItem.summary}
-									/>
-
-									{#if selectedItem.mediaEnclosure}
-										<div
-											class="rounded-[1rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
-										>
+										{#if readerNotice}
 											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
-												Podcast controls remain available here and in the footer player.
-												{#if selectedItem.mediaEnclosure.durationSeconds}
-													Duration {formatDuration(selectedItem.mediaEnclosure.durationSeconds)}.
-												{/if}
-												{#if selectedItem.playbackPositionSeconds > -1}
-													Resume point {formatDuration(selectedItem.playbackPositionSeconds)}.
-												{/if}
+												{readerNotice}
+											</p>
+										{/if}
+
+										{#if isReaderPaneActive}
+											<ReaderArticle
+												feedTitle={selectedItemFeed?.title}
+												title={selectedItem.readerTitle ?? selectedItem.title}
+												byline={selectedItem.readerByline}
+												excerpt={selectedItem.readerExcerpt}
+												publishedAt={selectedItem.publishedAt}
+												html={selectedItem.readerContentHtml}
+												text={selectedItem.readerContentText}
+											/>
+										{:else}
+											<FeedArticle
+												feedTitle={selectedItemFeed?.title}
+												title={selectedItem.title}
+												publishedAt={selectedItem.publishedAt}
+												contentHtml={selectedItem.contentHtml}
+												contentText={selectedItem.contentText}
+												summaryHtml={selectedItem.summaryHtml}
+												summaryText={selectedItem.summaryText}
+												summary={selectedItem.summary}
+											/>
+
+											{#if selectedItem.mediaEnclosure}
+												<div
+													class="rounded-[1rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
+												>
+													<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
+														Podcast controls remain available here and in the footer player.
+														{#if selectedItem.mediaEnclosure.durationSeconds}
+															Duration {formatDuration(
+																selectedItem.mediaEnclosure.durationSeconds
+															)}.
+														{/if}
+														{#if selectedItem.playbackPositionSeconds > -1}
+															Resume point {formatDuration(selectedItem.playbackPositionSeconds)}.
+														{/if}
+													</p>
+												</div>
+											{/if}
+										{/if}
+									</div>
+								{:else}
+									<div class="flex h-full min-h-[21rem] flex-col justify-between">
+										<div>
+											<p
+												class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
+											>
+												Reader
+											</p>
+											<h1
+												class="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
+											>
+												No item selected
+											</h1>
+											<p class="mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+												Pick an item from the list to read its details here. When a view has visible
+												items, the first one is selected automatically.
 											</p>
 										</div>
-									{/if}
+
+										<div
+											class="rounded-[1rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+										>
+											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
+												This reader pane is still plain-text-only for now. Feed switching, refresh,
+												playback, and the current list workflow remain unchanged.
+											</p>
+										</div>
+									</div>
 								{/if}
-							</div>
-						{:else}
-							<div class="flex h-full min-h-[21rem] flex-col justify-between">
-								<div>
-									<p
-										class="text-sm font-medium tracking-[-1.18em] text-slate-500 uppercase dark:text-slate-400"
-									>
-										Reader
-									</p>
-									<h1
-										class="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
-									>
-										No item selected
-									</h1>
-									<p class="mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-										Pick an item from the list to read its details here. When a view has visible
-										items, the first one is selected automatically.
-									</p>
-								</div>
+							</aside>
+						</div>
+					{/if}
+				</main>
 
-								<div
-									class="rounded-[1rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
-								>
-									<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
-										This reader pane is still plain-text-only for now. Feed switching, refresh,
-										playback, and the current list workflow remain unchanged.
-									</p>
-								</div>
-							</div>
-						{/if}
-					</aside>
-				</div>
-			{/if}
-		</main>
+				<AudioPlayer
+					item={currentAudioItem}
+					playbackState={currentPlaybackState}
+					onPlayingChange={setPlaybackPlaying}
+					onPositionChange={updatePlaybackPosition}
+					onPositionPersist={persistPlaybackPosition}
+					onStop={stopPlayback}
+				/>
+			</div>
+		</div>
 	</div>
-
-	<AudioPlayer
-		item={currentAudioItem}
-		playbackState={currentPlaybackState}
-		onPlayingChange={setPlaybackPlaying}
-		onPositionChange={updatePlaybackPosition}
-		onPositionPersist={persistPlaybackPosition}
-		onStop={stopPlayback}
-	/>
 </div>
