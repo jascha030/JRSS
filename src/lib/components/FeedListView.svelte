@@ -51,7 +51,7 @@
 	);
 
 	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
-	const DESKTOP_ROW_HEIGHT = 256;
+	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
 	const OVERSCAN_ROWS = 1;
 
@@ -156,9 +156,9 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+<section class="flex h-full flex-1 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950">
 	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
-		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+		<div class="flex flex-col flex-wrap gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
 				<h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
 					{pageHeading}
@@ -176,7 +176,7 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				<p class="text-sm text-slate-500 dark:text-slate-400">{totalCount} items in this view</p>
+				<p class="text-sm text-slate-500 dark:text-slate-400">{totalCount} items</p>
 
 				{#if selectedFeed}
 					<button
@@ -284,7 +284,7 @@
 										<span>{formatDate(item.publishedAt)}</span>
 									</div>
 
-									<div class="">
+									<div class="line-clamp-2">
 										<h3
 											id={`feed-item-title-${item.id}`}
 											class="mt-3 text-lg font-semibold text-slate-950 dark:text-white"
@@ -295,7 +295,7 @@
 										<p
 											class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
 										>
-											{getListPreview(item)}
+											{ item.previewText }
 										</p>
 									</div>
 								</div>

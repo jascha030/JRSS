@@ -263,7 +263,7 @@
 					{:else}
 						<div class="flex min-h-0 flex-1 overflow-hidden">
 							<div
-								class="min-h-0 min-w-0 grow-[1] xl:border-r xl:border-slate-200 xl:dark:border-slate-800"
+								class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-slate-200 2xl:basis-1/3 xl:dark:border-slate-800"
 							>
 								<FeedListView
 									{feeds}
@@ -284,7 +284,7 @@
 							</div>
 
 							<aside
-								class="hidden min-h-0 min-w-0 grow-[2] flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex dark:bg-slate-950/80"
+								class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex xl:flex-1 2xl:basis-2/3 dark:bg-slate-950/80"
 							>
 								{#if selectedItem}
 									<div class="space-y-9">
