@@ -6,8 +6,7 @@
 	"permissions": [
 		"core:default",
 		{
-			"identifier": "shell:allow-open",
-			"allow": [{ "url": "https://**" }, { "url": "http://**" }]
+			"identifier": "shell:allow-open"
 		}
 	]
 }
