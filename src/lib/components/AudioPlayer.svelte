@@ -84,6 +84,19 @@
 		void onPositionPersist(currentSecond, durationForPlayer());
 	}
 
+	const SKIP_SECONDS = 15;
+
+	function skip(deltaSeconds: number) {
+		if (!audioElement) {
+			return;
+		}
+
+		audioElement.currentTime = Math.max(
+			0,
+			Math.min(audioElement.currentTime + deltaSeconds, durationForPlayer())
+		);
+	}
+
 	function togglePlayback() {
 		if (!audioElement) {
 			return;
@@ -132,6 +145,27 @@
 		audioElement.muted = isMuted;
 	});
 
+	$effect(() => {
+		if (!item || !('mediaSession' in navigator)) {
+			return;
+		}
+
+		const back = () => skip(-SKIP_SECONDS);
+		const forward = () => skip(SKIP_SECONDS);
+
+		navigator.mediaSession.setActionHandler('previoustrack', back);
+		navigator.mediaSession.setActionHandler('nexttrack', forward);
+		navigator.mediaSession.setActionHandler('seekbackward', back);
+		navigator.mediaSession.setActionHandler('seekforward', forward);
+
+		return () => {
+			navigator.mediaSession.setActionHandler('previoustrack', null);
+			navigator.mediaSession.setActionHandler('nexttrack', null);
+			navigator.mediaSession.setActionHandler('seekbackward', null);
+			navigator.mediaSession.setActionHandler('seekforward', null);
+		};
+	});
+
 	/* $effect.pre so we can persist position while audioElement is still in the DOM,
 	   before the {#if} block tears it down when item becomes null. */
 	$effect.pre(() => {
@@ -173,6 +207,25 @@
 			<!-- Middle: controls + seek bar -->
 			<div class="flex min-w-0 flex-1 flex-col gap-2">
 				<div class="flex items-center justify-center gap-3">
+					<button
+						class="flex h-9 w-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+						type="button"
+						aria-label="Back 15 seconds"
+						onclick={() => skip(-SKIP_SECONDS)}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							class="size-5"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</button>
 					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
 						{#if playbackState.isPlaying}
 							<svg
@@ -197,6 +250,25 @@
 								/>
 							</svg>
 						{/if}
+					</button>
+					<button
+						class="flex h-9 w-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+						type="button"
+						aria-label="Forward 15 seconds"
+						onclick={() => skip(SKIP_SECONDS)}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							class="size-5"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M12.207 2.232a.75.75 0 0 0 .025 1.06l4.146 3.958H6.375a5.375 5.375 0 0 0 0 10.75H9.25a.75.75 0 0 0 0-1.5H6.375a3.875 3.875 0 0 1 0-7.75h10.003l-4.146 3.957a.75.75 0 0 0 1.036 1.085l5.5-5.25a.75.75 0 0 0 0-1.085l-5.5-5.25a.75.75 0 0 0-1.06.025Z"
+								clip-rule="evenodd"
+							/>
+						</svg>
 					</button>
 				</div>
 				<div class="flex items-center gap-3">
