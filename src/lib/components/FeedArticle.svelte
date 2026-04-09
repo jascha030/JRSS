@@ -40,24 +40,18 @@
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<div class="article-html mt-10">{@html contentHtml}</div>
 	{:else if hasTextContent}
-		<div
-			class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-slate-700 dark:text-slate-200"
-		>
+		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
 			{contentText}
 		</div>
 	{:else if hasHtmlSummary}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<div class="article-html mt-10">{@html summaryHtml}</div>
 	{:else if hasTextSummary}
-		<div
-			class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-slate-700 dark:text-slate-200"
-		>
+		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
 			{summaryText}
 		</div>
 	{:else if hasPlainSummary}
-		<div
-			class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-slate-700 dark:text-slate-200"
-		>
+		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
 			{summary}
 		</div>
 	{/if}

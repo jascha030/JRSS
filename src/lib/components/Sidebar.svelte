@@ -76,21 +76,17 @@
 </script>
 
 <aside
-	class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-slate-950"
+	class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-border bg-surface md:block"
 >
 	<!-- rail -->
-	<div
-		class="absolute inset-y-0 left-0 z-20 flex w-24 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-slate-950"
-	>
-		<div
-			class="flex h-20 shrink-0 items-center justify-center border-b border-zinc-200 dark:border-zinc-800"
-		>
+	<div class="absolute inset-y-0 left-0 z-20 flex w-24 flex-col border-r border-border bg-surface">
+		<div class="flex h-20 shrink-0 items-center justify-center border-b border-border">
 			<button
 				type="button"
 				onclick={onToggleCollapse}
 				title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-				class="flex size-12 items-center justify-center rounded-2xl bg-indigo-600 text-white transition-colors hover:bg-indigo-500"
+				class="flex size-12 items-center justify-center rounded-2xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -114,8 +110,8 @@
 						title={section.label}
 						class={`mx-auto flex h-12 w-14 items-center justify-center rounded-2xl transition-colors ${
 							isSectionActive(section.id)
-								? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
-								: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
+								? 'bg-surface-active text-fg'
+								: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 						}`}
 					>
 						<svg
@@ -134,14 +130,14 @@
 				{/each}
 			</div>
 
-			<div class="mt-6 border-t border-zinc-200 px-2 pt-4 dark:border-zinc-800">
-				<div class="space-y-2 mt-7">
+			<div class="mt-6 border-t border-border px-2 pt-4">
+				<div class="mt-7 space-y-2">
 					{#each feeds as feed (feed.id)}
 						<button
 							type="button"
 							onclick={() => onSelectFeed(feed.id)}
 							title={feed.title}
-							class={`mx-auto flex size-12 items-center justify-center rounded-2xl text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02] ${
+							class={`mx-auto flex size-12 items-center justify-center rounded-2xl text-sm font-semibold text-fg-inverse shadow-sm transition-transform hover:scale-[1.02] ${
 								selectedFeedId === feed.id
 									? 'bg-linear-to-br from-indigo-500 to-indigo-700'
 									: 'bg-linear-to-br from-indigo-400 to-indigo-600'
@@ -157,14 +153,14 @@
 
 	<!-- sliding panel -->
 	<div
-		class={`absolute inset-y-0 left-24 z-10 w-48 transform-gpu bg-white transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform dark:bg-slate-950 ${
+		class={`absolute inset-y-0 left-24 z-10 w-48 transform-gpu bg-surface transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 			collapsed ? 'pointer-events-none -translate-x-full opacity-0' : 'translate-x-0 opacity-100'
 		}`}
 	>
-		<div class="flex h-20 shrink-0 items-center border-b border-zinc-200 px-4 dark:border-zinc-800">
+		<div class="flex h-20 shrink-0 items-center border-b border-border px-4">
 			<div class="min-w-0">
-				<h1 class="truncate text-base font-semibold text-zinc-900 dark:text-white">Library</h1>
-				<p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+				<h1 class="truncate text-base font-semibold text-fg">Library</h1>
+				<p class="mt-1 text-xs text-fg-muted">
 					{feeds.length}
 					{feeds.length === 1 ? 'feed' : 'feeds'}
 				</p>
@@ -179,8 +175,8 @@
 						onclick={() => onSelectSection(section.id)}
 						class={`flex h-12 w-full items-center rounded-2xl px-3 text-sm font-medium transition-colors ${
 							isSectionActive(section.id)
-								? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
-								: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
+								? 'bg-surface-active text-fg'
+								: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 						}`}
 					>
 						{section.label}
@@ -188,31 +184,29 @@
 				{/each}
 			</div>
 
-			<div class="mt-6 border-t border-zinc-200 px-2 pt-4 dark:border-zinc-800">
-				<h2
-					class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase dark:text-zinc-400"
-				>
+			<div class="mt-6 border-t border-border px-2 pt-4">
+				<h2 class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
 					My feeds
 				</h2>
 
 				<div class="space-y-1">
 					{#if feeds.length === 0}
-						<div class="px-3 py-3 text-sm text-zinc-500 dark:text-zinc-400">No feeds added yet</div>
+						<div class="px-3 py-3 text-sm text-fg-muted">No feeds added yet</div>
 					{:else}
 						{#each feeds as feed (feed.id)}
 							<div class="group flex items-center">
 								<button
 									type="button"
 									onclick={() => onSelectFeed(feed.id)}
-									class={`flex min-w-0 flex-1 items-center h-12 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+									class={`flex h-12 min-w-0 flex-1 items-center rounded-2xl px-3 py-2.5 text-left transition-colors ${
 										selectedFeedId === feed.id
-											? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
-											: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
+											? 'bg-surface-active text-fg'
+											: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 									}`}
 								>
 									<span class="min-w-0 flex-1">
 										<span class="block truncate text-sm font-medium">{feed.title}</span>
-										<span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+										<span class="block truncate text-xs text-fg-muted">
 											{feed.kind === 'podcast' ? 'Podcast' : 'Feed'}
 											{#if isRefreshing(feed.id)}
 												• Syncing...
@@ -227,7 +221,7 @@
 									type="button"
 									title="Remove feed"
 									aria-label={`Remove ${feed.title}`}
-									class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-slate-100 hover:text-zinc-700 dark:hover:bg-slate-900 dark:hover:text-zinc-200"
+									class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-surface-hover hover:text-fg-secondary"
 									onclick={(event) => {
 										event.stopPropagation();
 										void onRemoveFeed(feed.id);
