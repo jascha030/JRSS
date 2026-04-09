@@ -156,7 +156,7 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full flex-1 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950">
+<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
 	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
 		<div class="flex flex-col flex-wrap gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
@@ -259,9 +259,11 @@
 								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 									index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
 								}${
-									selectedItemId === item.id
-										? 'bg-slate-50 dark:bg-slate-900/60'
-										: 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/60'
+									item.read
+										? 'bg-slate-100 dark:bg-slate-800'
+										: selectedItemId === item.id
+											? 'bg-white dark:bg-slate-950'
+											: 'bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/60'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
 							>
@@ -292,10 +294,8 @@
 											{item.title}
 										</h3>
 
-										<p
-											class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300"
-										>
-											{ item.previewText }
+										<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+											{getListPreview(item)}
 										</p>
 									</div>
 								</div>
@@ -304,12 +304,6 @@
 									class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
 								>
 									<div class="flex flex-wrap items-center gap-2">
-										<span
-											class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-										>
-											{item.read ? 'Read' : 'Unread'}
-										</span>
-
 										{#if item.mediaEnclosure}
 											<span
 												class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400"
@@ -345,7 +339,34 @@
 												void onMarkRead(item.id, !item.read);
 											}}
 										>
-											{item.read ? 'Mark unread' : 'Mark read'}
+											{#if item.read}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													viewBox="0 0 16 16"
+													fill="currentColor"
+													class="size-4"
+												>
+													<path
+														fill-rule="evenodd"
+														d="M1.756 4.568A1.5 1.5 0 0 0 1 5.871V12.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5.87a1.5 1.5 0 0 0-.756-1.302l-5.5-3.143a1.5 1.5 0 0 0-1.488 0l-5.5 3.143Zm1.82 2.963a.75.75 0 0 0-.653 1.35l4.1 1.98a2.25 2.25 0 0 0 1.955 0l4.1-1.98a.75.75 0 1 0-.653-1.35L8.326 9.51a.75.75 0 0 1-.652 0L3.575 7.53Z"
+														clip-rule="evenodd"
+													/>
+												</svg>
+											{:else}
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													viewBox="0 0 16 16"
+													fill="currentColor"
+													class="size-4"
+												>
+													<path
+														d="M2.5 3A1.5 1.5 0 0 0 1 4.5v.793c.026.009.051.02.076.032L7.674 8.51c.206.1.446.1.652 0l6.598-3.185A.755.755 0 0 1 15 5.293V4.5A1.5 1.5 0 0 0 13.5 3h-11Z"
+													/>
+													<path
+														d="M15 6.954 8.978 9.86a2.25 2.25 0 0 1-1.956 0L1 6.954V11.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V6.954Z"
+													/>
+												</svg>
+											{/if}
 										</button>
 									</div>
 								</div>
