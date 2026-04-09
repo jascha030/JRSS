@@ -226,7 +226,7 @@
 							class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8"
 						>
 							<div
-								class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+								class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-800"
 							>
 								<p
 									class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"

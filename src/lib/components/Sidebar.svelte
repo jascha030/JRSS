@@ -76,11 +76,11 @@
 </script>
 
 <aside
-	class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-950"
+	class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-slate-950"
 >
 	<!-- rail -->
 	<div
-		class="absolute inset-y-0 left-0 z-20 flex w-24 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+		class="absolute inset-y-0 left-0 z-20 flex w-24 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-slate-950"
 	>
 		<div
 			class="flex h-20 shrink-0 items-center justify-center border-b border-zinc-200 dark:border-zinc-800"
@@ -114,8 +114,8 @@
 						title={section.label}
 						class={`mx-auto flex h-12 w-14 items-center justify-center rounded-2xl transition-colors ${
 							isSectionActive(section.id)
-								? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
-								: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+								? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
+								: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
 						}`}
 					>
 						<svg
@@ -157,7 +157,7 @@
 
 	<!-- sliding panel -->
 	<div
-		class={`absolute inset-y-0 left-24 z-10 w-48 transform-gpu bg-white transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform dark:bg-zinc-950 ${
+		class={`absolute inset-y-0 left-24 z-10 w-48 transform-gpu bg-white transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform dark:bg-slate-950 ${
 			collapsed ? 'pointer-events-none -translate-x-full opacity-0' : 'translate-x-0 opacity-100'
 		}`}
 	>
@@ -179,8 +179,8 @@
 						onclick={() => onSelectSection(section.id)}
 						class={`flex h-12 w-full items-center rounded-2xl px-3 text-sm font-medium transition-colors ${
 							isSectionActive(section.id)
-								? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
-								: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+								? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
+								: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
 						}`}
 					>
 						{section.label}
@@ -204,10 +204,10 @@
 								<button
 									type="button"
 									onclick={() => onSelectFeed(feed.id)}
-									class={`flex min-w-0 flex-1 items-center rounded-2xl px-3 py-2.5 text-left transition-colors ${
+									class={`flex min-w-0 flex-1 items-center h-12 rounded-2xl px-3 py-2.5 text-left transition-colors ${
 										selectedFeedId === feed.id
-											? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white'
-											: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+											? 'bg-slate-100 text-zinc-900 dark:bg-slate-800 dark:text-white'
+											: 'text-zinc-600 hover:bg-slate-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-900 dark:hover:text-white'
 									}`}
 								>
 									<span class="min-w-0 flex-1">
@@ -227,7 +227,7 @@
 									type="button"
 									title="Remove feed"
 									aria-label={`Remove ${feed.title}`}
-									class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+									class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-slate-100 hover:text-zinc-700 dark:hover:bg-slate-900 dark:hover:text-zinc-200"
 									onclick={(event) => {
 										event.stopPropagation();
 										void onRemoveFeed(feed.id);
