@@ -160,22 +160,23 @@
 	<div
 		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
 	>
-		<div class="mx-auto flex max-w-6xl flex-col gap-3">
-			<!-- Info + Controls row -->
-			<div class="flex items-center gap-4">
-				<div class="min-w-0 flex-1">
-					<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
-					<h3 class="mt-1 truncate text-base font-semibold text-fg">
-						{item.title}
-					</h3>
-				</div>
+		<div class="mx-auto flex max-w-6xl items-center gap-6">
+			<!-- Left: info -->
+			<div class="min-w-0 shrink-0 basis-48">
+				<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
+				<h3 class="mt-1 truncate text-sm font-semibold text-fg">
+					{item.title}
+				</h3>
+			</div>
 
-				<div class="flex items-center gap-3">
-					<button class="btn-primary rounded-xl px-4 py-2.5" type="button" onclick={togglePlayback}>
+			<!-- Middle: controls + seek bar -->
+			<div class="flex min-w-0 flex-1 flex-col gap-2">
+				<div class="flex items-center justify-center gap-3">
+					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
 						{playbackState.isPlaying ? 'Pause' : 'Play'}
 					</button>
 					<button
-						class="btn-secondary rounded-xl px-4 py-2.5"
+						class="btn-secondary rounded-xl px-4 py-2"
 						type="button"
 						onclick={() => {
 							audioElement?.pause();
@@ -186,31 +187,29 @@
 						Close
 					</button>
 				</div>
+				<div class="flex items-center gap-3">
+					<span class="w-12 text-right text-xs text-fg-muted tabular-nums">
+						{formatDuration(displayPosition)}
+					</span>
+					<input
+						class="player-range flex-1"
+						max={durationForPlayer()}
+						min={0}
+						oninput={handleSeekInput}
+						onchange={handleSeekChange}
+						step={1}
+						style="--progress: {seekPercent}%; --fill: var(--color-accent); --track: var(--color-border)"
+						type="range"
+						value={displayPosition}
+					/>
+					<span class="w-12 text-xs text-fg-muted tabular-nums">
+						{formatDuration(durationForPlayer())}
+					</span>
+				</div>
 			</div>
 
-			<!-- Seek bar row -->
-			<div class="flex items-center gap-3">
-				<span class="w-14 text-right text-xs text-fg-muted tabular-nums">
-					{formatDuration(displayPosition)}
-				</span>
-				<input
-					class="player-range flex-1"
-					max={durationForPlayer()}
-					min={0}
-					oninput={handleSeekInput}
-					onchange={handleSeekChange}
-					step={1}
-					style="--progress: {seekPercent}%; --fill: var(--color-accent); --track: var(--color-border)"
-					type="range"
-					value={displayPosition}
-				/>
-				<span class="w-14 text-xs text-fg-muted tabular-nums">
-					{formatDuration(durationForPlayer())}
-				</span>
-			</div>
-
-			<!-- Volume row -->
-			<div class="flex items-center justify-end gap-2">
+			<!-- Right: volume -->
+			<div class="flex shrink-0 items-center gap-2">
 				<button
 					class="flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted transition-colors hover:text-fg"
 					type="button"
