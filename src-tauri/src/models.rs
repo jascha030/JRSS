@@ -84,6 +84,7 @@ pub struct FeedItemRecord {
     pub title: String,
     pub url: String,
     pub summary: String,
+    pub preview_text: String,
     pub summary_text: Option<String>,
     pub summary_html: Option<String>,
     pub content_text: Option<String>,

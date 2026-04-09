@@ -15,7 +15,7 @@ const READER_STATUS_UNFETCHED: &str = "unfetched";
 const READER_STATUS_READY: &str = "ready";
 const READER_STATUS_FAILED: &str = "failed";
 const ITEM_SELECT_QUERY: &str =
-    "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.summary_text, i.summary_html,
+    "SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.preview_text, i.summary_text, i.summary_html,
              i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
              i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
              i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
@@ -327,10 +327,10 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
 }
 
 fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
-    let enclosure_url: Option<String> = row.get(18)?;
-    let enclosure_mime_type: Option<String> = row.get(19)?;
-    let enclosure_size_bytes: Option<i64> = row.get(20)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(21)?;
+    let enclosure_url: Option<String> = row.get(19)?;
+    let enclosure_mime_type: Option<String> = row.get(20)?;
+    let enclosure_size_bytes: Option<i64> = row.get(21)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(22)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -348,20 +348,21 @@ fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         title: row.get(2)?,
         url: row.get(3)?,
         summary: row.get(4)?,
-        summary_text: row.get(5)?,
-        summary_html: row.get(6)?,
-        content_text: row.get(7)?,
-        content_html: row.get(8)?,
-        reader_status: row.get(9)?,
-        reader_title: row.get(10)?,
-        reader_byline: row.get(11)?,
-        reader_excerpt: row.get(12)?,
-        reader_content_html: row.get(13)?,
-        reader_content_text: row.get(14)?,
-        reader_fetched_at: row.get(15)?,
-        published_at: row.get(16)?,
-        read: row.get::<_, i64>(17)? != 0,
-        playback_position_seconds: row.get(22)?,
+        preview_text: row.get(5)?,
+        summary_text: row.get(6)?,
+        summary_html: row.get(7)?,
+        content_text: row.get(8)?,
+        content_html: row.get(9)?,
+        reader_status: row.get(10)?,
+        reader_title: row.get(11)?,
+        reader_byline: row.get(12)?,
+        reader_excerpt: row.get(13)?,
+        reader_content_html: row.get(14)?,
+        reader_content_text: row.get(15)?,
+        reader_fetched_at: row.get(16)?,
+        published_at: row.get(17)?,
+        read: row.get::<_, i64>(18)? != 0,
+        playback_position_seconds: row.get(23)?,
         media_enclosure,
     })
 }
