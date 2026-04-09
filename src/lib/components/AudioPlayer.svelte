@@ -8,12 +8,11 @@
 		onPlayingChange: (isPlaying: boolean) => void;
 		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
 		onPositionPersist: (positionSeconds: number, durationSeconds: number) => Promise<void>;
-		onStop: () => void;
 	};
 
 	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
 
-	let { item, playbackState, onPlayingChange, onPositionChange, onPositionPersist, onStop }: Props =
+	let { item, playbackState, onPlayingChange, onPositionChange, onPositionPersist }: Props =
 		$props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
@@ -133,12 +132,15 @@
 		audioElement.muted = isMuted;
 	});
 
-	$effect(() => {
+	/* $effect.pre so we can persist position while audioElement is still in the DOM,
+	   before the {#if} block tears it down when item becomes null. */
+	$effect.pre(() => {
 		if (!audioElement) {
 			return;
 		}
 
 		if (activeItemId && item?.id !== activeItemId) {
+			audioElement.pause();
 			persistPlaybackPosition();
 		}
 
@@ -151,7 +153,6 @@
 			lastSyncedSecond = Math.floor(item.playbackPositionSeconds);
 			lastPersistedSecond = Math.floor(item.playbackPositionSeconds);
 			audioElement.currentTime = item.playbackPositionSeconds;
-			audioElement.pause();
 		}
 	});
 </script>
@@ -173,18 +174,29 @@
 			<div class="flex min-w-0 flex-1 flex-col gap-2">
 				<div class="flex items-center justify-center gap-3">
 					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
-						{playbackState.isPlaying ? 'Pause' : 'Play'}
-					</button>
-					<button
-						class="btn-secondary rounded-xl px-4 py-2"
-						type="button"
-						onclick={() => {
-							audioElement?.pause();
-							persistPlaybackPosition();
-							onStop();
-						}}
-					>
-						Close
+						{#if playbackState.isPlaying}
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								class="size-5"
+							>
+								<path
+									d="M5.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75A.75.75 0 0 0 7.25 3h-1.5ZM12.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75a.75.75 0 0 0-.75-.75h-1.5Z"
+								/>
+							</svg>
+						{:else}
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 20 20"
+								fill="currentColor"
+								class="size-5"
+							>
+								<path
+									d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z"
+								/>
+							</svg>
+						{/if}
 					</button>
 				</div>
 				<div class="flex items-center gap-3">

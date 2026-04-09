@@ -302,6 +302,15 @@
 														? 'Resume playback'
 														: 'Start playback'}
 												</button>
+												{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}
+													<button
+														class="btn-secondary rounded-2xl px-4 py-3"
+														type="button"
+														onclick={stopPlayback}
+													>
+														Stop playback
+													</button>
+												{/if}
 											{/if}
 
 											{#if canUseReaderMode && hasSelectedItemReaderContent}
@@ -370,22 +379,6 @@
 												summaryText={selectedItem.summaryText}
 												summary={selectedItem.summary}
 											/>
-
-											{#if selectedItem.mediaEnclosure}
-												<div class="rounded-3xl border border-dashed border-border-strong p-6">
-													<p class="text-sm leading-8 text-fg-muted">
-														Podcast controls remain available here and in the footer player.
-														{#if selectedItem.mediaEnclosure.durationSeconds}
-															Duration {formatDuration(
-																selectedItem.mediaEnclosure.durationSeconds
-															)}.
-														{/if}
-														{#if selectedItem.playbackPositionSeconds > -1}
-															Resume point {formatDuration(selectedItem.playbackPositionSeconds)}.
-														{/if}
-													</p>
-												</div>
-											{/if}
 										{/if}
 									</div>
 								{:else}
@@ -424,7 +417,6 @@
 					onPlayingChange={setPlaybackPlaying}
 					onPositionChange={updatePlaybackPosition}
 					onPositionPersist={persistPlaybackPosition}
-					onStop={stopPlayback}
 				/>
 			</div>
 		</div>
