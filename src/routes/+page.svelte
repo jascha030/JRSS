@@ -31,6 +31,7 @@
 		updatePlaybackPosition
 	} from '$lib/stores/app.svelte';
 	import { formatDuration } from '$lib/utils/format';
+	import { open } from '@tauri-apps/plugin-shell';
 	import { onMount } from 'svelte';
 
 	let newFeedUrl = $state('');
@@ -292,8 +293,9 @@
 											<button
 												class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
 												type="button"
-												onclick={() =>
-													window.open(selectedItem.url, '_blank', 'noopener,noreferrer')}
+												onclick={() => {
+													void open(selectedItem.url);
+												}}
 											>
 												Open original
 											</button>
