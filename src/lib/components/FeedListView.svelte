@@ -260,11 +260,13 @@
 									index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
 								}${
 									item.read
-										? 'bg-slate-100 dark:bg-slate-800'
+										? selectedItemId === item.id
+											? 'bg-slate-50 dark:bg-slate-900'
+											: 'bg-slate-100 dark:bg-slate-800'
 										: selectedItemId === item.id
-											? 'bg-white dark:bg-slate-950'
-											: 'bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/60'
-								}`}
+											? 'bg-slate-50 dark:bg-slate-900'
+											: 'bg-white dark:bg-slate-950'
+								} hover:bg-slate-50 dark:hover:bg-slate-900`}
 								aria-labelledby={`feed-item-title-${item.id}`}
 							>
 								<button
