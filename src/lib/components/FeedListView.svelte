@@ -156,7 +156,7 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-white dark:bg-slate-950">
 	<div class="shrink-0 border-b border-slate-200 px-6 py-8 lg:px-8 dark:border-slate-800">
 		<div class="flex flex-col flex-wrap gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
@@ -257,16 +257,12 @@
 						{#if item}
 							<article
 								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
-									index > 0 ? 'border-t border-slate-200 dark:border-slate-800 ' : ''
-								}${
-									item.read
-										? selectedItemId === item.id
-											? 'bg-slate-50 dark:bg-slate-900'
-											: 'bg-slate-100 dark:bg-slate-800'
-										: selectedItemId === item.id
-											? 'bg-slate-50 dark:bg-slate-900'
-											: 'bg-white dark:bg-slate-950'
-								} hover:bg-slate-50 dark:hover:bg-slate-900`}
+									index > 0 ? 'border-t border-slate-200 dark:border-slate-800' : ''
+								} ${
+									selectedItemId === item.id
+										? 'bg-slate-100 text-slate-950 hover:bg-slate-100 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800'
+										: 'bg-white text-slate-900 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900'
+								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
 							>
 								<button
@@ -276,6 +272,10 @@
 									aria-pressed={selectedItemId === item.id}
 									onclick={() => onSelectItem(item.id)}
 								></button>
+
+								{#if !item.read}
+									<div class="absolute size-2 bg-indigo-500 rounded-full inset-y-6 inset-x-3"></div>
+								{/if}
 
 								<div
 									class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
