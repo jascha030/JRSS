@@ -107,35 +107,27 @@
 
 {#if item && playbackState && item.mediaEnclosure}
 	<div
-		class="sticky bottom-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
+		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
 	>
 		<div
 			class="mx-auto flex max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between"
 		>
 			<div class="min-w-0">
-				<p
-					class="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-				>
-					Now playing
-				</p>
-				<h3 class="mt-1 truncate text-base font-semibold text-slate-950 dark:text-white">
+				<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
+				<h3 class="mt-1 truncate text-base font-semibold text-fg">
 					{item.title}
 				</h3>
-				<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+				<p class="mt-1 text-sm text-fg-muted">
 					{formatDuration(playbackState.positionSeconds)} / {formatDuration(durationForPlayer())}
 				</p>
 			</div>
 
 			<div class="flex items-center gap-3">
-				<button
-					class="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
-					type="button"
-					onclick={togglePlayback}
-				>
+				<button class="btn-primary rounded-xl px-4 py-2.5" type="button" onclick={togglePlayback}>
 					{playbackState.isPlaying ? 'Pause' : 'Play'}
 				</button>
 				<button
-					class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+					class="btn-secondary rounded-xl px-4 py-2.5"
 					type="button"
 					onclick={() => {
 						audioElement?.pause();

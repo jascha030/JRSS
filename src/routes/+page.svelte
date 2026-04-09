@@ -159,7 +159,7 @@
 	/>
 </svelte:head>
 
-<div class="h-screen overflow-hidden bg-slate-100/80 dark:bg-slate-950">
+<div class="h-screen overflow-hidden bg-surface-shell">
 	<div class="relative h-full overflow-hidden">
 		<div class="absolute inset-y-0 left-0 z-20 hidden md:block">
 			<Sidebar
@@ -187,9 +187,9 @@
 					isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
 				}`}
 			>
-				<main class="flex min-h-0 flex-1 flex-col bg-slate-100/70 dark:bg-slate-950/70">
+				<main class="flex min-h-0 flex-1 flex-col bg-surface-main">
 					<header
-						class="flex h-16 items-center border-b border-zinc-200 bg-white/80 px-6 py-10 backdrop-blur lg:px-8 dark:border-zinc-800 dark:bg-slate-950/80"
+						class="flex h-16 items-center border-b border-border bg-surface-glass px-6 py-10 backdrop-blur lg:px-8"
 					>
 						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 							<form
@@ -201,13 +201,13 @@
 							>
 								<input
 									bind:value={newFeedUrl}
-									class="min-w-1 flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-slate-500 dark:focus:ring-slate-700"
+									class="min-w-1 flex-1 rounded-2xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
 									disabled={isCreatingFeed}
 									placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
 									type="text"
 								/>
 								<button
-									class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+									class="btn-primary rounded-2xl px-4 py-3"
 									disabled={isCreatingFeed}
 									type="submit"
 								>
@@ -217,7 +217,7 @@
 						</div>
 
 						{#if notice}
-							<p class="mt-5 text-sm text-slate-600 dark:text-slate-300">{notice}</p>
+							<p class="mt-5 text-sm text-fg-secondary">{notice}</p>
 						{/if}
 					</header>
 
@@ -226,17 +226,15 @@
 							class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8"
 						>
 							<div
-								class="max-w-lg rounded-4xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-800"
+								class="max-w-lg rounded-3xl border border-dashed border-border-strong bg-surface-card p-8 text-center shadow-sm"
 							>
-								<p
-									class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-								>
+								<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">
 									No feeds yet
 								</p>
-								<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
+								<h1 class="mt-3 text-2xl font-semibold text-fg">
 									Add your first RSS feed or podcast
 								</h1>
-								<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+								<p class="mt-4 text-sm leading-6 text-fg-secondary">
 									Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The
 									desktop app resolves the feed and persists it in local SQLite.
 								</p>
@@ -244,18 +242,12 @@
 						</section>
 					{:else if selectedSection === 'settings'}
 						<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
-							<div
-								class="max-w-4xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-							>
-								<p
-									class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-								>
+							<div class="max-w-4xl rounded-3xl border border-border bg-surface-card p-6 shadow-sm">
+								<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">
 									Settings
 								</p>
-								<h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">
-									Foundation-only for now
-								</h1>
-								<p class="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+								<h1 class="mt-3 text-2xl font-semibold text-fg">Foundation-only for now</h1>
+								<p class="mt-4 text-sm leading-6 text-fg-secondary">
 									The UI still talks to the same frontend service layer, but feed ingestion and
 									persistence now run through Tauri commands backed by local SQLite.
 								</p>
@@ -264,7 +256,7 @@
 					{:else}
 						<div class="flex min-h-0 flex-1 overflow-hidden">
 							<div
-								class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-slate-200 2xl:basis-1/3 xl:dark:border-slate-800"
+								class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-border 2xl:basis-1/3"
 							>
 								<FeedListView
 									{feeds}
@@ -285,13 +277,13 @@
 							</div>
 
 							<aside
-								class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-white/80 p-8 xl:flex xl:flex-1 2xl:basis-2/3 dark:bg-slate-950/80"
+								class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-surface-glass p-8 xl:flex xl:flex-1 2xl:basis-2/3"
 							>
 								{#if selectedItem}
 									<div class="space-y-9">
 										<div class="flex flex-wrap items-center gap-4">
 											<button
-												class="rounded-3xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+												class="btn-primary rounded-2xl px-4 py-3"
 												type="button"
 												onclick={() => {
 													void open(selectedItem.url);
@@ -302,7 +294,7 @@
 
 											{#if selectedItem.mediaEnclosure}
 												<button
-													class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+													class="btn-secondary rounded-2xl px-4 py-3"
 													type="button"
 													onclick={() => playAudioItem(selectedItem)}
 												>
@@ -314,10 +306,10 @@
 
 											{#if canUseReaderMode && hasSelectedItemReaderContent}
 												<div
-													class="inline-flex rounded-3xl border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+													class="inline-flex rounded-2xl border border-border-strong bg-surface p-1"
 												>
 													<button
-														class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'feed' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+														class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${readerPaneMode === 'feed' ? 'bg-interactive text-interactive-text' : 'text-fg-muted hover:text-fg'}`}
 														type="button"
 														onclick={() => {
 															readerPaneMode = 'feed';
@@ -326,7 +318,7 @@
 														Feed view
 													</button>
 													<button
-														class={`rounded-xl px-4 py-2 text-sm font-medium transition ${readerPaneMode === 'reader' ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}
+														class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${readerPaneMode === 'reader' ? 'bg-interactive text-interactive-text' : 'text-fg-muted hover:text-fg'}`}
 														type="button"
 														onclick={() => {
 															readerPaneMode = 'reader';
@@ -337,7 +329,7 @@
 												</div>
 											{:else if canUseReaderMode}
 												<button
-													class="rounded-3xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+													class="btn-secondary rounded-2xl px-4 py-3"
 													disabled={isSelectedItemReaderLoading}
 													type="button"
 													onclick={() => handleLoadReaderView(selectedItem.id)}
@@ -352,7 +344,7 @@
 										</div>
 
 										{#if readerNotice}
-											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
+											<p class="text-sm leading-8 text-fg-muted">
 												{readerNotice}
 											</p>
 										{/if}
@@ -380,10 +372,8 @@
 											/>
 
 											{#if selectedItem.mediaEnclosure}
-												<div
-													class="rounded-[1rem] border border-dashed border-slate-300 p-6 dark:border-slate-800"
-												>
-													<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
+												<div class="rounded-3xl border border-dashed border-border-strong p-6">
+													<p class="text-sm leading-8 text-fg-muted">
 														Podcast controls remain available here and in the footer player.
 														{#if selectedItem.mediaEnclosure.durationSeconds}
 															Duration {formatDuration(
@@ -401,26 +391,22 @@
 								{:else}
 									<div class="flex h-full min-h-[21rem] flex-col justify-between">
 										<div>
-											<p
-												class="text-sm font-medium tracking-[0.18em] text-slate-500 uppercase dark:text-slate-400"
-											>
+											<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">
 												Reader
 											</p>
-											<h1
-												class="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white"
-											>
+											<h1 class="mt-4 text-3xl font-semibold tracking-tight text-fg">
 												No item selected
 											</h1>
-											<p class="mt-5 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+											<p class="mt-5 max-w-xl text-sm leading-7 text-fg-secondary">
 												Pick an item from the list to read its details here. When a view has visible
 												items, the first one is selected automatically.
 											</p>
 										</div>
 
 										<div
-											class="rounded-[1rem] border border-dashed border-slate-300 bg-slate-50/80 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+											class="rounded-3xl border border-dashed border-border-strong bg-surface-inset p-6"
 										>
-											<p class="text-sm leading-8 text-slate-500 dark:text-slate-400">
+											<p class="text-sm leading-8 text-fg-muted">
 												This reader pane is still plain-text-only for now. Feed switching, refresh,
 												playback, and the current list workflow remain unchanged.
 											</p>

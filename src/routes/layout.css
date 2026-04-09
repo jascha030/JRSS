@@ -1,5 +1,137 @@
 @import 'tailwindcss';
 
+/* ──────────────────────────────────────────────
+   Design tokens — single source of truth
+   
+   Change a color here → it changes everywhere.
+   Dark mode overrides follow in the @media block.
+   ────────────────────────────────────────────── */
+
+@theme {
+	/* Surfaces — opaque */
+	--color-surface: #ffffff;
+	--color-surface-alt: #f1f5f9;
+	--color-surface-card: #ffffff;
+	--color-surface-active: #f1f5f9;
+	--color-surface-hover: #f8fafc;
+	--color-surface-inset: rgb(248 250 252 / 0.8);
+
+	/* Surfaces — semi-transparent (backdrop-blur contexts) */
+	--color-surface-glass: rgb(255 255 255 / 0.8);
+	--color-surface-glass-heavy: rgb(255 255 255 / 0.95);
+	--color-surface-shell: rgb(241 245 249 / 0.8);
+	--color-surface-main: rgb(241 245 249 / 0.7);
+
+	/* Foreground (text) */
+	--color-fg: #020617;
+	--color-fg-secondary: #334155;
+	--color-fg-muted: #64748b;
+	--color-fg-subtle: #94a3b8;
+	--color-fg-inverse: #ffffff;
+	--color-fg-link: #2563eb;
+
+	/* Borders */
+	--color-border: #e2e8f0;
+	--color-border-strong: #cbd5e1;
+	--color-border-hover: #94a3b8;
+
+	/* Accent — brand/highlight */
+	--color-accent: #4f46e5;
+	--color-accent-hover: #6366f1;
+	--color-accent-dot: #6366f1;
+
+	/* Interactive — primary button surface */
+	--color-interactive: #020617;
+	--color-interactive-hover: #1e293b;
+	--color-interactive-text: #ffffff;
+
+	/* Focus ring */
+	--color-ring: #cbd5e1;
+
+	/* Skeleton loading */
+	--color-skeleton: #e2e8f0;
+
+	/* Article content (used in ArticleBase <style> block) */
+	--color-article-body: #334155;
+	--color-article-heading: #0f172a;
+	--color-article-link: #2563eb;
+	--color-article-blockquote-border: #cbd5e1;
+	--color-article-blockquote-text: #475569;
+	--color-article-caption: #64748b;
+	--color-article-code-bg: #f1f5f9;
+	--color-article-table-border: #e2e8f0;
+}
+
+/* ── Dark overrides ───────────────────────────
+   Unlayered rules override @layer theme values
+   when the media query matches.
+   ───────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-surface: #020617;
+		--color-surface-alt: #0f172a;
+		--color-surface-card: #0f172a;
+		--color-surface-active: #1e293b;
+		--color-surface-hover: #0f172a;
+		--color-surface-inset: rgb(15 23 42 / 0.6);
+		--color-surface-glass: rgb(2 6 23 / 0.8);
+		--color-surface-glass-heavy: rgb(2 6 23 / 0.95);
+		--color-surface-shell: #020617;
+		--color-surface-main: rgb(2 6 23 / 0.7);
+
+		--color-fg: #ffffff;
+		--color-fg-secondary: #e2e8f0;
+		--color-fg-muted: #94a3b8;
+		--color-fg-subtle: #64748b;
+		--color-fg-inverse: #020617;
+		--color-fg-link: #60a5fa;
+
+		--color-border: #1e293b;
+		--color-border-strong: #334155;
+		--color-border-hover: #64748b;
+
+		--color-accent: #6366f1;
+		--color-accent-hover: #818cf8;
+		--color-accent-dot: #6366f1;
+
+		--color-interactive: #f1f5f9;
+		--color-interactive-hover: #ffffff;
+		--color-interactive-text: #020617;
+
+		--color-ring: #334155;
+
+		--color-skeleton: #1e293b;
+
+		--color-article-body: #e2e8f0;
+		--color-article-heading: #f8fafc;
+		--color-article-link: #60a5fa;
+		--color-article-blockquote-border: #475569;
+		--color-article-blockquote-text: #cbd5e1;
+		--color-article-caption: #94a3b8;
+		--color-article-code-bg: #0f172a;
+		--color-article-table-border: #334155;
+	}
+}
+
+/* ── Button component classes ─────────────────
+   Colors from tokens. Size/radius stays inline.
+   ───────────────────────────────────────────── */
+
+.btn-primary {
+	@apply bg-interactive text-sm font-medium text-interactive-text transition-colors hover:bg-interactive-hover;
+}
+
+.btn-secondary {
+	@apply border border-border-strong text-sm font-medium text-fg-secondary transition-colors hover:border-border-hover hover:text-fg;
+}
+
+.btn-secondary:disabled {
+	@apply cursor-not-allowed opacity-60;
+}
+
+/* ── Base styles ──────────────────────────────── */
+
 :root {
 	color-scheme: light dark;
 	font-family:
@@ -15,15 +147,8 @@
 body {
 	margin: 0;
 	min-height: 100vh;
-	background: rgb(248 250 252);
-	color: rgb(2 6 23);
+	background: var(--color-surface);
+	color: var(--color-fg);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-	body {
-		background: rgb(2 6 23);
-		color: rgb(248 250 252);
-	}
 }
