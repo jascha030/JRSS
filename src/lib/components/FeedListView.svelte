@@ -159,9 +159,16 @@
 			}
 		};
 	});
+
+	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (event.key === 'f' && event.metaKey && !event.shiftKey && selectedFeed) {
+			event.preventDefault();
+			searchInputRef?.focus();
+		}
+	}
 </script>
 
-<svelte:window bind:innerWidth={windowWidth} />
+<svelte:window bind:innerWidth={windowWidth} onkeydown={handleWindowKeydown} />
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
 	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">
