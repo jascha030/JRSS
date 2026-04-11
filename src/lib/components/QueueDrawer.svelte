@@ -7,11 +7,22 @@
 		queueItems: FeedListItem[];
 		feeds: Feed[];
 		onRemoveItem: (itemId: string) => void;
+		onMoveItemUp: (itemId: string) => void;
+		onMoveItemDown: (itemId: string) => void;
 		onClearQueue: () => void;
 		onClose: () => void;
 	};
 
-	let { open, queueItems, feeds, onRemoveItem, onClearQueue, onClose }: Props = $props();
+	let {
+		open,
+		queueItems,
+		feeds,
+		onRemoveItem,
+		onMoveItemUp,
+		onMoveItemDown,
+		onClearQueue,
+		onClose
+	}: Props = $props();
 
 	let feedTitleById = $derived.by(() => {
 		const map: Record<string, string> = {};
@@ -139,25 +150,77 @@
 							{/if}
 						</div>
 
-						<!-- Remove button -->
-						<button
-							type="button"
-							title="Remove from queue"
-							aria-label={`Remove ${item.title} from queue`}
-							class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-fg-subtle opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-surface-active hover:text-fg-secondary"
-							onclick={() => onRemoveItem(item.id)}
+						<!-- Reorder & remove buttons -->
+						<div
+							class="mt-0.5 flex shrink-0 flex-col items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
 						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke-width="1.5"
-								stroke="currentColor"
-								class="size-4"
+							{#if index > 0}
+								<button
+									type="button"
+									title="Move up"
+									aria-label={`Move ${item.title} up in queue`}
+									class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+									onclick={() => onMoveItemUp(item.id)}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="2"
+										stroke="currentColor"
+										class="size-3.5"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="m4.5 15.75 7.5-7.5 7.5 7.5"
+										/>
+									</svg>
+								</button>
+							{/if}
+							<button
+								type="button"
+								title="Remove from queue"
+								aria-label={`Remove ${item.title} from queue`}
+								class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+								onclick={() => onRemoveItem(item.id)}
 							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-							</svg>
-						</button>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+									class="size-3.5"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+								</svg>
+							</button>
+							{#if index < queueItems.length - 1}
+								<button
+									type="button"
+									title="Move down"
+									aria-label={`Move ${item.title} down in queue`}
+									class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+									onclick={() => onMoveItemDown(item.id)}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="2"
+										stroke="currentColor"
+										class="size-3.5"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="m19.5 8.25-7.5 7.5-7.5-7.5"
+										/>
+									</svg>
+								</button>
+							{/if}
+						</div>
 					</li>
 				{/each}
 			</ul>
