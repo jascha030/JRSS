@@ -26,6 +26,7 @@
 		selectFeed,
 		selectItem,
 		selectSection,
+		setFeedSearchTerm,
 		setPlaybackPlaying,
 		stopPlayback,
 		updatePlaybackPosition
@@ -57,6 +58,7 @@
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSummariesById = $derived(app.itemSummariesById);
+	const feedSearchTerm = $derived(app.feedSearchTerm);
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -273,6 +275,8 @@
 									onMarkRead={markItemRead}
 									onPlay={playAudioItem}
 									{totalCount}
+									searchTerm={feedSearchTerm}
+									onSearchChange={setFeedSearchTerm}
 								/>
 							</div>
 

@@ -20,6 +20,8 @@
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedListItem) => void;
 		totalCount: number;
+		searchTerm: string;
+		onSearchChange: (term: string) => void;
 	};
 
 	let {
@@ -36,8 +38,13 @@
 		selectedSection,
 		onMarkRead,
 		onPlay,
-		totalCount
+		totalCount,
+		searchTerm,
+		onSearchChange
 	}: Props = $props();
+
+	let searchInputRef = $state<HTMLInputElement | null>(null);
+	const hasActiveSearch = $derived(searchTerm.trim().length > 0);
 
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
 		all: 'All feeds',
@@ -209,6 +216,64 @@
 				{/if}
 			</div>
 		</div>
+
+		{#if selectedFeed}
+			<div class="relative mt-4">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 16 16"
+					fill="currentColor"
+					class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted"
+				>
+					<path
+						fill-rule="evenodd"
+						d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+						clip-rule="evenodd"
+					/>
+				</svg>
+				<input
+					bind:this={searchInputRef}
+					class="w-full rounded-xl border border-border bg-surface py-2 pr-9 pl-9 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
+					placeholder="Search this feed"
+					type="text"
+					value={searchTerm}
+					oninput={(event) => {
+						const target = event.currentTarget;
+						if (target instanceof HTMLInputElement) {
+							onSearchChange(target.value);
+						}
+					}}
+					onkeydown={(event) => {
+						if (event.key === 'Escape') {
+							onSearchChange('');
+							searchInputRef?.blur();
+						}
+					}}
+				/>
+				{#if hasActiveSearch}
+					<button
+						type="button"
+						class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-0.5 text-fg-muted transition-colors hover:text-fg"
+						title="Clear search"
+						onclick={() => {
+							onSearchChange('');
+							searchInputRef?.focus();
+						}}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 16 16"
+							fill="currentColor"
+							class="size-4"
+						>
+							<path
+								d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
+							/>
+						</svg>
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div
@@ -238,11 +303,18 @@
 				<div
 					class="rounded-3xl border border-dashed border-border-strong bg-surface-card p-8 text-center shadow-sm"
 				>
-					<h3 class="text-xl font-semibold text-fg">Nothing here yet</h3>
-					<p class="mt-3 text-sm leading-6 text-fg-secondary">
-						This view is wired up, but there are no matching items right now. Add more feeds or
-						switch filters to keep exploring the shell.
-					</p>
+					{#if hasActiveSearch}
+						<h3 class="text-xl font-semibold text-fg">No matching items</h3>
+						<p class="mt-3 text-sm leading-6 text-fg-secondary">
+							Try a different search term or clear the filter.
+						</p>
+					{:else}
+						<h3 class="text-xl font-semibold text-fg">Nothing here yet</h3>
+						<p class="mt-3 text-sm leading-6 text-fg-secondary">
+							This view is wired up, but there are no matching items right now. Add more feeds or
+							switch filters to keep exploring the shell.
+						</p>
+					{/if}
 				</div>
 			</div>
 		{:else}

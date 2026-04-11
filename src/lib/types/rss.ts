@@ -62,6 +62,7 @@ export interface ItemPageQuery {
 	section: ItemListSection;
 	offset: number;
 	limit: number;
+	search?: string;
 }
 
 export interface ItemPage<T> {

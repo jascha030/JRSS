@@ -48,14 +48,16 @@ export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<Fee
 					feedId: query.feedId ?? null,
 					section: query.section,
 					offset: query.offset,
-					limit: query.limit
+					limit: query.limit,
+					search: query.search ?? null
 				}
 			}),
 		{
 			feedId: query.feedId ?? null,
 			section: query.section,
 			offset: query.offset,
-			limit: query.limit
+			limit: query.limit,
+			search: query.search ?? null
 		}
 	);
 }

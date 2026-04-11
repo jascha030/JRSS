@@ -25,6 +25,7 @@ pub struct ItemPageQueryRecord {
     pub section: ItemListSection,
     pub offset: i64,
     pub limit: i64,
+    pub search: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
