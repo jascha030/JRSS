@@ -19,6 +19,7 @@
 		canUseReaderMode: boolean;
 		onPlay: (item: FeedItem) => void;
 		onPlayNext: (item: FeedItem) => void;
+		onEnqueue: (item: FeedItem) => void;
 		onStopPlayback: () => void;
 		onLoadReaderView: (itemId: string) => Promise<void>;
 		onReaderPaneModeChange: (mode: ReaderPaneMode) => void;
@@ -37,6 +38,7 @@
 		canUseReaderMode,
 		onPlay,
 		onPlayNext,
+		onEnqueue,
 		onStopPlayback,
 		onLoadReaderView,
 		onReaderPaneModeChange
@@ -74,6 +76,14 @@
 						onclick={() => onPlayNext(selectedItem)}
 					>
 						Play next
+					</button>
+
+					<button
+						class="btn-secondary rounded-2xl px-4 py-3 text-xs"
+						type="button"
+						onclick={() => onEnqueue(selectedItem)}
+					>
+						Add to queue
 					</button>
 
 					{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
+	import { Menu } from '@tauri-apps/api/menu';
+
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
@@ -20,6 +22,7 @@
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedListItem) => void;
 		onPlayNext: (item: FeedListItem) => void;
+		onEnqueue: (item: FeedListItem) => void;
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
@@ -40,10 +43,28 @@
 		onMarkRead,
 		onPlay,
 		onPlayNext,
+		onEnqueue,
 		totalCount,
 		searchTerm,
 		onSearchChange
 	}: Props = $props();
+
+	// -----------------------------------------------------------------------
+	// Native context menu (Tauri Menu API)
+	// -----------------------------------------------------------------------
+
+	async function openContextMenu(event: MouseEvent, item: FeedListItem): Promise<void> {
+		event.preventDefault();
+
+		const menu = await Menu.new({
+			items: [
+				{ id: 'play-next', text: 'Play Next', action: () => onPlayNext(item) },
+				{ id: 'add-to-queue', text: 'Add to Queue', action: () => onEnqueue(item) }
+			]
+		});
+
+		await menu.popup();
+	}
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	const hasActiveSearch = $derived(searchTerm.trim().length > 0);
@@ -343,6 +364,9 @@
 										: 'bg-surface text-fg hover:bg-surface-hover'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
+								oncontextmenu={item.mediaEnclosure
+									? (event) => void openContextMenu(event, item)
+									: undefined}
 							>
 								<button
 									type="button"

@@ -131,7 +131,7 @@
 			</div>
 
 			<div class="mt-6 border-t border-border px-2 pt-4">
-				<div class="mt-7 space-y-2">
+				<div class="mt-6.5 space-y-2">
 					{#each feeds as feed (feed.id)}
 						<button
 							type="button"
@@ -194,7 +194,7 @@
 						<div class="px-3 py-3 text-sm text-fg-muted">No feeds added yet</div>
 					{:else}
 						{#each feeds as feed (feed.id)}
-							<div class="group flex items-center">
+							<div class="group flex items-center mb-2">
 								<button
 									type="button"
 									onclick={() => onSelectFeed(feed.id)}

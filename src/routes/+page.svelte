@@ -9,6 +9,7 @@
 		clearQueue,
 		createFeed,
 		deleteFeed,
+		enqueueAudioItem,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
@@ -297,6 +298,7 @@
 									onMarkRead={markItemRead}
 									onPlay={playAudioItem}
 									onPlayNext={playAudioItemNext}
+									onEnqueue={enqueueAudioItem}
 									{totalCount}
 									searchTerm={feedSearchTerm}
 									onSearchChange={setFeedSearchTerm}
@@ -316,6 +318,7 @@
 								{canUseReaderMode}
 								onPlay={playAudioItem}
 								onPlayNext={playAudioItemNext}
+								onEnqueue={enqueueAudioItem}
 								onStopPlayback={stopPlayback}
 								onLoadReaderView={handleLoadReaderView}
 								onReaderPaneModeChange={(mode) => {
