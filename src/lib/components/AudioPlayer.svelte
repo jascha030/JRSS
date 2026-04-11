@@ -8,12 +8,19 @@
 		onPlayingChange: (isPlaying: boolean) => void;
 		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
 		onPositionPersist: (positionSeconds: number, durationSeconds: number) => Promise<void>;
+		onEnded: () => void;
 	};
 
 	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
 
-	let { item, playbackState, onPlayingChange, onPositionChange, onPositionPersist }: Props =
-		$props();
+	let {
+		item,
+		playbackState,
+		onPlayingChange,
+		onPositionChange,
+		onPositionPersist,
+		onEnded
+	}: Props = $props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
 	let activeItemId: string | null = $state(null);
@@ -362,11 +369,7 @@
 
 		<audio
 			bind:this={audioElement}
-			onended={() => {
-				onPlayingChange(false);
-				onPositionChange(0, durationForPlayer());
-				void onPositionPersist(0, durationForPlayer());
-			}}
+			onended={() => onEnded()}
 			onloadedmetadata={() => {
 				syncPlaybackPosition();
 			}}
