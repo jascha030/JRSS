@@ -1,10 +1,12 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
+	import QueueDrawer from '$lib/components/QueueDrawer.svelte';
 	import ReaderPane from '$lib/components/ReaderPane.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import {
 		app,
+		clearQueue,
 		createFeed,
 		deleteFeed,
 		ensureVisibleRangeLoaded,
@@ -15,6 +17,7 @@
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedItemFeed,
+		getUpcomingQueue,
 		handlePlaybackEnded,
 		initializeApp,
 		loadItemDetails,
@@ -25,6 +28,7 @@
 		playAudioItem,
 		playAudioItemNext,
 		refreshExistingFeed,
+		removeQueuedItem,
 		selectFeed,
 		selectItem,
 		selectSection,
@@ -38,6 +42,7 @@
 	let newFeedUrl = $state('');
 	let notice = $state('');
 	let isSidebarCollapsed = $state(false);
+	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let readerNotice = $state('');
 	let lastSelectedItemId = $state<string | null>(null);
@@ -59,7 +64,8 @@
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSummariesById = $derived(app.itemSummariesById);
 	const feedSearchTerm = $derived(app.feedSearchTerm);
-	const queueLength = $derived(app.playbackQueue.length);
+	const upcomingQueue = $derived(getUpcomingQueue());
+	const queueLength = $derived(upcomingQueue.length);
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -163,6 +169,17 @@
 </svelte:head>
 
 <div class="h-screen overflow-hidden bg-surface-shell">
+	<QueueDrawer
+		open={isQueueDrawerOpen}
+		queueItems={upcomingQueue}
+		{feeds}
+		onRemoveItem={removeQueuedItem}
+		onClearQueue={clearQueue}
+		onClose={() => {
+			isQueueDrawerOpen = false;
+		}}
+	/>
+
 	<div class="relative h-full overflow-hidden">
 		<div class="absolute inset-y-0 left-0 z-20 hidden md:block">
 			<Sidebar
@@ -305,25 +322,6 @@
 					{/if}
 				</main>
 
-				<!-- TODO: Remove debug panel when queue drawer is built -->
-				{#if currentPlaybackState || queueLength > 0}
-					<div
-						class="border-t border-border bg-surface px-4 py-1.5 font-mono text-[10px] leading-4 text-fg-muted"
-					>
-						<span>playing: {currentPlaybackState?.itemId?.slice(0, 8) ?? 'none'}</span>
-						<span class="mx-1">|</span>
-						<span>state: {currentPlaybackState?.isPlaying ? 'playing' : 'paused'}</span>
-						<span class="mx-1">|</span>
-						<span>auto: {String(currentPlaybackState?.autoPlay ?? false)}</span>
-						<span class="mx-1">|</span>
-						<span
-							>queue({queueLength}): [{app.playbackQueue
-								.map((id) => id.slice(0, 8))
-								.join(', ')}]</span
-						>
-					</div>
-				{/if}
-
 				<AudioPlayer
 					item={currentAudioItem}
 					playbackState={currentPlaybackState}
@@ -332,7 +330,41 @@
 					onPositionPersist={persistPlaybackPosition}
 					onTransitionPersist={persistPlaybackForItem}
 					onEnded={() => void handlePlaybackEnded()}
-				/>
+				>
+					{#snippet controls()}
+						<button
+							type="button"
+							class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+							aria-label={isQueueDrawerOpen ? 'Close queue' : `Open queue (${queueLength})`}
+							title={isQueueDrawerOpen ? 'Close queue' : `Queue (${queueLength})`}
+							onclick={() => {
+								isQueueDrawerOpen = !isQueueDrawerOpen;
+							}}
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke-width="1.5"
+								stroke="currentColor"
+								class="size-5"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"
+								/>
+							</svg>
+							{#if queueLength > 0}
+								<span
+									class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-fg-inverse"
+								>
+									{queueLength}
+								</span>
+							{/if}
+						</button>
+					{/snippet}
+				</AudioPlayer>
 			</div>
 		</div>
 	</div>
