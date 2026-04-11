@@ -44,7 +44,7 @@
 
 	let newFeedUrl = $state('');
 	let notice = $state('');
-	let isSidebarCollapsed = $state(false);
+	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let readerNotice = $state('');
