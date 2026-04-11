@@ -36,6 +36,8 @@ interface AppState {
 	feedSearchTerm: string;
 	feeds: Feed[];
 	currentPlaybackState: PlaybackState | null;
+	/** Ordered list of item IDs waiting to play after the current item finishes. */
+	playbackQueue: string[];
 	isCreatingFeed: boolean;
 	syncingFeedIds: string[];
 	readerLoadingItemIds: string[];
@@ -56,6 +58,7 @@ const initialState: AppState = {
 	feedSearchTerm: '',
 	feeds: [],
 	currentPlaybackState: null,
+	playbackQueue: [],
 	isCreatingFeed: false,
 	syncingFeedIds: [],
 	readerLoadingItemIds: [],
@@ -289,7 +292,10 @@ function ensureSelectionAfterPageLoad(queryKey: QueryKey): void {
 	const totalCount = app.totalCountByQueryKey[queryKey] ?? 0;
 
 	if (totalCount === 0) {
-		app.selectedItemId = null;
+		if (!normalizeSearchTerm(app.feedSearchTerm)) {
+			app.selectedItemId = null;
+		}
+
 		return;
 	}
 
@@ -610,6 +616,11 @@ export async function deleteFeed(feedId: string): Promise<void> {
 		delete app.audioItemsById[currentAudioItem.id];
 	}
 
+	app.playbackQueue = app.playbackQueue.filter((itemId) => {
+		const item = app.audioItemsById[itemId] ?? app.itemSummariesById[itemId];
+		return item ? item.feedId !== feedId : false;
+	});
+
 	await loadFeeds();
 	invalidateAllQueries();
 	await loadInitialItemsPage();
@@ -724,4 +735,130 @@ export async function persistPlaybackPosition(
 	const itemId = app.currentPlaybackState.itemId;
 	updatePlaybackPosition(positionSeconds, durationSeconds);
 	await savePlayback(itemId, positionSeconds);
+}
+
+// ---------------------------------------------------------------------------
+// Playback queue
+// ---------------------------------------------------------------------------
+
+/** Resolve an item ID to a FeedListItem with a mediaEnclosure, or null. */
+function resolveAudioItem(itemId: string): FeedListItem | null {
+	const item = app.audioItemsById[itemId] ?? app.itemSummariesById[itemId];
+	return item?.mediaEnclosure ? item : null;
+}
+
+/**
+ * Items waiting in the queue, resolved to their FeedListItem summaries.
+ * Missing or non-audio items are excluded.
+ */
+export function getUpcomingQueue(): FeedListItem[] {
+	const items: FeedListItem[] = [];
+
+	for (const itemId of app.playbackQueue) {
+		const item = resolveAudioItem(itemId);
+
+		if (item) {
+			items.push(item);
+		}
+	}
+
+	return items;
+}
+
+/**
+ * Replace the queue wholesale.
+ * Filters out items without mediaEnclosure and deduplicates.
+ */
+export function setPlaybackQueue(items: FeedListItem[]): void {
+	const seen = new Set<string>();
+	const ids: string[] = [];
+
+	for (const item of items) {
+		if (!item.mediaEnclosure || seen.has(item.id)) {
+			continue;
+		}
+
+		seen.add(item.id);
+		app.audioItemsById[item.id] = item;
+		ids.push(item.id);
+	}
+
+	app.playbackQueue = ids;
+}
+
+/** Append an item to the end of the queue. No-op if already queued or currently playing. */
+export function enqueueAudioItem(item: FeedListItem): void {
+	if (!item.mediaEnclosure) {
+		return;
+	}
+
+	if (app.currentPlaybackState?.itemId === item.id) {
+		return;
+	}
+
+	if (app.playbackQueue.includes(item.id)) {
+		return;
+	}
+
+	app.audioItemsById[item.id] = item;
+	app.playbackQueue = [...app.playbackQueue, item.id];
+}
+
+/** Insert an item as the next item to play (index 0 of the queue). Deduplicates. */
+export function playAudioItemNext(item: FeedListItem): void {
+	if (!item.mediaEnclosure) {
+		return;
+	}
+
+	if (app.currentPlaybackState?.itemId === item.id) {
+		return;
+	}
+
+	app.audioItemsById[item.id] = item;
+	const filtered = app.playbackQueue.filter((id) => id !== item.id);
+	app.playbackQueue = [item.id, ...filtered];
+}
+
+/** Remove a specific item from the queue by ID. */
+export function removeQueuedItem(itemId: string): void {
+	app.playbackQueue = app.playbackQueue.filter((id) => id !== itemId);
+}
+
+/** Clear the entire queue without affecting the currently playing item. */
+export function clearQueue(): void {
+	app.playbackQueue = [];
+}
+
+/**
+ * Called when the `<audio>` element fires `ended`.
+ * Persists position 0 for the finished item, then advances to the
+ * next valid queue entry or stops cleanly.
+ */
+export async function handlePlaybackEnded(): Promise<void> {
+	const finishedState = app.currentPlaybackState;
+
+	if (!finishedState) {
+		return;
+	}
+
+	// Persist finished item at position 0
+	const finishedItemId = finishedState.itemId;
+	patchItemSummary(finishedItemId, { playbackPositionSeconds: 0 });
+	app.currentPlaybackState = null;
+	await savePlayback(finishedItemId, 0);
+
+	// Advance through the queue, skipping items that are no longer resolvable
+	while (app.playbackQueue.length > 0) {
+		const nextId = app.playbackQueue[0];
+		app.playbackQueue = app.playbackQueue.slice(1);
+
+		const nextItem = resolveAudioItem(nextId);
+
+		if (nextItem) {
+			playAudioItem(nextItem);
+			return;
+		}
+	}
+
+	// Queue exhausted — stay stopped
 }
