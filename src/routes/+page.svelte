@@ -23,6 +23,8 @@
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
+		moveQueuedItemDown,
+		moveQueuedItemUp,
 		persistPlaybackForItem,
 		persistPlaybackPosition,
 		playAudioItem,
@@ -174,6 +176,8 @@
 		queueItems={upcomingQueue}
 		{feeds}
 		onRemoveItem={removeQueuedItem}
+		onMoveItemUp={moveQueuedItemUp}
+		onMoveItemDown={moveQueuedItemDown}
 		onClearQueue={clearQueue}
 		onClose={() => {
 			isQueueDrawerOpen = false;

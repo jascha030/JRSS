@@ -835,6 +835,32 @@ export function playAudioItemNext(item: FeedListItem): void {
 	app.playbackQueue = [item.id, ...filtered];
 }
 
+/** Move a queued item one position earlier. No-op if already first or not found. */
+export function moveQueuedItemUp(itemId: string): void {
+	const index = app.playbackQueue.indexOf(itemId);
+
+	if (index <= 0) {
+		return;
+	}
+
+	const next = [...app.playbackQueue];
+	[next[index - 1], next[index]] = [next[index], next[index - 1]];
+	app.playbackQueue = next;
+}
+
+/** Move a queued item one position later. No-op if already last or not found. */
+export function moveQueuedItemDown(itemId: string): void {
+	const index = app.playbackQueue.indexOf(itemId);
+
+	if (index < 0 || index >= app.playbackQueue.length - 1) {
+		return;
+	}
+
+	const next = [...app.playbackQueue];
+	[next[index], next[index + 1]] = [next[index + 1], next[index]];
+	app.playbackQueue = next;
+}
+
 /** Remove a specific item from the queue by ID. */
 export function removeQueuedItem(itemId: string): void {
 	app.playbackQueue = app.playbackQueue.filter((id) => id !== itemId);
