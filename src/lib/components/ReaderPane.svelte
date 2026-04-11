@@ -18,6 +18,7 @@
 		isReaderPaneActive: boolean;
 		canUseReaderMode: boolean;
 		onPlay: (item: FeedItem) => void;
+		onPlayNext: (item: FeedItem) => void;
 		onStopPlayback: () => void;
 		onLoadReaderView: (itemId: string) => Promise<void>;
 		onReaderPaneModeChange: (mode: ReaderPaneMode) => void;
@@ -35,6 +36,7 @@
 		isReaderPaneActive,
 		canUseReaderMode,
 		onPlay,
+		onPlayNext,
 		onStopPlayback,
 		onLoadReaderView,
 		onReaderPaneModeChange
@@ -64,6 +66,14 @@
 						onclick={() => onPlay(selectedItem)}
 					>
 						{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
+					</button>
+
+					<button
+						class="btn-secondary rounded-2xl px-4 py-3 text-xs"
+						type="button"
+						onclick={() => onPlayNext(selectedItem)}
+					>
+						Play next
 					</button>
 
 					{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}

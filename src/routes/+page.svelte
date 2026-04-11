@@ -20,8 +20,10 @@
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
+		persistPlaybackForItem,
 		persistPlaybackPosition,
 		playAudioItem,
+		playAudioItemNext,
 		refreshExistingFeed,
 		selectFeed,
 		selectItem,
@@ -57,6 +59,7 @@
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSummariesById = $derived(app.itemSummariesById);
 	const feedSearchTerm = $derived(app.feedSearchTerm);
+	const queueLength = $derived(app.playbackQueue.length);
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -272,6 +275,7 @@
 									{selectedSection}
 									onMarkRead={markItemRead}
 									onPlay={playAudioItem}
+									onPlayNext={playAudioItemNext}
 									{totalCount}
 									searchTerm={feedSearchTerm}
 									onSearchChange={setFeedSearchTerm}
@@ -290,6 +294,7 @@
 								{isReaderPaneActive}
 								{canUseReaderMode}
 								onPlay={playAudioItem}
+								onPlayNext={playAudioItemNext}
 								onStopPlayback={stopPlayback}
 								onLoadReaderView={handleLoadReaderView}
 								onReaderPaneModeChange={(mode) => {
@@ -300,12 +305,32 @@
 					{/if}
 				</main>
 
+				<!-- TODO: Remove debug panel when queue drawer is built -->
+				{#if currentPlaybackState || queueLength > 0}
+					<div
+						class="border-t border-border bg-surface px-4 py-1.5 font-mono text-[10px] leading-4 text-fg-muted"
+					>
+						<span>playing: {currentPlaybackState?.itemId?.slice(0, 8) ?? 'none'}</span>
+						<span class="mx-1">|</span>
+						<span>state: {currentPlaybackState?.isPlaying ? 'playing' : 'paused'}</span>
+						<span class="mx-1">|</span>
+						<span>auto: {String(currentPlaybackState?.autoPlay ?? false)}</span>
+						<span class="mx-1">|</span>
+						<span
+							>queue({queueLength}): [{app.playbackQueue
+								.map((id) => id.slice(0, 8))
+								.join(', ')}]</span
+						>
+					</div>
+				{/if}
+
 				<AudioPlayer
 					item={currentAudioItem}
 					playbackState={currentPlaybackState}
 					onPlayingChange={setPlaybackPlaying}
 					onPositionChange={updatePlaybackPosition}
 					onPositionPersist={persistPlaybackPosition}
+					onTransitionPersist={persistPlaybackForItem}
 					onEnded={() => void handlePlaybackEnded()}
 				/>
 			</div>

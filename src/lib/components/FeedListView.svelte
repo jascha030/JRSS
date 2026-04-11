@@ -19,6 +19,7 @@
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
 		onPlay: (item: FeedListItem) => void;
+		onPlayNext: (item: FeedListItem) => void;
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
@@ -38,6 +39,7 @@
 		selectedSection,
 		onMarkRead,
 		onPlay,
+		onPlayNext,
 		totalCount,
 		searchTerm,
 		onSearchChange
@@ -408,6 +410,13 @@
 												onclick={() => onPlay(item)}
 											>
 												{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
+											</button>
+											<button
+												class="btn-secondary rounded-xl px-3 py-2 text-xs"
+												type="button"
+												onclick={() => onPlayNext(item)}
+											>
+												Play next
 											</button>
 										{/if}
 
