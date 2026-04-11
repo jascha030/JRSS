@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FeedListItem, PlaybackState } from '$lib/types/rss';
+	import type { Snippet } from 'svelte';
 	import { formatDuration } from '$lib/utils/format';
 
 	type Props = {
@@ -11,6 +12,8 @@
 		/** Persist a specific item's position during item transitions (avoids cross-item writes). */
 		onTransitionPersist: (itemId: string, positionSeconds: number) => Promise<void>;
 		onEnded: () => void;
+		/** Optional extra controls rendered to the right of the volume slider. */
+		controls?: Snippet;
 	};
 
 	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
@@ -22,7 +25,8 @@
 		onPositionChange,
 		onPositionPersist,
 		onTransitionPersist,
-		onEnded
+		onEnded,
+		controls
 	}: Props = $props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
@@ -327,7 +331,7 @@
 				</div>
 			</div>
 
-			<!-- Right: volume -->
+			<!-- Right: volume + extra controls -->
 			<div class="flex shrink-0 items-center gap-2">
 				<button
 					class="flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted transition-colors hover:text-fg"
@@ -392,6 +396,11 @@
 					type="range"
 					value={effectiveVolume}
 				/>
+				{#if controls}
+					<div class="relative ml-1">
+						{@render controls()}
+					</div>
+				{/if}
 			</div>
 		</div>
 
