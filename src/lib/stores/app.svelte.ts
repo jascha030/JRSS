@@ -33,6 +33,7 @@ interface AppState {
 	selectedFeedId: string | null;
 	selectedItemId: string | null;
 	selectedSection: SidebarSection;
+	feedSearchTerm: string;
 	feeds: Feed[];
 	currentPlaybackState: PlaybackState | null;
 	isCreatingFeed: boolean;
@@ -52,6 +53,7 @@ const initialState: AppState = {
 	selectedFeedId: null,
 	selectedItemId: null,
 	selectedSection: 'all',
+	feedSearchTerm: '',
 	feeds: [],
 	currentPlaybackState: null,
 	isCreatingFeed: false,
@@ -106,8 +108,15 @@ function getActiveListSection(): ItemListSection | null {
 	return toItemListSection(app.selectedSection) ?? 'all';
 }
 
-function buildQueryKey(feedId: string | null, section: ItemListSection): QueryKey {
-	return `${section}::${feedId ?? 'all-feeds'}`;
+function normalizeSearchTerm(term: string): string {
+	return term.trim().toLowerCase();
+}
+
+function buildQueryKey(feedId: string | null, section: ItemListSection, search: string): QueryKey {
+	const normalizedSearch = normalizeSearchTerm(search);
+	const base = `${section}::${feedId ?? 'all-feeds'}`;
+
+	return normalizedSearch ? `${base}::search:${normalizedSearch}` : base;
 }
 
 function getActiveQuerySpec(): { queryKey: QueryKey; query: ItemPageQuery } | null {
@@ -117,13 +126,16 @@ function getActiveQuerySpec(): { queryKey: QueryKey; query: ItemPageQuery } | nu
 		return null;
 	}
 
+	const search = app.selectedFeedId ? normalizeSearchTerm(app.feedSearchTerm) : '';
+
 	return {
-		queryKey: buildQueryKey(app.selectedFeedId, section),
+		queryKey: buildQueryKey(app.selectedFeedId, section, search),
 		query: {
 			feedId: app.selectedFeedId ?? undefined,
 			section,
 			offset: 0,
-			limit: PAGE_SIZE
+			limit: PAGE_SIZE,
+			search: search || undefined
 		}
 	};
 }
@@ -504,7 +516,9 @@ export async function initializeApp(): Promise<void> {
 	app.selectedFeedId = null;
 	app.selectedItemId = null;
 	app.selectedSection = 'all';
+	app.feedSearchTerm = '';
 	app.currentPlaybackState = null;
+	app.playbackQueue = [];
 	app.isCreatingFeed = false;
 	app.syncingFeedIds = [];
 	app.readerLoadingItemIds = [];
@@ -520,6 +534,7 @@ export function selectFeed(feedId: string | null): void {
 	app.selectedItemId = null;
 	app.selectedFeedId = feedId;
 	app.selectedSection = feedId ? null : 'all';
+	app.feedSearchTerm = '';
 	loadInitialItemsPageInBackground();
 }
 
@@ -527,6 +542,24 @@ export function selectSection(section: SidebarSection): void {
 	app.selectedItemId = null;
 	app.selectedFeedId = null;
 	app.selectedSection = section;
+	app.feedSearchTerm = '';
+	loadInitialItemsPageInBackground();
+}
+
+export function setFeedSearchTerm(term: string): void {
+	if (!app.selectedFeedId) {
+		return;
+	}
+
+	const normalized = normalizeSearchTerm(term);
+	const previousNormalized = normalizeSearchTerm(app.feedSearchTerm);
+
+	if (normalized === previousNormalized) {
+		app.feedSearchTerm = term;
+		return;
+	}
+
+	app.feedSearchTerm = term;
 	loadInitialItemsPageInBackground();
 }
 

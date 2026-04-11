@@ -456,35 +456,83 @@ pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResul
     let connection = open_connection(db_path)?;
     let safe_limit = query.limit.clamp(1, 500);
     let safe_offset = query.offset.max(0);
-    let count_query = format!("{ITEM_LIST_COUNT_QUERY}{ITEM_LIST_FILTER_QUERY}");
-    let total_count = connection
-        .query_row(
-            &count_query,
-            params![query.feed_id.as_deref(), query.section.as_str()],
-            |row| row.get(0),
-        )
-        .map_err(|error| format!("Failed to count items: {error}"))?;
 
-    let page_query = format!(
-        "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY i.published_at DESC, i.id DESC LIMIT ?3 OFFSET ?4"
-    );
-    let mut statement = connection
-        .prepare(&page_query)
-        .map_err(|error| format!("Failed to prepare paged item query: {error}"))?;
-    let rows = statement
-        .query_map(
-            params![
-                query.feed_id.as_deref(),
-                query.section.as_str(),
-                safe_limit,
-                safe_offset
-            ],
-            map_item_list_row,
+    let search_term = query
+        .search
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("%{s}%"));
+
+    let search_clause = if search_term.is_some() {
+        " AND (i.title LIKE ?3 COLLATE NOCASE OR i.preview_text LIKE ?3 COLLATE NOCASE OR i.content_text LIKE ?3 COLLATE NOCASE)"
+    } else {
+        ""
+    };
+
+    let count_sql = format!("{ITEM_LIST_COUNT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause}");
+    let total_count: i64 = if let Some(ref pattern) = search_term {
+        connection
+            .query_row(
+                &count_sql,
+                params![query.feed_id.as_deref(), query.section.as_str(), pattern],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("Failed to count items: {error}"))?
+    } else {
+        connection
+            .query_row(
+                &count_sql,
+                params![query.feed_id.as_deref(), query.section.as_str()],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("Failed to count items: {error}"))?
+    };
+
+    let page_sql = if search_term.is_some() {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause} ORDER BY i.published_at DESC, i.id DESC LIMIT ?4 OFFSET ?5"
         )
-        .map_err(|error| format!("Failed to query item page: {error}"))?;
-    let items = rows
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("Failed to read paged items: {error}"))?;
+    } else {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY i.published_at DESC, i.id DESC LIMIT ?3 OFFSET ?4"
+        )
+    };
+
+    let mut statement = connection
+        .prepare(&page_sql)
+        .map_err(|error| format!("Failed to prepare paged item query: {error}"))?;
+
+    let items = if let Some(ref pattern) = search_term {
+        statement
+            .query_map(
+                params![
+                    query.feed_id.as_deref(),
+                    query.section.as_str(),
+                    pattern,
+                    safe_limit,
+                    safe_offset
+                ],
+                map_item_list_row,
+            )
+            .map_err(|error| format!("Failed to query item page: {error}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("Failed to read paged items: {error}"))?
+    } else {
+        statement
+            .query_map(
+                params![
+                    query.feed_id.as_deref(),
+                    query.section.as_str(),
+                    safe_limit,
+                    safe_offset
+                ],
+                map_item_list_row,
+            )
+            .map_err(|error| format!("Failed to query item page: {error}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| format!("Failed to read paged items: {error}"))?
+    };
 
     Ok(ItemPageRecord { items, total_count })
 }
