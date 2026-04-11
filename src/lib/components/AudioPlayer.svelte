@@ -8,6 +8,8 @@
 		onPlayingChange: (isPlaying: boolean) => void;
 		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
 		onPositionPersist: (positionSeconds: number, durationSeconds: number) => Promise<void>;
+		/** Persist a specific item's position during item transitions (avoids cross-item writes). */
+		onTransitionPersist: (itemId: string, positionSeconds: number) => Promise<void>;
 		onEnded: () => void;
 	};
 
@@ -19,6 +21,7 @@
 		onPlayingChange,
 		onPositionChange,
 		onPositionPersist,
+		onTransitionPersist,
 		onEnded
 	}: Props = $props();
 
@@ -26,6 +29,13 @@
 	let activeItemId: string | null = $state(null);
 	let lastSyncedSecond = $state(-1);
 	let lastPersistedSecond = $state(-1);
+
+	/**
+	 * True while switching from one item to another.
+	 * Suppresses onpause/ontimeupdate callbacks that would write the old
+	 * audio element's position against the new item in the store.
+	 */
+	let isTransitioning = $state(false);
 
 	let isSeeking = $state(false);
 	let seekPosition = $state(0);
@@ -56,7 +66,7 @@
 	}
 
 	function syncPlaybackPosition() {
-		if (!audioElement) {
+		if (!audioElement || isTransitioning) {
 			return;
 		}
 
@@ -79,7 +89,7 @@
 	}
 
 	function persistPlaybackPosition() {
-		if (!audioElement) {
+		if (!audioElement || isTransitioning) {
 			return;
 		}
 
@@ -173,19 +183,36 @@
 		};
 	});
 
-	/* $effect.pre so we can persist position while audioElement is still in the DOM,
-	   before the {#if} block tears it down when item becomes null. */
+	/*
+	 * $effect.pre so we can act while the audio element is still in the DOM,
+	 * before the {#if} block tears it down when item becomes null.
+	 *
+	 * When the item changes we:
+	 *  1. Set isTransitioning to suppress onpause/ontimeupdate writing the old
+	 *     audio element's position against the new item in the store.
+	 *  2. Pause the old audio and persist its position using the explicit
+	 *     onTransitionPersist(oldItemId, position) callback.
+	 *  3. Prepare the audio element for the new item.
+	 *  4. Clear isTransitioning.
+	 */
 	$effect.pre(() => {
 		if (!audioElement) {
 			return;
 		}
 
 		if (activeItemId && item?.id !== activeItemId) {
+			isTransitioning = true;
+
+			const departingPosition = Math.floor(audioElement.currentTime);
 			audioElement.pause();
-			persistPlaybackPosition();
+
+			// Persist against the *departing* item ID, not whatever the store now points to.
+			void onTransitionPersist(activeItemId, departingPosition);
 		}
 
 		if (!item) {
+			activeItemId = null;
+			isTransitioning = false;
 			return;
 		}
 
@@ -194,6 +221,7 @@
 			lastSyncedSecond = Math.floor(item.playbackPositionSeconds);
 			lastPersistedSecond = Math.floor(item.playbackPositionSeconds);
 			audioElement.currentTime = item.playbackPositionSeconds;
+			isTransitioning = false;
 		}
 	});
 </script>
@@ -372,10 +400,16 @@
 			onended={() => onEnded()}
 			onloadedmetadata={() => {
 				syncPlaybackPosition();
+
+				if (playbackState?.autoPlay && audioElement) {
+					void audioElement.play();
+				}
 			}}
 			onpause={() => {
-				onPlayingChange(false);
-				persistPlaybackPosition();
+				if (!isTransitioning) {
+					onPlayingChange(false);
+					persistPlaybackPosition();
+				}
 			}}
 			onplay={() => onPlayingChange(true)}
 			ontimeupdate={syncPlaybackPosition}

@@ -681,7 +681,7 @@ export async function loadReaderView(itemId: string): Promise<FeedItem> {
 	}
 }
 
-export function playAudioItem(item: FeedListItem): void {
+export function playAudioItem(item: FeedListItem, { autoPlay = true } = {}): void {
 	if (!item.mediaEnclosure) {
 		return;
 	}
@@ -691,7 +691,8 @@ export function playAudioItem(item: FeedListItem): void {
 		itemId: item.id,
 		positionSeconds: item.playbackPositionSeconds,
 		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
-		isPlaying: false
+		isPlaying: false,
+		autoPlay
 	};
 }
 
@@ -706,7 +707,8 @@ export function setPlaybackPlaying(isPlaying: boolean): void {
 
 	app.currentPlaybackState = {
 		...app.currentPlaybackState,
-		isPlaying
+		isPlaying,
+		autoPlay: false
 	};
 }
 
@@ -734,6 +736,20 @@ export async function persistPlaybackPosition(
 
 	const itemId = app.currentPlaybackState.itemId;
 	updatePlaybackPosition(positionSeconds, durationSeconds);
+	await savePlayback(itemId, positionSeconds);
+}
+
+/**
+ * Persist a specific item's playback position by explicit ID.
+ * Used during item transitions in the AudioPlayer so the departing
+ * item's position is saved against the correct item, even though
+ * currentPlaybackState already points to the new item.
+ */
+export async function persistPlaybackForItem(
+	itemId: string,
+	positionSeconds: number
+): Promise<void> {
+	patchItemSummary(itemId, { playbackPositionSeconds: positionSeconds });
 	await savePlayback(itemId, positionSeconds);
 }
 
@@ -833,6 +849,11 @@ export function clearQueue(): void {
  * Called when the `<audio>` element fires `ended`.
  * Persists position 0 for the finished item, then advances to the
  * next valid queue entry or stops cleanly.
+ *
+ * Critically: we do NOT null out currentPlaybackState before setting
+ * the next item. A null gap would tear down and recreate the <audio>
+ * element in the {#if} block, losing the DOM node and causing
+ * unreliable autoplay.
  */
 export async function handlePlaybackEnded(): Promise<void> {
 	const finishedState = app.currentPlaybackState;
@@ -844,10 +865,8 @@ export async function handlePlaybackEnded(): Promise<void> {
 	// Persist finished item at position 0
 	const finishedItemId = finishedState.itemId;
 	patchItemSummary(finishedItemId, { playbackPositionSeconds: 0 });
-	app.currentPlaybackState = null;
-	await savePlayback(finishedItemId, 0);
 
-	// Advance through the queue, skipping items that are no longer resolvable
+	// Try to advance to the next resolvable queue entry
 	while (app.playbackQueue.length > 0) {
 		const nextId = app.playbackQueue[0];
 		app.playbackQueue = app.playbackQueue.slice(1);
@@ -855,10 +874,14 @@ export async function handlePlaybackEnded(): Promise<void> {
 		const nextItem = resolveAudioItem(nextId);
 
 		if (nextItem) {
-			playAudioItem(nextItem);
+			// Directly swap — no null gap
+			playAudioItem(nextItem, { autoPlay: true });
+			await savePlayback(finishedItemId, 0);
 			return;
 		}
 	}
 
-	// Queue exhausted — stay stopped
+	// Queue exhausted — stop cleanly
+	app.currentPlaybackState = null;
+	await savePlayback(finishedItemId, 0);
 }

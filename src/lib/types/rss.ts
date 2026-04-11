@@ -55,6 +55,11 @@ export interface PlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+	/**
+	 * When true, the AudioPlayer should call play() as soon as the source is ready.
+	 * Set by queue auto-advance; cleared by the player after initiating playback.
+	 */
+	autoPlay: boolean;
 }
 
 export interface ItemPageQuery {
