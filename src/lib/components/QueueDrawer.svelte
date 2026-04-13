@@ -5,6 +5,7 @@
 	type Props = {
 		open: boolean;
 		queueItems: FeedListItem[];
+		manualQueueLength: number;
 		feeds: Feed[];
 		onRemoveItem: (itemId: string) => void;
 		onMoveItemUp: (itemId: string) => void;
@@ -16,6 +17,7 @@
 	let {
 		open,
 		queueItems,
+		manualQueueLength,
 		feeds,
 		onRemoveItem,
 		onMoveItemUp,
@@ -23,6 +25,8 @@
 		onClearQueue,
 		onClose
 	}: Props = $props();
+
+	const hasAutoItems = $derived(queueItems.length > manualQueueLength);
 
 	let feedTitleById = $derived.by(() => {
 		const map: Record<string, string> = {};
@@ -118,11 +122,20 @@
 					/>
 				</svg>
 				<p class="text-sm font-medium text-fg-muted">Queue is empty</p>
-				<p class="mt-1 text-xs text-fg-subtle">Use "Play next" to add episodes</p>
+				<p class="mt-1 text-xs text-fg-subtle">Press play on an episode to auto-populate</p>
 			</div>
 		{:else}
 			<ul class="py-2">
 				{#each queueItems as item, index (item.id)}
+					{#if index === manualQueueLength && hasAutoItems}
+						<li class="flex items-center gap-3 px-5 py-2" aria-hidden="true">
+							<div class="h-px flex-1 bg-border"></div>
+							<span class="text-[10px] font-medium tracking-widest text-fg-subtle uppercase">
+								From this feed
+							</span>
+							<div class="h-px flex-1 bg-border"></div>
+						</li>
+					{/if}
 					<li
 						class="group relative flex items-start gap-3 px-5 py-3 transition-colors hover:bg-surface-hover"
 					>
