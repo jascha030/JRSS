@@ -18,6 +18,28 @@ impl ItemListSection {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemSortOrder {
+    NewestFirst,
+    OldestFirst,
+}
+
+impl ItemSortOrder {
+    pub fn order_by_clause(self) -> &'static str {
+        match self {
+            Self::NewestFirst => "i.published_at DESC, i.id DESC",
+            Self::OldestFirst => "i.published_at ASC, i.id ASC",
+        }
+    }
+}
+
+impl Default for ItemSortOrder {
+    fn default() -> Self {
+        Self::NewestFirst
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ItemPageQueryRecord {
@@ -26,6 +48,8 @@ pub struct ItemPageQueryRecord {
     pub offset: i64,
     pub limit: i64,
     pub search: Option<String>,
+    #[serde(default)]
+    pub sort_order: ItemSortOrder,
 }
 
 #[derive(Debug, Clone, Serialize)]

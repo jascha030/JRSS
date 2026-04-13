@@ -495,13 +495,15 @@ pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResul
             .map_err(|error| format!("Failed to count items: {error}"))?
     };
 
+    let order_by = query.sort_order.order_by_clause();
+
     let page_sql = if search_term.is_some() {
         format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause} ORDER BY i.published_at DESC, i.id DESC LIMIT ?4 OFFSET ?5"
+            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause} ORDER BY {order_by} LIMIT ?4 OFFSET ?5"
         )
     } else {
         format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY i.published_at DESC, i.id DESC LIMIT ?3 OFFSET ?4"
+            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY {order_by} LIMIT ?3 OFFSET ?4"
         )
     };
 
