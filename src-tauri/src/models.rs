@@ -136,3 +136,15 @@ pub struct ReaderContentRecord {
     pub content_text: Option<String>,
     pub fetched_at: String,
 }
+
+/// Persisted playback session — stored as an opaque JSON blob in SQLite.
+/// The frontend owns the shape; the backend just stores and returns it.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackSessionRecord {
+    pub current_item_id: String,
+    pub position_seconds: i64,
+    pub duration_seconds: i64,
+    pub manual_queue: Vec<String>,
+    pub auto_queue: Vec<String>,
+}

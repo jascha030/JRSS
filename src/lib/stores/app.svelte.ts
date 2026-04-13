@@ -1,13 +1,16 @@
 import {
 	addFeed,
+	clearPlaybackSession,
 	getItemDetails,
 	listFeeds,
+	loadPlaybackSession,
 	loadReaderContent,
 	markRead,
 	queryItemsPage,
 	refreshFeed,
 	removeFeed,
-	savePlayback
+	savePlayback,
+	savePlaybackSession
 } from '$lib/services/feedService';
 import type {
 	Feed,
@@ -16,6 +19,7 @@ import type {
 	FeedListItem,
 	ItemListSection,
 	ItemPageQuery,
+	PlaybackSession,
 	PlaybackState
 } from '$lib/types/rss';
 import { logPerf, measurePerfAsync } from '$lib/utils/perfDebug';
@@ -528,6 +532,116 @@ export async function ensureVisibleRangeLoaded(
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Playback session persistence
+// ---------------------------------------------------------------------------
+
+/**
+ * Snapshot the current playback + queue state to SQLite.
+ * Fire-and-forget — callers do not await this.
+ */
+function persistSession(): void {
+	const playbackState = app.currentPlaybackState;
+
+	if (!playbackState) {
+		void clearPlaybackSession().catch((error: unknown) => {
+			console.error('Failed to clear playback session.', error);
+		});
+		return;
+	}
+
+	const session: PlaybackSession = {
+		currentItemId: playbackState.itemId,
+		positionSeconds: playbackState.positionSeconds,
+		durationSeconds: playbackState.durationSeconds,
+		manualQueue: [...app.manualQueue],
+		autoQueue: [...app.autoQueue]
+	};
+
+	void savePlaybackSession(session).catch((error: unknown) => {
+		console.error('Failed to persist playback session.', error);
+	});
+}
+
+/**
+ * Restore a persisted playback session during app initialization.
+ * Must be called after feeds and items are loaded so that item
+ * summaries are available for resolution.
+ *
+ * The restored playback starts **paused** (autoPlay = false).
+ * Gracefully skips items that no longer exist locally.
+ */
+async function restoreSession(): Promise<void> {
+	let session: PlaybackSession | null;
+
+	try {
+		session = await loadPlaybackSession();
+	} catch (error) {
+		console.error('Failed to load playback session.', error);
+		return;
+	}
+
+	if (!session) {
+		return;
+	}
+
+	// Resolve the current item
+	const currentItem =
+		app.itemSummariesById[session.currentItemId] ?? app.audioItemsById[session.currentItemId];
+
+	if (!currentItem?.mediaEnclosure) {
+		// Current item gone — try to restore just the queues
+		app.manualQueue = filterResolvableAudioIds(session.manualQueue);
+		app.autoQueue = filterResolvableAudioIds(session.autoQueue);
+		return;
+	}
+
+	// Hydrate current item into audioItemsById
+	app.audioItemsById[currentItem.id] = currentItem;
+
+	// Use the persisted position if available, fall back to the item's saved position
+	const restoredPosition =
+		session.positionSeconds > 0 ? session.positionSeconds : currentItem.playbackPositionSeconds;
+
+	app.currentPlaybackState = {
+		itemId: currentItem.id,
+		positionSeconds: restoredPosition,
+		durationSeconds:
+			session.durationSeconds > 0
+				? session.durationSeconds
+				: (currentItem.mediaEnclosure.durationSeconds ?? 0),
+		isPlaying: false,
+		autoPlay: false
+	};
+
+	// Restore queues, filtering out items that no longer exist
+	app.manualQueue = filterResolvableAudioIds(session.manualQueue);
+	app.autoQueue = filterResolvableAudioIds(session.autoQueue);
+
+	// Remove current item from queues if it somehow ended up there
+	app.manualQueue = app.manualQueue.filter((id) => id !== currentItem.id);
+	app.autoQueue = app.autoQueue.filter((id) => id !== currentItem.id);
+}
+
+/**
+ * Filter a list of item IDs to only those that resolve to audio items
+ * currently available in the store. Registers resolved items in audioItemsById.
+ */
+function filterResolvableAudioIds(ids: string[]): string[] {
+	const result: string[] = [];
+
+	for (const id of ids) {
+		const item = app.itemSummariesById[id] ?? app.audioItemsById[id];
+
+		if (item?.mediaEnclosure) {
+			app.audioItemsById[id] = item;
+			result.push(id);
+		}
+	}
+
+	return result;
+}
+
 export async function initializeApp(): Promise<void> {
 	app.selectedFeedId = null;
 	app.selectedItemId = null;
@@ -545,6 +659,7 @@ export async function initializeApp(): Promise<void> {
 	invalidateAllQueries();
 	await loadFeeds();
 	await loadInitialItemsPage();
+	await restoreSession();
 }
 
 export function selectFeed(feedId: string | null): void {
@@ -634,6 +749,7 @@ export async function deleteFeed(feedId: string): Promise<void> {
 
 	app.manualQueue = app.manualQueue.filter((id) => !isFromDeletedFeed(id));
 	app.autoQueue = app.autoQueue.filter((id) => !isFromDeletedFeed(id));
+	persistSession();
 
 	await loadFeeds();
 	invalidateAllQueries();
@@ -712,6 +828,7 @@ export function playAudioItem(item: FeedListItem, { autoPlay = true } = {}): voi
 
 export function stopPlayback(): void {
 	app.currentPlaybackState = null;
+	persistSession();
 }
 
 export function setPlaybackPlaying(isPlaying: boolean): void {
@@ -876,6 +993,7 @@ export function enqueueAudioItem(item: FeedListItem): void {
 	// Also remove from autoQueue to avoid duplicates in the combined view
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
 	app.manualQueue = [...app.manualQueue, item.id];
+	persistSession();
 }
 
 /** Insert an item as the next item to play (index 0 of the manual queue). Deduplicates. */
@@ -892,6 +1010,7 @@ export function playAudioItemNext(item: FeedListItem): void {
 	const filteredManual = app.manualQueue.filter((id) => id !== item.id);
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
 	app.manualQueue = [item.id, ...filteredManual];
+	persistSession();
 }
 
 /** Move a queued item one position earlier within its segment. */
@@ -917,6 +1036,7 @@ export function moveQueuedItemUp(itemId: string): void {
 		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
 		app.manualQueue = [...app.manualQueue, itemId];
 	}
+	persistSession();
 }
 
 /** Move a queued item one position later within its segment. */
@@ -944,6 +1064,7 @@ export function moveQueuedItemDown(itemId: string): void {
 		[next[autoIndex], next[autoIndex + 1]] = [next[autoIndex + 1], next[autoIndex]];
 		app.autoQueue = next;
 	}
+	persistSession();
 }
 
 /** Remove a specific item from whichever queue segment contains it. */
@@ -953,12 +1074,14 @@ export function removeQueuedItem(itemId: string): void {
 	} else {
 		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
 	}
+	persistSession();
 }
 
 /** Clear both queue segments without affecting the currently playing item. */
 export function clearQueue(): void {
 	app.manualQueue = [];
 	app.autoQueue = [];
+	persistSession();
 }
 
 // ---------------------------------------------------------------------------
@@ -1071,6 +1194,8 @@ export function startPlaybackFromContext(item: FeedListItem): void {
 
 	// Rebuild auto-continuation from context
 	app.autoQueue = deriveAutoContinuation(item.id);
+
+	persistSession();
 }
 
 /**
@@ -1103,10 +1228,12 @@ export async function handlePlaybackEnded(): Promise<void> {
 		// Directly swap — no null gap
 		playAudioItem(nextItem, { autoPlay: true });
 		await savePlayback(finishedItemId, 0);
+		persistSession();
 		return;
 	}
 
 	// Queue exhausted — stop cleanly
 	app.currentPlaybackState = null;
 	await savePlayback(finishedItemId, 0);
+	persistSession();
 }
