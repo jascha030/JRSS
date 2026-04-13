@@ -56,7 +56,8 @@ export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<Fee
 					section: query.section,
 					offset: query.offset,
 					limit: query.limit,
-					search: query.search ?? null
+					search: query.search ?? null,
+					sortOrder: query.sortOrder ?? 'newest_first'
 				}
 			}),
 		{
@@ -64,7 +65,8 @@ export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<Fee
 			section: query.section,
 			offset: query.offset,
 			limit: query.limit,
-			search: query.search ?? null
+			search: query.search ?? null,
+			sortOrder: query.sortOrder ?? 'newest_first'
 		}
 	);
 }

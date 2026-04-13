@@ -1,6 +1,7 @@
 export type FeedKind = 'rss' | 'podcast';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
 export type ItemListSection = 'all' | 'unread' | 'podcasts';
+export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
 export interface Feed {
 	id: string;
@@ -68,6 +69,7 @@ export interface ItemPageQuery {
 	offset: number;
 	limit: number;
 	search?: string;
+	sortOrder?: ItemSortOrder;
 }
 
 export interface ItemPage<T> {

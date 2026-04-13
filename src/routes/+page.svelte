@@ -36,6 +36,7 @@
 		selectItem,
 		selectSection,
 		setFeedSearchTerm,
+		setItemSortOrder,
 		setPlaybackPlaying,
 		startPlaybackFromContext,
 		stopPlayback,
@@ -68,6 +69,7 @@
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSummariesById = $derived(app.itemSummariesById);
 	const feedSearchTerm = $derived(app.feedSearchTerm);
+	const itemSortOrder = $derived(app.itemSortOrder);
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
@@ -305,6 +307,8 @@
 									{totalCount}
 									searchTerm={feedSearchTerm}
 									onSearchChange={setFeedSearchTerm}
+									{itemSortOrder}
+									onSortOrderChange={setItemSortOrder}
 								/>
 							</div>
 

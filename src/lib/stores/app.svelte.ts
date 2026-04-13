@@ -20,6 +20,7 @@ import type {
 	FeedListItem,
 	ItemListSection,
 	ItemPageQuery,
+	ItemSortOrder,
 	PlaybackSession,
 	PlaybackState
 } from '$lib/types/rss';
@@ -39,6 +40,7 @@ interface AppState {
 	selectedItemId: string | null;
 	selectedSection: SidebarSection;
 	feedSearchTerm: string;
+	itemSortOrder: ItemSortOrder;
 	feeds: Feed[];
 	currentPlaybackState: PlaybackState | null;
 	/**
@@ -65,11 +67,36 @@ interface AppState {
 	initialLoadDoneByQueryKey: Record<QueryKey, boolean>;
 }
 
+export const SORT_ORDER_STORAGE_KEY = 'jrss:itemSortOrder';
+
+function loadPersistedSortOrder(): ItemSortOrder {
+	try {
+		const stored = localStorage.getItem(SORT_ORDER_STORAGE_KEY);
+
+		if (stored === 'newest_first' || stored === 'oldest_first') {
+			return stored;
+		}
+	} catch {
+		// localStorage unavailable (SSR, privacy mode, etc.)
+	}
+
+	return 'newest_first';
+}
+
+function persistSortOrder(order: ItemSortOrder): void {
+	try {
+		localStorage.setItem(SORT_ORDER_STORAGE_KEY, order);
+	} catch {
+		// localStorage unavailable
+	}
+}
+
 const initialState: AppState = {
 	selectedFeedId: null,
 	selectedItemId: null,
 	selectedSection: 'all',
 	feedSearchTerm: '',
+	itemSortOrder: 'newest_first',
 	feeds: [],
 	currentPlaybackState: null,
 	manualQueue: [],
@@ -130,9 +157,14 @@ function normalizeSearchTerm(term: string): string {
 	return term.trim().toLowerCase();
 }
 
-function buildQueryKey(feedId: string | null, section: ItemListSection, search: string): QueryKey {
+function buildQueryKey(
+	feedId: string | null,
+	section: ItemListSection,
+	search: string,
+	sortOrder: ItemSortOrder
+): QueryKey {
 	const normalizedSearch = normalizeSearchTerm(search);
-	const base = `${section}::${feedId ?? 'all-feeds'}`;
+	const base = `${section}::${feedId ?? 'all-feeds'}::${sortOrder}`;
 
 	return normalizedSearch ? `${base}::search:${normalizedSearch}` : base;
 }
@@ -145,15 +177,17 @@ function getActiveQuerySpec(): { queryKey: QueryKey; query: ItemPageQuery } | nu
 	}
 
 	const search = app.selectedFeedId ? normalizeSearchTerm(app.feedSearchTerm) : '';
+	const sortOrder = app.itemSortOrder;
 
 	return {
-		queryKey: buildQueryKey(app.selectedFeedId, section, search),
+		queryKey: buildQueryKey(app.selectedFeedId, section, search, sortOrder),
 		query: {
 			feedId: app.selectedFeedId ?? undefined,
 			section,
 			offset: 0,
 			limit: PAGE_SIZE,
-			search: search || undefined
+			search: search || undefined,
+			sortOrder
 		}
 	};
 }
@@ -682,6 +716,7 @@ export async function initializeApp(): Promise<void> {
 	app.selectedItemId = null;
 	app.selectedSection = 'all';
 	app.feedSearchTerm = '';
+	app.itemSortOrder = loadPersistedSortOrder();
 	app.currentPlaybackState = null;
 	app.manualQueue = [];
 	app.autoQueue = [];
@@ -727,6 +762,16 @@ export function setFeedSearchTerm(term: string): void {
 	}
 
 	app.feedSearchTerm = term;
+	loadInitialItemsPageInBackground();
+}
+
+export function setItemSortOrder(order: ItemSortOrder): void {
+	if (order === app.itemSortOrder) {
+		return;
+	}
+
+	app.itemSortOrder = order;
+	persistSortOrder(order);
 	loadInitialItemsPageInBackground();
 }
 

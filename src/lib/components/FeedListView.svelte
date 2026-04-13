@@ -4,7 +4,7 @@
 	import { Menu } from '@tauri-apps/api/menu';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
-	import type { Feed, FeedListItem } from '$lib/types/rss';
+	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
 
 	type Props = {
@@ -26,6 +26,8 @@
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
+		itemSortOrder: ItemSortOrder;
+		onSortOrderChange: (order: ItemSortOrder) => void;
 	};
 
 	let {
@@ -46,7 +48,9 @@
 		onEnqueue,
 		totalCount,
 		searchTerm,
-		onSearchChange
+		onSearchChange,
+		itemSortOrder,
+		onSortOrderChange
 	}: Props = $props();
 
 	// -----------------------------------------------------------------------
@@ -213,6 +217,24 @@
 			</div>
 
 			<div class="flex items-center gap-3">
+				<select
+					class="rounded-xl border border-border bg-surface px-2 py-1.5 text-xs text-fg-muted transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+					aria-label="Sort order"
+					value={itemSortOrder}
+					onchange={(event) => {
+						const target = event.currentTarget;
+						if (target instanceof HTMLSelectElement) {
+							const value = target.value;
+							if (value === 'newest_first' || value === 'oldest_first') {
+								onSortOrderChange(value);
+							}
+						}
+					}}
+				>
+					<option value="newest_first">Newest first</option>
+					<option value="oldest_first">Oldest first</option>
+				</select>
+
 				<p class="text-sm text-fg-muted">{totalCount} items</p>
 
 				{#if selectedFeed}
