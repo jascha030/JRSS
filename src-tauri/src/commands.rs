@@ -199,6 +199,21 @@ pub async fn load_playback_session(
 }
 
 #[tauri::command]
+pub async fn set_feed_sort_order(
+    feed_id: String,
+    sort_order: Option<String>,
+    state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        db::set_feed_sort_order(&db_path, &feed_id, sort_order.as_deref())
+    })
+    .await
+    .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
 pub async fn clear_playback_session(
     state: State<'_, DatabaseState>,
 ) -> Result<(), String> {

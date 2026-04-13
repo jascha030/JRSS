@@ -160,6 +160,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
         .map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
     ensure_item_content_columns(&connection)?;
+    ensure_feed_sort_order_column(&connection)?;
     backfill_preview_text(&connection)?;
 
     Ok(())
@@ -299,6 +300,25 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
     Ok(())
 }
 
+fn ensure_feed_sort_order_column(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(feeds)")
+        .map_err(|error| format!("Failed to inspect SQLite feed columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite feed columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite feed columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "sort_order") {
+        connection
+            .execute("ALTER TABLE feeds ADD COLUMN sort_order TEXT", [])
+            .map_err(|error| format!("Failed to add feeds.sort_order column: {error}"))?;
+    }
+
+    Ok(())
+}
+
 fn backfill_preview_text(connection: &Connection) -> AppResult<()> {
     connection
         .execute(PREVIEW_TEXT_BACKFILL_QUERY, [])
@@ -329,6 +349,7 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
         site_url: row.get(5)?,
         created_at: row.get(6)?,
         last_fetched_at: row.get(7)?,
+        sort_order: row.get(8)?,
     })
 }
 
@@ -414,7 +435,7 @@ fn get_feed_by_url_in_tx(
 ) -> AppResult<Option<FeedRecord>> {
     transaction
         .query_row(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at
+            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 WHERE url = ?1",
             [url],
@@ -429,7 +450,7 @@ pub fn get_feed_by_id(db_path: &Path, id: &str) -> AppResult<Option<FeedRecord>>
 
     connection
         .query_row(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at
+            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 WHERE id = ?1",
             [id],
@@ -443,7 +464,7 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
     let connection = open_connection(db_path)?;
     let mut statement = connection
         .prepare(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at
+            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 ORDER BY lower(title), title",
         )
@@ -681,6 +702,9 @@ pub fn upsert_feed_snapshot(
             .map(|feed| feed.created_at.clone())
             .unwrap_or_else(|| fetched_at.clone()),
         last_fetched_at: Some(fetched_at),
+        sort_order: existing_feed
+            .as_ref()
+            .and_then(|feed| feed.sort_order.clone()),
     };
 
     transaction
@@ -854,6 +878,23 @@ pub fn get_items_by_ids(db_path: &Path, ids: &[String]) -> AppResult<Vec<FeedLis
         .map_err(|error| format!("Failed to read items by IDs: {error}"))?;
 
     Ok(items)
+}
+
+pub fn set_feed_sort_order(
+    db_path: &Path,
+    feed_id: &str,
+    sort_order: Option<&str>,
+) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "UPDATE feeds SET sort_order = ?2 WHERE id = ?1",
+            params![feed_id, sort_order],
+        )
+        .map_err(|error| format!("Failed to update feed sort order: {error}"))?;
+
+    Ok(())
 }
 
 pub fn clear_playback_session(db_path: &Path) -> AppResult<()> {

@@ -11,7 +11,8 @@ import {
 	refreshFeed,
 	removeFeed,
 	savePlayback,
-	savePlaybackSession
+	savePlaybackSession,
+	setFeedSortOrder as persistFeedSortOrder
 } from '$lib/services/feedService';
 import type {
 	Feed,
@@ -40,7 +41,6 @@ interface AppState {
 	selectedItemId: string | null;
 	selectedSection: SidebarSection;
 	feedSearchTerm: string;
-	itemSortOrder: ItemSortOrder;
 	feeds: Feed[];
 	currentPlaybackState: PlaybackState | null;
 	/**
@@ -67,28 +67,20 @@ interface AppState {
 	initialLoadDoneByQueryKey: Record<QueryKey, boolean>;
 }
 
-export const SORT_ORDER_STORAGE_KEY = 'jrss:itemSortOrder';
+const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
 
-function loadPersistedSortOrder(): ItemSortOrder {
-	try {
-		const stored = localStorage.getItem(SORT_ORDER_STORAGE_KEY);
-
-		if (stored === 'newest_first' || stored === 'oldest_first') {
-			return stored;
-		}
-	} catch {
-		// localStorage unavailable (SSR, privacy mode, etc.)
+/**
+ * Compute the effective sort order for the active view.
+ * - Specific feed selected → feed's persisted sortOrder, or default
+ * - Section view → default (newest_first)
+ */
+export function getEffectiveSortOrder(): ItemSortOrder {
+	if (app.selectedFeedId) {
+		const feed = app.feeds.find((f) => f.id === app.selectedFeedId);
+		return feed?.sortOrder ?? DEFAULT_SORT_ORDER;
 	}
 
-	return 'newest_first';
-}
-
-function persistSortOrder(order: ItemSortOrder): void {
-	try {
-		localStorage.setItem(SORT_ORDER_STORAGE_KEY, order);
-	} catch {
-		// localStorage unavailable
-	}
+	return DEFAULT_SORT_ORDER;
 }
 
 const initialState: AppState = {
@@ -96,7 +88,6 @@ const initialState: AppState = {
 	selectedItemId: null,
 	selectedSection: 'all',
 	feedSearchTerm: '',
-	itemSortOrder: 'newest_first',
 	feeds: [],
 	currentPlaybackState: null,
 	manualQueue: [],
@@ -177,7 +168,7 @@ function getActiveQuerySpec(): { queryKey: QueryKey; query: ItemPageQuery } | nu
 	}
 
 	const search = app.selectedFeedId ? normalizeSearchTerm(app.feedSearchTerm) : '';
-	const sortOrder = app.itemSortOrder;
+	const sortOrder = getEffectiveSortOrder();
 
 	return {
 		queryKey: buildQueryKey(app.selectedFeedId, section, search, sortOrder),
@@ -716,7 +707,6 @@ export async function initializeApp(): Promise<void> {
 	app.selectedItemId = null;
 	app.selectedSection = 'all';
 	app.feedSearchTerm = '';
-	app.itemSortOrder = loadPersistedSortOrder();
 	app.currentPlaybackState = null;
 	app.manualQueue = [];
 	app.autoQueue = [];
@@ -766,12 +756,28 @@ export function setFeedSearchTerm(term: string): void {
 }
 
 export function setItemSortOrder(order: ItemSortOrder): void {
-	if (order === app.itemSortOrder) {
+	const currentOrder = getEffectiveSortOrder();
+
+	if (order === currentOrder) {
 		return;
 	}
 
-	app.itemSortOrder = order;
-	persistSortOrder(order);
+	const feedId = app.selectedFeedId;
+
+	if (feedId) {
+		// Update the local feed object immediately for reactive UI
+		const feedIndex = app.feeds.findIndex((f) => f.id === feedId);
+
+		if (feedIndex >= 0) {
+			app.feeds[feedIndex] = { ...app.feeds[feedIndex], sortOrder: order };
+		}
+
+		// Persist to SQLite (fire-and-forget)
+		void persistFeedSortOrder(feedId, order).catch((error: unknown) => {
+			console.error('Failed to persist feed sort order.', error);
+		});
+	}
+
 	loadInitialItemsPageInBackground();
 }
 

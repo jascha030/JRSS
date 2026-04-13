@@ -70,6 +70,7 @@ pub struct FeedRecord {
     pub site_url: Option<String>,
     pub created_at: String,
     pub last_fetched_at: Option<String>,
+    pub sort_order: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
