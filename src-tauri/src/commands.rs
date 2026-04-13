@@ -1,6 +1,6 @@
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
-use crate::models::{FeedItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord};
+use crate::models::{FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord};
 use crate::reader_extract;
 use tauri::State;
 
@@ -159,6 +159,18 @@ pub async fn load_reader_content(
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn get_items_by_ids(
+    item_ids: Vec<String>,
+    state: State<'_, DatabaseState>,
+) -> Result<Vec<FeedListItemRecord>, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::get_items_by_ids(&db_path, &item_ids))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]

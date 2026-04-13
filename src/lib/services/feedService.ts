@@ -103,3 +103,11 @@ export async function loadPlaybackSession(): Promise<PlaybackSession | null> {
 export async function clearPlaybackSession(): Promise<void> {
 	await invokeCommand('clear_playback_session');
 }
+
+export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> {
+	if (itemIds.length === 0) {
+		return [];
+	}
+
+	return invokeCommand<FeedListItem[]>('get_items_by_ids', { itemIds });
+}

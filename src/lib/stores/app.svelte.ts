@@ -2,6 +2,7 @@ import {
 	addFeed,
 	clearPlaybackSession,
 	getItemDetails,
+	getItemsByIds,
 	listFeeds,
 	loadPlaybackSession,
 	loadReaderContent,
@@ -565,8 +566,9 @@ function persistSession(): void {
 
 /**
  * Restore a persisted playback session during app initialization.
- * Must be called after feeds and items are loaded so that item
- * summaries are available for resolution.
+ *
+ * Fetches the current item and all queued items **directly from SQLite by ID**,
+ * so restore does not depend on what the active list page happens to contain.
  *
  * The restored playback starts **paused** (autoPlay = false).
  * Gracefully skips items that no longer exist locally.
@@ -582,22 +584,49 @@ async function restoreSession(): Promise<void> {
 	}
 
 	if (!session) {
+		console.debug('[session-restore] No saved playback session found.');
 		return;
 	}
 
-	// Resolve the current item
-	const currentItem =
-		app.itemSummariesById[session.currentItemId] ?? app.audioItemsById[session.currentItemId];
+	// Collect every unique ID we need to resolve from the backend
+	const allIds = new Set<string>([
+		session.currentItemId,
+		...session.manualQueue,
+		...session.autoQueue
+	]);
+	const allIdsArray = [...allIds];
+
+	let fetchedItems: FeedListItem[];
+
+	try {
+		fetchedItems = await getItemsByIds(allIdsArray);
+	} catch (error) {
+		console.error('Failed to fetch items for session restore.', error);
+		return;
+	}
+
+	// Index fetched items for O(1) lookup
+	const fetchedById = new Map<string, FeedListItem>();
+
+	for (const item of fetchedItems) {
+		fetchedById.set(item.id, item);
+	}
+
+	// Resolve current item
+	const currentItem = fetchedById.get(session.currentItemId);
 
 	if (!currentItem?.mediaEnclosure) {
 		// Current item gone — try to restore just the queues
-		app.manualQueue = filterResolvableAudioIds(session.manualQueue);
-		app.autoQueue = filterResolvableAudioIds(session.autoQueue);
+		app.manualQueue = filterResolvableAudioIds(session.manualQueue, fetchedById);
+		app.autoQueue = filterResolvableAudioIds(session.autoQueue, fetchedById);
+		const queueCount = app.manualQueue.length + app.autoQueue.length;
+		console.debug(`[session-restore] Current item missing. Restored ${queueCount} queued items.`);
 		return;
 	}
 
-	// Hydrate current item into audioItemsById
+	// Hydrate current item into audioItemsById and itemSummariesById
 	app.audioItemsById[currentItem.id] = currentItem;
+	app.itemSummariesById[currentItem.id] = currentItem;
 
 	// Use the persisted position if available, fall back to the item's saved position
 	const restoredPosition =
@@ -615,26 +644,32 @@ async function restoreSession(): Promise<void> {
 	};
 
 	// Restore queues, filtering out items that no longer exist
-	app.manualQueue = filterResolvableAudioIds(session.manualQueue);
-	app.autoQueue = filterResolvableAudioIds(session.autoQueue);
+	app.manualQueue = filterResolvableAudioIds(session.manualQueue, fetchedById);
+	app.autoQueue = filterResolvableAudioIds(session.autoQueue, fetchedById);
 
 	// Remove current item from queues if it somehow ended up there
 	app.manualQueue = app.manualQueue.filter((id) => id !== currentItem.id);
 	app.autoQueue = app.autoQueue.filter((id) => id !== currentItem.id);
+
+	console.debug(
+		`[session-restore] Restored: "${currentItem.title}" at ${Math.floor(restoredPosition)}s, ` +
+			`manual=${app.manualQueue.length}, auto=${app.autoQueue.length}`
+	);
 }
 
 /**
  * Filter a list of item IDs to only those that resolve to audio items
- * currently available in the store. Registers resolved items in audioItemsById.
+ * from the pre-fetched map. Registers resolved items in audioItemsById.
  */
-function filterResolvableAudioIds(ids: string[]): string[] {
+function filterResolvableAudioIds(ids: string[], fetchedById: Map<string, FeedListItem>): string[] {
 	const result: string[] = [];
 
 	for (const id of ids) {
-		const item = app.itemSummariesById[id] ?? app.audioItemsById[id];
+		const item = fetchedById.get(id);
 
 		if (item?.mediaEnclosure) {
 			app.audioItemsById[id] = item;
+			app.itemSummariesById[id] = item;
 			result.push(id);
 		}
 	}

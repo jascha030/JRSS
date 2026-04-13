@@ -827,6 +827,33 @@ pub fn load_playback_session(db_path: &Path) -> AppResult<Option<PlaybackSession
     }
 }
 
+pub fn get_items_by_ids(db_path: &Path, ids: &[String]) -> AppResult<Vec<FeedListItemRecord>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let connection = open_connection(db_path)?;
+    let placeholders: Vec<String> = (1..=ids.len()).map(|i| format!("?{i}")).collect();
+    let sql = format!(
+        "{ITEM_LIST_SELECT_QUERY} WHERE i.id IN ({}) ORDER BY i.published_at DESC, i.id DESC",
+        placeholders.join(", ")
+    );
+
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| format!("Failed to prepare items-by-ids query: {error}"))?;
+
+    let params: Vec<&dyn rusqlite::ToSql> =
+        ids.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
+    let items = statement
+        .query_map(params.as_slice(), map_item_list_row)
+        .map_err(|error| format!("Failed to query items by IDs: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read items by IDs: {error}"))?;
+
+    Ok(items)
+}
+
 pub fn clear_playback_session(db_path: &Path) -> AppResult<()> {
     let connection = open_connection(db_path)?;
 

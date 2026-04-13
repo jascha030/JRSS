@@ -35,6 +35,7 @@ pub fn run() {
             commands::mark_read,
             commands::save_playback,
             commands::load_reader_content,
+            commands::get_items_by_ids,
             commands::save_playback_session,
             commands::load_playback_session,
             commands::clear_playback_session
