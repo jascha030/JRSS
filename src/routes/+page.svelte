@@ -15,6 +15,7 @@
 		getActiveTotalCount,
 		getCurrentAudioItem,
 		getIsActiveInitialLoading,
+		getManualQueueLength,
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedItemFeed,
@@ -28,7 +29,6 @@
 		moveQueuedItemUp,
 		persistPlaybackForItem,
 		persistPlaybackPosition,
-		playAudioItem,
 		playAudioItemNext,
 		refreshExistingFeed,
 		removeQueuedItem,
@@ -37,6 +37,7 @@
 		selectSection,
 		setFeedSearchTerm,
 		setPlaybackPlaying,
+		startPlaybackFromContext,
 		stopPlayback,
 		updatePlaybackPosition
 	} from '$lib/stores/app.svelte';
@@ -69,6 +70,7 @@
 	const feedSearchTerm = $derived(app.feedSearchTerm);
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
+	const manualQueueLength = $derived(getManualQueueLength());
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -175,6 +177,7 @@
 	<QueueDrawer
 		open={isQueueDrawerOpen}
 		queueItems={upcomingQueue}
+		{manualQueueLength}
 		{feeds}
 		onRemoveItem={removeQueuedItem}
 		onMoveItemUp={moveQueuedItemUp}
@@ -296,7 +299,7 @@
 									{selectedItemId}
 									{selectedSection}
 									onMarkRead={markItemRead}
-									onPlay={playAudioItem}
+									onPlay={startPlaybackFromContext}
 									onPlayNext={playAudioItemNext}
 									onEnqueue={enqueueAudioItem}
 									{totalCount}
@@ -316,7 +319,7 @@
 								{hasSelectedItemReaderContent}
 								{isReaderPaneActive}
 								{canUseReaderMode}
-								onPlay={playAudioItem}
+								onPlay={startPlaybackFromContext}
 								onPlayNext={playAudioItemNext}
 								onEnqueue={enqueueAudioItem}
 								onStopPlayback={stopPlayback}

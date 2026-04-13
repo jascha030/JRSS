@@ -36,8 +36,17 @@ interface AppState {
 	feedSearchTerm: string;
 	feeds: Feed[];
 	currentPlaybackState: PlaybackState | null;
-	/** Ordered list of item IDs waiting to play after the current item finishes. */
-	playbackQueue: string[];
+	/**
+	 * Explicit user-initiated queue entries (Play next / Add to queue).
+	 * These always play before auto-continuation entries.
+	 */
+	manualQueue: string[];
+	/**
+	 * Auto-generated continuation from the playback context.
+	 * Rebuilt whenever the user starts a new episode via normal playback.
+	 * Plays after manualQueue is exhausted.
+	 */
+	autoQueue: string[];
 	isCreatingFeed: boolean;
 	syncingFeedIds: string[];
 	readerLoadingItemIds: string[];
@@ -58,7 +67,8 @@ const initialState: AppState = {
 	feedSearchTerm: '',
 	feeds: [],
 	currentPlaybackState: null,
-	playbackQueue: [],
+	manualQueue: [],
+	autoQueue: [],
 	isCreatingFeed: false,
 	syncingFeedIds: [],
 	readerLoadingItemIds: [],
@@ -524,7 +534,8 @@ export async function initializeApp(): Promise<void> {
 	app.selectedSection = 'all';
 	app.feedSearchTerm = '';
 	app.currentPlaybackState = null;
-	app.playbackQueue = [];
+	app.manualQueue = [];
+	app.autoQueue = [];
 	app.isCreatingFeed = false;
 	app.syncingFeedIds = [];
 	app.readerLoadingItemIds = [];
@@ -616,10 +627,13 @@ export async function deleteFeed(feedId: string): Promise<void> {
 		delete app.audioItemsById[currentAudioItem.id];
 	}
 
-	app.playbackQueue = app.playbackQueue.filter((itemId) => {
+	const isFromDeletedFeed = (itemId: string): boolean => {
 		const item = app.audioItemsById[itemId] ?? app.itemSummariesById[itemId];
-		return item ? item.feedId !== feedId : false;
-	});
+		return item ? item.feedId === feedId : true;
+	};
+
+	app.manualQueue = app.manualQueue.filter((id) => !isFromDeletedFeed(id));
+	app.autoQueue = app.autoQueue.filter((id) => !isFromDeletedFeed(id));
 
 	await loadFeeds();
 	invalidateAllQueries();
@@ -754,7 +768,7 @@ export async function persistPlaybackForItem(
 }
 
 // ---------------------------------------------------------------------------
-// Playback queue
+// Playback queue — dual-segment: manualQueue (user-explicit) + autoQueue (context continuation)
 // ---------------------------------------------------------------------------
 
 /** Resolve an item ID to a FeedListItem with a mediaEnclosure, or null. */
@@ -764,16 +778,55 @@ function resolveAudioItem(itemId: string): FeedListItem | null {
 }
 
 /**
+ * Shift the first resolvable audio item off a queue array, mutating it in place.
+ * Returns the resolved item, or null if the queue is exhausted.
+ */
+function shiftNextAudioItem(queue: string[]): FeedListItem | null {
+	while (queue.length > 0) {
+		const nextId = queue[0];
+		queue.splice(0, 1);
+
+		const nextItem = resolveAudioItem(nextId);
+
+		if (nextItem) {
+			return nextItem;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Count of manual queue entries. Exposed so the QueueDrawer can show a
+ * divider between manual and auto-continuation entries.
+ */
+export function getManualQueueLength(): number {
+	return app.manualQueue.length;
+}
+
+/**
  * Items waiting in the queue, resolved to their FeedListItem summaries.
+ * Manual entries come first, then auto-continuation entries.
  * Missing or non-audio items are excluded.
  */
 export function getUpcomingQueue(): FeedListItem[] {
 	const items: FeedListItem[] = [];
+	const seen = new Set<string>();
 
-	for (const itemId of app.playbackQueue) {
+	for (const itemId of app.manualQueue) {
 		const item = resolveAudioItem(itemId);
 
-		if (item) {
+		if (item && !seen.has(item.id)) {
+			seen.add(item.id);
+			items.push(item);
+		}
+	}
+
+	for (const itemId of app.autoQueue) {
+		const item = resolveAudioItem(itemId);
+
+		if (item && !seen.has(item.id)) {
+			seen.add(item.id);
 			items.push(item);
 		}
 	}
@@ -784,6 +837,7 @@ export function getUpcomingQueue(): FeedListItem[] {
 /**
  * Replace the queue wholesale.
  * Filters out items without mediaEnclosure and deduplicates.
+ * Clears both manual and auto queues.
  */
 export function setPlaybackQueue(items: FeedListItem[]): void {
 	const seen = new Set<string>();
@@ -799,10 +853,11 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 		ids.push(item.id);
 	}
 
-	app.playbackQueue = ids;
+	app.manualQueue = ids;
+	app.autoQueue = [];
 }
 
-/** Append an item to the end of the queue. No-op if already queued or currently playing. */
+/** Append an item to the end of the manual queue. No-op if already queued or currently playing. */
 export function enqueueAudioItem(item: FeedListItem): void {
 	if (!item.mediaEnclosure) {
 		return;
@@ -812,15 +867,18 @@ export function enqueueAudioItem(item: FeedListItem): void {
 		return;
 	}
 
-	if (app.playbackQueue.includes(item.id)) {
+	if (app.manualQueue.includes(item.id)) {
 		return;
 	}
 
 	app.audioItemsById[item.id] = item;
-	app.playbackQueue = [...app.playbackQueue, item.id];
+
+	// Also remove from autoQueue to avoid duplicates in the combined view
+	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
+	app.manualQueue = [...app.manualQueue, item.id];
 }
 
-/** Insert an item as the next item to play (index 0 of the queue). Deduplicates. */
+/** Insert an item as the next item to play (index 0 of the manual queue). Deduplicates. */
 export function playAudioItemNext(item: FeedListItem): void {
 	if (!item.mediaEnclosure) {
 		return;
@@ -831,50 +889,196 @@ export function playAudioItemNext(item: FeedListItem): void {
 	}
 
 	app.audioItemsById[item.id] = item;
-	const filtered = app.playbackQueue.filter((id) => id !== item.id);
-	app.playbackQueue = [item.id, ...filtered];
+	const filteredManual = app.manualQueue.filter((id) => id !== item.id);
+	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
+	app.manualQueue = [item.id, ...filteredManual];
 }
 
-/** Move a queued item one position earlier. No-op if already first or not found. */
+/** Move a queued item one position earlier within its segment. */
 export function moveQueuedItemUp(itemId: string): void {
-	const index = app.playbackQueue.indexOf(itemId);
+	const manualIndex = app.manualQueue.indexOf(itemId);
 
-	if (index <= 0) {
+	if (manualIndex > 0) {
+		const next = [...app.manualQueue];
+		[next[manualIndex - 1], next[manualIndex]] = [next[manualIndex], next[manualIndex - 1]];
+		app.manualQueue = next;
 		return;
 	}
 
-	const next = [...app.playbackQueue];
-	[next[index - 1], next[index]] = [next[index], next[index - 1]];
-	app.playbackQueue = next;
+	// If it's the first auto item and there's a manual queue, promote to last manual position
+	const autoIndex = app.autoQueue.indexOf(itemId);
+
+	if (autoIndex > 0) {
+		const next = [...app.autoQueue];
+		[next[autoIndex - 1], next[autoIndex]] = [next[autoIndex], next[autoIndex - 1]];
+		app.autoQueue = next;
+	} else if (autoIndex === 0) {
+		// Promote from auto to manual (move to end of manual queue)
+		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
+		app.manualQueue = [...app.manualQueue, itemId];
+	}
 }
 
-/** Move a queued item one position later. No-op if already last or not found. */
+/** Move a queued item one position later within its segment. */
 export function moveQueuedItemDown(itemId: string): void {
-	const index = app.playbackQueue.indexOf(itemId);
+	const manualIndex = app.manualQueue.indexOf(itemId);
 
-	if (index < 0 || index >= app.playbackQueue.length - 1) {
+	if (manualIndex >= 0 && manualIndex < app.manualQueue.length - 1) {
+		const next = [...app.manualQueue];
+		[next[manualIndex], next[manualIndex + 1]] = [next[manualIndex + 1], next[manualIndex]];
+		app.manualQueue = next;
 		return;
 	}
 
-	const next = [...app.playbackQueue];
-	[next[index], next[index + 1]] = [next[index + 1], next[index]];
-	app.playbackQueue = next;
+	if (manualIndex === app.manualQueue.length - 1) {
+		// Demote from manual to auto (move to start of auto queue)
+		app.manualQueue = app.manualQueue.filter((id) => id !== itemId);
+		app.autoQueue = [itemId, ...app.autoQueue];
+		return;
+	}
+
+	const autoIndex = app.autoQueue.indexOf(itemId);
+
+	if (autoIndex >= 0 && autoIndex < app.autoQueue.length - 1) {
+		const next = [...app.autoQueue];
+		[next[autoIndex], next[autoIndex + 1]] = [next[autoIndex + 1], next[autoIndex]];
+		app.autoQueue = next;
+	}
 }
 
-/** Remove a specific item from the queue by ID. */
+/** Remove a specific item from whichever queue segment contains it. */
 export function removeQueuedItem(itemId: string): void {
-	app.playbackQueue = app.playbackQueue.filter((id) => id !== itemId);
+	if (app.manualQueue.includes(itemId)) {
+		app.manualQueue = app.manualQueue.filter((id) => id !== itemId);
+	} else {
+		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
+	}
 }
 
-/** Clear the entire queue without affecting the currently playing item. */
+/** Clear both queue segments without affecting the currently playing item. */
 export function clearQueue(): void {
-	app.playbackQueue = [];
+	app.manualQueue = [];
+	app.autoQueue = [];
+}
+
+// ---------------------------------------------------------------------------
+// Context-aware playback start
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the ordered list of audio item IDs that follow the given item
+ * within the currently active query context.
+ *
+ * Reads from the store's `itemIdsByIndex` for the active query key,
+ * which is the source of truth for the current view's ordering —
+ * independent of DOM state.
+ *
+ * Returns only items that have a mediaEnclosure, excluding the playing item.
+ */
+function deriveAutoContinuation(playingItemId: string): string[] {
+	const queryKey = getActiveQueryKey();
+
+	if (!queryKey) {
+		return [];
+	}
+
+	const itemIdsByIndex = app.itemIdsByIndexByQueryKey[queryKey];
+
+	if (!itemIdsByIndex) {
+		return [];
+	}
+
+	const totalCount = app.totalCountByQueryKey[queryKey] ?? 0;
+
+	// Build ordered array of item IDs from the sparse index map
+	const sortedIndexes = Object.keys(itemIdsByIndex)
+		.map(Number)
+		.sort((a, b) => a - b);
+
+	// Find the playing item's position
+	let playingPosition = -1;
+
+	for (const idx of sortedIndexes) {
+		if (itemIdsByIndex[idx] === playingItemId) {
+			playingPosition = idx;
+			break;
+		}
+	}
+
+	if (playingPosition < 0) {
+		// Playing item not found in current context — no continuation
+		return [];
+	}
+
+	// Collect audio items after the playing position
+	const manualSet = new Set(app.manualQueue);
+	const continuation: string[] = [];
+
+	for (const idx of sortedIndexes) {
+		if (idx <= playingPosition) {
+			continue;
+		}
+
+		const candidateId = itemIdsByIndex[idx];
+
+		if (!candidateId || candidateId === playingItemId) {
+			continue;
+		}
+
+		// Skip items already in the manual queue
+		if (manualSet.has(candidateId)) {
+			continue;
+		}
+
+		const candidate = app.itemSummariesById[candidateId];
+
+		if (candidate?.mediaEnclosure) {
+			app.audioItemsById[candidateId] = candidate;
+			continuation.push(candidateId);
+		}
+	}
+
+	// If there are un-loaded pages after our current position, we can't
+	// include them — this is the graceful degradation. The continuation
+	// covers what we have loaded.
+	if (continuation.length === 0 && playingPosition < totalCount - 1) {
+		// Items exist beyond our position but aren't loaded yet.
+		// Future enhancement: load additional pages here.
+	}
+
+	return continuation;
+}
+
+/**
+ * High-level action: start playback of an item in the context of the
+ * current ordered view. This is the normal "press play" path.
+ *
+ * 1. Starts the item immediately
+ * 2. Rebuilds the autoQueue from the active query context
+ * 3. Preserves manual queue entries untouched
+ */
+export function startPlaybackFromContext(item: FeedListItem): void {
+	if (!item.mediaEnclosure) {
+		return;
+	}
+
+	// Remove from either queue if present (it's now playing, not queued)
+	app.manualQueue = app.manualQueue.filter((id) => id !== item.id);
+	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
+
+	// Start playback
+	playAudioItem(item, { autoPlay: true });
+
+	// Rebuild auto-continuation from context
+	app.autoQueue = deriveAutoContinuation(item.id);
 }
 
 /**
  * Called when the `<audio>` element fires `ended`.
  * Persists position 0 for the finished item, then advances to the
  * next valid queue entry or stops cleanly.
+ *
+ * Drains manualQueue first, then autoQueue.
  *
  * Critically: we do NOT null out currentPlaybackState before setting
  * the next item. A null gap would tear down and recreate the <audio>
@@ -892,19 +1096,14 @@ export async function handlePlaybackEnded(): Promise<void> {
 	const finishedItemId = finishedState.itemId;
 	patchItemSummary(finishedItemId, { playbackPositionSeconds: 0 });
 
-	// Try to advance to the next resolvable queue entry
-	while (app.playbackQueue.length > 0) {
-		const nextId = app.playbackQueue[0];
-		app.playbackQueue = app.playbackQueue.slice(1);
+	// Try manual queue first, then auto queue
+	const nextItem = shiftNextAudioItem(app.manualQueue) ?? shiftNextAudioItem(app.autoQueue);
 
-		const nextItem = resolveAudioItem(nextId);
-
-		if (nextItem) {
-			// Directly swap — no null gap
-			playAudioItem(nextItem, { autoPlay: true });
-			await savePlayback(finishedItemId, 0);
-			return;
-		}
+	if (nextItem) {
+		// Directly swap — no null gap
+		playAudioItem(nextItem, { autoPlay: true });
+		await savePlayback(finishedItemId, 0);
+		return;
 	}
 
 	// Queue exhausted — stop cleanly
