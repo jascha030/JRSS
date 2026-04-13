@@ -74,3 +74,15 @@ export interface ItemPage<T> {
 	items: T[];
 	totalCount: number;
 }
+
+/**
+ * Persisted playback session — matches the Rust PlaybackSessionRecord shape.
+ * Stored as JSON in SQLite; restored on app launch.
+ */
+export interface PlaybackSession {
+	currentItemId: string;
+	positionSeconds: number;
+	durationSeconds: number;
+	manualQueue: string[];
+	autoQueue: string[];
+}

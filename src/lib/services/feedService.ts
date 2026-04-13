@@ -1,5 +1,12 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
-import type { Feed, FeedItem, FeedListItem, ItemPage, ItemPageQuery } from '$lib/types/rss';
+import type {
+	Feed,
+	FeedItem,
+	FeedListItem,
+	ItemPage,
+	ItemPageQuery,
+	PlaybackSession
+} from '$lib/types/rss';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 
 function normalizeFeedInput(url: string): string {
@@ -79,4 +86,20 @@ export async function savePlayback(itemId: string, positionSeconds: number): Pro
 
 export async function loadReaderContent(itemId: string): Promise<FeedItem> {
 	return invokeCommand<FeedItem>('load_reader_content', { itemId });
+}
+
+export async function savePlaybackSession(session: PlaybackSession): Promise<void> {
+	await invokeCommand('save_playback_session', { session });
+}
+
+export async function loadPlaybackSession(): Promise<PlaybackSession | null> {
+	if (!isTauriRuntime()) {
+		return null;
+	}
+
+	return invokeCommand<PlaybackSession | null>('load_playback_session');
+}
+
+export async function clearPlaybackSession(): Promise<void> {
+	await invokeCommand('clear_playback_session');
 }

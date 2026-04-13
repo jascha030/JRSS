@@ -1,6 +1,6 @@
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
-use crate::models::{FeedItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord};
+use crate::models::{FeedItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord};
 use crate::reader_extract;
 use tauri::State;
 
@@ -159,4 +159,40 @@ pub async fn load_reader_content(
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn save_playback_session(
+    session: PlaybackSessionRecord,
+    state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        db::save_playback_session(&db_path, &session)
+    })
+    .await
+    .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn load_playback_session(
+    state: State<'_, DatabaseState>,
+) -> Result<Option<PlaybackSessionRecord>, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::load_playback_session(&db_path))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn clear_playback_session(
+    state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::clear_playback_session(&db_path))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
 }
