@@ -12,6 +12,7 @@ export interface Feed {
 	siteUrl?: string;
 	createdAt: string;
 	lastFetchedAt?: string;
+	sortOrder?: ItemSortOrder;
 }
 
 export interface MediaEnclosure {

@@ -14,6 +14,7 @@
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
 		getCurrentAudioItem,
+		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getManualQueueLength,
 		getSelectedFeed,
@@ -69,7 +70,7 @@
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSummariesById = $derived(app.itemSummariesById);
 	const feedSearchTerm = $derived(app.feedSearchTerm);
-	const itemSortOrder = $derived(app.itemSortOrder);
+	const itemSortOrder = $derived(getEffectiveSortOrder());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());

@@ -5,6 +5,7 @@ import type {
 	FeedListItem,
 	ItemPage,
 	ItemPageQuery,
+	ItemSortOrder,
 	PlaybackSession
 } from '$lib/types/rss';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
@@ -112,4 +113,14 @@ export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> 
 	}
 
 	return invokeCommand<FeedListItem[]>('get_items_by_ids', { itemIds });
+}
+
+export async function setFeedSortOrder(
+	feedId: string,
+	sortOrder: ItemSortOrder | null
+): Promise<void> {
+	await invokeCommand('set_feed_sort_order', {
+		feedId,
+		sortOrder
+	});
 }

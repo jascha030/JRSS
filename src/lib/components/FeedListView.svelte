@@ -217,23 +217,25 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				<select
-					class="rounded-xl border border-border bg-surface px-2 py-1.5 text-xs text-fg-muted transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
-					aria-label="Sort order"
-					value={itemSortOrder}
-					onchange={(event) => {
-						const target = event.currentTarget;
-						if (target instanceof HTMLSelectElement) {
-							const value = target.value;
-							if (value === 'newest_first' || value === 'oldest_first') {
-								onSortOrderChange(value);
+				{#if selectedFeed}
+					<select
+						class="rounded-xl border border-border bg-surface px-2 py-1.5 text-xs text-fg-muted transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+						aria-label="Sort order"
+						value={itemSortOrder}
+						onchange={(event) => {
+							const target = event.currentTarget;
+							if (target instanceof HTMLSelectElement) {
+								const value = target.value;
+								if (value === 'newest_first' || value === 'oldest_first') {
+									onSortOrderChange(value);
+								}
 							}
-						}
-					}}
-				>
-					<option value="newest_first">Newest first</option>
-					<option value="oldest_first">Oldest first</option>
-				</select>
+						}}
+					>
+						<option value="newest_first">Newest first</option>
+						<option value="oldest_first">Oldest first</option>
+					</select>
+				{/if}
 
 				<p class="text-sm text-fg-muted">{totalCount} items</p>
 
