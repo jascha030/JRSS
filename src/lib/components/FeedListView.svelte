@@ -58,8 +58,8 @@
 
 		const menu = await Menu.new({
 			items: [
-				{ id: 'play-next', text: 'Play Next', action: () => onPlayNext(item) },
-				{ id: 'add-to-queue', text: 'Add to Queue', action: () => onEnqueue(item) }
+				{ id: 'play-next', text: 'Play next', action: () => onPlayNext(item) },
+				{ id: 'add-to-queue', text: 'Add to queue', action: () => onEnqueue(item) }
 			]
 		});
 
