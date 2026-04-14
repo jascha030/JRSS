@@ -8,6 +8,9 @@
    ────────────────────────────────────────────── */
 
 @theme {
+    --breakpoint-3xl: 120rem; /* 1920px */
+    --breakpoint-4xl: 144rem; /* 2304px */
+
 	/* Surfaces — opaque */
 	--color-surface: #ffffff;
 	--color-surface-alt: #f1f5f9;
