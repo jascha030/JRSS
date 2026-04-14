@@ -3,6 +3,7 @@
 
 	type Props = {
 		feedTitle?: string;
+		feedImageUrl?: string;
 		title: string;
 		publishedAt: string;
 		contentHtml?: string;
@@ -14,6 +15,7 @@
 
 	let {
 		feedTitle,
+		feedImageUrl,
 		title,
 		publishedAt,
 		contentHtml,
@@ -35,7 +37,7 @@
 	);
 </script>
 
-<ArticleBase {feedTitle} {title} {publishedAt}>
+<ArticleBase {feedTitle} {feedImageUrl} {title} {publishedAt}>
 	{#if hasHtmlContent}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 		<div class="article-html mt-10">{@html contentHtml}</div>

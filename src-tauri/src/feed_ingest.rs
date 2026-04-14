@@ -255,6 +255,19 @@ fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
     let has_audio = items.iter().any(|item| item.media_enclosure.is_some());
     let is_podcast = has_audio || channel.itunes_ext().is_some();
 
+    let site_url = resolve_optional_url(Some(channel.link()), feed_url);
+
+    let image_url = channel
+        .itunes_ext()
+        .and_then(|itunes| itunes.image())
+        .and_then(|url| resolve_optional_url(Some(url), feed_url))
+        .or_else(|| {
+            channel
+                .image()
+                .and_then(|image| resolve_optional_url(Some(image.url()), feed_url))
+        })
+        .or_else(|| favicon_url_from_origin(site_url.as_deref(), feed_url));
+
     ParsedFeed {
         title: fallback_string(
             Some(channel.title()),
@@ -266,7 +279,8 @@ fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
         ),
         description: clean_text(channel.description())
             .unwrap_or_else(|| "No description provided.".to_string()),
-        site_url: resolve_optional_url(Some(channel.link()), feed_url),
+        site_url,
+        image_url,
         kind: if is_podcast {
             "podcast".to_string()
         } else {
@@ -369,13 +383,25 @@ fn parse_atom(feed: AtomFeed, feed_url: &str) -> ParsedFeed {
         .collect::<Vec<_>>();
     let has_audio = items.iter().any(|item| item.media_enclosure.is_some());
 
+    let site_url = select_atom_link(feed.links(), feed_url, "alternate");
+
+    let image_url = feed
+        .logo()
+        .and_then(|url| resolve_optional_url(Some(url), feed_url))
+        .or_else(|| {
+            feed.icon()
+                .and_then(|url| resolve_optional_url(Some(url), feed_url))
+        })
+        .or_else(|| favicon_url_from_origin(site_url.as_deref(), feed_url));
+
     ParsedFeed {
         title: fallback_string(Some(feed.title().as_str()), None, "Untitled feed"),
         description: feed
             .subtitle()
             .and_then(|subtitle| clean_text(subtitle.as_str()))
             .unwrap_or_else(|| "No description provided.".to_string()),
-        site_url: select_atom_link(feed.links(), feed_url, "alternate"),
+        site_url,
+        image_url,
         kind: if has_audio {
             "podcast".to_string()
         } else {
@@ -540,6 +566,19 @@ fn resolve_optional_url(candidate: Option<&str>, base_url: &str) -> Option<Strin
                 .map(|url| url.to_string())
         })
         .ok()
+}
+
+/// Derives a Google Favicon Service URL from the site URL or feed URL origin.
+/// Used as a last-resort image when the feed itself provides no explicit image.
+fn favicon_url_from_origin(site_url: Option<&str>, feed_url: &str) -> Option<String> {
+    let domain = site_url
+        .and_then(|url| Url::parse(url).ok())
+        .or_else(|| Url::parse(feed_url).ok())
+        .and_then(|url| url.host_str().map(str::to_string))?;
+
+    Some(format!(
+        "https://www.google.com/s2/favicons?domain={domain}&sz=128"
+    ))
 }
 
 fn parse_datetime_string(candidate: &str) -> String {

@@ -137,13 +137,25 @@
 							type="button"
 							onclick={() => onSelectFeed(feed.id)}
 							title={feed.title}
-							class={`mx-auto flex size-12 items-center justify-center rounded-2xl text-sm font-semibold text-fg-inverse shadow-sm transition-transform hover:scale-[1.02] ${
+							class={`mx-auto flex size-12 items-center justify-center overflow-hidden rounded-2xl text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 								selectedFeedId === feed.id
-									? 'bg-linear-to-br from-indigo-500 to-indigo-700'
-									: 'bg-linear-to-br from-indigo-400 to-indigo-600'
+									? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
+									: ''
 							}`}
 						>
-							{feedInitial(feed.title)}
+							{#if feed.imageUrl}
+								<img src={feed.imageUrl} alt={feed.title} class="size-full object-cover" />
+							{:else}
+								<span
+									class={`flex size-full items-center justify-center text-fg-inverse ${
+										selectedFeedId === feed.id
+											? 'bg-linear-to-br from-indigo-500 to-indigo-700'
+											: 'bg-linear-to-br from-indigo-400 to-indigo-600'
+									}`}
+								>
+									{feedInitial(feed.title)}
+								</span>
+							{/if}
 						</button>
 					{/each}
 				</div>
@@ -194,7 +206,7 @@
 						<div class="px-3 py-3 text-sm text-fg-muted">No feeds added yet</div>
 					{:else}
 						{#each feeds as feed (feed.id)}
-							<div class="group flex items-center mb-2">
+							<div class="group mb-2 flex items-center">
 								<button
 									type="button"
 									onclick={() => onSelectFeed(feed.id)}

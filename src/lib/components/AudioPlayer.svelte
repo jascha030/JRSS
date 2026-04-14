@@ -254,17 +254,16 @@
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 20 20"
+							viewBox="0 0 24 24"
 							fill="currentColor"
-							class="size-5"
+							class="size-6"
 						>
 							<path
-								fill-rule="evenodd"
-								d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z"
-								clip-rule="evenodd"
+								d="M9.195 18.44c1.25.714 2.805-.189 2.805-1.629v-2.34l6.945 3.968c1.25.715 2.805-.188 2.805-1.628V8.69c0-1.44-1.555-2.343-2.805-1.628L12 11.029v-2.34c0-1.44-1.555-2.343-2.805-1.628l-7.108 4.061c-1.26.72-1.26 2.536 0 3.256l7.108 4.061Z"
 							/>
 						</svg>
 					</button>
+
 					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
 						{#if playbackState.isPlaying}
 							<svg
@@ -290,6 +289,7 @@
 							</svg>
 						{/if}
 					</button>
+
 					<button
 						class="flex h-9 w-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
 						type="button"
@@ -298,14 +298,12 @@
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 20 20"
+							viewBox="0 0 24 24"
 							fill="currentColor"
-							class="size-5"
+							class="size-6"
 						>
 							<path
-								fill-rule="evenodd"
-								d="M12.207 2.232a.75.75 0 0 0 .025 1.06l4.146 3.958H6.375a5.375 5.375 0 0 0 0 10.75H9.25a.75.75 0 0 0 0-1.5H6.375a3.875 3.875 0 0 1 0-7.75h10.003l-4.146 3.957a.75.75 0 0 0 1.036 1.085l5.5-5.25a.75.75 0 0 0 0-1.085l-5.5-5.25a.75.75 0 0 0-1.06.025Z"
-								clip-rule="evenodd"
+								d="M5.055 7.06C3.805 6.347 2.25 7.25 2.25 8.69v8.122c0 1.44 1.555 2.343 2.805 1.628L12 14.471v2.34c0 1.44 1.555 2.343 2.805 1.628l7.108-4.061c1.26-.72 1.26-2.536 0-3.256l-7.108-4.061C13.555 6.346 12 7.249 12 8.689v2.34L5.055 7.061Z"
 							/>
 						</svg>
 					</button>

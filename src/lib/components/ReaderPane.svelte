@@ -43,6 +43,9 @@
 		onLoadReaderView,
 		onReaderPaneModeChange
 	}: Props = $props();
+	const podcastImageUrl = $derived(
+		selectedItem?.mediaEnclosure ? selectedItemFeed?.imageUrl : undefined
+	);
 </script>
 
 <aside
@@ -50,93 +53,85 @@
 >
 	{#if selectedItem}
 		<div class="space-y-9">
-			<div class="flex flex-wrap items-center gap-4">
-				<button
-					class="btn-primary rounded-2xl px-4 py-3"
-					type="button"
-					onclick={() => {
-						void open(selectedItem.url);
-					}}
-				>
-					Open original
-				</button>
-
-				{#if selectedItem.mediaEnclosure}
-					<button
-						class="btn-secondary rounded-2xl px-4 py-3"
-						type="button"
-						onclick={() => onPlay(selectedItem)}
-					>
-						{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
-					</button>
-
-					<button
-						class="btn-secondary rounded-2xl px-4 py-3 text-xs"
-						type="button"
-						onclick={() => onPlayNext(selectedItem)}
-					>
-						Play next
-					</button>
-
-					<button
-						class="btn-secondary rounded-2xl px-4 py-3 text-xs"
-						type="button"
-						onclick={() => onEnqueue(selectedItem)}
-					>
-						Add to queue
-					</button>
-
-					{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}
+			<div class="mx-auto w-full max-w-xl min-w-lg 2xl:max-w-3xl 2xl:min-w-3xl 3xl:min-w-4xl 3xl:max-w-4xl">
+				<div class="flex flex-wrap items-center gap-4">
+					{#if selectedItem.mediaEnclosure}
 						<button
 							class="btn-secondary rounded-2xl px-4 py-3"
 							type="button"
-							onclick={onStopPlayback}
+							onclick={() => onPlay(selectedItem)}
 						>
-							Stop playback
+							{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
+						</button>
+
+						<button
+							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
+							type="button"
+							onclick={() => onPlayNext(selectedItem)}
+						>
+							Play next
+						</button>
+
+						<button
+							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
+							type="button"
+							onclick={() => onEnqueue(selectedItem)}
+						>
+							Add to queue
+						</button>
+
+						{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}
+							<button
+								class="btn-secondary rounded-2xl px-4 py-3"
+								type="button"
+								onclick={onStopPlayback}
+							>
+								Stop playback
+							</button>
+						{/if}
+					{/if}
+
+					{#if canUseReaderMode && hasSelectedItemReaderContent}
+						<div class="inline-flex rounded-2xl border border-border-strong bg-surface p-1">
+							<button
+								class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+									readerPaneMode === 'feed'
+										? 'bg-interactive text-interactive-text'
+										: 'text-fg-muted hover:text-fg'
+								}`}
+								type="button"
+								onclick={() => onReaderPaneModeChange('feed')}
+							>
+								Feed view
+							</button>
+
+							<button
+								class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+									readerPaneMode === 'reader'
+										? 'bg-interactive text-interactive-text'
+										: 'text-fg-muted hover:text-fg'
+								}`}
+								type="button"
+								onclick={() => onReaderPaneModeChange('reader')}
+							>
+								Reader view
+							</button>
+						</div>
+					{:else if canUseReaderMode}
+						<button
+							class="btn-secondary rounded-2xl px-4 py-3"
+							disabled={isSelectedItemReaderLoading}
+							type="button"
+							onclick={() => onLoadReaderView(selectedItem.id)}
+						>
+							{isSelectedItemReaderLoading
+								? 'Loading reader view...'
+								: selectedItem.readerStatus === 'failed'
+									? 'Retry Reader View'
+									: 'Load Reader View'}
 						</button>
 					{/if}
-				{/if}
-
-				{#if canUseReaderMode && hasSelectedItemReaderContent}
-					<div class="inline-flex rounded-2xl border border-border-strong bg-surface p-1">
-						<button
-							class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-								readerPaneMode === 'feed'
-									? 'bg-interactive text-interactive-text'
-									: 'text-fg-muted hover:text-fg'
-							}`}
-							type="button"
-							onclick={() => onReaderPaneModeChange('feed')}
-						>
-							Feed view
-						</button>
-
-						<button
-							class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-								readerPaneMode === 'reader'
-									? 'bg-interactive text-interactive-text'
-									: 'text-fg-muted hover:text-fg'
-							}`}
-							type="button"
-							onclick={() => onReaderPaneModeChange('reader')}
-						>
-							Reader view
-						</button>
-					</div>
-				{:else if canUseReaderMode}
-					<button
-						class="btn-secondary rounded-2xl px-4 py-3"
-						disabled={isSelectedItemReaderLoading}
-						type="button"
-						onclick={() => onLoadReaderView(selectedItem.id)}
-					>
-						{isSelectedItemReaderLoading
-							? 'Loading reader view...'
-							: selectedItem.readerStatus === 'failed'
-								? 'Retry Reader View'
-								: 'Load Reader View'}
-					</button>
-				{/if}
+				</div>
 			</div>
 
 			{#if readerNotice}
@@ -158,6 +153,7 @@
 			{:else}
 				<FeedArticle
 					feedTitle={selectedItemFeed?.title}
+					feedImageUrl={podcastImageUrl}
 					title={selectedItem.title}
 					publishedAt={selectedItem.publishedAt}
 					contentHtml={selectedItem.contentHtml}
