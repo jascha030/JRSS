@@ -68,6 +68,7 @@ pub struct FeedRecord {
     pub description: String,
     pub kind: String,
     pub site_url: Option<String>,
+    pub image_url: Option<String>,
     pub created_at: String,
     pub last_fetched_at: Option<String>,
     pub sort_order: Option<String>,
@@ -133,6 +134,7 @@ pub struct ParsedFeed {
     pub title: String,
     pub description: String,
     pub site_url: Option<String>,
+    pub image_url: Option<String>,
     pub kind: String,
     pub items: Vec<ParsedFeedItem>,
 }

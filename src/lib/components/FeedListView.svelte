@@ -339,6 +339,7 @@
 		{#if isInitialLoading}
 			<div class="px-6 py-4 lg:px-8">
 				<div class="space-y-4">
+					<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 					{#each Array.from({ length: 4 }) as _, index (index)}
 						<div class="rounded-3xl border border-border bg-surface-card px-6 py-5">
 							<div class="h-3 w-32 rounded-full bg-skeleton"></div>

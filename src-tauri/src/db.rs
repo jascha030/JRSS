@@ -161,6 +161,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 
     ensure_item_content_columns(&connection)?;
     ensure_feed_sort_order_column(&connection)?;
+    ensure_feed_image_url_column(&connection)?;
     backfill_preview_text(&connection)?;
 
     Ok(())
@@ -319,6 +320,25 @@ fn ensure_feed_sort_order_column(connection: &Connection) -> AppResult<()> {
     Ok(())
 }
 
+fn ensure_feed_image_url_column(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(feeds)")
+        .map_err(|error| format!("Failed to inspect SQLite feed columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite feed columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite feed columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "image_url") {
+        connection
+            .execute("ALTER TABLE feeds ADD COLUMN image_url TEXT", [])
+            .map_err(|error| format!("Failed to add feeds.image_url column: {error}"))?;
+    }
+
+    Ok(())
+}
+
 fn backfill_preview_text(connection: &Connection) -> AppResult<()> {
     connection
         .execute(PREVIEW_TEXT_BACKFILL_QUERY, [])
@@ -347,9 +367,10 @@ fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
         description: row.get(3)?,
         kind: row.get(4)?,
         site_url: row.get(5)?,
-        created_at: row.get(6)?,
-        last_fetched_at: row.get(7)?,
-        sort_order: row.get(8)?,
+        image_url: row.get(6)?,
+        created_at: row.get(7)?,
+        last_fetched_at: row.get(8)?,
+        sort_order: row.get(9)?,
     })
 }
 
@@ -435,7 +456,7 @@ fn get_feed_by_url_in_tx(
 ) -> AppResult<Option<FeedRecord>> {
     transaction
         .query_row(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
+            "SELECT id, title, url, description, kind, site_url, image_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 WHERE url = ?1",
             [url],
@@ -450,7 +471,7 @@ pub fn get_feed_by_id(db_path: &Path, id: &str) -> AppResult<Option<FeedRecord>>
 
     connection
         .query_row(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
+            "SELECT id, title, url, description, kind, site_url, image_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 WHERE id = ?1",
             [id],
@@ -464,7 +485,7 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
     let connection = open_connection(db_path)?;
     let mut statement = connection
         .prepare(
-            "SELECT id, title, url, description, kind, site_url, created_at, last_fetched_at, sort_order
+            "SELECT id, title, url, description, kind, site_url, image_url, created_at, last_fetched_at, sort_order
 			 FROM feeds
 			 ORDER BY lower(title), title",
         )
@@ -697,6 +718,7 @@ pub fn upsert_feed_snapshot(
         description: parsed_feed.description,
         kind: parsed_feed.kind,
         site_url: parsed_feed.site_url,
+        image_url: parsed_feed.image_url,
         created_at: existing_feed
             .as_ref()
             .map(|feed| feed.created_at.clone())
@@ -709,14 +731,15 @@ pub fn upsert_feed_snapshot(
 
     transaction
 		.execute(
-			"INSERT INTO feeds (id, url, title, description, kind, site_url, created_at, last_fetched_at)
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+			"INSERT INTO feeds (id, url, title, description, kind, site_url, image_url, created_at, last_fetched_at)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 			 ON CONFLICT(id) DO UPDATE SET
 			 	url = excluded.url,
 			 	title = excluded.title,
 			 	description = excluded.description,
 			 	kind = excluded.kind,
 			 	site_url = excluded.site_url,
+			 	image_url = excluded.image_url,
 			 	last_fetched_at = excluded.last_fetched_at",
 			params![
 				next_feed.id,
@@ -725,6 +748,7 @@ pub fn upsert_feed_snapshot(
 				next_feed.description,
 				next_feed.kind,
 				next_feed.site_url,
+				next_feed.image_url,
 				next_feed.created_at,
 				next_feed.last_fetched_at
 			]

@@ -10,6 +10,7 @@ export interface Feed {
 	description: string;
 	kind: FeedKind;
 	siteUrl?: string;
+	imageUrl?: string;
 	createdAt: string;
 	lastFetchedAt?: string;
 	sortOrder?: ItemSortOrder;

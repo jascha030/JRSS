@@ -3,6 +3,7 @@
 
 	type Props = {
 		feedTitle?: string;
+		feedImageUrl?: string;
 		title: string;
 		publishedAt: string;
 		byline?: string;
@@ -13,6 +14,7 @@
 
 	let {
 		feedTitle,
+		feedImageUrl,
 		title,
 		publishedAt,
 		byline,
@@ -22,30 +24,42 @@
 	}: Props = $props();
 </script>
 
-<article class="{surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 2xl:max-w-3xl 2xl:min-w-3xl">
+<article class="{surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 2xl:max-w-3xl 2xl:min-w-3xl 3xl:min-w-4xl 3xl:max-w-4xl">
 	<header class="border-b border-border pb-8">
-		{#if feedTitle}
-			<p class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-				{feedTitle}
-			</p>
-		{/if}
+		<div class="flex gap-6">
+			{#if feedImageUrl}
+				<img
+					src={feedImageUrl}
+					alt=""
+					class="size-48 shrink-0 rounded-2xl object-cover shadow-sm"
+				/>
+			{/if}
 
-		<h1 class="mt-4 text-4xl font-semibold tracking-tight text-fg">
-			{title}
-		</h1>
+			<div class="min-w-0 flex-1">
+				{#if feedTitle}
+					<p class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
+						{feedTitle}
+					</p>
+				{/if}
+
+				<h1 class="mt-4 text-4xl font-semibold tracking-tight text-fg">
+					{title}
+				</h1>
+
+				<div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
+					{#if byline}
+						<span>{byline}</span>
+					{/if}
+					<span>{formatDate(publishedAt)}</span>
+				</div>
+			</div>
+		</div>
 
 		{#if excerpt}
 			<p class="mt-4 max-w-2xl text-lg leading-8 text-fg-secondary">
 				{excerpt}
 			</p>
 		{/if}
-
-		<div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
-			{#if byline}
-				<span>{byline}</span>
-			{/if}
-			<span>{formatDate(publishedAt)}</span>
-		</div>
 	</header>
 
 	{@render children?.()}
