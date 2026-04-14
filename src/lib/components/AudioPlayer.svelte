@@ -5,6 +5,7 @@
 
 	type Props = {
 		item: FeedListItem | null;
+		imageUrl?: string;
 		playbackState: PlaybackState | null;
 		onPlayingChange: (isPlaying: boolean) => void;
 		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
@@ -20,6 +21,7 @@
 
 	let {
 		item,
+		imageUrl,
 		playbackState,
 		onPlayingChange,
 		onPositionChange,
@@ -236,11 +238,16 @@
 	>
 		<div class="mx-auto flex max-w-6xl items-center gap-6">
 			<!-- Left: info -->
-			<div class="min-w-0 shrink-0 basis-48">
-				<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
-				<h3 class="mt-1 truncate text-sm font-semibold text-fg">
-					{item.title}
-				</h3>
+			<div class="flex min-w-0 shrink-0 basis-48 items-center gap-3">
+				{#if imageUrl}
+					<img src={imageUrl} alt="" class="size-12 shrink-0 rounded-lg object-cover shadow-sm" />
+				{/if}
+				<div class="min-w-0">
+					<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
+					<h3 class="mt-1 truncate text-sm font-semibold text-fg">
+						{item.title}
+					</h3>
+				</div>
 			</div>
 
 			<!-- Middle: controls + seek bar -->

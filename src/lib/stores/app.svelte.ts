@@ -509,6 +509,16 @@ export function getCurrentAudioItem(): FeedListItem | null {
 	return currentItem?.mediaEnclosure ? currentItem : null;
 }
 
+export function getCurrentAudioItemFeed(): Feed | null {
+	const item = getCurrentAudioItem();
+
+	if (!item) {
+		return null;
+	}
+
+	return app.feeds.find((feed) => feed.id === item.feedId) ?? null;
+}
+
 export async function loadFeeds(): Promise<void> {
 	app.feeds = await listFeeds();
 

@@ -14,6 +14,7 @@
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
 		getCurrentAudioItem,
+		getCurrentAudioItemFeed,
 		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getManualQueueLength,
@@ -64,6 +65,7 @@
 	const selectedItem = $derived(getSelectedItem());
 	const selectedItemFeed = $derived(getSelectedItemFeed());
 	const currentAudioItem = $derived(getCurrentAudioItem());
+	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
 	const currentPlaybackState = $derived(app.currentPlaybackState);
 	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const totalCount = $derived(getActiveTotalCount());
@@ -339,6 +341,7 @@
 
 				<AudioPlayer
 					item={currentAudioItem}
+					imageUrl={currentAudioItemFeed?.imageUrl}
 					playbackState={currentPlaybackState}
 					onPlayingChange={setPlaybackPlaying}
 					onPositionChange={updatePlaybackPosition}
