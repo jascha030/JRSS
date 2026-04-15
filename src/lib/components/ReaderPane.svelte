@@ -1,6 +1,11 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
+	import {
+		enqueueAudioItem,
+		playAudioItemNext,
+		startPlaybackFromContext
+	} from '$lib/stores/app.svelte';
 	import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
 
 	type ReaderPaneMode = 'feed' | 'reader';
@@ -16,9 +21,6 @@
 		hasSelectedItemReaderContent: boolean;
 		isReaderPaneActive: boolean;
 		canUseReaderMode: boolean;
-		onPlay: (item: FeedItem) => void;
-		onPlayNext: (item: FeedItem) => void;
-		onEnqueue: (item: FeedItem) => void;
 		onStopPlayback: () => void;
 		onLoadReaderView: (itemId: string) => Promise<void>;
 		onReaderPaneModeChange: (mode: ReaderPaneMode) => void;
@@ -35,9 +37,6 @@
 		hasSelectedItemReaderContent,
 		isReaderPaneActive,
 		canUseReaderMode,
-		onPlay,
-		onPlayNext,
-		onEnqueue,
 		onStopPlayback,
 		onLoadReaderView,
 		onReaderPaneModeChange
@@ -61,7 +60,7 @@
 						<button
 							class="btn-secondary rounded-2xl px-4 py-3"
 							type="button"
-							onclick={() => onPlay(selectedItem)}
+							onclick={() => startPlaybackFromContext(selectedItem)}
 						>
 							{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
 						</button>
@@ -69,7 +68,7 @@
 						<button
 							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
 							type="button"
-							onclick={() => onPlayNext(selectedItem)}
+							onclick={() => playAudioItemNext(selectedItem)}
 						>
 							Play next
 						</button>
@@ -77,7 +76,7 @@
 						<button
 							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
 							type="button"
-							onclick={() => onEnqueue(selectedItem)}
+							onclick={() => enqueueAudioItem(selectedItem)}
 						>
 							Add to queue
 						</button>

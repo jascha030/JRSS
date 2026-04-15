@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { Menu } from '@tauri-apps/api/menu';
-
+	import {
+		enqueueAudioItem,
+		playAudioItemNext,
+		startPlaybackFromContext
+	} from '$lib/stores/app.svelte';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
+	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 
 	type Props = {
 		feeds: Feed[];
@@ -20,9 +24,6 @@
 		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
-		onPlay: (item: FeedListItem) => void;
-		onPlayNext: (item: FeedListItem) => void;
-		onEnqueue: (item: FeedListItem) => void;
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
@@ -43,32 +44,12 @@
 		selectedItemId,
 		selectedSection,
 		onMarkRead,
-		onPlay,
-		onPlayNext,
-		onEnqueue,
 		totalCount,
 		searchTerm,
 		onSearchChange,
 		itemSortOrder,
 		onSortOrderChange
 	}: Props = $props();
-
-	// -----------------------------------------------------------------------
-	// Native context menu (Tauri Menu API)
-	// -----------------------------------------------------------------------
-
-	async function openContextMenu(event: MouseEvent, item: FeedListItem): Promise<void> {
-		event.preventDefault();
-
-		const menu = await Menu.new({
-			items: [
-				{ id: 'play-next', text: 'Play next', action: () => onPlayNext(item) },
-				{ id: 'add-to-queue', text: 'Add to queue', action: () => onEnqueue(item) }
-			]
-		});
-
-		await menu.popup();
-	}
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 
@@ -392,7 +373,7 @@
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
 								oncontextmenu={item.mediaEnclosure
-									? (event) => void openContextMenu(event, item)
+									? (event) => void openAudioContextMenu(event, item)
 									: undefined}
 							>
 								<button
@@ -458,14 +439,14 @@
 											<button
 												class="btn-primary rounded-xl px-3 py-2"
 												type="button"
-												onclick={() => onPlay(item)}
+												onclick={() => startPlaybackFromContext(item)}
 											>
 												{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
 											</button>
 											<button
 												class="btn-secondary rounded-xl px-3 py-2 text-xs"
 												type="button"
-												onclick={() => onPlayNext(item)}
+												onclick={() => playAudioItemNext(item)}
 											>
 												Play next
 											</button>
