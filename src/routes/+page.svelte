@@ -9,7 +9,6 @@
 		clearQueue,
 		createFeed,
 		deleteFeed,
-		enqueueAudioItem,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
@@ -31,7 +30,6 @@
 		moveQueuedItemUp,
 		persistPlaybackForItem,
 		persistPlaybackPosition,
-		playAudioItemNext,
 		refreshExistingFeed,
 		removeQueuedItem,
 		selectFeed,
@@ -40,7 +38,6 @@
 		setFeedSearchTerm,
 		setItemSortOrder,
 		setPlaybackPlaying,
-		startPlaybackFromContext,
 		stopPlayback,
 		updatePlaybackPosition
 	} from '$lib/stores/app.svelte';
@@ -225,7 +222,7 @@
 			>
 				<main class="flex min-h-0 flex-1 flex-col bg-surface-main">
 					<header
-						class="flex h-16 items-center border-b border-border bg-surface-glass px-6 py-10 backdrop-blur lg:px-8"
+						class="flex h-16 items-center justify-end border-b border-border bg-surface-glass px-6 py-10 backdrop-blur lg:px-8"
 					>
 						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 							<form
@@ -307,9 +304,6 @@
 									{selectedItemId}
 									{selectedSection}
 									onMarkRead={markItemRead}
-									onPlay={startPlaybackFromContext}
-									onPlayNext={playAudioItemNext}
-									onEnqueue={enqueueAudioItem}
 									{totalCount}
 									searchTerm={feedSearchTerm}
 									onSearchChange={setFeedSearchTerm}
@@ -329,9 +323,6 @@
 								{hasSelectedItemReaderContent}
 								{isReaderPaneActive}
 								{canUseReaderMode}
-								onPlay={startPlaybackFromContext}
-								onPlayNext={playAudioItemNext}
-								onEnqueue={enqueueAudioItem}
 								onStopPlayback={stopPlayback}
 								onLoadReaderView={handleLoadReaderView}
 								onReaderPaneModeChange={(mode) => {
