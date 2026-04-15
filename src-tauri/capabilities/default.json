@@ -6,6 +6,9 @@
 	"permissions": [
 		"core:default",
 		{
+			"identifier": "clipboard-manager:allow-write-text"
+		},
+		{
 			"identifier": "shell:allow-open"
 		}
 	]
