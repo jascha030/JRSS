@@ -54,24 +54,27 @@
 	let readerNotice = $state('');
 	let lastSelectedItemId = $state<string | null>(null);
 
-	const feeds = $derived(app.feeds);
-	const isCreatingFeed = $derived(app.isCreatingFeed);
-	const syncingFeedIds = $derived(app.syncingFeedIds);
-	const readerLoadingItemIds = $derived(app.readerLoadingItemIds);
-	const selectedFeedId = $derived(app.selectedFeedId);
-	const selectedItemId = $derived(app.selectedItemId);
-	const selectedSection = $derived(app.selectedSection);
+	const {
+		feeds,
+		isCreatingFeed,
+		syncingFeedIds,
+		readerLoadingItemIds,
+		selectedFeedId,
+		selectedItemId,
+		selectedSection,
+		currentPlaybackState,
+		itemSummariesById,
+		feedSearchTerm
+	} = $derived.by(() => app);
+
 	const selectedFeed = $derived(getSelectedFeed());
 	const selectedItem = $derived(getSelectedItem());
 	const selectedItemFeed = $derived(getSelectedItemFeed());
 	const currentAudioItem = $derived(getCurrentAudioItem());
 	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
-	const currentPlaybackState = $derived(app.currentPlaybackState);
 	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const itemSummariesById = $derived(app.itemSummariesById);
-	const feedSearchTerm = $derived(app.feedSearchTerm);
 	const itemSortOrder = $derived(getEffectiveSortOrder());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
