@@ -10,8 +10,6 @@
 
 	let { feedTitle, feedImageUrl, item }: Props = $props();
 
-    $inspect(item, 'item');
-
 	const { readerByline, publishedAt, readerExcerpt, mediaEnclosure } = $derived.by(() => item);
 
 	const title: string = $derived(item.readerTitle || item.title);
