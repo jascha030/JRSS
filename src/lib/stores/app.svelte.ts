@@ -641,6 +641,7 @@ async function restoreSession(): Promise<void> {
 	}
 
 	// Index fetched items for O(1) lookup
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral lookup map, not reactive state
 	const fetchedById = new Map<string, FeedListItem>();
 
 	for (const item of fetchedItems) {
@@ -1024,6 +1025,7 @@ export function getManualQueueLength(): number {
  */
 export function getUpcomingQueue(): FeedListItem[] {
 	const items: FeedListItem[] = [];
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral dedup set, not reactive state
 	const seen = new Set<string>();
 
 	for (const itemId of app.manualQueue) {
@@ -1053,6 +1055,7 @@ export function getUpcomingQueue(): FeedListItem[] {
  * Clears both manual and auto queues.
  */
 export function setPlaybackQueue(items: FeedListItem[]): void {
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral dedup set, not reactive state
 	const seen = new Set<string>();
 	const ids: string[] = [];
 
