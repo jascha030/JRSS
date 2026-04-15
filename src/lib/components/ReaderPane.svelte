@@ -2,7 +2,6 @@
 	import FeedArticle from '$lib/components/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
 	import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
-	import { open } from '@tauri-apps/plugin-shell';
 
 	type ReaderPaneMode = 'feed' | 'reader';
 
@@ -43,6 +42,7 @@
 		onLoadReaderView,
 		onReaderPaneModeChange
 	}: Props = $props();
+
 	const podcastImageUrl = $derived(
 		selectedItem?.mediaEnclosure ? selectedItemFeed?.imageUrl : undefined
 	);
@@ -53,7 +53,9 @@
 >
 	{#if selectedItem}
 		<div class="space-y-9">
-			<div class="mx-auto w-full max-w-xl min-w-lg 2xl:max-w-3xl 2xl:min-w-3xl 3xl:min-w-4xl 3xl:max-w-4xl">
+			<div
+				class="mx-auto w-full max-w-xl min-w-lg 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl"
+			>
 				<div class="flex flex-wrap items-center gap-4">
 					{#if selectedItem.mediaEnclosure}
 						<button
@@ -141,26 +143,12 @@
 			{/if}
 
 			{#if isReaderPaneActive}
-				<ReaderArticle
-					feedTitle={selectedItemFeed?.title}
-					title={selectedItem.readerTitle ?? selectedItem.title}
-					byline={selectedItem.readerByline}
-					excerpt={selectedItem.readerExcerpt}
-					publishedAt={selectedItem.publishedAt}
-					html={selectedItem.readerContentHtml}
-					text={selectedItem.readerContentText}
-				/>
+				<ReaderArticle item={selectedItem} feedTitle={selectedItemFeed?.title} />
 			{:else}
 				<FeedArticle
+					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
 					feedImageUrl={podcastImageUrl}
-					title={selectedItem.title}
-					publishedAt={selectedItem.publishedAt}
-					contentHtml={selectedItem.contentHtml}
-					contentText={selectedItem.contentText}
-					summaryHtml={selectedItem.summaryHtml}
-					summaryText={selectedItem.summaryText}
-					summary={selectedItem.summary}
 				/>
 			{/if}
 		</div>

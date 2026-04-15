@@ -71,7 +71,10 @@
 	}
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
-	const hasActiveSearch = $derived(searchTerm.trim().length > 0);
+
+	const DESKTOP_ROW_HEIGHT = 200;
+	const MOBILE_ROW_HEIGHT = 304;
+	const OVERSCAN_ROWS = 1;
 
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
 		all: 'All feeds',
@@ -80,14 +83,16 @@
 		settings: 'Settings'
 	};
 
-	const pageHeading = $derived(
-		selectedFeed?.title ?? (selectedSection ? sectionHeadings[selectedSection] : 'All feeds')
+	const { hasActiveSearch, pageHeading, feedTitleById, rowHeight, totalHeight } = $derived.by(
+		() => ({
+			hasActiveSearch: searchTerm.trim().length > 0,
+			pageHeading:
+				selectedFeed?.title ?? (selectedSection ? sectionHeadings[selectedSection] : 'All feeds'),
+			feedTitleById: new Map(feeds.map((feed) => [feed.id, feed.title])),
+			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
+			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
+		})
 	);
-
-	const feedTitleById = $derived(new Map(feeds.map((feed) => [feed.id, feed.title])));
-	const DESKTOP_ROW_HEIGHT = 200;
-	const MOBILE_ROW_HEIGHT = 304;
-	const OVERSCAN_ROWS = 1;
 
 	type VisibleRow = {
 		index: number;
@@ -109,9 +114,6 @@
 	function getListPreview(item: FeedListItem) {
 		return item.previewText;
 	}
-
-	const rowHeight = $derived(windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT);
-	const totalHeight = $derived(totalCount * rowHeight);
 
 	const visibleRows = $derived.by((): VisibleRow[] => {
 		if (totalCount === 0) {

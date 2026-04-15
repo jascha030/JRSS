@@ -1,60 +1,45 @@
 <script lang="ts">
-	import ArticleBase from './ArticleBase.svelte';
+	import ArticleBase from './Article/ArticleBase.svelte';
+	import type { FeedItem } from '$lib/types/rss';
 
 	type Props = {
+		item: FeedItem;
 		feedTitle?: string;
 		feedImageUrl?: string;
-		title: string;
-		publishedAt: string;
-		contentHtml?: string;
-		contentText?: string;
-		summaryHtml?: string;
-		summaryText?: string;
-		summary: string;
 	};
 
-	let {
-		feedTitle,
-		feedImageUrl,
-		title,
-		publishedAt,
-		contentHtml,
-		contentText,
-		summaryHtml,
-		summaryText,
-		summary
-	}: Props = $props();
+	let { item, feedTitle, feedImageUrl }: Props = $props();
 
 	// Prefer HTML content over text, with cascading fallback
-	const hasHtmlContent = $derived(!!contentHtml);
-	const hasTextContent = $derived(!!contentText && !hasHtmlContent);
-	const hasHtmlSummary = $derived(!!summaryHtml && !hasHtmlContent && !hasTextContent);
+	const hasHtmlContent = $derived(!!item.contentHtml);
+	const hasTextContent = $derived(!!item.contentText && !hasHtmlContent);
+	const hasHtmlSummary = $derived(!!item.summaryHtml && !hasHtmlContent && !hasTextContent);
 	const hasTextSummary = $derived(
-		!!summaryText && !hasHtmlContent && !hasTextContent && !hasHtmlSummary
+		!!item.summaryText && !hasHtmlContent && !hasTextContent && !hasHtmlSummary
 	);
 	const hasPlainSummary = $derived(
-		!!summary && !hasHtmlContent && !hasTextContent && !hasHtmlSummary && !hasTextSummary
+		!!item.summary && !hasHtmlContent && !hasTextContent && !hasHtmlSummary && !hasTextSummary
 	);
 </script>
 
-<ArticleBase {feedTitle} {feedImageUrl} {title} {publishedAt}>
+<ArticleBase {feedTitle} {feedImageUrl} {item}>
 	{#if hasHtmlContent}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<div class="article-html mt-10">{@html contentHtml}</div>
+		<div class="article-html mt-10">{@html item.contentHtml}</div>
 	{:else if hasTextContent}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
-			{contentText}
+			{item.contentText}
 		</div>
 	{:else if hasHtmlSummary}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<div class="article-html mt-10">{@html summaryHtml}</div>
+		<div class="article-html mt-10">{@html item.summaryHtml}</div>
 	{:else if hasTextSummary}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
-			{summaryText}
+			{item.summaryText}
 		</div>
 	{:else if hasPlainSummary}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
-			{summary}
+			{item.summary}
 		</div>
 	{/if}
 </ArticleBase>

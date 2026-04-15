@@ -1,28 +1,23 @@
 <script lang="ts">
-	import ArticleBase from './ArticleBase.svelte';
+	import ArticleBase from './Article/ArticleBase.svelte';
+	import type { FeedItem } from '$lib/types/rss';
 
 	type Props = {
+		item: FeedItem;
 		feedTitle?: string;
 		feedImageUrl?: string;
-		title: string;
-		byline?: string;
-		excerpt?: string;
-		publishedAt: string;
-		html?: string;
-		text?: string;
 	};
 
-	let { feedTitle, feedImageUrl, title, byline, excerpt, publishedAt, html, text }: Props =
-		$props();
+	let { item, feedTitle, feedImageUrl }: Props = $props();
 </script>
 
-<ArticleBase {feedTitle} {feedImageUrl} {title} {publishedAt} {byline} {excerpt}>
-	{#if html}
+<ArticleBase {feedTitle} {feedImageUrl} {item}>
+	{#if item.readerContentHtml}
 		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<div class="article-html mt-10">{@html html}</div>
-	{:else if text}
+		<div class="article-html mt-10">{@html item.readerContentHtml}</div>
+	{:else if item.readerContentText}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
-			{text}
+			{item.readerContentText}
 		</div>
 	{/if}
 </ArticleBase>
