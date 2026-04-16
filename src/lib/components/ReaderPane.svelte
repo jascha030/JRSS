@@ -2,8 +2,6 @@
 	import FeedArticle from '$lib/components/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
 	import {
-		enqueueAudioItem,
-		playAudioItemNext,
 		startPlaybackFromContext
 	} from '$lib/stores/app.svelte';
 	import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
@@ -63,22 +61,6 @@
 							onclick={() => startPlaybackFromContext(selectedItem)}
 						>
 							{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
-						</button>
-
-						<button
-							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
-							type="button"
-							onclick={() => playAudioItemNext(selectedItem)}
-						>
-							Play next
-						</button>
-
-						<button
-							class="btn-secondary rounded-2xl px-4 py-3 text-xs"
-							type="button"
-							onclick={() => enqueueAudioItem(selectedItem)}
-						>
-							Add to queue
 						</button>
 
 						{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}
