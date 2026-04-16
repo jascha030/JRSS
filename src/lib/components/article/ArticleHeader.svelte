@@ -46,7 +46,7 @@
 				{title}
 			</h1>
 
-			<div class="flex flex-wrap items-center gap-3 text-sm text-fg-muted">
+			<div class="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
 				{#if readerByline}
 					<span>{readerByline}</span>
 				{/if}
@@ -55,8 +55,7 @@
 			</div>
 
 			{#if isPodcast}
-				<div>
-                <DynamicPlayButton {item} />
+				<div class="flex flex-wrap items-center gap-2">
 				</div>
 			{/if}
 		</div>

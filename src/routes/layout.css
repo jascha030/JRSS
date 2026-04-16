@@ -8,8 +8,8 @@
    ────────────────────────────────────────────── */
 
 @theme {
-    --breakpoint-3xl: 120rem; /* 1920px */
-    --breakpoint-4xl: 144rem; /* 2304px */
+	--breakpoint-3xl: 120rem; /* 1920px */
+	--breakpoint-4xl: 144rem; /* 2304px */
 
 	/* Surfaces — opaque */
 	--color-surface: #ffffff;
@@ -45,7 +45,8 @@
 
 	/* Interactive — primary button surface */
 	--color-interactive: #020617;
-	--color-interactive-hover: #1e293b;
+	/* --color-interactive-hover: #1e293b; */
+	--color-interactive-hover: #2e405c;
 	--color-interactive-text: #ffffff;
 
 	/* Focus ring */
@@ -98,7 +99,8 @@
 		--color-accent-hover: #818cf8;
 		--color-accent-dot: #6366f1;
 
-		--color-interactive: #f1f5f9;
+		--color-interactive: #e9edf2;
+		/* --color-interactive-hover: #e4e8ed; */
 		--color-interactive-hover: #ffffff;
 		--color-interactive-text: #020617;
 
@@ -122,11 +124,19 @@
    ───────────────────────────────────────────── */
 
 .btn-primary {
-	@apply bg-interactive text-sm font-medium text-interactive-text transition-colors hover:bg-interactive-hover;
+	@apply rounded-xl bg-interactive px-4 py-3 text-sm font-medium text-interactive-text transition-colors hover:bg-interactive-hover;
+}
+
+.btn-primary.btn-sm {
+	@apply rounded-full px-3 py-2 text-xs;
 }
 
 .btn-secondary {
-	@apply border border-border-strong text-sm font-medium text-fg-secondary transition-colors hover:border-border-hover hover:text-fg;
+	@apply rounded-xl border border-border-strong px-4 py-3 text-sm font-medium text-fg-secondary transition-colors hover:border-border-hover hover:text-fg;
+}
+
+.btn-secondary.btn-sm {
+	@apply rounded-full px-3 py-2 text-xs;
 }
 
 .btn-secondary:disabled {
