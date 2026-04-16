@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { SidebarSection } from '$lib/stores/app.svelte';
-	import { deleteFeed } from '$lib/stores/app.svelte';
 	import type { Feed } from '$lib/types/rss';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import { Ellipsis } from '@lucide/svelte';

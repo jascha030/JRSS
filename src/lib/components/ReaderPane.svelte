@@ -10,7 +10,6 @@
 		selectedItem: FeedItem | null;
 		selectedItemFeed: Feed | null;
 		readerPaneMode: ReaderPaneMode;
-		readerNotice: string;
 		isSelectedItemReaderLoading: boolean;
 		hasSelectedItemReaderContent: boolean;
 		isReaderPaneActive: boolean;
@@ -23,7 +22,6 @@
 		selectedItem,
 		selectedItemFeed,
 		readerPaneMode,
-		readerNotice,
 		isSelectedItemReaderLoading,
 		hasSelectedItemReaderContent,
 		isReaderPaneActive,
@@ -88,12 +86,6 @@
 					{/if}
 				</div>
 			</div>
-
-			{#if readerNotice}
-				<p class="text-sm leading-8 text-fg-muted">
-					{readerNotice}
-				</p>
-			{/if}
 
 			{#if isReaderPaneActive}
 				<ReaderArticle item={selectedItem} feedTitle={selectedItemFeed?.title} />
