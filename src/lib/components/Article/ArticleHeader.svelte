@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FeedItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
+	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 
 	type Props = {
 		feedTitle?: string;
@@ -37,6 +38,8 @@
 				class="mt-4 font-semibold tracking-tight text-fg"
 				class:text-2xl={isPodcast}
 				class:text-4xl={!isPodcast}
+                class:select-none={isPodcast}
+				oncontextmenu={isPodcast ? (e) => void openAudioContextMenu(e, item) : undefined}
 			>
 				{title}
 			</h1>
