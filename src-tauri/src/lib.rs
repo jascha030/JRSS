@@ -21,6 +21,13 @@ pub fn run() {
                 )?;
             }
 
+            #[cfg(debug_assertions)] 
+            {
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+            }
+
             let database_state = DatabaseState::new(app.handle())?;
             app.manage(database_state);
 
