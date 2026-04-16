@@ -1,4 +1,4 @@
-import { Menu } from '@tauri-apps/api/menu';
+import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 import { enqueueAudioItem, playAudioItemNext } from '$lib/stores/app.svelte';
@@ -12,21 +12,32 @@ export async function openAudioContextMenu(event: MouseEvent, item: FeedListItem
 
 	const enclosureUrl = item.mediaEnclosure?.url;
 
-	const menu = await Menu.new({
-		items: [
-			{ id: 'play-next', text: 'Play next', action: () => playAudioItemNext(item) },
-			{ id: 'add-to-queue', text: 'Add to queue', action: () => enqueueAudioItem(item) },
-			...(enclosureUrl
-				? [
-						{
-							id: 'copy-url',
-							text: 'Copy URL',
-							action: () => void writeText(enclosureUrl)
-						}
-					]
-				: [])
-		]
-	});
+	const items: Array<MenuItem | PredefinedMenuItem> = [
+		await MenuItem.new({
+			id: 'play-next',
+			text: 'Play next',
+			action: () => playAudioItemNext(item)
+		}),
 
+		await MenuItem.new({
+			id: 'add-to-queue',
+			text: 'Add to queue',
+			action: () => enqueueAudioItem(item)
+		})
+	];
+
+	if (enclosureUrl) {
+		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+
+		items.push(
+			await MenuItem.new({
+				id: 'copy-url',
+				text: 'Copy URL',
+				action: () => void writeText(enclosureUrl)
+			})
+		);
+	}
+
+	const menu = await Menu.new({ items });
 	await menu.popup();
 }
