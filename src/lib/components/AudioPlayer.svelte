@@ -2,6 +2,13 @@
 	import type { FeedListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { formatDuration } from '$lib/utils/format';
+	import Rewind from '@lucide/svelte/icons/rewind';
+	import FastForward from '@lucide/svelte/icons/fast-forward';
+	import Play from '@lucide/svelte/icons/play';
+	import Pause from '@lucide/svelte/icons/pause';
+	import VolumeX from '@lucide/svelte/icons/volume-x';
+	import Volume1 from '@lucide/svelte/icons/volume-1';
+	import Volume2 from '@lucide/svelte/icons/volume-2';
 
 	type Props = {
 		item: FeedListItem | null;
@@ -259,41 +266,14 @@
 						aria-label="Back 15 seconds"
 						onclick={() => skip(-SKIP_SECONDS)}
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							class="size-6"
-						>
-							<path
-								d="M9.195 18.44c1.25.714 2.805-.189 2.805-1.629v-2.34l6.945 3.968c1.25.715 2.805-.188 2.805-1.628V8.69c0-1.44-1.555-2.343-2.805-1.628L12 11.029v-2.34c0-1.44-1.555-2.343-2.805-1.628l-7.108 4.061c-1.26.72-1.26 2.536 0 3.256l7.108 4.061Z"
-							/>
-						</svg>
+						<Rewind class="size-6" />
 					</button>
 
 					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
 						{#if playbackState.isPlaying}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 20 20"
-								fill="currentColor"
-								class="size-5"
-							>
-								<path
-									d="M5.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75A.75.75 0 0 0 7.25 3h-1.5ZM12.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75a.75.75 0 0 0-.75-.75h-1.5Z"
-								/>
-							</svg>
+							<Pause class="size-5" />
 						{:else}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								viewBox="0 0 20 20"
-								fill="currentColor"
-								class="size-5"
-							>
-								<path
-									d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z"
-								/>
-							</svg>
+							<Play class="size-5" />
 						{/if}
 					</button>
 
@@ -303,16 +283,7 @@
 						aria-label="Forward 15 seconds"
 						onclick={() => skip(SKIP_SECONDS)}
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							class="size-6"
-						>
-							<path
-								d="M5.055 7.06C3.805 6.347 2.25 7.25 2.25 8.69v8.122c0 1.44 1.555 2.343 2.805 1.628L12 14.471v2.34c0 1.44 1.555 2.343 2.805 1.628l7.108-4.061c1.26-.72 1.26-2.536 0-3.256l-7.108-4.061C13.555 6.346 12 7.249 12 8.689v2.34L5.055 7.061Z"
-							/>
-						</svg>
+						<FastForward class="size-6" />
 					</button>
 				</div>
 				<div class="flex items-center gap-3">
@@ -345,50 +316,11 @@
 					aria-label={isMuted ? 'Unmute' : 'Mute'}
 				>
 					{#if isMuted || effectiveVolume === 0}
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M11 5 6 9H2v6h4l5 4zM22 9l-6 6M16 9l6 6" />
-						</svg>
+						<VolumeX size={16} />
 					{:else if effectiveVolume < 0.5}
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M11 5 6 9H2v6h4l5 4z" />
-							<path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-						</svg>
+						<Volume1 size={16} />
 					{:else}
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="M11 5 6 9H2v6h4l5 4z" />
-							<path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-							<path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-						</svg>
+						<Volume2 size={16} />
 					{/if}
 				</button>
 				<input
