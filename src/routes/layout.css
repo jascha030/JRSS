@@ -127,7 +127,8 @@
 	@apply rounded-xl bg-interactive px-4 py-3 text-sm font-medium text-interactive-text transition-colors hover:bg-interactive-hover;
 }
 
-.btn-primary.btn-sm, .btn-secondary.btn-sm  {
+.btn-primary.btn-sm,
+.btn-secondary.btn-sm {
 	@apply rounded-full px-3 py-2 text-xs;
 }
 
@@ -135,12 +136,44 @@
 	@apply rounded-xl border border-border-strong px-4 py-3 text-sm font-medium text-fg-secondary transition-colors hover:border-border-hover hover:text-fg;
 }
 
-.btn-primary.btn-sm.btn-round, .btn-secondary.btn-sm.btn-round {
-    @apply rounded-full p-2;
+.btn-primary.btn-sm.btn-round,
+.btn-secondary.btn-sm.btn-round {
+	@apply rounded-full p-2;
 }
 
 .btn-secondary:disabled {
 	@apply cursor-not-allowed opacity-60;
+}
+
+/* ── Toast notifications ─────────────────────── */
+
+.toast-base {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	border-radius: 0.75rem;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface-card);
+	box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+	border-left: 3px solid var(--color-border-strong);
+	min-width: 20rem;
+}
+
+.toast-success {
+	border-left-color: #16a34a;
+}
+
+.toast-error {
+	border-left-color: #dc2626;
+}
+
+.toast-warning {
+	border-left-color: #d97706;
+}
+
+.toast-info {
+	border-left-color: var(--color-accent);
 }
 
 /* ── Base styles ──────────────────────────────── */

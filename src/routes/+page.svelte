@@ -42,13 +42,12 @@
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	let newFeedUrl = $state('');
-	let notice = $state('');
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
-	let readerNotice = $state('');
 	let lastSelectedItemId = $state<string | null>(null);
 
 	const {
@@ -93,8 +92,6 @@
 	$effect(() => {
 		if (selectedItemId !== lastSelectedItemId) {
 			readerPaneMode = 'feed';
-			readerNotice = '';
-			lastSelectedItemId = selectedItemId;
 		}
 	});
 
@@ -110,7 +107,7 @@
 				return;
 			}
 
-			notice = error instanceof Error ? error.message : 'Unable to load article details.';
+			toast.error(error instanceof Error ? error.message : 'Unable to load article details.');
 		});
 	});
 
@@ -126,33 +123,29 @@
 		const candidateUrl = newFeedUrl.trim();
 
 		if (!candidateUrl) {
-			notice = 'Enter a feed URL to add a source.';
+			toast.warning('Enter a feed URL to add a source.');
 			return;
 		}
 
 		try {
 			await createFeed(candidateUrl);
 			newFeedUrl = '';
-			notice = 'Feed loaded and saved locally.';
+			toast.success('Feed loaded and saved locally.');
 		} catch (error: unknown) {
-			notice = error instanceof Error ? error.message : 'Unable to add that feed.';
+			toast.error(error instanceof Error ? error.message : 'Unable to add that feed.');
 		}
 	}
 
 	async function handleRefreshFeed(feedId: string) {
-		notice = '';
-
 		try {
 			await refreshExistingFeed(feedId);
-			notice = 'Feed refreshed.';
+			toast.success('Feed refreshed.');
 		} catch (error: unknown) {
-			notice = error instanceof Error ? error.message : 'Unable to refresh that feed.';
+			toast.error(error instanceof Error ? error.message : 'Unable to refresh that feed.');
 		}
 	}
 
 	async function handleLoadReaderView(itemId: string) {
-		readerNotice = '';
-
 		try {
 			const updatedItem = await loadReaderView(itemId);
 
@@ -162,11 +155,12 @@
 			}
 
 			readerPaneMode = 'feed';
-			readerNotice = 'Reader view was unavailable for this item. Showing feed content instead.';
+			toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 		} catch (error: unknown) {
 			readerPaneMode = 'feed';
-			readerNotice =
-				error instanceof Error ? error.message : 'Unable to load reader view for this item.';
+			toast.error(
+				error instanceof Error ? error.message : 'Unable to load reader view for this item.'
+			);
 		}
 	}
 </script>
@@ -248,10 +242,6 @@
 								</button>
 							</form>
 						</div>
-
-						{#if notice}
-							<p class="mt-5 text-sm text-fg-secondary">{notice}</p>
-						{/if}
 					</header>
 
 					{#if feeds.length === 0 && !isInitialLoading}
@@ -316,7 +306,6 @@
 								{selectedItem}
 								{selectedItemFeed}
 								{readerPaneMode}
-								{readerNotice}
 								{isSelectedItemReaderLoading}
 								{hasSelectedItemReaderContent}
 								{isReaderPaneActive}
