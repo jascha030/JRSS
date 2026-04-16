@@ -8,7 +8,6 @@
 		app,
 		clearQueue,
 		createFeed,
-		deleteFeed,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
@@ -202,7 +201,6 @@
 				refreshingFeedIds={syncingFeedIds}
 				{selectedFeedId}
 				{selectedSection}
-				onRemoveFeed={deleteFeed}
 				onSelectFeed={selectFeed}
 				onSelectSection={selectSection}
 				onToggleCollapse={toggleSidebar}
