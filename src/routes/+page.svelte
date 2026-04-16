@@ -39,7 +39,8 @@
 		setItemSortOrder,
 		setPlaybackPlaying,
 		stopPlayback,
-		updatePlaybackPosition
+		updatePlaybackPosition,
+		getPlaybackToggleSeq
 	} from '$lib/stores/app.svelte';
 	import { onMount } from 'svelte';
 
@@ -76,6 +77,7 @@
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
+	const playbackToggleSeq = $derived(getPlaybackToggleSeq());
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -342,6 +344,7 @@
 					onPositionPersist={persistPlaybackPosition}
 					onTransitionPersist={persistPlaybackForItem}
 					onEnded={() => void handlePlaybackEnded()}
+					toggleSeq={playbackToggleSeq}
 				>
 					{#snippet controls()}
 						<button

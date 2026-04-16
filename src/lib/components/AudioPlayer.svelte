@@ -22,6 +22,11 @@
 		onEnded: () => void;
 		/** Optional extra controls rendered to the right of the volume slider. */
 		controls?: Snippet;
+		/**
+		 * Monotonically increasing counter. Each change signals the player
+		 * to toggle play/pause on the current audio element.
+		 */
+		toggleSeq?: number;
 	};
 
 	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
@@ -35,7 +40,8 @@
 		onPositionPersist,
 		onTransitionPersist,
 		onEnded,
-		controls
+		controls,
+		toggleSeq
 	}: Props = $props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
@@ -173,6 +179,17 @@
 
 		audioElement.volume = volume;
 		audioElement.muted = isMuted;
+	});
+
+	/* React to external toggle requests (e.g. DynamicPlayButton). */
+	let lastToggleSeq = $state(0);
+
+	$effect(() => {
+		const seq = toggleSeq ?? 0;
+		if (seq !== lastToggleSeq) {
+			lastToggleSeq = seq;
+			togglePlayback();
+		}
 	});
 
 	$effect(() => {

@@ -65,6 +65,11 @@ interface AppState {
 	loadedPageOffsetsByQueryKey: Record<QueryKey, PageOffsets>;
 	loadingPageOffsetsByQueryKey: Record<QueryKey, PageOffsets>;
 	initialLoadDoneByQueryKey: Record<QueryKey, boolean>;
+	/**
+	 * Monotonically increasing counter. Each bump signals the AudioPlayer
+	 * to toggle play/pause on the current audio element.
+	 */
+	playbackToggleSeq: number;
 }
 
 const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
@@ -102,7 +107,8 @@ const initialState: AppState = {
 	totalCountByQueryKey: {},
 	loadedPageOffsetsByQueryKey: {},
 	loadingPageOffsetsByQueryKey: {},
-	initialLoadDoneByQueryKey: {}
+	initialLoadDoneByQueryKey: {},
+	playbackToggleSeq: 0
 };
 
 const EMPTY_ITEM_IDS_BY_INDEX: ItemIdsByIndex = {};
@@ -494,6 +500,16 @@ export function getSelectedItemFeed(): Feed | null {
 	}
 
 	return app.feeds.find((feed) => feed.id === item.feedId) ?? null;
+}
+
+/** Whether the given item is the currently loaded audio item. */
+export function isItemCurrentAudio(itemId: string): boolean {
+	return app.currentPlaybackState?.itemId === itemId;
+}
+
+/** Whether the current audio item is actively playing (not paused). */
+export function isAudioPlaying(): boolean {
+	return app.currentPlaybackState?.isPlaying ?? false;
 }
 
 export function getCurrentAudioItem(): FeedListItem | null {
@@ -926,6 +942,24 @@ export function playAudioItem(item: FeedListItem, { autoPlay = true } = {}): voi
 export function stopPlayback(): void {
 	app.currentPlaybackState = null;
 	persistSession();
+}
+
+/**
+ * Signal the AudioPlayer to toggle play/pause on the current audio element.
+ * Has no effect if nothing is loaded.
+ */
+export function requestTogglePlayback(): void {
+	if (!app.currentPlaybackState) {
+		return;
+	}
+	app.playbackToggleSeq += 1;
+}
+
+/**
+ * Read the current toggle sequence number (for AudioPlayer to watch).
+ */
+export function getPlaybackToggleSeq(): number {
+	return app.playbackToggleSeq;
 }
 
 export function setPlaybackPlaying(isPlaying: boolean): void {
