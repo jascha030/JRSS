@@ -21,13 +21,13 @@
 
 	const isSmall = $derived(size === 'sm');
 	const hasProgress = $derived(item.playbackPositionSeconds > 0);
+	const total = $derived(item.mediaEnclosure?.durationSeconds ?? 0);
 
 	const progress = $derived(
 		hasProgress
-			? formatDuration(item.playbackPositionSeconds) +
-					(item.mediaEnclosure?.durationSeconds && !compact
-						? ` / ${formatDuration(item.mediaEnclosure.durationSeconds)}`
-						: '')
+			? compact
+				? formatDuration(total - item.playbackPositionSeconds)
+				: `${formatDuration(item.playbackPositionSeconds)} / ${formatDuration(total)}`
 			: undefined
 	);
 
@@ -40,13 +40,11 @@
 	}
 </script>
 
-<button class="btn-primary flex flex-row rounded-xl align-middle"
-class:px-4={!isSmall}
-class:py-2={!isSmall}
-class:px-2={isSmall}
-class:py-1={isSmall}
-
-onclick={handleClick}>
+<button
+	class="btn-primary flex flex-row rounded-xl align-middle"
+	class:btn-sm={isSmall}
+	onclick={handleClick}
+>
 	{#if !isItemCurrentAudio(item.id) || (isItemCurrentAudio(item.id) && !isAudioPlaying())}
 		<Play class={isSmall ? 'size-4' : 'size-5'} />
 	{:else}
@@ -54,8 +52,6 @@ onclick={handleClick}>
 	{/if}
 
 	{#if progress}
-		<span class="ml-2 tabular-nums" class:text-xs={isSmall} class:text-sm={!isSmall}
-			>{progress}</span
-		>
+		<span class="ml-2 tabular-nums">{progress}</span>
 	{/if}
 </button>

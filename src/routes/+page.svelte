@@ -38,7 +38,6 @@
 		setFeedSearchTerm,
 		setItemSortOrder,
 		setPlaybackPlaying,
-		stopPlayback,
 		updatePlaybackPosition,
 		getPlaybackToggleSeq
 	} from '$lib/stores/app.svelte';
@@ -317,15 +316,12 @@
 							<ReaderPane
 								{selectedItem}
 								{selectedItemFeed}
-								{currentAudioItem}
-								{currentPlaybackState}
 								{readerPaneMode}
 								{readerNotice}
 								{isSelectedItemReaderLoading}
 								{hasSelectedItemReaderContent}
 								{isReaderPaneActive}
 								{canUseReaderMode}
-								onStopPlayback={stopPlayback}
 								onLoadReaderView={handleLoadReaderView}
 								onReaderPaneModeChange={(mode) => {
 									readerPaneMode = mode;
