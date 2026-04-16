@@ -5,7 +5,11 @@
 	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
-	import { openAudioContextMenu, openFeedContextMenu } from '$lib/utils/tauri-menu';
+	import {
+		openArticleContextMenu,
+		openAudioContextMenu,
+		openFeedContextMenu
+	} from '$lib/utils/tauri-menu';
 	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -373,7 +377,7 @@
 								aria-labelledby={`feed-item-title-${item.id}`}
 								oncontextmenu={isMediaItem(item)
 									? (event) => void openAudioContextMenu(event, item)
-									: undefined}
+									: (event) => void openArticleContextMenu(event, item)}
 							>
 								<button
 									type="button"

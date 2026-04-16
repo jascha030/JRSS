@@ -72,6 +72,18 @@ interface AppState {
 	 * to toggle play/pause on the current audio element.
 	 */
 	playbackToggleSeq: number;
+	/**
+	 * When bumped, signals the AudioPlayer to seek the current item
+	 * to `seekRequestPositionSeconds`.
+	 */
+	seekRequestSeq: number;
+	seekRequestPositionSeconds: number;
+	/**
+	 * When bumped, signals the page to open the item at `readerRequestItemId`
+	 * in reader view. Consumed by the page-level $effect.
+	 */
+	readerRequestSeq: number;
+	readerRequestItemId: string | null;
 }
 
 const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
@@ -110,7 +122,11 @@ const initialState: AppState = {
 	loadedPageOffsetsByQueryKey: {},
 	loadingPageOffsetsByQueryKey: {},
 	initialLoadDoneByQueryKey: {},
-	playbackToggleSeq: 0
+	playbackToggleSeq: 0,
+	seekRequestSeq: 0,
+	seekRequestPositionSeconds: 0,
+	readerRequestSeq: 0,
+	readerRequestItemId: null
 };
 
 const EMPTY_ITEM_IDS_BY_INDEX: ItemIdsByIndex = {};
@@ -917,6 +933,30 @@ export async function loadReaderView(itemId: string): Promise<FeedItem> {
 	}
 }
 
+/**
+ * Signal the page to select an item and open it in reader view.
+ * The page-level $effect watches `readerRequestSeq` and handles the async flow.
+ */
+export function requestOpenInReader(itemId: string): void {
+	selectItem(itemId);
+	app.readerRequestItemId = itemId;
+	app.readerRequestSeq += 1;
+}
+
+/**
+ * Read the current reader-request sequence number (for the page to watch).
+ */
+export function getReaderRequestSeq(): number {
+	return app.readerRequestSeq;
+}
+
+/**
+ * Read the item ID from the last reader-open request.
+ */
+export function getReaderRequestItemId(): string | null {
+	return app.readerRequestItemId;
+}
+
 export function playAudioItem(item: MediaListItem, { autoPlay = true } = {}): void {
 	app.audioItemsById[item.id] = item;
 	app.currentPlaybackState = {
@@ -949,6 +989,25 @@ export function requestTogglePlayback(): void {
  */
 export function getPlaybackToggleSeq(): number {
 	return app.playbackToggleSeq;
+}
+
+/**
+ * Signal the AudioPlayer to seek the current item to `positionSeconds`.
+ */
+export function requestSeekTo(positionSeconds: number): void {
+	if (!app.currentPlaybackState) {
+		return;
+	}
+	app.seekRequestPositionSeconds = positionSeconds;
+	app.seekRequestSeq += 1;
+}
+
+export function getSeekRequestSeq(): number {
+	return app.seekRequestSeq;
+}
+
+export function getSeekRequestPositionSeconds(): number {
+	return app.seekRequestPositionSeconds;
 }
 
 export function setPlaybackPlaying(isPlaying: boolean): void {

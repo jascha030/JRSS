@@ -38,7 +38,11 @@
 		setItemSortOrder,
 		setPlaybackPlaying,
 		updatePlaybackPosition,
-		getPlaybackToggleSeq
+		getPlaybackToggleSeq,
+		getReaderRequestSeq,
+		getReaderRequestItemId,
+		getSeekRequestSeq,
+		getSeekRequestPositionSeconds
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
 	import { onMount } from 'svelte';
@@ -76,6 +80,9 @@
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
 	const playbackToggleSeq = $derived(getPlaybackToggleSeq());
+	const readerRequestSeq = $derived(getReaderRequestSeq());
+	const seekRequestSeq = $derived(getSeekRequestSeq());
+	const seekRequestPositionSeconds = $derived(getSeekRequestPositionSeconds());
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -117,6 +124,18 @@
 
 	onMount(() => {
 		void initializeApp();
+	});
+
+	// React to reader-open requests from context menus
+	let lastConsumedReaderSeq = 0;
+	$effect(() => {
+		if (readerRequestSeq > lastConsumedReaderSeq) {
+			lastConsumedReaderSeq = readerRequestSeq;
+			const itemId = getReaderRequestItemId();
+			if (itemId) {
+				void handleLoadReaderView(itemId);
+			}
+		}
 	});
 
 	async function handleAddFeed() {
@@ -329,6 +348,8 @@
 					onTransitionPersist={persistPlaybackForItem}
 					onEnded={() => void handlePlaybackEnded()}
 					toggleSeq={playbackToggleSeq}
+					seekSeq={seekRequestSeq}
+					seekToSeconds={seekRequestPositionSeconds}
 				>
 					{#snippet controls()}
 						<button
