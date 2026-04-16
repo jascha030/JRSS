@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { FeedItem } from '$lib/types/rss';
-	import { formatDate, formatDuration } from '$lib/utils/format';
+	import { formatDate } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
-	import { Play } from '@lucide/svelte';
+	import { Ellipsis } from '@lucide/svelte';
 	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -56,6 +56,15 @@
 
 			{#if isPodcast}
 				<div class="flex flex-wrap items-center gap-2">
+					<DynamicPlayButton {item} size="sm" />
+
+					<button
+						class="btn-secondary btn-sm"
+						type="button"
+						onclick={(e) => void openAudioContextMenu(e, item)}
+					>
+						<Ellipsis class="size-4" />
+					</button>
 				</div>
 			{/if}
 		</div>
