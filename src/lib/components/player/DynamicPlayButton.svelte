@@ -24,11 +24,11 @@
 	const total = $derived(item.mediaEnclosure?.durationSeconds ?? 0);
 
 	const progress = $derived(
-		hasProgress
-			? compact
-				? formatDuration(total - item.playbackPositionSeconds)
-				: `${formatDuration(item.playbackPositionSeconds)} / ${formatDuration(total)}`
-			: undefined
+		compact
+			? formatDuration(total - item.playbackPositionSeconds)
+			: hasProgress
+				? `${formatDuration(item.playbackPositionSeconds)} / ${formatDuration(total)}`
+				: formatDuration(total)
 	);
 
 	function handleClick() {

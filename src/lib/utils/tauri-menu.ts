@@ -2,12 +2,13 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 import {
+	deleteFeed,
 	enqueueAudioItem,
 	isItemCurrentAudio,
 	playAudioItemNext,
 	stopPlayback
 } from '$lib/stores/app.svelte';
-import type { FeedListItem } from '$lib/types/rss';
+import type { Feed, FeedListItem } from '$lib/types/rss';
 
 /**
  * Native context menu for audio items with queue and clipboard actions.
@@ -56,6 +57,27 @@ export async function openAudioContextMenu(event: MouseEvent, item: FeedListItem
 			})
 		);
 	}
+
+	const menu = await Menu.new({ items });
+	await menu.popup();
+}
+
+export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promise<void> {
+	event.preventDefault();
+
+	const items: Array<MenuItem | PredefinedMenuItem> = [
+		await MenuItem.new({
+			id: 'copy-url',
+			text: 'Copy URL',
+			action: () => void writeText(feed.url)
+		}),
+		await PredefinedMenuItem.new({ item: 'Separator' }),
+		await MenuItem.new({
+			id: 'remove-feed',
+			text: 'Remove feed',
+			action: () => void deleteFeed(feed.id)
+		})
+	];
 
 	const menu = await Menu.new({ items });
 	await menu.popup();

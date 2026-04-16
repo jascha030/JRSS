@@ -3,8 +3,8 @@
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
-	import { formatDate, formatDuration } from '$lib/utils/format';
-	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
+	import { formatDate } from '$lib/utils/format';
+	import { openAudioContextMenu, openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -180,18 +180,20 @@
 	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">
 		<div class="flex flex-col flex-wrap gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
-				<h2 class="mt-2 text-2xl font-semibold tracking-tight text-fg">
+				<h2
+					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
+					class:select-none={selectedFeed}
+					oncontextmenu={selectedFeed
+						? (event) => void openFeedContextMenu(event, selectedFeed)
+						: undefined}
+				>
 					{pageHeading}
 				</h2>
 
-				{#if selectedFeed}
-					<p class="mt-2 text-sm text-fg-muted">{selectedFeed.url}</p>
-
-					{#if selectedFeed.lastFetchedAt}
-						<p class="mt-1 text-xs text-fg-subtle">
-							Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
-						</p>
-					{/if}
+				{#if selectedFeed && selectedFeed.lastFetchedAt}
+					<p class="mt-1 text-xs text-fg-subtle">
+						Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
+					</p>
 				{/if}
 			</div>
 
