@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FeedListItem, PlaybackState } from '$lib/types/rss';
+	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import Rewind from '@lucide/svelte/icons/rewind';
@@ -11,7 +11,7 @@
 	import Volume2 from '@lucide/svelte/icons/volume-2';
 
 	type Props = {
-		item: FeedListItem | null;
+		item: MediaListItem | null;
 		imageUrl?: string;
 		playbackState: PlaybackState | null;
 		onPlayingChange: (isPlaying: boolean) => void;
@@ -81,7 +81,7 @@
 			return Math.floor(audioElement.duration);
 		}
 
-		return item.mediaEnclosure?.durationSeconds ?? 0;
+		return item.mediaEnclosure.durationSeconds ?? 0;
 	}
 
 	function syncPlaybackPosition() {
@@ -256,7 +256,7 @@
 	});
 </script>
 
-{#if item && playbackState && item.mediaEnclosure}
+{#if item && playbackState}
 	<div
 		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
 	>

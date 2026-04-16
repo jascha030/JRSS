@@ -5,14 +5,14 @@
 		requestTogglePlayback,
 		startPlaybackFromContext
 	} from '$lib/stores/app.svelte';
-	import type { FeedItem } from '$lib/types/rss';
+	import type { MediaItem } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
 	import { Pause, Play } from '@lucide/svelte';
 
 	type ButtonSize = 'sm' | 'lg';
 
 	type Props = {
-		item: FeedItem;
+		item: MediaItem;
 		size?: ButtonSize;
 		compact?: boolean;
 	};
@@ -21,7 +21,7 @@
 
 	const isSmall = $derived(size === 'sm');
 	const hasProgress = $derived(item.playbackPositionSeconds > 0);
-	const total = $derived(item.mediaEnclosure?.durationSeconds ?? 0);
+	const total = $derived(item.mediaEnclosure.durationSeconds ?? 0);
 
 	const progress = $derived(
 		compact

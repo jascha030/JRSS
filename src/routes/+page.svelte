@@ -40,6 +40,7 @@
 		updatePlaybackPosition,
 		getPlaybackToggleSeq
 	} from '$lib/stores/app.svelte';
+	import { isMediaItem } from '$lib/types/rss';
 	import { onMount } from 'svelte';
 
 	let newFeedUrl = $state('');
@@ -87,7 +88,7 @@
 
 	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
-	const canUseReaderMode = $derived(selectedItem ? !selectedItem.mediaEnclosure : false);
+	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
 	$effect(() => {
 		if (selectedItemId !== lastSelectedItemId) {

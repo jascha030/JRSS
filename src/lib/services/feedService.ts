@@ -6,8 +6,11 @@ import type {
 	ItemPage,
 	ItemPageQuery,
 	ItemSortOrder,
-	PlaybackSession
+	PlaybackSession,
+	RawFeedItem,
+	RawFeedListItem
 } from '$lib/types/rss';
+import { mapRawFeedItem, mapRawFeedListItem } from '$lib/types/rss';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 
 function normalizeFeedInput(url: string): string {
@@ -48,10 +51,10 @@ export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<Fee
 		};
 	}
 
-	return measurePerfAsync(
+	const raw = await measurePerfAsync(
 		'tauri.query_items_page',
 		() =>
-			invokeCommand<ItemPage<FeedListItem>>('query_items_page', {
+			invokeCommand<ItemPage<RawFeedListItem>>('query_items_page', {
 				query: {
 					feedId: query.feedId ?? null,
 					section: query.section,
@@ -70,10 +73,13 @@ export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<Fee
 			sortOrder: query.sortOrder ?? 'newest_first'
 		}
 	);
+
+	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
 }
 
 export async function getItemDetails(itemId: string): Promise<FeedItem> {
-	return invokeCommand<FeedItem>('get_item_details', { itemId });
+	const raw = await invokeCommand<RawFeedItem>('get_item_details', { itemId });
+	return mapRawFeedItem(raw);
 }
 
 export async function markRead(itemId: string, read: boolean): Promise<void> {
@@ -88,7 +94,8 @@ export async function savePlayback(itemId: string, positionSeconds: number): Pro
 }
 
 export async function loadReaderContent(itemId: string): Promise<FeedItem> {
-	return invokeCommand<FeedItem>('load_reader_content', { itemId });
+	const raw = await invokeCommand<RawFeedItem>('load_reader_content', { itemId });
+	return mapRawFeedItem(raw);
 }
 
 export async function savePlaybackSession(session: PlaybackSession): Promise<void> {
@@ -112,7 +119,8 @@ export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> 
 		return [];
 	}
 
-	return invokeCommand<FeedListItem[]>('get_items_by_ids', { itemIds });
+	const raw = await invokeCommand<RawFeedListItem[]>('get_items_by_ids', { itemIds });
+	return raw.map(mapRawFeedListItem);
 }
 
 export async function setFeedSortOrder(

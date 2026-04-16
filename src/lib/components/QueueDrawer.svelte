@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { Feed, FeedListItem } from '$lib/types/rss';
+	import type { Feed, MediaListItem } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
 
 	type Props = {
 		open: boolean;
-		queueItems: FeedListItem[];
+		queueItems: MediaListItem[];
 		manualQueueLength: number;
 		feeds: Feed[];
 		onRemoveItem: (itemId: string) => void;
@@ -36,12 +36,12 @@
 		return map;
 	});
 
-	function feedTitleForItem(item: FeedListItem): string | null {
+	function feedTitleForItem(item: MediaListItem): string | null {
 		return feedTitleById[item.feedId] ?? null;
 	}
 
-	function durationLabel(item: FeedListItem): string | null {
-		const duration = item.mediaEnclosure?.durationSeconds;
+	function durationLabel(item: MediaListItem): string | null {
+		const duration = item.mediaEnclosure.durationSeconds;
 		if (!duration || duration <= 0) {
 			return null;
 		}

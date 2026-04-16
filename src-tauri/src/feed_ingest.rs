@@ -282,9 +282,9 @@ fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
         site_url,
         image_url,
         kind: if is_podcast {
-            "podcast".to_string()
+            "media".to_string()
         } else {
-            "rss".to_string()
+            "article".to_string()
         },
         items,
     }
@@ -403,9 +403,9 @@ fn parse_atom(feed: AtomFeed, feed_url: &str) -> ParsedFeed {
         site_url,
         image_url,
         kind: if has_audio {
-            "podcast".to_string()
+            "media".to_string()
         } else {
-            "rss".to_string()
+            "article".to_string()
         },
         items,
     }

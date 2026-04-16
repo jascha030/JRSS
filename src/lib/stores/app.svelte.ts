@@ -22,12 +22,14 @@ import type {
 	ItemListSection,
 	ItemPageQuery,
 	ItemSortOrder,
+	MediaListItem,
 	PlaybackSession,
 	PlaybackState
 } from '$lib/types/rss';
+import { isMediaItem } from '$lib/types/rss';
 import { logPerf, measurePerfAsync } from '$lib/utils/perfDebug';
 
-export type SidebarSection = 'all' | 'unread' | 'podcasts' | 'settings' | null;
+export type SidebarSection = 'all' | 'unread' | 'media' | 'settings' | null;
 
 const PAGE_SIZE = 100;
 const PAGE_PREFETCH = 1;
@@ -229,23 +231,16 @@ function invalidateAllQueries(): void {
 }
 
 function toFeedListItem(item: FeedItem): FeedListItem {
-	return {
-		id: item.id,
-		feedId: item.feedId,
-		title: item.title,
-		url: item.url,
-		summary: item.summary,
-		previewText: item.previewText,
-		readerStatus: item.readerStatus,
-		readerTitle: item.readerTitle,
-		readerByline: item.readerByline,
-		readerExcerpt: item.readerExcerpt,
-		readerFetchedAt: item.readerFetchedAt,
-		publishedAt: item.publishedAt,
-		read: item.read,
-		playbackPositionSeconds: item.playbackPositionSeconds,
-		mediaEnclosure: item.mediaEnclosure
-	};
+	const {
+		summaryText: _1,
+		summaryHtml: _2,
+		contentText: _3,
+		contentHtml: _4,
+		readerContentHtml: _5,
+		readerContentText: _6,
+		...listItem
+	} = item;
+	return listItem;
 }
 
 function storeItemDetails(item: FeedItem): void {
@@ -260,23 +255,21 @@ function storeItemDetails(item: FeedItem): void {
 	};
 }
 
-function patchItemSummary(itemId: string, patch: Partial<FeedListItem>): void {
+/** Patch shared base fields on an item. Does not alter the discriminant or mediaEnclosure. */
+function patchItemSummary(
+	itemId: string,
+	patch: Partial<Pick<FeedListItem, 'read' | 'playbackPositionSeconds'>>
+): void {
 	const existingItem = app.itemSummariesById[itemId];
 
 	if (existingItem) {
-		app.itemSummariesById[itemId] = {
-			...existingItem,
-			...patch
-		};
+		app.itemSummariesById[itemId] = { ...existingItem, ...patch };
 	}
 
 	const existingAudioItem = app.audioItemsById[itemId];
 
 	if (existingAudioItem) {
-		app.audioItemsById[itemId] = {
-			...existingAudioItem,
-			...patch
-		};
+		app.audioItemsById[itemId] = { ...existingAudioItem, ...patch };
 	}
 }
 
@@ -512,7 +505,7 @@ export function isAudioPlaying(): boolean {
 	return app.currentPlaybackState?.isPlaying ?? false;
 }
 
-export function getCurrentAudioItem(): FeedListItem | null {
+export function getCurrentAudioItem(): MediaListItem | null {
 	const playbackState = app.currentPlaybackState;
 
 	if (!playbackState) {
@@ -522,7 +515,7 @@ export function getCurrentAudioItem(): FeedListItem | null {
 	const currentItem =
 		app.audioItemsById[playbackState.itemId] ?? app.itemSummariesById[playbackState.itemId];
 
-	return currentItem?.mediaEnclosure ? currentItem : null;
+	return currentItem && isMediaItem(currentItem) ? currentItem : null;
 }
 
 export function getCurrentAudioItemFeed(): Feed | null {
@@ -667,7 +660,7 @@ async function restoreSession(): Promise<void> {
 	// Resolve current item
 	const currentItem = fetchedById.get(session.currentItemId);
 
-	if (!currentItem?.mediaEnclosure) {
+	if (!currentItem || !isMediaItem(currentItem)) {
 		// Current item gone — try to restore just the queues
 		app.manualQueue = filterResolvableAudioIds(session.manualQueue, fetchedById);
 		app.autoQueue = filterResolvableAudioIds(session.autoQueue, fetchedById);
@@ -719,7 +712,7 @@ function filterResolvableAudioIds(ids: string[], fetchedById: Map<string, FeedLi
 	for (const id of ids) {
 		const item = fetchedById.get(id);
 
-		if (item?.mediaEnclosure) {
+		if (item && isMediaItem(item)) {
 			app.audioItemsById[id] = item;
 			app.itemSummariesById[id] = item;
 			result.push(id);
@@ -924,11 +917,7 @@ export async function loadReaderView(itemId: string): Promise<FeedItem> {
 	}
 }
 
-export function playAudioItem(item: FeedListItem, { autoPlay = true } = {}): void {
-	if (!item.mediaEnclosure) {
-		return;
-	}
-
+export function playAudioItem(item: MediaListItem, { autoPlay = true } = {}): void {
 	app.audioItemsById[item.id] = item;
 	app.currentPlaybackState = {
 		itemId: item.id,
@@ -1019,17 +1008,17 @@ export async function persistPlaybackForItem(
 // Playback queue — dual-segment: manualQueue (user-explicit) + autoQueue (context continuation)
 // ---------------------------------------------------------------------------
 
-/** Resolve an item ID to a FeedListItem with a mediaEnclosure, or null. */
-function resolveAudioItem(itemId: string): FeedListItem | null {
+/** Resolve an item ID to a MediaListItem, or null. */
+function resolveAudioItem(itemId: string): MediaListItem | null {
 	const item = app.audioItemsById[itemId] ?? app.itemSummariesById[itemId];
-	return item?.mediaEnclosure ? item : null;
+	return item && isMediaItem(item) ? item : null;
 }
 
 /**
  * Shift the first resolvable audio item off a queue array, mutating it in place.
  * Returns the resolved item, or null if the queue is exhausted.
  */
-function shiftNextAudioItem(queue: string[]): FeedListItem | null {
+function shiftNextAudioItem(queue: string[]): MediaListItem | null {
 	while (queue.length > 0) {
 		const nextId = queue[0];
 		queue.splice(0, 1);
@@ -1057,8 +1046,8 @@ export function getManualQueueLength(): number {
  * Manual entries come first, then auto-continuation entries.
  * Missing or non-audio items are excluded.
  */
-export function getUpcomingQueue(): FeedListItem[] {
-	const items: FeedListItem[] = [];
+export function getUpcomingQueue(): MediaListItem[] {
+	const items: MediaListItem[] = [];
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral dedup set, not reactive state
 	const seen = new Set<string>();
 
@@ -1094,7 +1083,7 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 	const ids: string[] = [];
 
 	for (const item of items) {
-		if (!item.mediaEnclosure || seen.has(item.id)) {
+		if (!isMediaItem(item) || seen.has(item.id)) {
 			continue;
 		}
 
@@ -1108,11 +1097,7 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 }
 
 /** Append an item to the end of the manual queue. No-op if already queued or currently playing. */
-export function enqueueAudioItem(item: FeedListItem): void {
-	if (!item.mediaEnclosure) {
-		return;
-	}
-
+export function enqueueAudioItem(item: MediaListItem): void {
 	if (app.currentPlaybackState?.itemId === item.id) {
 		return;
 	}
@@ -1130,11 +1115,7 @@ export function enqueueAudioItem(item: FeedListItem): void {
 }
 
 /** Insert an item as the next item to play (index 0 of the manual queue). Deduplicates. */
-export function playAudioItemNext(item: FeedListItem): void {
-	if (!item.mediaEnclosure) {
-		return;
-	}
-
+export function playAudioItemNext(item: MediaListItem): void {
 	if (app.currentPlaybackState?.itemId === item.id) {
 		return;
 	}
@@ -1288,7 +1269,7 @@ function deriveAutoContinuation(playingItemId: string): string[] {
 
 		const candidate = app.itemSummariesById[candidateId];
 
-		if (candidate?.mediaEnclosure) {
+		if (candidate && isMediaItem(candidate)) {
 			app.audioItemsById[candidateId] = candidate;
 			continuation.push(candidateId);
 		}
@@ -1313,11 +1294,7 @@ function deriveAutoContinuation(playingItemId: string): string[] {
  * 2. Rebuilds the autoQueue from the active query context
  * 3. Preserves manual queue entries untouched
  */
-export function startPlaybackFromContext(item: FeedListItem): void {
-	if (!item.mediaEnclosure) {
-		return;
-	}
-
+export function startPlaybackFromContext(item: MediaListItem): void {
 	// Remove from either queue if present (it's now playing, not queued)
 	app.manualQueue = app.manualQueue.filter((id) => id !== item.id);
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
