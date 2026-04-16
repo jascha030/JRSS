@@ -1,6 +1,7 @@
-export type FeedKind = 'rss' | 'podcast';
+export type FeedKind = 'article' | 'media';
+export type ItemType = 'article' | 'media';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
-export type ItemListSection = 'all' | 'unread' | 'podcasts';
+export type ItemListSection = 'all' | 'unread' | 'media';
 export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
 export interface Feed {
@@ -23,7 +24,11 @@ export interface MediaEnclosure {
 	durationSeconds?: number;
 }
 
-export interface FeedListItem {
+// ---------------------------------------------------------------------------
+// Feed item base — shared fields across all item types
+// ---------------------------------------------------------------------------
+
+interface FeedListItemBase {
 	id: string;
 	feedId: string;
 	title: string;
@@ -38,8 +43,24 @@ export interface FeedListItem {
 	publishedAt: string;
 	read: boolean;
 	playbackPositionSeconds: number;
-	mediaEnclosure?: MediaEnclosure;
 }
+
+// ---------------------------------------------------------------------------
+// Discriminated item unions — itemType narrows the shape
+// ---------------------------------------------------------------------------
+
+export interface ArticleListItem extends FeedListItemBase {
+	readonly itemType: 'article';
+}
+
+export interface MediaListItem extends FeedListItemBase {
+	readonly itemType: 'media';
+	/** Always present on media items. */
+	mediaEnclosure: MediaEnclosure;
+}
+
+/** Discriminated union of list-level items. Narrow via `item.itemType`. */
+export type FeedListItem = ArticleListItem | MediaListItem;
 
 export interface FeedItemDetails {
 	id: string;
@@ -51,7 +72,52 @@ export interface FeedItemDetails {
 	readerContentText?: string;
 }
 
-export type FeedItem = FeedListItem & FeedItemDetails;
+export type ArticleItem = ArticleListItem & FeedItemDetails;
+export type MediaItem = MediaListItem & FeedItemDetails;
+
+/** Discriminated union of full items. Narrow via `item.itemType`. */
+export type FeedItem = ArticleItem | MediaItem;
+
+/** Type guard: narrows a media item from the discriminated union. */
+export function isMediaItem<T extends FeedListItem>(item: T): item is T & MediaListItem {
+	return item.itemType === 'media';
+}
+
+/** Type guard: narrows a `Feed | FeedItem` union to `Feed`. */
+export function isFeed(item: Feed | FeedItem): item is Feed {
+	return !('feedId' in item);
+}
+
+// ---------------------------------------------------------------------------
+// Raw IPC shapes — flat types matching the Rust serialization format.
+// Mapped into discriminated unions at the service boundary.
+// ---------------------------------------------------------------------------
+
+export interface RawFeedListItem extends FeedListItemBase {
+	mediaEnclosure?: MediaEnclosure;
+}
+
+export type RawFeedItem = RawFeedListItem & FeedItemDetails;
+
+/** Map a flat Rust-serialized item into the discriminated union. */
+export function mapRawFeedListItem(raw: RawFeedListItem): FeedListItem {
+	if (raw.mediaEnclosure) {
+		return { ...raw, itemType: 'media', mediaEnclosure: raw.mediaEnclosure };
+	}
+	return { ...raw, itemType: 'article' };
+}
+
+/** Map a flat Rust-serialized full item into the discriminated union. */
+export function mapRawFeedItem(raw: RawFeedItem): FeedItem {
+	if (raw.mediaEnclosure) {
+		return { ...raw, itemType: 'media', mediaEnclosure: raw.mediaEnclosure };
+	}
+	return { ...raw, itemType: 'article' };
+}
+
+// ---------------------------------------------------------------------------
+// Other shared types
+// ---------------------------------------------------------------------------
 
 export interface PlaybackState {
 	itemId: string;

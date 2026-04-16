@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum ItemListSection {
     All,
     Unread,
-    Podcasts,
+    Media,
 }
 
 impl ItemListSection {
@@ -13,7 +13,7 @@ impl ItemListSection {
         match self {
             Self::All => "all",
             Self::Unread => "unread",
-            Self::Podcasts => "podcasts",
+            Self::Media => "media",
         }
     }
 }

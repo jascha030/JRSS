@@ -3,6 +3,7 @@
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
+	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
 	import { openAudioContextMenu, openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
@@ -56,7 +57,7 @@
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
 		all: 'All feeds',
 		unread: 'Unread',
-		podcasts: 'Podcasts',
+		media: 'Media',
 		settings: 'Settings'
 	};
 
@@ -370,7 +371,7 @@
 										: 'bg-surface text-fg hover:bg-surface-hover'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
-								oncontextmenu={item.mediaEnclosure
+								oncontextmenu={isMediaItem(item)
 									? (event) => void openAudioContextMenu(event, item)
 									: undefined}
 							>
@@ -415,7 +416,7 @@
 									class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
 								>
 									<div class="flex flex-wrap items-center gap-2">
-										{#if item.mediaEnclosure}
+										{#if isMediaItem(item)}
 											<span
 												class="rounded-full bg-surface-active px-2.5 py-1 text-xs font-medium text-fg-muted"
 											>
@@ -425,11 +426,11 @@
 									</div>
 
 									<div class="pointer-events-auto flex flex-wrap gap-2">
-										{#if item.mediaEnclosure}
+										{#if isMediaItem(item)}
 											<DynamicPlayButton {item} compact={true} size="sm" />
 										{/if}
 
-										{#if !item.mediaEnclosure}
+										{#if !isMediaItem(item)}
 											<button
 												class="btn-secondary rounded-xl px-3 py-2"
 												type="button"

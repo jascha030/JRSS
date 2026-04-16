@@ -8,15 +8,15 @@ import {
 	playAudioItemNext,
 	stopPlayback
 } from '$lib/stores/app.svelte';
-import type { Feed, FeedListItem } from '$lib/types/rss';
+import type { Feed, MediaListItem } from '$lib/types/rss';
 
 /**
  * Native context menu for audio items with queue and clipboard actions.
  */
-export async function openAudioContextMenu(event: MouseEvent, item: FeedListItem): Promise<void> {
+export async function openAudioContextMenu(event: MouseEvent, item: MediaListItem): Promise<void> {
 	event.preventDefault();
 
-	const enclosureUrl = item.mediaEnclosure?.url;
+	const enclosureUrl = item.mediaEnclosure.url;
 
 	const items: Array<MenuItem | PredefinedMenuItem> = [];
 

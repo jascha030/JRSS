@@ -34,7 +34,7 @@ const ITEM_LIST_SELECT_QUERY: &str =
 
 const ITEM_LIST_FILTER_QUERY: &str = " WHERE (?1 IS NULL OR i.feed_id = ?1)
         AND (?2 <> 'unread' OR i.read = 0)
-        AND (?2 <> 'podcasts' OR i.enclosure_url IS NOT NULL)";
+        AND (?2 <> 'media' OR i.enclosure_url IS NOT NULL)";
 
 const ITEM_LIST_COUNT_QUERY: &str = "SELECT COUNT(*) FROM items i";
 
@@ -100,7 +100,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 	url TEXT NOT NULL UNIQUE,
 			 	title TEXT NOT NULL,
 			 	description TEXT NOT NULL,
-			 	kind TEXT NOT NULL CHECK(kind IN ('rss', 'podcast')),
+			 	kind TEXT NOT NULL CHECK(kind IN ('article', 'media')),
 			 	site_url TEXT,
 			 	created_at TEXT NOT NULL,
 			 	last_fetched_at TEXT
@@ -163,6 +163,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     ensure_feed_sort_order_column(&connection)?;
     ensure_feed_image_url_column(&connection)?;
     backfill_preview_text(&connection)?;
+    migrate_feed_kind_values(&connection)?;
 
     Ok(())
 }
@@ -343,6 +344,57 @@ fn backfill_preview_text(connection: &Connection) -> AppResult<()> {
     connection
         .execute(PREVIEW_TEXT_BACKFILL_QUERY, [])
         .map_err(|error| format!("Failed to backfill items.preview_text values: {error}"))?;
+
+    Ok(())
+}
+
+/// Migrate legacy feed kind values: 'rss' → 'article', 'podcast' → 'media'.
+/// Rebuilds the feeds table to update the CHECK constraint.
+/// Idempotent — no-op when the constraint already uses the new values.
+fn migrate_feed_kind_values(connection: &Connection) -> AppResult<()> {
+    // Check if migration is needed by inspecting the table's CREATE statement
+    let table_sql: String = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'feeds'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("Failed to read feeds table schema: {error}"))?;
+
+    if !table_sql.contains("'rss'") && !table_sql.contains("'podcast'") {
+        return Ok(());
+    }
+
+    connection
+        .execute_batch(
+            "PRAGMA foreign_keys = OFF;
+
+             ALTER TABLE feeds RENAME TO feeds_old;
+
+             CREATE TABLE feeds (
+                 id TEXT PRIMARY KEY,
+                 url TEXT NOT NULL UNIQUE,
+                 title TEXT NOT NULL,
+                 description TEXT NOT NULL,
+                 kind TEXT NOT NULL CHECK(kind IN ('article', 'media')),
+                 site_url TEXT,
+                 image_url TEXT,
+                 sort_order TEXT,
+                 created_at TEXT NOT NULL,
+                 last_fetched_at TEXT
+             );
+
+             INSERT INTO feeds (id, url, title, description, kind, site_url, image_url, sort_order, created_at, last_fetched_at)
+             SELECT id, url, title, description,
+                    CASE kind WHEN 'rss' THEN 'article' WHEN 'podcast' THEN 'media' ELSE kind END,
+                    site_url, image_url, sort_order, created_at, last_fetched_at
+             FROM feeds_old;
+
+             DROP TABLE feeds_old;
+
+             PRAGMA foreign_keys = ON;",
+        )
+        .map_err(|error| format!("Failed to migrate feed kind values: {error}"))?;
 
     Ok(())
 }
