@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 
 	import {
-		enqueueAudioItem,
 		playAudioItemNext,
 		startPlaybackFromContext
 	} from '$lib/stores/app.svelte';
