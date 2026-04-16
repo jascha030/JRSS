@@ -368,6 +368,7 @@ fn migrate_feed_kind_values(connection: &Connection) -> AppResult<()> {
     connection
         .execute_batch(
             "PRAGMA foreign_keys = OFF;
+             PRAGMA legacy_alter_table = ON;
 
              ALTER TABLE feeds RENAME TO feeds_old;
 
@@ -392,6 +393,7 @@ fn migrate_feed_kind_values(connection: &Connection) -> AppResult<()> {
 
              DROP TABLE feeds_old;
 
+             PRAGMA legacy_alter_table = OFF;
              PRAGMA foreign_keys = ON;",
         )
         .map_err(|error| format!("Failed to migrate feed kind values: {error}"))?;
