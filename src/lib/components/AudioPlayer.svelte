@@ -27,6 +27,12 @@
 		 * to toggle play/pause on the current audio element.
 		 */
 		toggleSeq?: number;
+		/**
+		 * Monotonically increasing counter. Each change signals the player
+		 * to seek to `seekPosition` seconds.
+		 */
+		seekSeq?: number;
+		seekToSeconds?: number;
 	};
 
 	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
@@ -41,7 +47,9 @@
 		onTransitionPersist,
 		onEnded,
 		controls,
-		toggleSeq
+		toggleSeq,
+		seekSeq,
+		seekToSeconds
 	}: Props = $props();
 
 	let audioElement: HTMLAudioElement | null = $state(null);
@@ -189,6 +197,19 @@
 		if (seq !== lastToggleSeq) {
 			lastToggleSeq = seq;
 			togglePlayback();
+		}
+	});
+
+	/* React to external seek requests (e.g. "Play from start" context menu). */
+	let lastSeekSeq = $state(0);
+
+	$effect(() => {
+		const seq = seekSeq ?? 0;
+		if (seq !== lastSeekSeq) {
+			lastSeekSeq = seq;
+			if (audioElement && seekToSeconds !== undefined) {
+				audioElement.currentTime = seekToSeconds;
+			}
 		}
 	});
 
