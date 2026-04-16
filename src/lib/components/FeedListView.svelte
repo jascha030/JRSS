@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import {
-		playAudioItemNext,
-		startPlaybackFromContext
-	} from '$lib/stores/app.svelte';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
 	import { formatDate, formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
+	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
 
 	type Props = {
 		feeds: Feed[];
@@ -423,70 +420,51 @@
 												Podcast
 											</span>
 										{/if}
-
-										{#if item.playbackPositionSeconds > 0}
-											<span
-												class="rounded-full bg-surface-active px-2.5 py-1 text-xs font-medium text-fg-muted"
-											>
-												Resumes at {formatDuration(item.playbackPositionSeconds)}
-											</span>
-										{/if}
 									</div>
 
 									<div class="pointer-events-auto flex flex-wrap gap-2">
 										{#if item.mediaEnclosure}
-											<button
-												class="btn-primary rounded-xl px-3 py-2"
-												type="button"
-												onclick={() => startPlaybackFromContext(item)}
-											>
-												{item.playbackPositionSeconds > 0 ? 'Resume' : 'Listen'}
-											</button>
-											<button
-												class="btn-secondary rounded-xl px-3 py-2 text-xs"
-												type="button"
-												onclick={() => playAudioItemNext(item)}
-											>
-												Play next
-											</button>
+											<DynamicPlayButton {item} compact={true} size="sm" />
 										{/if}
 
-										<button
-											class="btn-secondary rounded-xl px-3 py-2"
-											type="button"
-											onclick={() => {
-												void onMarkRead(item.id, !item.read);
-											}}
-										>
-											{#if item.read}
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="0 0 16 16"
-													fill="currentColor"
-													class="size-4"
-												>
-													<path
-														fill-rule="evenodd"
-														d="M1.756 4.568A1.5 1.5 0 0 0 1 5.871V12.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5.87a1.5 1.5 0 0 0-.756-1.302l-5.5-3.143a1.5 1.5 0 0 0-1.488 0l-5.5 3.143Zm1.82 2.963a.75.75 0 0 0-.653 1.35l4.1 1.98a2.25 2.25 0 0 0 1.955 0l4.1-1.98a.75.75 0 1 0-.653-1.35L8.326 9.51a.75.75 0 0 1-.652 0L3.575 7.53Z"
-														clip-rule="evenodd"
-													/>
-												</svg>
-											{:else}
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="0 0 16 16"
-													fill="currentColor"
-													class="size-4"
-												>
-													<path
-														d="M2.5 3A1.5 1.5 0 0 0 1 4.5v.793c.026.009.051.02.076.032L7.674 8.51c.206.1.446.1.652 0l6.598-3.185A.755.755 0 0 1 15 5.293V4.5A1.5 1.5 0 0 0 13.5 3h-11Z"
-													/>
-													<path
-														d="M15 6.954 8.978 9.86a2.25 2.25 0 0 1-1.956 0L1 6.954V11.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V6.954Z"
-													/>
-												</svg>
-											{/if}
-										</button>
+										{#if !item.mediaEnclosure}
+											<button
+												class="btn-secondary rounded-xl px-3 py-2"
+												type="button"
+												onclick={() => {
+													void onMarkRead(item.id, !item.read);
+												}}
+											>
+												{#if item.read}
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 16 16"
+														fill="currentColor"
+														class="size-4"
+													>
+														<path
+															fill-rule="evenodd"
+															d="M1.756 4.568A1.5 1.5 0 0 0 1 5.871V12.5A1.5 1.5 0 0 0 2.5 14h11a1.5 1.5 0 0 0 1.5-1.5V5.87a1.5 1.5 0 0 0-.756-1.302l-5.5-3.143a1.5 1.5 0 0 0-1.488 0l-5.5 3.143Zm1.82 2.963a.75.75 0 0 0-.653 1.35l4.1 1.98a2.25 2.25 0 0 0 1.955 0l4.1-1.98a.75.75 0 1 0-.653-1.35L8.326 9.51a.75.75 0 0 1-.652 0L3.575 7.53Z"
+															clip-rule="evenodd"
+														/>
+													</svg>
+												{:else}
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 16 16"
+														fill="currentColor"
+														class="size-4"
+													>
+														<path
+															d="M2.5 3A1.5 1.5 0 0 0 1 4.5v.793c.026.009.051.02.076.032L7.674 8.51c.206.1.446.1.652 0l6.598-3.185A.755.755 0 0 1 15 5.293V4.5A1.5 1.5 0 0 0 13.5 3h-11Z"
+														/>
+														<path
+															d="M15 6.954 8.978 9.86a2.25 2.25 0 0 1-1.956 0L1 6.954V11.5A1.5 1.5 0 0 0 2.5 13h11a1.5 1.5 0 0 0 1.5-1.5V6.954Z"
+														/>
+													</svg>
+												{/if}
+											</button>
+										{/if}
 									</div>
 								</div>
 							</article>
