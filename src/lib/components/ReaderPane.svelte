@@ -1,25 +1,19 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
-	import {
-		startPlaybackFromContext
-	} from '$lib/stores/app.svelte';
-	import type { Feed, FeedItem, PlaybackState } from '$lib/types/rss';
+	import type { Feed, FeedItem } from '$lib/types/rss';
 
 	type ReaderPaneMode = 'feed' | 'reader';
 
 	type Props = {
 		selectedItem: FeedItem | null;
 		selectedItemFeed: Feed | null;
-		currentAudioItem: FeedItem | null;
-		currentPlaybackState: PlaybackState | null;
 		readerPaneMode: ReaderPaneMode;
 		readerNotice: string;
 		isSelectedItemReaderLoading: boolean;
 		hasSelectedItemReaderContent: boolean;
 		isReaderPaneActive: boolean;
 		canUseReaderMode: boolean;
-		onStopPlayback: () => void;
 		onLoadReaderView: (itemId: string) => Promise<void>;
 		onReaderPaneModeChange: (mode: ReaderPaneMode) => void;
 	};
@@ -27,15 +21,12 @@
 	let {
 		selectedItem,
 		selectedItemFeed,
-		currentAudioItem,
-		currentPlaybackState,
 		readerPaneMode,
 		readerNotice,
 		isSelectedItemReaderLoading,
 		hasSelectedItemReaderContent,
 		isReaderPaneActive,
 		canUseReaderMode,
-		onStopPlayback,
 		onLoadReaderView,
 		onReaderPaneModeChange
 	}: Props = $props();
@@ -54,26 +45,6 @@
 				class="mx-auto w-full max-w-xl min-w-lg 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl"
 			>
 				<div class="flex flex-wrap items-center gap-4">
-					{#if selectedItem.mediaEnclosure}
-						<button
-							class="btn-secondary rounded-2xl px-4 py-3"
-							type="button"
-							onclick={() => startPlaybackFromContext(selectedItem)}
-						>
-							{selectedItem.playbackPositionSeconds > 0 ? 'Resume playback' : 'Start playback'}
-						</button>
-
-						{#if currentPlaybackState && currentAudioItem?.id === selectedItem.id}
-							<button
-								class="btn-secondary rounded-2xl px-4 py-3"
-								type="button"
-								onclick={onStopPlayback}
-							>
-								Stop playback
-							</button>
-						{/if}
-					{/if}
-
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
 						<div class="inline-flex rounded-2xl border border-border-strong bg-surface p-1">
 							<button
