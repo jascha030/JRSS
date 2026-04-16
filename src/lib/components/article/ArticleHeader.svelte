@@ -59,7 +59,7 @@
 					<DynamicPlayButton {item} size="sm" />
 
 					<button
-						class="btn-secondary btn-sm"
+						class="btn-secondary btn-sm btn-round"
 						type="button"
 						onclick={(e) => void openAudioContextMenu(e, item)}
 					>
