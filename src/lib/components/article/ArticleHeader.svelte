@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { FeedItem } from '$lib/types/rss';
-	import { formatDate } from '$lib/utils/format';
+	import { formatDate, formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
+	import { Play } from '@lucide/svelte';
+	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
 	type Props = {
 		feedTitle?: string;
@@ -27,7 +29,7 @@
 			/>
 		{/if}
 
-		<div class="min-w-0 flex-1">
+		<div class="flex min-w-0 flex-1 flex-col gap-y-2">
 			{#if feedTitle}
 				<p class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
 					{feedTitle}
@@ -35,22 +37,28 @@
 			{/if}
 
 			<h1
-				class="mt-4 font-semibold tracking-tight text-fg"
+				class="font-semibold tracking-tight text-fg"
 				class:text-2xl={isPodcast}
 				class:text-4xl={!isPodcast}
-                class:select-none={isPodcast}
+				class:select-none={isPodcast}
 				oncontextmenu={isPodcast ? (e) => void openAudioContextMenu(e, item) : undefined}
 			>
 				{title}
 			</h1>
 
-			<div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-fg-muted">
+			<div class="flex flex-wrap items-center gap-3 text-sm text-fg-muted">
 				{#if readerByline}
 					<span>{readerByline}</span>
 				{/if}
 
 				<span>{formatDate(publishedAt)}</span>
 			</div>
+
+			{#if isPodcast}
+				<div>
+                <DynamicPlayButton {item} />
+				</div>
+			{/if}
 		</div>
 	</div>
 
