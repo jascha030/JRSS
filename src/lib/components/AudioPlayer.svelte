@@ -192,6 +192,25 @@
 		}
 	});
 
+	/* Global spacebar → play/pause when audio is loaded and no interactive element is focused. */
+	$effect(() => {
+		if (!item) return;
+
+		function handleKeydown(event: KeyboardEvent) {
+			if (event.code !== 'Space') return;
+
+			const tag = event.target instanceof Element ? event.target.tagName : '';
+			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+			if (event.target instanceof HTMLElement && event.target.isContentEditable) return;
+
+			event.preventDefault();
+			togglePlayback();
+		}
+
+		window.addEventListener('keydown', handleKeydown);
+		return () => window.removeEventListener('keydown', handleKeydown);
+	});
+
 	$effect(() => {
 		if (!item || !('mediaSession' in navigator)) {
 			return;
