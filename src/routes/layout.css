@@ -8,6 +8,18 @@
    ────────────────────────────────────────────── */
 
 @theme {
+	--color-ruby-50: oklch(0.957 0.009 286.35);
+	--color-ruby-100: oklch(0.915 0.023 285.99);
+	--color-ruby-200: oklch(0.821 0.057 285.09);
+	--color-ruby-300: oklch(0.738 0.098 283.76);
+	--color-ruby-400: oklch(0.648 0.145 281.56);
+	--color-ruby-500: oklch(0.567 0.207 277.52);
+	--color-ruby-600: oklch(0.483 0.208 275.34);
+	--color-ruby-700: oklch(0.405 0.181 274.7);
+	--color-ruby-800: oklch(0.312 0.123 276.53);
+	--color-ruby-900: oklch(0.229 0.078 278.32);
+	--color-ruby-950: oklch(0.18 0.05 280.15);
+
 	--breakpoint-3xl: 120rem; /* 1920px */
 	--breakpoint-4xl: 144rem; /* 2304px */
 
@@ -125,11 +137,11 @@
    ───────────────────────────────────────────── */
 
 .btn-primary {
-	@apply bg-interactive  text-interactive-text transition-colors hover:bg-interactive-hover;
+	@apply bg-interactive text-interactive-text transition-colors hover:bg-interactive-hover;
 }
 
 .btn {
-	@apply text-sm font-medium rounded-xl px-4 py-3;
+	@apply rounded-xl px-4 py-3 text-sm font-medium;
 }
 
 .btn-primary.btn-sm,
