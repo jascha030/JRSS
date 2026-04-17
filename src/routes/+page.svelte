@@ -5,10 +5,13 @@
 	import ReaderPane from '$lib/components/ReaderPane.svelte';
 	import SettingsView from '$lib/components/SettingsView.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import StationEditor from '$lib/components/StationEditor.svelte';
 	import {
 		app,
 		clearQueue,
 		createFeed,
+		createStation,
+		deleteExistingStation,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
@@ -20,6 +23,7 @@
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedItemFeed,
+		getSelectedStation,
 		getUpcomingQueue,
 		handlePlaybackEnded,
 		initializeApp,
@@ -30,14 +34,17 @@
 		moveQueuedItemUp,
 		persistPlaybackForItem,
 		persistPlaybackPosition,
+		playStation,
 		refreshExistingFeed,
 		removeQueuedItem,
 		selectFeed,
 		selectItem,
 		selectSection,
+		selectStation,
 		setFeedSearchTerm,
 		setItemSortOrder,
 		setPlaybackPlaying,
+		updateExistingStation,
 		updatePlaybackPosition,
 		getPlaybackToggleSeq,
 		getReaderRequestSeq,
@@ -55,21 +62,26 @@
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let lastSelectedItemId = $state<string | null>(null);
+	let isStationEditorOpen = $state(false);
+	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 
 	const {
 		feeds,
+		stations,
 		isCreatingFeed,
 		syncingFeedIds,
 		readerLoadingItemIds,
 		selectedFeedId,
 		selectedItemId,
 		selectedSection,
+		selectedStationId,
 		currentPlaybackState,
 		itemSummariesById,
 		feedSearchTerm
 	} = $derived.by(() => app);
 
 	const selectedFeed = $derived(getSelectedFeed());
+	const selectedStation = $derived(getSelectedStation());
 	const selectedItem = $derived(getSelectedItem());
 	const selectedItemFeed = $derived(getSelectedItemFeed());
 	const currentAudioItem = $derived(getCurrentAudioItem());
@@ -194,6 +206,37 @@
 	/>
 </svelte:head>
 
+<StationEditor
+	open={isStationEditorOpen}
+	station={editingStation}
+	{feeds}
+	onSave={async (input) => {
+		try {
+			if (editingStation) {
+				await updateExistingStation({
+					id: editingStation.id,
+					name: input.name,
+					feedIds: input.feedIds,
+					episodeFilter: input.episodeFilter,
+					sortOrder: input.sortOrder
+				});
+				toast.success('Station updated.');
+			} else {
+				await createStation(input);
+				toast.success('Station created.');
+			}
+			isStationEditorOpen = false;
+			editingStation = null;
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to save station.');
+		}
+	}}
+	onClose={() => {
+		isStationEditorOpen = false;
+		editingStation = null;
+	}}
+/>
+
 <div class="h-screen overflow-hidden bg-surface-shell">
 	<QueueDrawer
 		open={isQueueDrawerOpen}
@@ -214,11 +257,18 @@
 			<Sidebar
 				collapsed={isSidebarCollapsed}
 				{feeds}
+				{stations}
 				refreshingFeedIds={syncingFeedIds}
 				{selectedFeedId}
+				{selectedStationId}
 				{selectedSection}
 				onSelectFeed={selectFeed}
 				onSelectSection={selectSection}
+				onSelectStation={selectStation}
+				onCreateStation={() => {
+					editingStation = null;
+					isStationEditorOpen = true;
+				}}
 				onToggleCollapse={toggleSidebar}
 			/>
 		</div>
@@ -297,6 +347,7 @@
 									onVisibleRangeChange={ensureVisibleRangeLoaded}
 									onSelectItem={selectItem}
 									{selectedFeed}
+									{selectedStation}
 									{selectedItemId}
 									{selectedSection}
 									onMarkRead={markItemRead}
@@ -305,6 +356,28 @@
 									onSearchChange={setFeedSearchTerm}
 									{itemSortOrder}
 									onSortOrderChange={setItemSortOrder}
+									onPlayStation={() => {
+										if (selectedStationId) {
+											void playStation(selectedStationId).catch((error: unknown) => {
+												toast.error(
+													error instanceof Error ? error.message : 'Unable to play station.'
+												);
+											});
+										}
+									}}
+									onEditStation={() => {
+										editingStation = selectedStation ?? null;
+										isStationEditorOpen = true;
+									}}
+									onDeleteStation={() => {
+										if (selectedStationId) {
+											void deleteExistingStation(selectedStationId).catch((error: unknown) => {
+												toast.error(
+													error instanceof Error ? error.message : 'Unable to delete station.'
+												);
+											});
+										}
+									}}
 								/>
 							</div>
 
