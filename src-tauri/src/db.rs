@@ -1,6 +1,7 @@
 use crate::models::{
-    FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord,
-    MediaEnclosureRecord, ParsedFeed, PlaybackSessionRecord, ReaderContentRecord,
+    CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
+    ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackSessionRecord, ReaderContentRecord,
+    StationRecord, StationWithFeedsRecord, UpdateStationInput,
 };
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
@@ -164,6 +165,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     ensure_feed_image_url_column(&connection)?;
     backfill_preview_text(&connection)?;
     migrate_feed_kind_values(&connection)?;
+    ensure_stations_tables(&connection)?;
 
     Ok(())
 }
@@ -983,4 +985,340 @@ pub fn clear_playback_session(db_path: &Path) -> AppResult<()> {
         .map_err(|error| format!("Failed to clear playback session: {error}"))?;
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Stations — podcast playlist grouping
+// ---------------------------------------------------------------------------
+
+fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
+    connection
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS stations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                episode_filter TEXT NOT NULL DEFAULT 'all' CHECK(episode_filter IN ('all', 'unplayed')),
+                sort_order TEXT NOT NULL DEFAULT 'newest_first' CHECK(sort_order IN ('newest_first', 'oldest_first')),
+                sort_order_position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS station_feeds (
+                station_id TEXT NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+                feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                PRIMARY KEY (station_id, feed_id)
+            );",
+        )
+        .map_err(|error| format!("Failed to create stations tables: {error}"))?;
+
+    Ok(())
+}
+
+fn build_station_id() -> String {
+    format!("station-{}", uuid::Uuid::new_v4())
+}
+
+fn map_station_row(row: &Row<'_>) -> rusqlite::Result<StationRecord> {
+    Ok(StationRecord {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        episode_filter: row.get(2)?,
+        sort_order: row.get(3)?,
+        sort_order_position: row.get(4)?,
+        created_at: row.get(5)?,
+    })
+}
+
+fn get_station_feed_ids(connection: &Connection, station_id: &str) -> AppResult<Vec<String>> {
+    let mut statement = connection
+        .prepare("SELECT feed_id FROM station_feeds WHERE station_id = ?1 ORDER BY feed_id")
+        .map_err(|error| format!("Failed to prepare station feeds query: {error}"))?;
+
+    let feed_ids = statement
+        .query_map([station_id], |row| row.get(0))
+        .map_err(|error| format!("Failed to query station feeds: {error}"))?
+        .collect::<Result<Vec<String>, _>>()
+        .map_err(|error| format!("Failed to read station feeds: {error}"))?;
+
+    Ok(feed_ids)
+}
+
+fn set_station_feeds_in_tx(
+    transaction: &Transaction<'_>,
+    station_id: &str,
+    feed_ids: &[String],
+) -> AppResult<()> {
+    transaction
+        .execute(
+            "DELETE FROM station_feeds WHERE station_id = ?1",
+            [station_id],
+        )
+        .map_err(|error| format!("Failed to clear station feeds: {error}"))?;
+
+    let mut insert_statement = transaction
+        .prepare("INSERT INTO station_feeds (station_id, feed_id) VALUES (?1, ?2)")
+        .map_err(|error| format!("Failed to prepare station feed insert: {error}"))?;
+
+    for feed_id in feed_ids {
+        insert_statement
+            .execute(params![station_id, feed_id])
+            .map_err(|error| format!("Failed to insert station feed: {error}"))?;
+    }
+
+    Ok(())
+}
+
+pub fn list_stations(db_path: &Path) -> AppResult<Vec<StationWithFeedsRecord>> {
+    let connection = open_connection(db_path)?;
+
+    let mut statement = connection
+        .prepare(
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+             FROM stations
+             ORDER BY sort_order_position ASC, lower(name), name",
+        )
+        .map_err(|error| format!("Failed to prepare stations query: {error}"))?;
+
+    let stations = statement
+        .query_map([], map_station_row)
+        .map_err(|error| format!("Failed to list stations: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read stations: {error}"))?;
+
+    let mut result = Vec::with_capacity(stations.len());
+
+    for station in stations {
+        let feed_ids = get_station_feed_ids(&connection, &station.id)?;
+        result.push(StationWithFeedsRecord { station, feed_ids });
+    }
+
+    Ok(result)
+}
+
+pub fn create_station(
+    db_path: &Path,
+    input: &CreateStationInput,
+) -> AppResult<StationWithFeedsRecord> {
+    let mut connection = open_connection(db_path)?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("Failed to open transaction: {error}"))?;
+
+    let station_id = build_station_id();
+    let now = Utc::now().to_rfc3339();
+
+    // Determine next sort_order_position
+    let max_position: i64 = transaction
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order_position), -1) FROM stations",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("Failed to query max station position: {error}"))?;
+
+    let station = StationRecord {
+        id: station_id.clone(),
+        name: input.name.clone(),
+        episode_filter: input.episode_filter.as_str().to_string(),
+        sort_order: match input.sort_order {
+            crate::models::ItemSortOrder::NewestFirst => "newest_first".to_string(),
+            crate::models::ItemSortOrder::OldestFirst => "oldest_first".to_string(),
+        },
+        sort_order_position: max_position + 1,
+        created_at: now,
+    };
+
+    transaction
+        .execute(
+            "INSERT INTO stations (id, name, episode_filter, sort_order, sort_order_position, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                station.id,
+                station.name,
+                station.episode_filter,
+                station.sort_order,
+                station.sort_order_position,
+                station.created_at
+            ],
+        )
+        .map_err(|error| format!("Failed to insert station: {error}"))?;
+
+    set_station_feeds_in_tx(&transaction, &station_id, &input.feed_ids)?;
+
+    transaction
+        .commit()
+        .map_err(|error| format!("Failed to commit station creation: {error}"))?;
+
+    Ok(StationWithFeedsRecord {
+        station,
+        feed_ids: input.feed_ids.clone(),
+    })
+}
+
+pub fn update_station(
+    db_path: &Path,
+    input: &UpdateStationInput,
+) -> AppResult<StationWithFeedsRecord> {
+    let mut connection = open_connection(db_path)?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("Failed to open transaction: {error}"))?;
+
+    // Fetch existing station
+    let existing = transaction
+        .query_row(
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+             FROM stations WHERE id = ?1",
+            [&input.id],
+            map_station_row,
+        )
+        .optional()
+        .map_err(|error| format!("Failed to query station: {error}"))?
+        .ok_or_else(|| "Station not found.".to_string())?;
+
+    let name = input.name.as_deref().unwrap_or(&existing.name);
+    let episode_filter = input
+        .episode_filter
+        .map(|ef| ef.as_str().to_string())
+        .unwrap_or(existing.episode_filter);
+    let sort_order = input
+        .sort_order
+        .map(|so| match so {
+            crate::models::ItemSortOrder::NewestFirst => "newest_first".to_string(),
+            crate::models::ItemSortOrder::OldestFirst => "oldest_first".to_string(),
+        })
+        .unwrap_or(existing.sort_order);
+
+    transaction
+        .execute(
+            "UPDATE stations SET name = ?2, episode_filter = ?3, sort_order = ?4 WHERE id = ?1",
+            params![input.id, name, episode_filter, sort_order],
+        )
+        .map_err(|error| format!("Failed to update station: {error}"))?;
+
+    if let Some(ref feed_ids) = input.feed_ids {
+        set_station_feeds_in_tx(&transaction, &input.id, feed_ids)?;
+    }
+
+    transaction
+        .commit()
+        .map_err(|error| format!("Failed to commit station update: {error}"))?;
+
+    // Re-read the updated station
+    let updated = connection
+        .query_row(
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+             FROM stations WHERE id = ?1",
+            [&input.id],
+            map_station_row,
+        )
+        .map_err(|error| format!("Failed to re-read station: {error}"))?;
+
+    let feed_ids = get_station_feed_ids(&connection, &input.id)?;
+
+    Ok(StationWithFeedsRecord {
+        station: updated,
+        feed_ids,
+    })
+}
+
+pub fn delete_station(db_path: &Path, id: &str) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute("DELETE FROM stations WHERE id = ?1", [id])
+        .map_err(|error| format!("Failed to delete station: {error}"))?;
+
+    Ok(())
+}
+
+pub fn query_station_episodes(
+    db_path: &Path,
+    station_id: &str,
+    offset: i64,
+    limit: i64,
+) -> AppResult<ItemPageRecord> {
+    let connection = open_connection(db_path)?;
+    let safe_limit = limit.clamp(1, 500);
+    let safe_offset = offset.max(0);
+
+    // Load station metadata
+    let station = connection
+        .query_row(
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+             FROM stations WHERE id = ?1",
+            [station_id],
+            map_station_row,
+        )
+        .optional()
+        .map_err(|error| format!("Failed to query station: {error}"))?
+        .ok_or_else(|| "Station not found.".to_string())?;
+
+    let feed_ids = get_station_feed_ids(&connection, station_id)?;
+
+    if feed_ids.is_empty() {
+        return Ok(ItemPageRecord {
+            items: Vec::new(),
+            total_count: 0,
+        });
+    }
+
+    let placeholders: Vec<String> = (1..=feed_ids.len()).map(|i| format!("?{i}")).collect();
+    let feed_filter = format!("i.feed_id IN ({})", placeholders.join(", "));
+
+    let episode_clause = if station.episode_filter == "unplayed" {
+        " AND i.read = 0"
+    } else {
+        ""
+    };
+
+    // Only podcast episodes (items with enclosures)
+    let enclosure_clause = " AND i.enclosure_url IS NOT NULL";
+
+    let order_by = if station.sort_order == "oldest_first" {
+        "i.published_at ASC, i.id ASC"
+    } else {
+        "i.published_at DESC, i.id DESC"
+    };
+
+    // Count
+    let count_sql = format!(
+        "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{enclosure_clause}"
+    );
+    let mut count_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    for fid in &feed_ids {
+        count_params.push(Box::new(fid.clone()));
+    }
+    let count_refs: Vec<&dyn rusqlite::ToSql> = count_params.iter().map(|p| p.as_ref()).collect();
+
+    let total_count: i64 = connection
+        .query_row(&count_sql, count_refs.as_slice(), |row| row.get(0))
+        .map_err(|error| format!("Failed to count station episodes: {error}"))?;
+
+    // Page query
+    let next_param = feed_ids.len() + 1;
+    let page_sql = format!(
+        "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{enclosure_clause} ORDER BY {order_by} LIMIT ?{next_param} OFFSET ?{}",
+        next_param + 1
+    );
+
+    let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    for fid in &feed_ids {
+        page_params.push(Box::new(fid.clone()));
+    }
+    page_params.push(Box::new(safe_limit));
+    page_params.push(Box::new(safe_offset));
+    let page_refs: Vec<&dyn rusqlite::ToSql> = page_params.iter().map(|p| p.as_ref()).collect();
+
+    let mut statement = connection
+        .prepare(&page_sql)
+        .map_err(|error| format!("Failed to prepare station episodes query: {error}"))?;
+
+    let items = statement
+        .query_map(page_refs.as_slice(), map_item_list_row)
+        .map_err(|error| format!("Failed to query station episodes: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read station episodes: {error}"))?;
+
+    Ok(ItemPageRecord { items, total_count })
 }

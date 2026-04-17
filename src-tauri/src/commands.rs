@@ -1,6 +1,9 @@
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
-use crate::models::{FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord};
+use crate::models::{
+    CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
+    ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord, UpdateStationInput,
+};
 use crate::reader_extract;
 use tauri::State;
 
@@ -222,4 +225,71 @@ pub async fn clear_playback_session(
     tauri::async_runtime::spawn_blocking(move || db::clear_playback_session(&db_path))
         .await
         .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+// ---------------------------------------------------------------------------
+// Stations
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn list_stations(
+    state: State<'_, DatabaseState>,
+) -> Result<Vec<StationWithFeedsRecord>, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::list_stations(&db_path))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn create_station(
+    input: CreateStationInput,
+    state: State<'_, DatabaseState>,
+) -> Result<StationWithFeedsRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::create_station(&db_path, &input))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn update_station(
+    input: UpdateStationInput,
+    state: State<'_, DatabaseState>,
+) -> Result<StationWithFeedsRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::update_station(&db_path, &input))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn delete_station(
+    id: String,
+    state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::delete_station(&db_path, &id))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn query_station_episodes(
+    station_id: String,
+    offset: i64,
+    limit: i64,
+    state: State<'_, DatabaseState>,
+) -> Result<ItemPageRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        db::query_station_episodes(&db_path, &station_id, offset, limit)
+    })
+    .await
+    .map_err(|error| format!("Native task failed: {error}"))?
 }
