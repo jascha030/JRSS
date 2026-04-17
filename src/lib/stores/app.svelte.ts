@@ -1,20 +1,26 @@
 import {
 	addFeed,
 	clearPlaybackSession,
+	createStation as createStationService,
+	deleteStation as deleteStationService,
 	getItemDetails,
 	getItemsByIds,
 	listFeeds,
+	listStations,
 	loadPlaybackSession,
 	loadReaderContent,
 	markRead,
 	queryItemsPage,
+	queryStationEpisodes,
 	refreshFeed,
 	removeFeed,
 	savePlayback,
 	savePlaybackSession,
-	setFeedSortOrder as persistFeedSortOrder
+	setFeedSortOrder as persistFeedSortOrder,
+	updateStation as updateStationService
 } from '$lib/services/feedService';
 import type {
+	CreateStationInput,
 	Feed,
 	FeedItem,
 	FeedItemDetails,
@@ -24,7 +30,9 @@ import type {
 	ItemSortOrder,
 	MediaListItem,
 	PlaybackSession,
-	PlaybackState
+	PlaybackState,
+	Station,
+	UpdateStationInput
 } from '$lib/types/rss';
 import { isMediaItem } from '$lib/types/rss';
 import { logPerf, measurePerfAsync } from '$lib/utils/perfDebug';
@@ -42,8 +50,10 @@ interface AppState {
 	selectedFeedId: string | null;
 	selectedItemId: string | null;
 	selectedSection: SidebarSection;
+	selectedStationId: string | null;
 	feedSearchTerm: string;
 	feeds: Feed[];
+	stations: Station[];
 	currentPlaybackState: PlaybackState | null;
 	/**
 	 * Explicit user-initiated queue entries (Play next / Add to queue).
@@ -94,6 +104,11 @@ const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
  * - Section view → default (newest_first)
  */
 export function getEffectiveSortOrder(): ItemSortOrder {
+	if (app.selectedStationId) {
+		const station = app.stations.find((s) => s.id === app.selectedStationId);
+		return station?.sortOrder ?? DEFAULT_SORT_ORDER;
+	}
+
 	if (app.selectedFeedId) {
 		const feed = app.feeds.find((f) => f.id === app.selectedFeedId);
 		return feed?.sortOrder ?? DEFAULT_SORT_ORDER;
@@ -106,8 +121,10 @@ const initialState: AppState = {
 	selectedFeedId: null,
 	selectedItemId: null,
 	selectedSection: 'all',
+	selectedStationId: null,
 	feedSearchTerm: '',
 	feeds: [],
+	stations: [],
 	currentPlaybackState: null,
 	manualQueue: [],
 	autoQueue: [],
@@ -185,6 +202,23 @@ function buildQueryKey(
 }
 
 function getActiveQuerySpec(): { queryKey: QueryKey; query: ItemPageQuery } | null {
+	if (app.selectedStationId) {
+		const station = app.stations.find((s) => s.id === app.selectedStationId);
+		const sortOrder = station?.sortOrder ?? DEFAULT_SORT_ORDER;
+
+		return {
+			queryKey: `station::${app.selectedStationId}::${sortOrder}`,
+			query: {
+				// feedId carries the station ID in station mode — not used by queryItemsPage
+				feedId: app.selectedStationId,
+				section: 'media',
+				offset: 0,
+				limit: PAGE_SIZE,
+				sortOrder
+			}
+		};
+	}
+
 	const section = getActiveListSection();
 
 	if (!section) {
@@ -381,14 +415,20 @@ async function loadPage(
 	app.loadingPageOffsetsByQueryKey[queryKey][safeOffset] = true;
 
 	try {
+		const isStationQuery = app.selectedStationId !== null;
 		const page = await measurePerfAsync(
 			'app.loadPage',
-			() =>
-				queryItemsPage({
+			() => {
+				if (isStationQuery && app.selectedStationId) {
+					return queryStationEpisodes(app.selectedStationId, safeOffset, PAGE_SIZE);
+				}
+
+				return queryItemsPage({
 					...baseQuery,
 					offset: safeOffset,
 					limit: PAGE_SIZE
-				}),
+				});
+			},
 			{
 				queryKey,
 				offset: safeOffset
@@ -549,6 +589,18 @@ export async function loadFeeds(): Promise<void> {
 
 	if (app.selectedFeedId && !app.feeds.some((feed) => feed.id === app.selectedFeedId)) {
 		app.selectedFeedId = null;
+		app.selectedSection = 'all';
+	}
+}
+
+export async function loadStations(): Promise<void> {
+	app.stations = await listStations();
+
+	if (
+		app.selectedStationId &&
+		!app.stations.some((station) => station.id === app.selectedStationId)
+	) {
+		app.selectedStationId = null;
 		app.selectedSection = 'all';
 	}
 }
@@ -742,6 +794,7 @@ export async function initializeApp(): Promise<void> {
 	app.selectedFeedId = null;
 	app.selectedItemId = null;
 	app.selectedSection = 'all';
+	app.selectedStationId = null;
 	app.feedSearchTerm = '';
 	app.currentPlaybackState = null;
 	app.manualQueue = [];
@@ -754,6 +807,7 @@ export async function initializeApp(): Promise<void> {
 	app.audioItemsById = {};
 	invalidateAllQueries();
 	await loadFeeds();
+	await loadStations();
 	await loadInitialItemsPage();
 	await restoreSession();
 }
@@ -762,6 +816,7 @@ export function selectFeed(feedId: string | null): void {
 	app.selectedItemId = null;
 	app.selectedFeedId = feedId;
 	app.selectedSection = feedId ? null : 'all';
+	app.selectedStationId = null;
 	app.feedSearchTerm = '';
 	loadInitialItemsPageInBackground();
 }
@@ -770,6 +825,7 @@ export function selectSection(section: SidebarSection): void {
 	app.selectedItemId = null;
 	app.selectedFeedId = null;
 	app.selectedSection = section;
+	app.selectedStationId = null;
 	app.feedSearchTerm = '';
 	loadInitialItemsPageInBackground();
 }
@@ -1404,5 +1460,85 @@ export async function handlePlaybackEnded(): Promise<void> {
 	// Queue exhausted — stop cleanly
 	app.currentPlaybackState = null;
 	await savePlayback(finishedItemId, 0);
+	persistSession();
+}
+
+// ---------------------------------------------------------------------------
+// Stations — podcast playlist grouping
+// ---------------------------------------------------------------------------
+
+export function getSelectedStation(): Station | null {
+	return app.stations.find((station) => station.id === app.selectedStationId) ?? null;
+}
+
+export function selectStation(stationId: string): void {
+	app.selectedItemId = null;
+	app.selectedFeedId = null;
+	app.selectedSection = null;
+	app.selectedStationId = stationId;
+	app.feedSearchTerm = '';
+	loadInitialItemsPageInBackground();
+}
+
+export async function createStation(input: CreateStationInput): Promise<Station> {
+	const station = await createStationService(input);
+	await loadStations();
+	return station;
+}
+
+export async function updateExistingStation(input: UpdateStationInput): Promise<Station> {
+	const station = await updateStationService(input);
+	await loadStations();
+
+	// If the updated station is currently selected, reload its episodes
+	if (app.selectedStationId === input.id) {
+		invalidateAllQueries();
+		await loadInitialItemsPage();
+	}
+
+	return station;
+}
+
+export async function deleteExistingStation(stationId: string): Promise<void> {
+	await deleteStationService(stationId);
+
+	if (app.selectedStationId === stationId) {
+		app.selectedStationId = null;
+		app.selectedSection = 'all';
+	}
+
+	await loadStations();
+	invalidateAllQueries();
+	await loadInitialItemsPage();
+}
+
+/**
+ * Load all station episodes and replace the playback queue.
+ * Starts playing the first episode immediately.
+ */
+export async function playStation(stationId: string): Promise<void> {
+	const page = await queryStationEpisodes(stationId, 0, 500);
+	const mediaItems = page.items.filter(isMediaItem);
+
+	if (mediaItems.length === 0) {
+		return;
+	}
+
+	const firstItem = mediaItems[0];
+	const rest = mediaItems.slice(1);
+
+	// Register all items in audioItemsById
+	for (const item of mediaItems) {
+		app.audioItemsById[item.id] = item;
+		app.itemSummariesById[item.id] = item;
+	}
+
+	// Start first item
+	playAudioItem(firstItem, { autoPlay: true });
+
+	// Set the rest as the queue
+	app.manualQueue = rest.map((item) => item.id);
+	app.autoQueue = [];
+
 	persistSession();
 }

@@ -1,5 +1,6 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
 import type {
+	CreateStationInput,
 	Feed,
 	FeedItem,
 	FeedListItem,
@@ -8,7 +9,9 @@ import type {
 	ItemSortOrder,
 	PlaybackSession,
 	RawFeedItem,
-	RawFeedListItem
+	RawFeedListItem,
+	Station,
+	UpdateStationInput
 } from '$lib/types/rss';
 import { mapRawFeedItem, mapRawFeedListItem } from '$lib/types/rss';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
@@ -131,4 +134,67 @@ export async function setFeedSortOrder(
 		feedId,
 		sortOrder
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Stations
+// ---------------------------------------------------------------------------
+
+/** Raw IPC shape — station fields are flat, feedIds is a sibling. */
+interface RawStationWithFeeds {
+	id: string;
+	name: string;
+	episodeFilter: string;
+	sortOrder: string;
+	sortOrderPosition: number;
+	createdAt: string;
+	feedIds: string[];
+}
+
+function mapRawStation(raw: RawStationWithFeeds): Station {
+	return {
+		id: raw.id,
+		name: raw.name,
+		episodeFilter: raw.episodeFilter as Station['episodeFilter'],
+		sortOrder: raw.sortOrder as Station['sortOrder'],
+		sortOrderPosition: raw.sortOrderPosition,
+		createdAt: raw.createdAt,
+		feedIds: raw.feedIds
+	};
+}
+
+export async function listStations(): Promise<Station[]> {
+	if (!isTauriRuntime()) {
+		return [];
+	}
+
+	const raw = await invokeCommand<RawStationWithFeeds[]>('list_stations');
+	return raw.map(mapRawStation);
+}
+
+export async function createStation(input: CreateStationInput): Promise<Station> {
+	const raw = await invokeCommand<RawStationWithFeeds>('create_station', { input });
+	return mapRawStation(raw);
+}
+
+export async function updateStation(input: UpdateStationInput): Promise<Station> {
+	const raw = await invokeCommand<RawStationWithFeeds>('update_station', { input });
+	return mapRawStation(raw);
+}
+
+export async function deleteStation(id: string): Promise<void> {
+	await invokeCommand('delete_station', { id });
+}
+
+export async function queryStationEpisodes(
+	stationId: string,
+	offset: number,
+	limit: number
+): Promise<ItemPage<FeedListItem>> {
+	const raw = await invokeCommand<ItemPage<RawFeedListItem>>('query_station_episodes', {
+		stationId,
+		offset,
+		limit
+	});
+	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
 }
