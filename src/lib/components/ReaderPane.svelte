@@ -1,6 +1,6 @@
 <script lang="ts">
-	import FeedArticle from '$lib/components/FeedArticle.svelte';
-	import ReaderArticle from '$lib/components/ReaderArticle.svelte';
+	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
+	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
 	import type { Feed, FeedItem } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
 
