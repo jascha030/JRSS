@@ -2151,6 +2151,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-shell",
  "url",
+ "uuid",
 ]
 
 [[package]]

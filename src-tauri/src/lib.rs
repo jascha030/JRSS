@@ -47,7 +47,12 @@ pub fn run() {
             commands::save_playback_session,
             commands::load_playback_session,
             commands::clear_playback_session,
-            commands::set_feed_sort_order
+            commands::set_feed_sort_order,
+            commands::list_stations,
+            commands::create_station,
+            commands::update_station,
+            commands::delete_station,
+            commands::query_station_episodes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

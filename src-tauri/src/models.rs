@@ -164,6 +164,64 @@ pub struct ReaderContentRecord {
     pub fetched_at: String,
 }
 
+// ---------------------------------------------------------------------------
+// Stations — podcast playlist grouping
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StationEpisodeFilter {
+    All,
+    Unplayed,
+}
+
+impl StationEpisodeFilter {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Unplayed => "unplayed",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StationRecord {
+    pub id: String,
+    pub name: String,
+    pub episode_filter: String,
+    pub sort_order: String,
+    pub sort_order_position: i64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StationWithFeedsRecord {
+    #[serde(flatten)]
+    pub station: StationRecord,
+    pub feed_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateStationInput {
+    pub name: String,
+    pub episode_filter: StationEpisodeFilter,
+    pub sort_order: ItemSortOrder,
+    pub feed_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateStationInput {
+    pub id: String,
+    pub name: Option<String>,
+    pub episode_filter: Option<StationEpisodeFilter>,
+    pub sort_order: Option<ItemSortOrder>,
+    pub feed_ids: Option<Vec<String>>,
+}
+
 /// Persisted playback session — stored as an opaque JSON blob in SQLite.
 /// The frontend owns the shape; the backend just stores and returns it.
 #[derive(Debug, Clone, Deserialize, Serialize)]
