@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
-	import type { Feed, FeedListItem, ItemSortOrder } from '$lib/types/rss';
+	import type { Feed, FeedListItem, ItemSortOrder, Station } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
 	import {
@@ -10,6 +10,7 @@
 		openAudioContextMenu,
 		openFeedContextMenu
 	} from '$lib/utils/tauri-menu';
+	import { Play, Pencil, Trash2 } from '@lucide/svelte';
 	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -22,6 +23,7 @@
 		onVisibleRangeChange: (startIndex: number, endIndex: number) => Promise<void> | void;
 		onSelectItem: (itemId: string) => void;
 		selectedFeed: Feed | null;
+		selectedStation: Station | null;
 		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
@@ -30,6 +32,9 @@
 		onSearchChange: (term: string) => void;
 		itemSortOrder: ItemSortOrder;
 		onSortOrderChange: (order: ItemSortOrder) => void;
+		onPlayStation?: () => void;
+		onEditStation?: () => void;
+		onDeleteStation?: () => void;
 	};
 
 	let {
@@ -42,6 +47,7 @@
 		onVisibleRangeChange,
 		onSelectItem,
 		selectedFeed,
+		selectedStation,
 		selectedItemId,
 		selectedSection,
 		onMarkRead,
@@ -49,7 +55,10 @@
 		searchTerm,
 		onSearchChange,
 		itemSortOrder,
-		onSortOrderChange
+		onSortOrderChange,
+		onPlayStation,
+		onEditStation,
+		onDeleteStation
 	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
@@ -69,7 +78,9 @@
 		() => ({
 			hasActiveSearch: searchTerm.trim().length > 0,
 			pageHeading:
-				selectedFeed?.title ?? (selectedSection ? sectionHeadings[selectedSection] : 'All feeds'),
+				selectedStation?.name ??
+				selectedFeed?.title ??
+				(selectedSection ? sectionHeadings[selectedSection] : 'All feeds'),
 			feedTitleById: new Map(feeds.map((feed) => [feed.id, feed.title])),
 			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
 			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
@@ -203,7 +214,37 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				{#if selectedFeed}
+				{#if selectedStation}
+					<button
+						type="button"
+						title="Play station"
+						class="btn-primary flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm"
+						onclick={onPlayStation}
+					>
+						<Play class="size-4" />
+						Play
+					</button>
+
+					<button
+						type="button"
+						title="Edit station"
+						class="btn-secondary rounded-xl px-3 py-2"
+						onclick={onEditStation}
+					>
+						<Pencil class="size-4" />
+					</button>
+
+					<button
+						type="button"
+						title="Delete station"
+						class="btn-secondary rounded-xl px-3 py-2 text-red-500 hover:text-red-600"
+						onclick={onDeleteStation}
+					>
+						<Trash2 class="size-4" />
+					</button>
+
+					<p class="text-sm text-fg-muted">{totalCount} episodes</p>
+				{:else if selectedFeed}
 					<select
 						class="rounded-xl border border-border bg-surface px-2 py-1.5 text-xs text-fg-muted transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
 						aria-label="Sort order"
