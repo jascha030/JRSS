@@ -300,7 +300,7 @@
 	<div
 		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
 	>
-		<div class="mx-auto flex max-w-6xl items-center gap-6">
+		<div class="mx-auto flex max-w-6xl 4xl:max-w-400 items-center gap-6">
 			<!-- Left: info -->
 			<div class="flex min-w-0 shrink-0 basis-48 items-center gap-3">
 				{#if imageUrl}
@@ -318,15 +318,19 @@
 			<div class="flex min-w-0 flex-1 flex-col gap-2">
 				<div class="flex items-center justify-center gap-3">
 					<button
-						class="flex h-9 w-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+						class="flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
 						type="button"
 						aria-label="Back 15 seconds"
 						onclick={() => skip(-SKIP_SECONDS)}
 					>
-						<Rewind class="size-6" />
+						<Rewind class="size-5" />
 					</button>
 
-					<button class="btn-primary rounded-xl px-4 py-2" type="button" onclick={togglePlayback}>
+					<button
+						class="btn-primary flex size-9 items-center justify-center rounded-xl text-sm"
+						type="button"
+						onclick={togglePlayback}
+					>
 						{#if playbackState.isPlaying}
 							<Pause class="size-5" />
 						{:else}
@@ -335,12 +339,12 @@
 					</button>
 
 					<button
-						class="flex h-9 w-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+						class="flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
 						type="button"
 						aria-label="Forward 15 seconds"
 						onclick={() => skip(SKIP_SECONDS)}
 					>
-						<FastForward class="size-6" />
+						<FastForward class="size-5" />
 					</button>
 				</div>
 				<div class="flex items-center gap-3">
