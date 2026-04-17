@@ -3,6 +3,7 @@
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import QueueDrawer from '$lib/components/QueueDrawer.svelte';
 	import ReaderPane from '$lib/components/ReaderPane.svelte';
+	import SettingsView from '$lib/components/SettingsView.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import {
 		app,
@@ -45,6 +46,7 @@
 		getSeekRequestPositionSeconds
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
+	import { List } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -233,9 +235,9 @@
 					isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
 				}`}
 			>
-				<main class="flex min-h-0 flex-1 flex-col bg-surface-main">
+				<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
 					<header
-						class="flex h-16 items-center justify-end border-b border-border bg-surface-glass px-6 py-10 backdrop-blur lg:px-8"
+						class="flex h-20 shrink-0 items-center justify-end border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8"
 					>
 						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 							<form
@@ -252,11 +254,7 @@
 									placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
 									type="text"
 								/>
-								<button
-									class="btn-primary rounded-2xl px-4 py-3"
-									disabled={isCreatingFeed}
-									type="submit"
-								>
+								<button class="btn-primary btn" disabled={isCreatingFeed} type="submit">
 									{isCreatingFeed ? 'Adding...' : 'Add feed'}
 								</button>
 							</form>
@@ -283,18 +281,7 @@
 							</div>
 						</section>
 					{:else if selectedSection === 'settings'}
-						<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
-							<div class="max-w-4xl rounded-3xl border border-border bg-surface-card p-6 shadow-sm">
-								<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">
-									Settings
-								</p>
-								<h1 class="mt-3 text-2xl font-semibold text-fg">Foundation-only for now</h1>
-								<p class="mt-4 text-sm leading-6 text-fg-secondary">
-									The UI still talks to the same frontend service layer, but feed ingestion and
-									persistence now run through Tauri commands backed by local SQLite.
-								</p>
-							</div>
-						</section>
+						<SettingsView />
 					{:else}
 						<div class="flex min-h-0 flex-1 overflow-hidden">
 							<div
@@ -361,20 +348,8 @@
 								isQueueDrawerOpen = !isQueueDrawerOpen;
 							}}
 						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke-width="1.5"
-								stroke="currentColor"
-								class="size-5"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"
-								/>
-							</svg>
+							<List class="size-4" />
+
 							{#if queueLength > 0}
 								<span
 									class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-fg-inverse"
