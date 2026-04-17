@@ -1,28 +1,36 @@
 <script lang="ts">
 	import type { SidebarSection } from '$lib/stores/app.svelte';
-	import type { Feed } from '$lib/types/rss';
+	import type { Feed, Station } from '$lib/types/rss';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
-	import { Ellipsis } from '@lucide/svelte';
+	import { Ellipsis, Plus, Radio } from '@lucide/svelte';
 
 	type Props = {
 		collapsed: boolean;
 		feeds: Feed[];
+		stations: Station[];
 		refreshingFeedIds: string[];
 		selectedFeedId: string | null;
+		selectedStationId: string | null;
 		selectedSection: SidebarSection;
 		onSelectFeed: (feedId: string | null) => void;
 		onSelectSection: (section: SidebarSection) => void;
+		onSelectStation: (stationId: string) => void;
+		onCreateStation: () => void;
 		onToggleCollapse: () => void;
 	};
 
 	let {
 		collapsed,
 		feeds,
+		stations,
 		refreshingFeedIds,
 		selectedFeedId,
+		selectedStationId,
 		selectedSection,
 		onSelectFeed,
 		onSelectSection,
+		onSelectStation,
+		onCreateStation,
 		onToggleCollapse
 	}: Props = $props();
 
@@ -161,6 +169,35 @@
 					{/each}
 				</div>
 			</div>
+
+			{#if stations.length > 0}
+				<div class="mt-6 border-t border-border px-2 pt-4">
+					<div class="mt-8.75 space-y-2">
+						{#each stations as station (station.id)}
+							<button
+								type="button"
+								onclick={() => onSelectStation(station.id)}
+								title={station.name}
+								class={`mx-auto flex size-12 items-center justify-center overflow-hidden rounded-2xl text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
+									selectedStationId === station.id
+										? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
+										: ''
+								}`}
+							>
+								<span
+									class={`flex size-full items-center justify-center text-fg-inverse ${
+										selectedStationId === station.id
+											? 'bg-linear-to-br from-emerald-500 to-emerald-700'
+											: 'bg-linear-to-br from-emerald-400 to-emerald-600'
+									}`}
+								>
+									<Radio class="size-5" />
+								</span>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -240,6 +277,48 @@
 									<Ellipsis class="size-4" />
 								</button>
 							</div>
+						{/each}
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-6 border-t border-border px-2 pt-4">
+				<div class="mb-3 flex items-center justify-between px-3">
+					<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">Stations</h2>
+					<button
+						type="button"
+						title="New station"
+						aria-label="Create new station"
+						class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+						onclick={onCreateStation}
+					>
+						<Plus class="size-3.5" />
+					</button>
+				</div>
+
+				<div class="space-y-1">
+					{#if stations.length === 0}
+						<div class="px-3 py-2 text-sm text-fg-muted">No stations yet</div>
+					{:else}
+						{#each stations as station (station.id)}
+							<button
+								type="button"
+								onclick={() => onSelectStation(station.id)}
+								class={`flex h-12 w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+									selectedStationId === station.id
+										? 'bg-surface-active text-fg'
+										: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
+								}`}
+							>
+								<Radio class="size-4 shrink-0 text-emerald-500" />
+								<span class="min-w-0 flex-1">
+									<span class="block truncate text-sm font-medium">{station.name}</span>
+									<span class="block truncate text-xs text-fg-muted">
+										{station.feedIds.length}
+										{station.feedIds.length === 1 ? 'podcast' : 'podcasts'}
+									</span>
+								</span>
+							</button>
 						{/each}
 					{/if}
 				</div>
