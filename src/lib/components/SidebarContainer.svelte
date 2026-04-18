@@ -37,120 +37,125 @@
 	<aside
 		class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-border bg-surface md:block"
 	>
-		<!-- rail -->
-		<div
-			class="absolute inset-y-0 left-0 z-20 flex w-24 flex-col border-r border-border bg-surface"
-		>
-			<div class="flex h-20 shrink-0 items-center justify-center border-b border-border">
-				<button
-					type="button"
-					onclick={onToggleCollapse}
-					title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-					aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-					class="flex size-12 items-center justify-center rounded-2xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.8"
-						class={`size-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`}
+		<!-- single scroll container for both rail and panel -->
+		<div class="flex h-full overflow-y-auto">
+			<!-- rail -->
+			<div class="flex w-24 shrink-0 flex-col border-r border-border bg-surface">
+				<div class="flex h-20 shrink-0 items-center justify-center border-b border-border">
+					<button
+						type="button"
+						onclick={onToggleCollapse}
+						title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+						aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+						class="flex size-12 items-center justify-center rounded-2xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
 					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-					</svg>
-				</button>
-			</div>
-
-			<div class="flex-1 overflow-y-auto py-3">
-				<div class="space-y-1 px-2">
-					{@render sidebarRailSections()}
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							class={`size-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`}
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M15.75 19.5 8.25 12l7.5-7.5"
+							/>
+						</svg>
+					</button>
 				</div>
 
-				<div class="mt-6 border-t border-border px-2 pt-4">
-					<div class="mt-6.5 space-y-2">
-						{@render sidebarFeedButtons()}
+				<div class="flex-1 py-3">
+					<div class="space-y-1 px-2">
+						{@render sidebarRailSections()}
 					</div>
-				</div>
 
-				{#if stations.length > 0}
 					<div class="mt-6 border-t border-border px-2 pt-4">
-						<div class="mt-8.75 space-y-2">
-							{@render sidebarStationButtons()}
+						<div class="mt-6.5 space-y-2">
+							{@render sidebarFeedButtons()}
 						</div>
 					</div>
-				{/if}
-			</div>
-		</div>
 
-		<!-- sliding panel -->
-		<div
-			class={`absolute inset-y-0 left-24 z-10 w-48 transform-gpu bg-surface transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-				isCollapsed
-					? 'pointer-events-none -translate-x-full opacity-0'
-					: 'translate-x-0 opacity-100'
-			}`}
-		>
-			<div class="flex h-20 shrink-0 items-center border-b border-border px-4">
-				<div class="min-w-0">
-					<h1 class="truncate text-base font-semibold text-fg">Library</h1>
-					<p class="mt-1 text-xs text-fg-muted">
-						{feeds.length}
-						{feeds.length === 1 ? 'feed' : 'feeds'}
-					</p>
+					{#if stations.length > 0}
+						<div class="mt-6 border-t border-border px-2 pt-4">
+							<div class="mt-8.75 space-y-2">
+								{@render sidebarStationButtons()}
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 
-			<div class="flex-1 overflow-y-auto py-3">
-				<div class="space-y-1 px-2">
-					{@render sidebarPanelSections()}
-				</div>
-
-				<div class="mt-6 border-t border-border px-2 pt-4">
-					<h2 class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-						My feeds
-					</h2>
-
-					<div class="space-y-1">
-						{#if feeds.length === 0}
-							<div class="px-3 py-3 text-sm text-fg-muted">No feeds added yet</div>
-						{:else}
-							{@render feedList()}
-						{/if}
+			<!-- sliding panel -->
+			<div
+				class={`w-48 flex-1 shrink-0 transform-gpu bg-surface transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+					isCollapsed
+						? 'pointer-events-none -translate-x-full opacity-0'
+						: 'translate-x-0 opacity-100'
+				}`}
+			>
+				<div class="flex h-20 shrink-0 items-center border-b border-border px-4">
+					<div class="min-w-0">
+						<h1 class="truncate text-base font-semibold text-fg">Library</h1>
+						<p class="mt-1 text-xs text-fg-muted">
+							{feeds.length}
+							{feeds.length === 1 ? 'feed' : 'feeds'}
+						</p>
 					</div>
 				</div>
 
-				<div class="mt-6 border-t border-border px-2 pt-4">
-					<div class="mb-3 flex items-center justify-between px-3">
-						<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-							Stations
+				<div class="flex-1 py-3">
+					<div class="space-y-1 px-2">
+						{@render sidebarPanelSections()}
+					</div>
+
+					<div class="mt-6 border-t border-border px-2 pt-4">
+						<h2 class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
+							My feeds
 						</h2>
-						<button
-							type="button"
-							title="New station"
-							aria-label="Create new station"
-							class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-							onclick={onCreateStation}
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke-width="2"
-								stroke="currentColor"
-								class="size-3.5"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-							</svg>
-						</button>
+
+						<div class="space-y-1">
+							{#if feeds.length === 0}
+								<div class="px-3 py-3 text-sm text-fg-muted">No feeds added yet</div>
+							{:else}
+								{@render feedList()}
+							{/if}
+						</div>
 					</div>
 
-					<div class="space-y-1">
-						{#if stations.length === 0}
-							<div class="px-3 py-2 text-sm text-fg-muted">No stations yet</div>
-						{:else}
-							{@render stationList()}
-						{/if}
+					<div class="mt-6 border-t border-border px-2 pt-4">
+						<div class="mb-3 flex items-center justify-between px-3">
+							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
+								Stations
+							</h2>
+							<button
+								type="button"
+								title="New station"
+								aria-label="Create new station"
+								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+								onclick={onCreateStation}
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="2"
+									stroke="currentColor"
+									class="size-3.5"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+								</svg>
+							</button>
+						</div>
+
+						<div class="space-y-1">
+							{#if stations.length === 0}
+								<div class="px-3 py-2 text-sm text-fg-muted">No stations yet</div>
+							{:else}
+								{@render stationList()}
+							{/if}
+						</div>
 					</div>
 				</div>
 			</div>
