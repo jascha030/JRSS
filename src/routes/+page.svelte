@@ -222,6 +222,13 @@
 		editingStation = null;
 		isStationEditorOpen = true;
 	}
+
+	function handleNavigateToItem() {
+		if (currentAudioItem) {
+			selectFeed(currentAudioItem.feedId);
+			selectItem(currentAudioItem.id);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -300,7 +307,7 @@
 							<div
 								class="max-w-lg rounded-3xl border border-dashed border-border-strong bg-surface-card p-8 text-center shadow-sm"
 							>
-								<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">
+								<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">
 									No feeds yet
 								</p>
 								<h1 class="mt-3 text-2xl font-semibold text-fg">
@@ -371,6 +378,7 @@
 					toggleSeq={playbackToggleSeq}
 					seekSeq={seekRequestSeq}
 					seekToSeconds={seekRequestPositionSeconds}
+					onNavigateToItem={handleNavigateToItem}
 				>
 					{#snippet controls()}
 						<QueueToggleButton

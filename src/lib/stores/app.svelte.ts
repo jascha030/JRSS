@@ -952,7 +952,13 @@ export async function loadItemDetails(itemId: string): Promise<FeedItem> {
 	return detailedItem;
 }
 
-export function selectItem(itemId: string): void {
+export async function selectItem(itemId: string): Promise<void> {
+	const item = app.itemSummariesById[itemId];
+
+	if (item && !isMediaItem(item)) {
+		await markItemRead(itemId, true);
+	}
+
 	app.selectedItemId = itemId;
 }
 
@@ -1066,9 +1072,15 @@ export function getSeekRequestPositionSeconds(): number {
 	return app.seekRequestPositionSeconds;
 }
 
-export function setPlaybackPlaying(isPlaying: boolean): void {
+export async function setPlaybackPlaying(isPlaying: boolean): Promise<void> {
 	if (!app.currentPlaybackState) {
 		return;
+	}
+
+	const itemId = app.currentPlaybackState.itemId;
+
+	if (isPlaying && itemId) {
+		await markItemRead(itemId, true);
 	}
 
 	app.currentPlaybackState = {
