@@ -1,3 +1,4 @@
+use crate::audio::{self, PlaybackStateEvent};
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
@@ -292,4 +293,59 @@ pub async fn query_station_episodes(
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+// ---------------------------------------------------------------------------
+// Audio playback — backend-owned via rodio
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn audio_play(
+    app: tauri::AppHandle,
+    item_id: String,
+    url: String,
+    start_position_seconds: f64,
+    duration_hint_seconds: f64,
+) -> Result<(), String> {
+    audio::play_url(&app, item_id, url, start_position_seconds, duration_hint_seconds)
+}
+
+#[tauri::command]
+pub fn audio_pause(app: tauri::AppHandle) -> Result<(), String> {
+    audio::pause(&app)
+}
+
+#[tauri::command]
+pub fn audio_resume(app: tauri::AppHandle) -> Result<(), String> {
+    audio::resume(&app)
+}
+
+#[tauri::command]
+pub fn audio_toggle(app: tauri::AppHandle) -> Result<(), String> {
+    audio::toggle_playback(&app)
+}
+
+#[tauri::command]
+pub fn audio_stop(app: tauri::AppHandle) -> Result<(), String> {
+    audio::stop(&app)
+}
+
+#[tauri::command]
+pub fn audio_seek(app: tauri::AppHandle, position_seconds: f64) -> Result<(), String> {
+    audio::seek(&app, position_seconds)
+}
+
+#[tauri::command]
+pub fn audio_set_volume(app: tauri::AppHandle, volume: f64) -> Result<(), String> {
+    audio::set_volume(&app, volume)
+}
+
+#[tauri::command]
+pub fn audio_set_speed(app: tauri::AppHandle, speed: f64) -> Result<(), String> {
+    audio::set_speed(&app, speed)
+}
+
+#[tauri::command]
+pub fn audio_get_state(app: tauri::AppHandle) -> Option<PlaybackStateEvent> {
+    audio::get_playback_state(&app)
 }

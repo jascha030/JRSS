@@ -29,15 +29,12 @@
 		getSelectedItemFeed,
 		getSelectedStation,
 		getUpcomingQueue,
-		handlePlaybackEnded,
 		initializeApp,
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
 		moveQueuedItemDown,
 		moveQueuedItemUp,
-		persistPlaybackForItem,
-		persistPlaybackPosition,
 		playStation,
 		refreshExistingFeed,
 		removeQueuedItem,
@@ -47,13 +44,8 @@
 		selectStation,
 		setFeedSearchTerm,
 		setItemSortOrder,
-		setPlaybackPlaying,
 		updateExistingStation,
-		updatePlaybackPosition,
-		getPlaybackToggleSeq,
-		getReaderRequestSeq,
-		getSeekRequestSeq,
-		getSeekRequestPositionSeconds
+		getReaderRequestSeq
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
 	import { onMount } from 'svelte';
@@ -93,10 +85,7 @@
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
-	const playbackToggleSeq = $derived(getPlaybackToggleSeq());
 	const readerRequestSeq = $derived(getReaderRequestSeq());
-	const seekRequestSeq = $derived(getSeekRequestSeq());
-	const seekRequestPositionSeconds = $derived(getSeekRequestPositionSeconds());
 
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
@@ -352,14 +341,6 @@
 					item={currentAudioItem}
 					imageUrl={currentAudioItemFeed?.imageUrl}
 					playbackState={currentPlaybackState}
-					onPlayingChange={setPlaybackPlaying}
-					onPositionChange={updatePlaybackPosition}
-					onPositionPersist={persistPlaybackPosition}
-					onTransitionPersist={persistPlaybackForItem}
-					onEnded={() => void handlePlaybackEnded()}
-					toggleSeq={playbackToggleSeq}
-					seekSeq={seekRequestSeq}
-					seekToSeconds={seekRequestPositionSeconds}
 					onNavigateToItem={handleNavigateToItem}
 				>
 					{#snippet controls()}

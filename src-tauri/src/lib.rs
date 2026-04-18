@@ -1,9 +1,11 @@
+mod audio;
 mod commands;
 mod db;
 mod feed_ingest;
 mod models;
 mod reader_extract;
 
+use audio::AudioState;
 use db::DatabaseState;
 use tauri::Manager;
 
@@ -31,6 +33,10 @@ pub fn run() {
             let database_state = DatabaseState::new(app.handle())?;
             app.manage(database_state);
 
+            let audio_state = AudioState::new(app.handle().clone())
+                .map_err(|e| Box::<dyn std::error::Error>::from(e))?;
+            app.manage(audio_state);
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -52,7 +58,16 @@ pub fn run() {
             commands::create_station,
             commands::update_station,
             commands::delete_station,
-            commands::query_station_episodes
+            commands::query_station_episodes,
+            commands::audio_play,
+            commands::audio_pause,
+            commands::audio_resume,
+            commands::audio_toggle,
+            commands::audio_stop,
+            commands::audio_seek,
+            commands::audio_set_volume,
+            commands::audio_set_speed,
+            commands::audio_get_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

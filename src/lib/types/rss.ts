@@ -158,6 +158,24 @@ export interface PlaybackSession {
 }
 
 // ---------------------------------------------------------------------------
+// Backend audio engine — event payloads from Rust
+// ---------------------------------------------------------------------------
+
+/** Mirrors Rust `PlaybackStateEvent` emitted by the audio thread. */
+export interface BackendPlaybackState {
+	itemId: string;
+	positionSeconds: number;
+	durationSeconds: number;
+	isPlaying: boolean;
+	volume: number;
+}
+
+/** Mirrors Rust `PlaybackEndedEvent`. */
+export interface BackendPlaybackEndedEvent {
+	itemId: string;
+}
+
+// ---------------------------------------------------------------------------
 // Stations — podcast playlist grouping
 // ---------------------------------------------------------------------------
 
