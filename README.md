@@ -57,10 +57,10 @@ JRSS stores its data locally on your machine.
 
 - [x] Sidebar
 - [x] Add feed
-    - [x] RSS articles
-    - [x] ATOM feed
-    - [x] Podcast RSS feed
-    - [x] Podcast RSS resolved from Apple Podcasts url
+  - [x] RSS articles
+  - [x] ATOM feed
+  - [x] Podcast RSS feed
+  - [x] Podcast RSS resolved from Apple Podcasts url
 - [x] Virtualize stacked feed list
 - [x] Feed Favicons
 - [x] Podcast episode image
@@ -74,15 +74,15 @@ JRSS stores its data locally on your machine.
 - [x] Refactor feeditem type discrimination
 - [x] Play controls in feed/item header
 - [x] Toaster notifications
-    - [x] Add feed notices/errors
-    - [x] Reader errors
-- [ ] Scrolling episode titles in player
+  - [x] Add feed notices/errors
+  - [x] Reader errors
+- [x] Scrolling episode titles in player
 - [x] Non-media context menu
-    - [x] Open in reader
-    - [x] Open feed (if currently in all feeds/unread/podcasts etc.)
-    - [x] Mark read
-    - [x] Mark unread
-    - [x] Copy url
+  - [x] Open in reader
+  - [x] Open feed (if currently in all feeds/unread/podcasts etc.)
+  - [x] Mark read
+  - [x] Mark unread
+  - [x] Copy url
 - [x] Media Item context menu
   - [x] Play/pausePause (if playing)
   - [x] Play now (if not playing) (clears current queueu and rebuilds queue from episode)
@@ -99,22 +99,26 @@ JRSS stores its data locally on your machine.
   - [x] Copy feed url
   - [x] Delete feed
 - [ ] Global search
-    - [ ] Algolia style pop-out grouped results etc.
-    - [ ] Feeds
-    - [ ] Items
+  - [ ] Algolia style pop-out grouped results etc.
+  - [ ] Feeds
+  - [ ] Items
 - [ ] Article search (search content inside article when viewing article)
 - [ ] Keyboard control
-    - [x] Spacebar for play/pause
-    - [ ] Add Feed: ⌘+K?
-    - [ ] Global search: ⌘+⇧+f
-    - [x] Local/Feed search: ⌘+f
-    - [ ] Article search: /
-- [ ] Playlist/Station creation
+  - [x] Spacebar for play/pause
+  - [ ] Add Feed: ⌘+K?
+  - [ ] Global search: ⌘+⇧+f
+  - [x] Local/Feed search: ⌘+f
+  - [ ] Article search: /
+- [x] Playlist/Station creation
+  - [x] Add podcasts
+  - [x] Select all/unplayed episodes
+  - [x] Order oldest>newest/newest>oldest
+  - [x] Station feed
 - [ ] Pop out inputs
-    - [ ] Search feed
-    - [ ] Global search
-    - [ ] Add feed
+  - [ ] Search feed
+  - [ ] Global search
+  - [ ] Add feed
 - [ ] Support Video
-    - [ ] Player
+  - [ ] Player
 - [ ] Cover view/Mini Player
 - [ ] Responsive Pane UI (when window too small for reader and list view together)
