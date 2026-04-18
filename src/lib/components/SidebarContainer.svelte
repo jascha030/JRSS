@@ -41,7 +41,9 @@
 		<div class="flex h-full overflow-y-auto">
 			<!-- rail -->
 			<div class="flex w-24 shrink-0 flex-col border-r border-border bg-surface">
-				<div class="flex h-20 shrink-0 items-center justify-center border-b border-border">
+				<div
+					class="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-center border-b border-border bg-surface"
+				>
 					<button
 						type="button"
 						onclick={onToggleCollapse}
@@ -95,7 +97,9 @@
 						: 'translate-x-0 opacity-100'
 				}`}
 			>
-				<div class="flex h-20 shrink-0 items-center border-b border-border px-4">
+				<div
+					class="sticky top-0 z-10 flex h-20 shrink-0 items-center border-b border-border bg-surface px-4"
+				>
 					<div class="min-w-0">
 						<h1 class="truncate text-base font-semibold text-fg">Library</h1>
 						<p class="mt-1 text-xs text-fg-muted">
