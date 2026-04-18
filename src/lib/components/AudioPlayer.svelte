@@ -2,6 +2,7 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { formatDuration } from '$lib/utils/format';
+	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Rewind from '@lucide/svelte/icons/rewind';
 	import FastForward from '@lucide/svelte/icons/fast-forward';
 	import Play from '@lucide/svelte/icons/play';
@@ -20,6 +21,8 @@
 		/** Persist a specific item's position during item transitions (avoids cross-item writes). */
 		onTransitionPersist: (itemId: string, positionSeconds: number) => Promise<void>;
 		onEnded: () => void;
+		/** Navigate to the feed and select the item being played. */
+		onNavigateToItem: () => void;
 		/** Optional extra controls rendered to the right of the volume slider. */
 		controls?: Snippet;
 		/**
@@ -46,6 +49,7 @@
 		onPositionPersist,
 		onTransitionPersist,
 		onEnded,
+		onNavigateToItem,
 		controls,
 		toggleSeq,
 		seekSeq,
@@ -304,13 +308,29 @@
 			<!-- Left: info -->
 			<div class="flex min-w-0 shrink-0 basis-48 items-center gap-3">
 				{#if imageUrl}
-					<img src={imageUrl} alt="" class="size-12 shrink-0 rounded-lg object-cover shadow-sm" />
+					<button
+						class="shrink-0"
+						type="button"
+						onclick={onNavigateToItem}
+						oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+					>
+						<img
+							src={imageUrl}
+							alt=""
+							class="size-12 rounded-lg object-cover shadow-sm select-none"
+						/>
+					</button>
 				{/if}
 				<div class="min-w-0">
 					<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
-					<h3 class="mt-1 truncate text-sm font-semibold text-fg">
+					<button
+						class="mt-1 w-full truncate text-left text-sm font-semibold text-fg transition-colors select-none hover:text-accent"
+						type="button"
+						onclick={onNavigateToItem}
+						oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+					>
 						{item.title}
-					</h3>
+					</button>
 				</div>
 			</div>
 
