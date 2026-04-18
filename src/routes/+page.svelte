@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
+	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import Header from '$lib/components/Header.svelte';
 	import QueueDrawer from '$lib/components/QueueDrawer.svelte';
@@ -117,6 +118,7 @@
 
 	$effect(() => {
 		if (!selectedItemId) return;
+
 		void loadItemDetails(selectedItemId).catch((error: unknown) => {
 			toast.error(error instanceof Error ? error.message : 'Unable to load article details.');
 		});
@@ -233,10 +235,7 @@
 
 <svelte:head>
 	<title>JRSS</title>
-	<meta
-		name="description"
-		content="Local-first RSS reader and podcast MVP foundation built with SvelteKit."
-	/>
+	<meta name="description" content="RSS reader and podcast player." />
 </svelte:head>
 
 <StationEditor
@@ -301,24 +300,7 @@
 					</header>
 
 					{#if feeds.length === 0 && !isInitialLoading}
-						<section
-							class="flex flex-2 items-center justify-center overflow-y-auto px-6 py-12 lg:px-8"
-						>
-							<div
-								class="max-w-lg rounded-3xl border border-dashed border-border-strong bg-surface-card p-8 text-center shadow-sm"
-							>
-								<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">
-									No feeds yet
-								</p>
-								<h1 class="mt-3 text-2xl font-semibold text-fg">
-									Add your first RSS feed or podcast
-								</h1>
-								<p class="mt-4 text-sm leading-6 text-fg-secondary">
-									Add an RSS or Atom URL above, or paste an Apple Podcasts show link or ID. The
-									desktop app resolves the feed and persists it in local SQLite.
-								</p>
-							</div>
-						</section>
+						<EmptyFeedView />
 					{:else if selectedSection === 'settings'}
 						<SettingsView />
 					{:else}
@@ -331,23 +313,23 @@
 									{itemIdsByIndex}
 									itemsById={itemSummariesById}
 									isRefreshing={isSelectedFeedRefreshing}
-									{isInitialLoading}
+									onDeleteStation={handleStationDelete()}
+									onEditStation={handleEditStation}
+									onMarkRead={markItemRead}
+									onPlayStation={handlePlayStation()}
 									onRefresh={handleRefreshFeed}
-									onVisibleRangeChange={ensureVisibleRangeLoaded}
+									onSearchChange={setFeedSearchTerm}
 									onSelectItem={selectItem}
+									onSortOrderChange={setItemSortOrder}
+									onVisibleRangeChange={ensureVisibleRangeLoaded}
+									searchTerm={feedSearchTerm}
+									{isInitialLoading}
+									{itemSortOrder}
 									{selectedFeed}
-									{selectedStation}
 									{selectedItemId}
 									{selectedSection}
-									onMarkRead={markItemRead}
+									{selectedStation}
 									{totalCount}
-									searchTerm={feedSearchTerm}
-									onSearchChange={setFeedSearchTerm}
-									{itemSortOrder}
-									onSortOrderChange={setItemSortOrder}
-									onPlayStation={handlePlayStation()}
-									onEditStation={handleEditStation}
-									onDeleteStation={handleStationDelete()}
 								/>
 							</div>
 
