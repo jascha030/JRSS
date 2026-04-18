@@ -300,7 +300,7 @@
 	<div
 		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
 	>
-		<div class="mx-auto flex max-w-6xl 4xl:max-w-400 items-center gap-6">
+		<div class="mx-auto flex max-w-6xl items-center gap-6 4xl:max-w-400">
 			<!-- Left: info -->
 			<div class="flex min-w-0 shrink-0 basis-48 items-center gap-3">
 				{#if imageUrl}
