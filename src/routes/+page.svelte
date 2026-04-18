@@ -1,10 +1,12 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
+	import Header from '$lib/components/Header.svelte';
 	import QueueDrawer from '$lib/components/QueueDrawer.svelte';
+	import QueueToggleButton from '$lib/components/QueueToggleButton.svelte';
 	import ReaderPane from '$lib/components/ReaderPane.svelte';
 	import SettingsView from '$lib/components/SettingsView.svelte';
-	import Sidebar from '$lib/components/Sidebar.svelte';
+	import SidebarContainer from '$lib/components/SidebarContainer.svelte';
 	import StationEditor from '$lib/components/StationEditor.svelte';
 	import {
 		app,
@@ -20,6 +22,7 @@
 		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getManualQueueLength,
+		getReaderRequestItemId,
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedItemFeed,
@@ -48,20 +51,16 @@
 		updatePlaybackPosition,
 		getPlaybackToggleSeq,
 		getReaderRequestSeq,
-		getReaderRequestItemId,
 		getSeekRequestSeq,
 		getSeekRequestPositionSeconds
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
-	import { List } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
-	let newFeedUrl = $state('');
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
-	let lastSelectedItemId = $state<string | null>(null);
 	let isStationEditorOpen = $state(false);
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 
@@ -111,58 +110,32 @@
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
 	$effect(() => {
-		if (selectedItemId !== lastSelectedItemId) {
+		if (selectedItemId) {
 			readerPaneMode = 'feed';
 		}
 	});
 
 	$effect(() => {
-		const currentSelectedItemId = selectedItemId;
-
-		if (!currentSelectedItemId) {
-			return;
-		}
-
-		void loadItemDetails(currentSelectedItemId).catch((error: unknown) => {
-			if (selectedItemId !== currentSelectedItemId) {
-				return;
-			}
-
+		if (!selectedItemId) return;
+		void loadItemDetails(selectedItemId).catch((error: unknown) => {
 			toast.error(error instanceof Error ? error.message : 'Unable to load article details.');
 		});
 	});
 
-	function toggleSidebar() {
-		isSidebarCollapsed = !isSidebarCollapsed;
-	}
+	onMount(() => void initializeApp());
 
-	onMount(() => {
-		void initializeApp();
-	});
-
-	// React to reader-open requests from context menus
 	let lastConsumedReaderSeq = 0;
 	$effect(() => {
 		if (readerRequestSeq > lastConsumedReaderSeq) {
 			lastConsumedReaderSeq = readerRequestSeq;
 			const itemId = getReaderRequestItemId();
-			if (itemId) {
-				void handleLoadReaderView(itemId);
-			}
+			if (itemId) void handleLoadReaderView(itemId);
 		}
 	});
 
-	async function handleAddFeed() {
-		const candidateUrl = newFeedUrl.trim();
-
-		if (!candidateUrl) {
-			toast.warning('Enter a feed URL to add a source.');
-			return;
-		}
-
+	async function handleAddFeed(url: string) {
 		try {
-			await createFeed(candidateUrl);
-			newFeedUrl = '';
+			await createFeed(url);
 			toast.success('Feed loaded and saved locally.');
 		} catch (error: unknown) {
 			toast.error(error instanceof Error ? error.message : 'Unable to add that feed.');
@@ -181,20 +154,73 @@
 	async function handleLoadReaderView(itemId: string) {
 		try {
 			const updatedItem = await loadReaderView(itemId);
-
-			if (updatedItem.readerStatus === 'ready') {
-				readerPaneMode = 'reader';
-				return;
+			readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
+			if (updatedItem.readerStatus !== 'ready') {
+				toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 			}
-
-			readerPaneMode = 'feed';
-			toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 		} catch (error: unknown) {
 			readerPaneMode = 'feed';
 			toast.error(
 				error instanceof Error ? error.message : 'Unable to load reader view for this item.'
 			);
 		}
+	}
+
+	function handleStationSave(input: import('$lib/types/rss').CreateStationInput) {
+		return async () => {
+			try {
+				if (editingStation) {
+					await updateExistingStation({
+						id: editingStation.id,
+						name: input.name,
+						feedIds: input.feedIds,
+						episodeFilter: input.episodeFilter,
+						sortOrder: input.sortOrder
+					});
+					toast.success('Station updated.');
+				} else {
+					await createStation(input);
+					toast.success('Station created.');
+				}
+				isStationEditorOpen = false;
+				editingStation = null;
+			} catch (error: unknown) {
+				toast.error(error instanceof Error ? error.message : 'Unable to save station.');
+			}
+		};
+	}
+
+	function handleStationDelete() {
+		if (!selectedStationId) return;
+		return async () => {
+			try {
+				await deleteExistingStation(selectedStationId);
+				toast.success('Station deleted.');
+			} catch (error: unknown) {
+				toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
+			}
+		};
+	}
+
+	function handlePlayStation() {
+		if (!selectedStationId) return;
+		return async () => {
+			try {
+				await playStation(selectedStationId);
+			} catch (error: unknown) {
+				toast.error(error instanceof Error ? error.message : 'Unable to play station.');
+			}
+		};
+	}
+
+	function handleEditStation() {
+		editingStation = selectedStation;
+		isStationEditorOpen = true;
+	}
+
+	function handleCreateStation() {
+		editingStation = null;
+		isStationEditorOpen = true;
 	}
 </script>
 
@@ -210,27 +236,7 @@
 	open={isStationEditorOpen}
 	station={editingStation}
 	{feeds}
-	onSave={async (input) => {
-		try {
-			if (editingStation) {
-				await updateExistingStation({
-					id: editingStation.id,
-					name: input.name,
-					feedIds: input.feedIds,
-					episodeFilter: input.episodeFilter,
-					sortOrder: input.sortOrder
-				});
-				toast.success('Station updated.');
-			} else {
-				await createStation(input);
-				toast.success('Station created.');
-			}
-			isStationEditorOpen = false;
-			editingStation = null;
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to save station.');
-		}
-	}}
+	onSave={handleStationSave}
 	onClose={() => {
 		isStationEditorOpen = false;
 		editingStation = null;
@@ -247,31 +253,24 @@
 		onMoveItemUp={moveQueuedItemUp}
 		onMoveItemDown={moveQueuedItemDown}
 		onClearQueue={clearQueue}
-		onClose={() => {
-			isQueueDrawerOpen = false;
-		}}
+		onClose={() => (isQueueDrawerOpen = false)}
 	/>
 
 	<div class="relative h-full overflow-hidden">
-		<div class="absolute inset-y-0 left-0 z-20 hidden md:block">
-			<Sidebar
-				collapsed={isSidebarCollapsed}
-				{feeds}
-				{stations}
-				refreshingFeedIds={syncingFeedIds}
-				{selectedFeedId}
-				{selectedStationId}
-				{selectedSection}
-				onSelectFeed={selectFeed}
-				onSelectSection={selectSection}
-				onSelectStation={selectStation}
-				onCreateStation={() => {
-					editingStation = null;
-					isStationEditorOpen = true;
-				}}
-				onToggleCollapse={toggleSidebar}
-			/>
-		</div>
+		<SidebarContainer
+			{feeds}
+			{stations}
+			{selectedFeedId}
+			{selectedStationId}
+			{selectedSection}
+			onSelectFeed={selectFeed}
+			onSelectSection={selectSection}
+			onSelectStation={selectStation}
+			onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
+			onCreateStation={handleCreateStation}
+			refreshingFeedIds={syncingFeedIds}
+			isCollapsed={isSidebarCollapsed}
+		/>
 
 		<div
 			class={`relative z-30 h-full transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none md:absolute md:inset-y-0 md:left-0 ${
@@ -290,24 +289,7 @@
 						class="flex h-20 shrink-0 items-center justify-end border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8"
 					>
 						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-							<form
-								class="flex min-w-full flex-col gap-4 sm:flex-row"
-								onsubmit={(event) => {
-									event.preventDefault();
-									void handleAddFeed();
-								}}
-							>
-								<input
-									bind:value={newFeedUrl}
-									class="min-w-1 flex-1 rounded-2xl border border-border-strong bg-surface px-4 py-3 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
-									disabled={isCreatingFeed}
-									placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
-									type="text"
-								/>
-								<button class="btn-primary btn" disabled={isCreatingFeed} type="submit">
-									{isCreatingFeed ? 'Adding...' : 'Add feed'}
-								</button>
-							</form>
+							<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
 						</div>
 					</header>
 
@@ -356,28 +338,9 @@
 									onSearchChange={setFeedSearchTerm}
 									{itemSortOrder}
 									onSortOrderChange={setItemSortOrder}
-									onPlayStation={() => {
-										if (selectedStationId) {
-											void playStation(selectedStationId).catch((error: unknown) => {
-												toast.error(
-													error instanceof Error ? error.message : 'Unable to play station.'
-												);
-											});
-										}
-									}}
-									onEditStation={() => {
-										editingStation = selectedStation ?? null;
-										isStationEditorOpen = true;
-									}}
-									onDeleteStation={() => {
-										if (selectedStationId) {
-											void deleteExistingStation(selectedStationId).catch((error: unknown) => {
-												toast.error(
-													error instanceof Error ? error.message : 'Unable to delete station.'
-												);
-											});
-										}
-									}}
+									onPlayStation={handlePlayStation()}
+									onEditStation={handleEditStation}
+									onDeleteStation={handleStationDelete()}
 								/>
 							</div>
 
@@ -390,9 +353,7 @@
 								{isReaderPaneActive}
 								{canUseReaderMode}
 								onLoadReaderView={handleLoadReaderView}
-								onReaderPaneModeChange={(mode) => {
-									readerPaneMode = mode;
-								}}
+								onReaderPaneModeChange={(mode) => (readerPaneMode = mode)}
 							/>
 						</div>
 					{/if}
@@ -412,25 +373,11 @@
 					seekToSeconds={seekRequestPositionSeconds}
 				>
 					{#snippet controls()}
-						<button
-							type="button"
-							class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-							aria-label={isQueueDrawerOpen ? 'Close queue' : `Open queue (${queueLength})`}
-							title={isQueueDrawerOpen ? 'Close queue' : `Queue (${queueLength})`}
-							onclick={() => {
-								isQueueDrawerOpen = !isQueueDrawerOpen;
-							}}
-						>
-							<List class="size-4" />
-
-							{#if queueLength > 0}
-								<span
-									class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-fg-inverse"
-								>
-									{queueLength}
-								</span>
-							{/if}
-						</button>
+						<QueueToggleButton
+							isOpen={isQueueDrawerOpen}
+							{queueLength}
+							onToggle={() => (isQueueDrawerOpen = !isQueueDrawerOpen)}
+						/>
 					{/snippet}
 				</AudioPlayer>
 			</div>
