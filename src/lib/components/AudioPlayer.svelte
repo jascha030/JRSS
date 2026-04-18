@@ -2,6 +2,7 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { tick } from 'svelte';
+	import { audioToggle, audioSeek, audioSetVolume } from '$lib/services/feedService';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Rewind from '@lucide/svelte/icons/rewind';
@@ -16,19 +17,10 @@
 		item: MediaListItem | null;
 		imageUrl?: string;
 		playbackState: PlaybackState | null;
-		onPlayingChange: (isPlaying: boolean) => void;
-		onPositionChange: (positionSeconds: number, durationSeconds: number) => void;
-		onPositionPersist: (positionSeconds: number, durationSeconds: number) => Promise<void>;
-		onTransitionPersist: (itemId: string, positionSeconds: number) => Promise<void>;
-		onEnded: () => void;
 		onNavigateToItem: () => void;
 		controls?: Snippet;
-		toggleSeq?: number;
-		seekSeq?: number;
-		seekToSeconds?: number;
 	};
 
-	const PLAYBACK_PERSIST_INTERVAL_SECONDS = 5;
 	const SKIP_SECONDS = 15;
 
 	const TITLE_START_DELAY_MS = 1200;
@@ -37,28 +29,7 @@
 	const TITLE_PIXELS_PER_SECOND = 28;
 	const TITLE_LOOP_TICK_MS = 16;
 
-	let {
-		item,
-		imageUrl,
-		playbackState,
-		onPlayingChange,
-		onPositionChange,
-		onPositionPersist,
-		onTransitionPersist,
-		onEnded,
-		onNavigateToItem,
-		controls,
-		toggleSeq,
-		seekSeq,
-		seekToSeconds
-	}: Props = $props();
-
-	let audioElement: HTMLAudioElement | null = $state(null);
-	let activeItemId: string | null = $state(null);
-	let lastSyncedSecond = $state(-1);
-	let lastPersistedSecond = $state(-1);
-
-	let isTransitioning = $state(false);
+	let { item, imageUrl, playbackState, onNavigateToItem, controls }: Props = $props();
 
 	let isSeeking = $state(false);
 	let seekPosition = $state(0);
@@ -91,75 +62,21 @@
 	let titleCurrentAnimationFrame: number | null = null;
 
 	function durationForPlayer(): number {
-		if (!item) {
-			return 0;
+		if (playbackState && playbackState.durationSeconds > 0) {
+			return playbackState.durationSeconds;
 		}
-
-		if (audioElement && Number.isFinite(audioElement.duration)) {
-			return Math.floor(audioElement.duration);
-		}
-
-		return item.mediaEnclosure.durationSeconds ?? 0;
-	}
-
-	function syncPlaybackPosition() {
-		if (!audioElement || isTransitioning) {
-			return;
-		}
-
-		const currentSecond = Math.floor(audioElement.currentTime);
-
-		if (currentSecond === lastSyncedSecond) {
-			return;
-		}
-
-		lastSyncedSecond = currentSecond;
-		onPositionChange(currentSecond, durationForPlayer());
-
-		if (
-			lastPersistedSecond < 0 ||
-			Math.abs(currentSecond - lastPersistedSecond) >= PLAYBACK_PERSIST_INTERVAL_SECONDS
-		) {
-			lastPersistedSecond = currentSecond;
-			void onPositionPersist(currentSecond, durationForPlayer());
-		}
-	}
-
-	function persistPlaybackPosition() {
-		if (!audioElement || isTransitioning) {
-			return;
-		}
-
-		const currentSecond = Math.floor(audioElement.currentTime);
-
-		lastSyncedSecond = currentSecond;
-		lastPersistedSecond = currentSecond;
-		onPositionChange(currentSecond, durationForPlayer());
-		void onPositionPersist(currentSecond, durationForPlayer());
+		return item?.mediaEnclosure.durationSeconds ?? 0;
 	}
 
 	function skip(deltaSeconds: number) {
-		if (!audioElement) {
-			return;
-		}
-
-		audioElement.currentTime = Math.max(
-			0,
-			Math.min(audioElement.currentTime + deltaSeconds, durationForPlayer())
-		);
+		const current = playbackState?.positionSeconds ?? 0;
+		const dur = durationForPlayer();
+		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
+		void audioSeek(target);
 	}
 
 	function togglePlayback() {
-		if (!audioElement) {
-			return;
-		}
-
-		if (audioElement.paused) {
-			void audioElement.play();
-			return;
-		}
-
-		audioElement.pause();
+		void audioToggle();
 	}
 
 	function handleSeekInput(event: Event & { currentTarget: HTMLInputElement }) {
@@ -168,12 +85,8 @@
 	}
 
 	function handleSeekChange(event: Event & { currentTarget: HTMLInputElement }) {
-		if (!audioElement) {
-			return;
-		}
-
 		const position = Number(event.currentTarget.value);
-		audioElement.currentTime = position;
+		void audioSeek(position);
 		isSeeking = false;
 	}
 
@@ -377,12 +290,7 @@
 	});
 
 	$effect(() => {
-		if (!audioElement) {
-			return;
-		}
-
-		audioElement.volume = volume;
-		audioElement.muted = isMuted;
+		void audioSetVolume(effectiveVolume);
 	});
 
 	$effect(() => {
@@ -423,28 +331,6 @@
 		};
 	});
 
-	let lastToggleSeq = $state(0);
-
-	$effect(() => {
-		const seq = toggleSeq ?? 0;
-		if (seq !== lastToggleSeq) {
-			lastToggleSeq = seq;
-			togglePlayback();
-		}
-	});
-
-	let lastSeekSeq = $state(0);
-
-	$effect(() => {
-		const seq = seekSeq ?? 0;
-		if (seq !== lastSeekSeq) {
-			lastSeekSeq = seq;
-			if (audioElement && seekToSeconds !== undefined) {
-				audioElement.currentTime = seekToSeconds;
-			}
-		}
-	});
-
 	$effect(() => {
 		if (!item) return;
 
@@ -482,35 +368,6 @@
 			navigator.mediaSession.setActionHandler('seekbackward', null);
 			navigator.mediaSession.setActionHandler('seekforward', null);
 		};
-	});
-
-	$effect.pre(() => {
-		if (!audioElement) {
-			return;
-		}
-
-		if (activeItemId && item?.id !== activeItemId) {
-			isTransitioning = true;
-
-			const departingPosition = Math.floor(audioElement.currentTime);
-			audioElement.pause();
-
-			void onTransitionPersist(activeItemId, departingPosition);
-		}
-
-		if (!item) {
-			activeItemId = null;
-			isTransitioning = false;
-			return;
-		}
-
-		if (item.id !== activeItemId) {
-			activeItemId = item.id;
-			lastSyncedSecond = Math.floor(item.playbackPositionSeconds);
-			lastPersistedSecond = Math.floor(item.playbackPositionSeconds);
-			audioElement.currentTime = item.playbackPositionSeconds;
-			isTransitioning = false;
-		}
 	});
 </script>
 
@@ -650,28 +507,6 @@
 				{/if}
 			</div>
 		</div>
-
-		<audio
-			bind:this={audioElement}
-			onended={() => onEnded()}
-			onloadedmetadata={() => {
-				syncPlaybackPosition();
-
-				if (playbackState?.autoPlay && audioElement) {
-					void audioElement.play();
-				}
-			}}
-			onpause={() => {
-				if (!isTransitioning) {
-					onPlayingChange(false);
-					persistPlaybackPosition();
-				}
-			}}
-			onplay={() => onPlayingChange(true)}
-			ontimeupdate={syncPlaybackPosition}
-			preload="metadata"
-			src={item.mediaEnclosure.url}
-		></audio>
 	</div>
 {/if}
 

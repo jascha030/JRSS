@@ -1,5 +1,9 @@
 import {
 	addFeed,
+	audioPlay,
+	audioSeek,
+	audioStop,
+	audioToggle,
 	clearPlaybackSession,
 	createStation as createStationService,
 	deleteStation as deleteStationService,
@@ -20,6 +24,8 @@ import {
 	updateStation as updateStationService
 } from '$lib/services/feedService';
 import type {
+	BackendPlaybackEndedEvent,
+	BackendPlaybackState,
 	CreateStationInput,
 	Feed,
 	FeedItem,
@@ -36,6 +42,7 @@ import type {
 } from '$lib/types/rss';
 import { isMediaItem } from '$lib/types/rss';
 import { logPerf, measurePerfAsync } from '$lib/utils/perfDebug';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export type SidebarSection = 'all' | 'unread' | 'media' | 'settings' | null;
 
@@ -77,17 +84,6 @@ interface AppState {
 	loadedPageOffsetsByQueryKey: Record<QueryKey, PageOffsets>;
 	loadingPageOffsetsByQueryKey: Record<QueryKey, PageOffsets>;
 	initialLoadDoneByQueryKey: Record<QueryKey, boolean>;
-	/**
-	 * Monotonically increasing counter. Each bump signals the AudioPlayer
-	 * to toggle play/pause on the current audio element.
-	 */
-	playbackToggleSeq: number;
-	/**
-	 * When bumped, signals the AudioPlayer to seek the current item
-	 * to `seekRequestPositionSeconds`.
-	 */
-	seekRequestSeq: number;
-	seekRequestPositionSeconds: number;
 	/**
 	 * When bumped, signals the page to open the item at `readerRequestItemId`
 	 * in reader view. Consumed by the page-level $effect.
@@ -139,9 +135,6 @@ const initialState: AppState = {
 	loadedPageOffsetsByQueryKey: {},
 	loadingPageOffsetsByQueryKey: {},
 	initialLoadDoneByQueryKey: {},
-	playbackToggleSeq: 0,
-	seekRequestSeq: 0,
-	seekRequestPositionSeconds: 0,
 	readerRequestSeq: 0,
 	readerRequestItemId: null
 };
@@ -790,6 +783,35 @@ function filterResolvableAudioIds(ids: string[], fetchedById: Map<string, FeedLi
 	return result;
 }
 
+// ---------------------------------------------------------------------------
+// Backend audio event listeners
+// ---------------------------------------------------------------------------
+
+let audioEventUnlisteners: UnlistenFn[] = [];
+
+async function initAudioEventListeners(): Promise<void> {
+	// Clean up any previous listeners
+	for (const unlisten of audioEventUnlisteners) {
+		unlisten();
+	}
+	audioEventUnlisteners = [];
+
+	const unlistenState = await listen<BackendPlaybackState>('playback-state-changed', (event) => {
+		applyBackendPlaybackState(event.payload);
+	});
+
+	const unlistenEnded = await listen<BackendPlaybackEndedEvent>('playback-ended', () => {
+		void handlePlaybackEnded();
+	});
+
+	const unlistenStopped = await listen('playback-stopped', () => {
+		app.currentPlaybackState = null;
+		persistSession();
+	});
+
+	audioEventUnlisteners = [unlistenState, unlistenEnded, unlistenStopped];
+}
+
 export async function initializeApp(): Promise<void> {
 	app.selectedFeedId = null;
 	app.selectedItemId = null;
@@ -806,6 +828,7 @@ export async function initializeApp(): Promise<void> {
 	app.itemDetailsById = {};
 	app.audioItemsById = {};
 	invalidateAllQueries();
+	await initAudioEventListeners();
 	await loadFeeds();
 	await loadStations();
 	await loadInitialItemsPage();
@@ -1028,48 +1051,50 @@ export function playAudioItem(item: MediaListItem, { autoPlay = true } = {}): vo
 		isPlaying: false,
 		autoPlay
 	};
+
+	if (autoPlay) {
+		void audioPlay(
+			item.id,
+			item.mediaEnclosure.url,
+			item.playbackPositionSeconds,
+			item.mediaEnclosure.durationSeconds ?? 0
+		).catch((error: unknown) => {
+			console.error('Failed to start audio playback.', error);
+		});
+	}
 }
 
 export function stopPlayback(): void {
 	app.currentPlaybackState = null;
 	persistSession();
+	void audioStop().catch((error: unknown) => {
+		console.error('Failed to stop audio.', error);
+	});
 }
 
 /**
- * Signal the AudioPlayer to toggle play/pause on the current audio element.
+ * Toggle play/pause on the current audio item via the backend.
  * Has no effect if nothing is loaded.
  */
 export function requestTogglePlayback(): void {
 	if (!app.currentPlaybackState) {
 		return;
 	}
-	app.playbackToggleSeq += 1;
+	void audioToggle().catch((error: unknown) => {
+		console.error('Failed to toggle playback.', error);
+	});
 }
 
 /**
- * Read the current toggle sequence number (for AudioPlayer to watch).
- */
-export function getPlaybackToggleSeq(): number {
-	return app.playbackToggleSeq;
-}
-
-/**
- * Signal the AudioPlayer to seek the current item to `positionSeconds`.
+ * Signal the backend to seek the current item to `positionSeconds`.
  */
 export function requestSeekTo(positionSeconds: number): void {
 	if (!app.currentPlaybackState) {
 		return;
 	}
-	app.seekRequestPositionSeconds = positionSeconds;
-	app.seekRequestSeq += 1;
-}
-
-export function getSeekRequestSeq(): number {
-	return app.seekRequestSeq;
-}
-
-export function getSeekRequestPositionSeconds(): number {
-	return app.seekRequestPositionSeconds;
+	void audioSeek(positionSeconds).catch((error: unknown) => {
+		console.error('Failed to seek.', error);
+	});
 }
 
 export async function setPlaybackPlaying(isPlaying: boolean): Promise<void> {
@@ -1086,6 +1111,34 @@ export async function setPlaybackPlaying(isPlaying: boolean): Promise<void> {
 	app.currentPlaybackState = {
 		...app.currentPlaybackState,
 		isPlaying,
+		autoPlay: false
+	};
+}
+
+/**
+ * Apply a backend playback state event to the store.
+ * Called by the Tauri event listener — not by UI components.
+ */
+function applyBackendPlaybackState(event: BackendPlaybackState): void {
+	if (!app.currentPlaybackState) {
+		return;
+	}
+
+	// Only apply if it matches the item we think is playing
+	if (event.itemId !== app.currentPlaybackState.itemId) {
+		return;
+	}
+
+	const positionSeconds = Math.floor(event.positionSeconds);
+	const durationSeconds = Math.floor(event.durationSeconds);
+
+	patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
+
+	app.currentPlaybackState = {
+		...app.currentPlaybackState,
+		positionSeconds,
+		durationSeconds,
+		isPlaying: event.isPlaying,
 		autoPlay: false
 	};
 }
