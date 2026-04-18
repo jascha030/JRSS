@@ -33,7 +33,7 @@
 
 	const TITLE_START_DELAY_MS = 1200;
 	const TITLE_END_PAUSE_MS = 900;
-	const TITLE_RESET_PAUSE_MS = 250;
+	const TITLE_RESET_PAUSE_MS = 3000;
 	const TITLE_PIXELS_PER_SECOND = 28;
 	const TITLE_LOOP_TICK_MS = 16;
 
@@ -84,9 +84,10 @@
 	let titleOffset = $state(0);
 	let titleReducedMotion = $state(false);
 
+	let lastMeasuredTitle = $state<string | null>(null);
+
 	let titleLoopToken = 0;
 	let titlePaused = false;
-	let titlePauseStartedAt = 0;
 	let titleCurrentAnimationFrame: number | null = null;
 
 	function durationForPlayer(): number {
@@ -231,7 +232,10 @@
 
 		const from = titleOffset;
 		const delta = to - from;
-		const start = performance.now();
+
+		let animationStart: number | null = null;
+		let pausedAt: number | null = null;
+		let pausedTotal = 0;
 
 		return await new Promise<boolean>((resolve) => {
 			const step = (now: number) => {
@@ -241,14 +245,27 @@
 					return;
 				}
 
+				if (animationStart === null) {
+					animationStart = now;
+				}
+
 				if (titlePaused) {
-					titlePauseStartedAt = now;
+					if (pausedAt === null) {
+						pausedAt = now;
+					}
+
 					titleCurrentAnimationFrame = requestAnimationFrame(step);
 					return;
 				}
 
-				const elapsed = now - start - getAccumulatedPauseDuration(start, now);
+				if (pausedAt !== null) {
+					pausedTotal += now - pausedAt;
+					pausedAt = null;
+				}
+
+				const elapsed = now - animationStart - pausedTotal;
 				const progress = Math.max(0, Math.min(1, elapsed / durationMs));
+
 				titleOffset = from + delta * progress;
 
 				if (progress >= 1) {
@@ -260,25 +277,6 @@
 
 				titleCurrentAnimationFrame = requestAnimationFrame(step);
 			};
-
-			let pausedTotal = 0;
-			let pauseAnchor: number | null = null;
-
-			function getAccumulatedPauseDuration(_start: number, now: number) {
-				if (titlePaused) {
-					if (pauseAnchor === null) {
-						pauseAnchor = now;
-					}
-					return pausedTotal + (now - pauseAnchor);
-				}
-
-				if (pauseAnchor !== null) {
-					pausedTotal += now - pauseAnchor;
-					pauseAnchor = null;
-				}
-
-				return pausedTotal;
-			}
 
 			titleCurrentAnimationFrame = requestAnimationFrame(step);
 		});
@@ -388,12 +386,21 @@
 	});
 
 	$effect(() => {
-		item?.title;
+		const nextTitle = item?.title ?? null;
+
+		if (nextTitle === lastMeasuredTitle) {
+			return;
+		}
+
+		lastMeasuredTitle = nextTitle;
 		void measureTitleOverflow();
 	});
 
 	$effect(() => {
-		if (!titleViewportEl) {
+		const viewport = titleViewportEl;
+		const text = titleTextEl;
+
+		if (!viewport) {
 			return;
 		}
 
@@ -401,10 +408,10 @@
 			void measureTitleOverflow();
 		});
 
-		resizeObserver.observe(titleViewportEl);
+		resizeObserver.observe(viewport);
 
-		if (titleTextEl) {
-			resizeObserver.observe(titleTextEl);
+		if (text) {
+			resizeObserver.observe(text);
 		}
 
 		return () => resizeObserver.disconnect();
@@ -541,10 +548,7 @@
 						onfocus={pauseTitleMarquee}
 						onblur={resumeTitleMarquee}
 					>
-						<div
-							bind:this={titleViewportEl}
-							class="overflow-hidden"
-						>
+						<div bind:this={titleViewportEl} class="overflow-hidden">
 							<span
 								bind:this={titleTextEl}
 								class:truncate={!titleIsOverflowing || titleReducedMotion}
