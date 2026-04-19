@@ -34,6 +34,18 @@ pub struct QueueState {
 }
 
 impl QueueState {
+    /// Replace current + both queue segments in one shot.
+    pub fn replace(
+        &mut self,
+        current: Option<QueuedItem>,
+        manual: Vec<QueuedItem>,
+        auto: Vec<QueuedItem>,
+    ) {
+        self.current = current;
+        self.manual = manual.into();
+        self.auto = auto.into();
+    }
+
     /// Add an item to the end of the manual queue.
     pub fn enqueue(&mut self, item: QueuedItem) {
         // Dedupe: remove from both queues if present.
@@ -131,6 +143,11 @@ impl QueueState {
         self.auto.clear();
     }
 
+    /// Clear the current item without touching queued items.
+    pub fn clear_current(&mut self) {
+        self.current = None;
+    }
+
     /// Get the next item to play (drains manual first, then auto).
     /// Returns the item and sets it as current.
     pub fn shift_next(&mut self) -> Option<QueuedItem> {
@@ -152,37 +169,6 @@ impl QueueState {
     /// Get current item.
     pub fn current_item(&self) -> Option<&QueuedItem> {
         self.current.as_ref()
-    }
-
-    /// Replace the entire queue with new items (all go to manual).
-    pub fn set_queue(&mut self, items: Vec<QueuedItem>) {
-        if items.is_empty() {
-            self.manual.clear();
-            self.auto.clear();
-            self.current = None;
-            return;
-        }
-        // First item becomes current, rest go to manual
-        let mut items: VecDeque<QueuedItem> = items.into();
-        let first = items.pop_front().unwrap();
-        self.current = Some(first);
-        self.manual = items;
-        self.auto.clear();
-    }
-
-    /// Reconstruct queue from persisted session data.
-    pub fn restore_from_session(
-        &mut self,
-        manual_ids: Vec<String>,
-        auto_ids: Vec<String>,
-        get_item: impl Fn(String) -> Option<QueuedItem>,
-    ) {
-        let mut get_item = get_item;
-        self.manual = manual_ids
-            .into_iter()
-            .filter_map(|id| get_item(id))
-            .collect();
-        self.auto = auto_ids.into_iter().filter_map(|id| get_item(id)).collect();
     }
 
     /// Serialize queue state for SQLite persistence.
@@ -208,16 +194,16 @@ impl QueueState {
 #[serde(rename_all = "camelCase")]
 pub struct QueueChangedEvent {
     pub current: Option<QueuedItem>,
-    pub manual_count: usize,
-    pub auto_count: usize,
+    pub manual: Vec<QueuedItem>,
+    pub auto: Vec<QueuedItem>,
 }
 
 impl QueueState {
     pub fn to_event(&self) -> QueueChangedEvent {
         QueueChangedEvent {
             current: self.current.clone(),
-            manual_count: self.manual.len(),
-            auto_count: self.auto.len(),
+            manual: self.manual.iter().cloned().collect(),
+            auto: self.auto.iter().cloned().collect(),
         }
     }
 }

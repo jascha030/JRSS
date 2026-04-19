@@ -26,7 +26,7 @@
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
@@ -35,6 +35,8 @@ use rodio::{Decoder, OutputStream, Sink};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::db;
+use crate::models::PlaybackSessionRecord;
 use crate::queue::{QueueState, QueuedItem};
 
 // ---------------------------------------------------------------------------
@@ -164,7 +166,8 @@ enum AudioCommand {
     /// Play a specific item and set the entire queue (replaces current queue).
     PlayWithQueue {
         item: QueuedItem,
-        queue: Vec<QueuedItem>,
+        manual_queue: Vec<QueuedItem>,
+        auto_queue: Vec<QueuedItem>,
         start_position_seconds: f64,
         temp_dir: PathBuf,
     },
@@ -317,7 +320,8 @@ pub fn get_playback_state(app: &AppHandle) -> Option<PlaybackStateEvent> {
 pub fn play_with_queue(
     app: &AppHandle,
     item: QueuedItem,
-    queue: Vec<QueuedItem>,
+    manual_queue: Vec<QueuedItem>,
+    auto_queue: Vec<QueuedItem>,
     start_position_seconds: f64,
 ) -> Result<(), String> {
     log::info!("play_with_queue: sending command for item={}", item.item_id);
@@ -329,7 +333,8 @@ pub fn play_with_queue(
 
     let send_result = state.send(AudioCommand::PlayWithQueue {
         item,
-        queue,
+        manual_queue,
+        auto_queue,
         start_position_seconds,
         temp_dir,
     });
@@ -388,6 +393,7 @@ struct AudioThread {
     _stream: OutputStream,
     sink: Option<Sink>,
     current_item_id: Option<String>,
+    stored_position_seconds: f64,
     duration_seconds: f64,
     download_meta: Option<Arc<DownloadMeta>>,
     temp_path: Option<PathBuf>,
@@ -491,6 +497,7 @@ impl AudioThread {
 
         self.sink = Some(sink);
         self.current_item_id = Some(item_id);
+        self.stored_position_seconds = start_position_seconds;
         self.duration_seconds = duration_hint_seconds;
         self.download_meta = Some(meta);
         self.temp_path = Some(temp_path);
@@ -508,22 +515,65 @@ impl AudioThread {
             let _ = std::fs::remove_file(path);
         }
         self.current_item_id = None;
+        self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
         self.download_meta = None;
         self.temp_path = None;
     }
 
     fn snapshot(&self) -> Option<PlaybackStateEvent> {
-        let sink = self.sink.as_ref()?;
         let item_id = self.current_item_id.as_ref()?;
+        let position_seconds = self
+            .sink
+            .as_ref()
+            .map(|sink| sink.get_pos().as_secs_f64())
+            .unwrap_or(self.stored_position_seconds);
+        let is_playing = self
+            .sink
+            .as_ref()
+            .map(|sink| !sink.is_paused() && !sink.empty())
+            .unwrap_or(false);
 
         Some(PlaybackStateEvent {
             item_id: item_id.clone(),
-            position_seconds: sink.get_pos().as_secs_f64(),
+            position_seconds,
             duration_seconds: self.duration_seconds,
-            is_playing: !sink.is_paused() && !sink.empty(),
+            is_playing,
             volume: self.volume as f64,
         })
+    }
+
+    fn sync_cached_position(&mut self) {
+        if let Some(ref sink) = self.sink {
+            self.stored_position_seconds = sink.get_pos().as_secs_f64();
+        }
+    }
+
+    fn persist_session(&mut self) {
+        self.sync_cached_position();
+
+        let db_state = self.app.state::<db::DatabaseState>();
+        let db_path = db_state.db_path();
+
+        if self.queue.current.is_none() && self.queue.is_empty() {
+            if let Err(error) = db::clear_playback_session(&db_path) {
+                log::error!("Failed to clear playback session: {error}");
+            }
+            return;
+        }
+
+        let (manual_queue, auto_queue) = self.queue.to_session_parts();
+        let session = PlaybackSessionRecord {
+            current_item_id: self.queue.current_item().map(|item| item.item_id.clone()),
+            position_seconds: self.stored_position_seconds.floor() as i64,
+            duration_seconds: self.duration_seconds.floor() as i64,
+            manual_queue,
+            auto_queue,
+        };
+
+        if let Err(error) = db::save_playback_session(&db_path, &session) {
+            log::error!("Failed to save playback session: {error}");
+        }
     }
 }
 
@@ -547,6 +597,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         _stream: stream,
         sink: None,
         current_item_id: None,
+        stored_position_seconds: 0.0,
         duration_seconds: 0.0,
         download_meta: None,
         temp_path: None,
@@ -555,6 +606,8 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         queue: QueueState::default(),
         app: app.clone(),
     };
+
+    restore_persisted_session(&mut state);
 
     let poll_interval = Duration::from_millis(500);
     let persist_interval = Duration::from_secs(5);
@@ -573,6 +626,15 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     temp_dir,
                 } => {
                     was_playing = false;
+                    state.queue.current = Some(QueuedItem {
+                        item_id: item_id.clone(),
+                        url: url.clone(),
+                        title: String::new(),
+                        duration_seconds: duration_hint_seconds,
+                    });
+                    state.current_item_id = Some(item_id.clone());
+                    state.stored_position_seconds = start_position_seconds;
+                    state.duration_seconds = duration_hint_seconds;
                     state.handle_play(
                         item_id,
                         url,
@@ -581,16 +643,21 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         temp_dir,
                         &stream_handle,
                     );
+                    state.persist_session();
                 }
                 AudioCommand::Pause => {
                     if let Some(ref sink) = state.sink {
                         sink.pause();
                     }
+                    state.persist_session();
                 }
                 AudioCommand::Resume => {
                     if let Some(ref sink) = state.sink {
                         sink.play();
+                    } else if let Err(error) = resume_current_item(&mut state, &stream_handle) {
+                        log::info!("Resume ignored: {error}");
                     }
+                    state.persist_session();
                 }
                 AudioCommand::TogglePlayback => {
                     log::info!(
@@ -607,17 +674,36 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                             sink.pause();
                         }
                     } else {
-                        log::info!("TogglePlayback: no sink!");
+                        match resume_current_item(&mut state, &stream_handle) {
+                            Ok(()) => log::info!("TogglePlayback: resumed from persisted session"),
+                            Err(error) => log::info!("TogglePlayback ignored: {error}"),
+                        }
                     }
+                    state.persist_session();
                 }
                 AudioCommand::Stop => {
+                    state.sync_cached_position();
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(
+                            &db.db_path(),
+                            item_id,
+                            state.stored_position_seconds as i64,
+                        );
+                    }
                     state.stop_current();
+                    state.queue.clear_current();
+                    state.persist_session();
                     let _ = app.emit("playback-stopped", ());
+                    let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::Seek { position_seconds } => {
                     if let Some(ref sink) = state.sink {
                         let _ = sink.try_seek(Duration::from_secs_f64(position_seconds));
+                    } else if state.current_item_id.is_some() {
+                        state.stored_position_seconds = position_seconds.max(0.0);
                     }
+                    state.persist_session();
                 }
                 AudioCommand::SetVolume { volume } => {
                     state.volume = volume;
@@ -636,20 +722,24 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
                 AudioCommand::PlayWithQueue {
                     item,
-                    queue,
+                    manual_queue,
+                    auto_queue,
                     start_position_seconds,
                     temp_dir,
                 } => {
                     log::info!(
-                        "AudioThread received PlayWithQueue: item={}, queue_len={}",
+                        "AudioThread received PlayWithQueue: item={}, manual_len={}, auto_len={}",
                         item.item_id,
-                        queue.len()
+                        manual_queue.len(),
+                        auto_queue.len()
                     );
                     was_playing = false;
-                    // Set up the queue: first item is the one to play now, rest go to manual.
-                    let mut all_items = vec![item];
-                    all_items.extend(queue);
-                    state.queue.set_queue(all_items);
+                    state
+                        .queue
+                        .replace(Some(item.clone()), manual_queue, auto_queue);
+                    state.current_item_id = Some(item.item_id.clone());
+                    state.stored_position_seconds = start_position_seconds;
+                    state.duration_seconds = item.duration_seconds;
                     if let Some(current) = state.queue.current_item() {
                         log::info!("AudioThread calling handle_play for: {}", current.item_id);
                         state.handle_play(
@@ -661,37 +751,47 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                             &stream_handle,
                         );
                     }
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueEnqueue { item } => {
                     state.queue.enqueue(item);
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueuePlayNext { item } => {
                     state.queue.play_next(item);
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueRemove { item_id } => {
                     state.queue.remove(&item_id);
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueMoveUp { item_id } => {
                     state.queue.move_up(&item_id);
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueMoveDown { item_id } => {
                     state.queue.move_down(&item_id);
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueClear => {
                     state.queue.clear();
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueGetState { reply } => {
                     let _ = reply.send(state.queue.clone());
                 }
                 AudioCommand::QueueSet { items } => {
-                    state.queue.set_queue(items);
+                    state
+                        .queue
+                        .replace(state.queue.current.clone(), items, Vec::new());
+                    state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
             },
@@ -717,6 +817,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     &snapshot.item_id,
                     snapshot.position_seconds as i64,
                 );
+                state.persist_session();
             }
 
             // Detect track end.
@@ -724,6 +825,8 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 if let Some(ref sink) = state.sink {
                     if sink.empty() {
                         let finished_item_id = snapshot.item_id.clone();
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
                         state.stop_current();
                         let _ = app.emit(
                             "playback-ended",
@@ -743,7 +846,13 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                                 temp_dir,
                                 &stream_handle,
                             );
+                        } else {
+                            state.queue.clear_current();
+                            let _ = app.emit("playback-stopped", ());
                         }
+
+                        state.persist_session();
+                        let _ = app.emit("queue-changed", state.queue.to_event());
                     }
                 }
             }
@@ -756,6 +865,101 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
+
+fn feed_item_to_queued_item(item: crate::models::FeedItemRecord) -> Option<QueuedItem> {
+    let enclosure = item.media_enclosure?;
+
+    Some(QueuedItem {
+        item_id: item.id,
+        url: enclosure.url,
+        title: item.title,
+        duration_seconds: enclosure.duration_seconds.unwrap_or(0) as f64,
+    })
+}
+
+fn load_queued_item(db_path: &Path, item_id: String) -> Option<QueuedItem> {
+    db::get_item_by_id(db_path, &item_id)
+        .ok()
+        .flatten()
+        .and_then(feed_item_to_queued_item)
+}
+
+fn restore_persisted_session(state: &mut AudioThread) {
+    let db_state = state.app.state::<db::DatabaseState>();
+    let db_path = db_state.db_path();
+
+    let session = match db::load_playback_session(&db_path) {
+        Ok(session) => session,
+        Err(error) => {
+            log::error!("Failed to load playback session: {error}");
+            return;
+        }
+    };
+
+    let Some(session) = session else {
+        return;
+    };
+
+    let current = session
+        .current_item_id
+        .and_then(|item_id| load_queued_item(&db_path, item_id));
+    let manual = session
+        .manual_queue
+        .into_iter()
+        .filter_map(|item_id| load_queued_item(&db_path, item_id))
+        .collect::<Vec<_>>();
+    let auto = session
+        .auto_queue
+        .into_iter()
+        .filter_map(|item_id| load_queued_item(&db_path, item_id))
+        .collect::<Vec<_>>();
+
+    state.queue.replace(current.clone(), manual, auto);
+    state.current_item_id = current.as_ref().map(|item| item.item_id.clone());
+    state.stored_position_seconds = session.position_seconds.max(0) as f64;
+    state.duration_seconds = if session.duration_seconds > 0 {
+        session.duration_seconds as f64
+    } else {
+        current
+            .as_ref()
+            .map(|item| item.duration_seconds)
+            .unwrap_or(0.0)
+    };
+
+    if state.queue.current.is_none() && !state.queue.is_empty() {
+        state.persist_session();
+    }
+}
+
+fn resume_current_item(
+    state: &mut AudioThread,
+    stream_handle: &rodio::OutputStreamHandle,
+) -> Result<(), String> {
+    let Some(current) = state.queue.current_item().cloned() else {
+        return Err("No current item to resume".to_string());
+    };
+
+    let temp_dir = state
+        .app
+        .path()
+        .temp_dir()
+        .map_err(|error| format!("No temp dir: {error}"))?;
+
+    state.handle_play(
+        current.item_id,
+        current.url,
+        state.stored_position_seconds,
+        if state.duration_seconds > 0.0 {
+            state.duration_seconds
+        } else {
+            current.duration_seconds
+        },
+        temp_dir,
+        stream_handle,
+    );
+
+    Ok(())
+}
 
 /// Block until at least `min_bytes` have been downloaded, or `timeout` elapses.
 fn wait_for_minimum_data(
