@@ -7,7 +7,7 @@
 	} from '$lib/stores/app.svelte';
 	import type { MediaItem } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
-	import { Pause, Play } from '@lucide/svelte';
+	import Icon from '@iconify/svelte';
 
 	type ButtonSize = 'sm' | 'lg';
 
@@ -46,9 +46,9 @@
 	onclick={handleClick}
 >
 	{#if !isItemCurrentAudio(item.id) || (isItemCurrentAudio(item.id) && !isAudioPlaying())}
-		<Play class={isSmall ? 'size-4' : 'size-5'} />
+		<Icon icon="lucide:play" class={isSmall ? 'size-4' : 'size-5'} />
 	{:else}
-		<Pause class={isSmall ? 'size-4' : 'size-5'} />
+		<Icon icon="lucide:pause" class={isSmall ? 'size-4' : 'size-5'} />
 	{/if}
 
 	{#if progress}

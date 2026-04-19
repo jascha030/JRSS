@@ -6,7 +6,8 @@
 		StationEpisodeFilter,
 		ItemSortOrder
 	} from '$lib/types/rss';
-	import { X } from '@lucide/svelte';
+	import { SvelteSet } from 'svelte/reactivity';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		open: boolean;
@@ -25,8 +26,7 @@
 	let name = $state('');
 	let episodeFilter = $state<StationEpisodeFilter>('all');
 	let sortOrder = $state<ItemSortOrder>('newest_first');
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local form state, not reactive store
-	let selectedFeedIds = $state<Set<string>>(new Set());
+	let selectedFeedIds = $state(new SvelteSet<string>());
 
 	// Reset form when dialog opens or station changes
 	$effect(() => {
@@ -34,20 +34,16 @@
 			name = station?.name ?? '';
 			episodeFilter = station?.episodeFilter ?? 'all';
 			sortOrder = station?.sortOrder ?? 'newest_first';
-			selectedFeedIds = new Set(station?.feedIds ?? []);
+			selectedFeedIds = new SvelteSet(station?.feedIds ?? []);
 		}
 	});
 
 	function toggleFeed(feedId: string): void {
-		const next = new Set(selectedFeedIds);
-
-		if (next.has(feedId)) {
-			next.delete(feedId);
+		if (selectedFeedIds.has(feedId)) {
+			selectedFeedIds.delete(feedId);
 		} else {
-			next.add(feedId);
+			selectedFeedIds.add(feedId);
 		}
-
-		selectedFeedIds = next;
 	}
 
 	function handleSubmit(): void {
@@ -94,7 +90,7 @@
 					class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
 					onclick={onClose}
 				>
-					<X class="size-4" />
+					<Icon icon="lucide:x" class="size-4" />
 				</button>
 			</div>
 

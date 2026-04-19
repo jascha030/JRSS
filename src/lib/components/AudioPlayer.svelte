@@ -5,13 +5,7 @@
 	import { audioToggle, audioSeek, audioSetVolume } from '$lib/services/feedService';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
-	import Rewind from '@lucide/svelte/icons/rewind';
-	import FastForward from '@lucide/svelte/icons/fast-forward';
-	import Play from '@lucide/svelte/icons/play';
-	import Pause from '@lucide/svelte/icons/pause';
-	import VolumeX from '@lucide/svelte/icons/volume-x';
-	import Volume1 from '@lucide/svelte/icons/volume-1';
-	import Volume2 from '@lucide/svelte/icons/volume-2';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		item: MediaListItem | null;
@@ -427,7 +421,7 @@
 						aria-label="Back 15 seconds"
 						onclick={() => skip(-SKIP_SECONDS)}
 					>
-						<Rewind class="size-5" />
+						<Icon icon="lucide:rewind" class="size-5" />
 					</button>
 
 					<button
@@ -436,9 +430,9 @@
 						onclick={togglePlayback}
 					>
 						{#if playbackState.isPlaying}
-							<Pause class="size-5" />
+							<Icon icon="lucide:pause" class="size-5" />
 						{:else}
-							<Play class="size-5" />
+							<Icon icon="lucide:play" class="size-5" />
 						{/if}
 					</button>
 
@@ -448,7 +442,7 @@
 						aria-label="Forward 15 seconds"
 						onclick={() => skip(SKIP_SECONDS)}
 					>
-						<FastForward class="size-5" />
+						<Icon icon="lucide:fast-forward" class="size-5" />
 					</button>
 				</div>
 
@@ -481,11 +475,11 @@
 					aria-label={isMuted ? 'Unmute' : 'Mute'}
 				>
 					{#if isMuted || effectiveVolume === 0}
-						<VolumeX size={16} />
+						<Icon icon="lucide:volume-x" class="size-4" />
 					{:else if effectiveVolume < 0.5}
-						<Volume1 size={16} />
+						<Icon icon="lucide:volume-1" class="size-4" />
 					{:else}
-						<Volume2 size={16} />
+						<Icon icon="lucide:volume-2" class="size-4" />
 					{/if}
 				</button>
 

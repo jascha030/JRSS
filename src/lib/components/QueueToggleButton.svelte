@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { List } from '@lucide/svelte';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		isOpen: boolean;
@@ -12,12 +12,12 @@
 
 <button
 	type="button"
-	class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+	class="relative flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
 	aria-label={isOpen ? 'Close queue' : `Open queue (${queueLength})`}
 	title={isOpen ? 'Close queue' : `Queue (${queueLength})`}
 	onclick={onToggle}
 >
-	<List class="size-4" />
+	<Icon icon="lucide:list" class="size-4" />
 
 	{#if queueLength > 0}
 		<span

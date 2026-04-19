@@ -3,7 +3,7 @@
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
-	import { Ellipsis } from '@lucide/svelte';
+	import Icon from '@iconify/svelte';
 	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -66,7 +66,7 @@
 						type="button"
 						onclick={(e) => void openAudioContextMenu(e, item)}
 					>
-						<Ellipsis class="size-4" />
+						<Icon icon="lucide:ellipsis" class="size-4" />
 					</button>
 				</div>
 			{/if}
