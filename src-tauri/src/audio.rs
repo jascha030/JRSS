@@ -70,9 +70,7 @@ struct PrefetchState {
 impl PrefetchState {
     fn cancel(&mut self) {
         self.meta.cancelled.store(true, Ordering::Release);
-        if let Some(handle) = self.download_thread.take() {
-            let _ = handle.join();
-        }
+        let _ = self.download_thread.take();
     }
 }
 
@@ -520,11 +518,6 @@ impl AudioThread {
             let meta = Arc::clone(&prefetch.meta);
             let path = prefetch.cache_path.clone();
 
-            // Wait for prefetch thread to finish or detach
-            if let Some(handle) = prefetch.download_thread {
-                let _ = handle.join();
-            }
-
             (meta, path, true)
         } else {
             let cache_dir = get_audio_cache_path(&self.app)?;
@@ -830,6 +823,19 @@ impl Drop for AudioThread {
     }
 }
 
+fn emit_playback_snapshot(
+    app: &AppHandle,
+    state: &AudioThread,
+    last_emit: &mut Instant,
+    last_emitted_state: &mut Option<PlaybackStateEvent>,
+) {
+    if let Some(snapshot) = state.snapshot() {
+        *last_emit = Instant::now();
+        *last_emitted_state = Some(snapshot.clone());
+        let _ = app.emit("playback-state-changed", snapshot);
+    }
+}
+
 fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let mut state = AudioThread {
         sink_handle: None,
@@ -857,6 +863,12 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let persist_interval = Duration::from_secs(5);
     let mut last_persist = Instant::now();
     let mut was_playing = false;
+
+    // Throttling for playback-state-changed events
+    let min_emit_interval_while_playing = Duration::from_millis(250);
+    let min_emit_interval_while_paused = Duration::from_secs(2);
+    let mut last_emit = Instant::now();
+    let mut last_emitted_state: Option<PlaybackStateEvent> = None;
 
     loop {
         match rx.recv_timeout(poll_interval) {
@@ -888,12 +900,14 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Pause => {
                     if let Some(ref player) = state.player {
                         player.pause();
                     }
                     state.persist_session();
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Resume => {
                     if let Some(ref player) = state.player {
@@ -902,6 +916,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         log::info!("Resume ignored: {error}");
                     }
                     state.persist_session();
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::TogglePlayback => {
                     if let Some(ref player) = state.player {
@@ -914,6 +929,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         log::info!("TogglePlayback ignored: {error}");
                     }
                     state.persist_session();
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Stop => {
                     state.sync_cached_position();
@@ -928,6 +944,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state.stop_current();
                     state.queue.clear_current();
                     state.persist_session();
+                    last_emitted_state = None;
                     let _ = app.emit("playback-stopped", ());
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
@@ -982,12 +999,14 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     }
                     log::debug!("Seek command took {:?}", seek_start.elapsed());
                     state.persist_session();
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::SetVolume { volume } => {
                     state.volume = volume;
                     if let Some(ref player) = state.player {
                         player.set_volume(volume);
                     }
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::SetSpeed { speed } => {
                     state.speed = speed;
@@ -1024,6 +1043,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::QueueEnqueue { item } => {
                     state.queue.enqueue(item);
@@ -1096,7 +1116,29 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         }
 
         if let Some(snapshot) = state.snapshot() {
-            let _ = app.emit("playback-state-changed", &snapshot);
+            // Throttle playback-state-changed emissions
+            let min_interval = if snapshot.is_playing {
+                min_emit_interval_while_playing
+            } else {
+                min_emit_interval_while_paused
+            };
+
+            let should_emit = last_emit.elapsed() >= min_interval && {
+                if let Some(ref last) = last_emitted_state {
+                    // Only emit if something meaningful changed
+                    last.item_id != snapshot.item_id
+                        || last.is_playing != snapshot.is_playing
+                        || (last.position_seconds as i64) != (snapshot.position_seconds as i64)
+                } else {
+                    true // Always emit if we haven't emitted before
+                }
+            };
+
+            if should_emit {
+                last_emit = Instant::now();
+                last_emitted_state = Some(snapshot.clone());
+                let _ = app.emit("playback-state-changed", &snapshot);
+            }
 
             if snapshot.is_playing && last_persist.elapsed() >= persist_interval {
                 last_persist = Instant::now();
