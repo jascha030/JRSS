@@ -227,7 +227,9 @@ export async function audioResume(): Promise<void> {
 }
 
 export async function audioToggle(): Promise<void> {
+	console.log('[audioToggle] calling backend');
 	await invokeCommand('audio_toggle');
+	console.log('[audioToggle] done');
 }
 
 export async function audioStop(): Promise<void> {
@@ -248,4 +250,66 @@ export async function audioSetSpeed(speed: number): Promise<void> {
 
 export async function audioGetState(): Promise<BackendPlaybackState | null> {
 	return invokeCommand<BackendPlaybackState | null>('audio_get_state');
+}
+
+// ---------------------------------------------------------------------------
+// Queue management — backend-owned for headless playback
+// ---------------------------------------------------------------------------
+
+export interface QueuedItem {
+	itemId: string;
+	url: string;
+	title: string;
+	durationSeconds: number;
+}
+
+export interface QueueState {
+	manual: QueuedItem[];
+	auto: QueuedItem[];
+	current: QueuedItem | null;
+}
+
+export async function audioPlayWithQueue(
+	item: QueuedItem,
+	queue: QueuedItem[],
+	startPositionSeconds: number
+): Promise<void> {
+	console.log('[audio] audioPlayWithQueue called', {
+		itemId: item.itemId,
+		queueLength: queue.length
+	});
+	await invokeCommand('audio_play_with_queue', { item, queue, startPositionSeconds });
+	console.log('[audio] audioPlayWithQueue completed');
+}
+
+export async function audioQueueEnqueue(item: QueuedItem): Promise<void> {
+	await invokeCommand('audio_queue_enqueue', { item });
+}
+
+export async function audioQueuePlayNext(item: QueuedItem): Promise<void> {
+	await invokeCommand('audio_queue_play_next', { item });
+}
+
+export async function audioQueueRemove(itemId: string): Promise<void> {
+	await invokeCommand('audio_queue_remove', { itemId });
+}
+
+export async function audioQueueMoveUp(itemId: string): Promise<void> {
+	await invokeCommand('audio_queue_move_up', { itemId });
+}
+
+export async function audioQueueMoveDown(itemId: string): Promise<void> {
+	await invokeCommand('audio_queue_move_down', { itemId });
+}
+
+export async function audioQueueClear(): Promise<void> {
+	await invokeCommand('audio_queue_clear');
+}
+
+export async function audioQueueGetState(): Promise<QueueState> {
+	return invokeCommand<QueueState>('audio_queue_get_state');
+}
+
+export async function audioQueueSet(items: QueuedItem[]): Promise<void> {
+	await invokeCommand('audio_queue_set', { items });
 }

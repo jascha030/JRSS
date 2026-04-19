@@ -5,6 +5,7 @@ use crate::models::{
     CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
     ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord, UpdateStationInput,
 };
+use crate::queue::{QueuedItem, QueueState};
 use crate::reader_extract;
 use tauri::State;
 
@@ -348,4 +349,61 @@ pub fn audio_set_speed(app: tauri::AppHandle, speed: f64) -> Result<(), String> 
 #[tauri::command]
 pub fn audio_get_state(app: tauri::AppHandle) -> Option<PlaybackStateEvent> {
     audio::get_playback_state(&app)
+}
+
+// ---------------------------------------------------------------------------
+// Queue management — backend-owned for headless playback
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn audio_play_with_queue(
+    app: tauri::AppHandle,
+    item: QueuedItem,
+    queue: Vec<QueuedItem>,
+    start_position_seconds: f64,
+) -> Result<(), String> {
+    log::info!("audio_play_with_queue: item={}, queue_len={}", item.item_id, queue.len());
+    let result = audio::play_with_queue(&app, item, queue, start_position_seconds);
+    log::info!("audio_play_with_queue: result={:?}", result);
+    result
+}
+
+#[tauri::command]
+pub fn audio_queue_enqueue(app: tauri::AppHandle, item: QueuedItem) -> Result<(), String> {
+    audio::queue_enqueue(&app, item)
+}
+
+#[tauri::command]
+pub fn audio_queue_play_next(app: tauri::AppHandle, item: QueuedItem) -> Result<(), String> {
+    audio::queue_play_next(&app, item)
+}
+
+#[tauri::command]
+pub fn audio_queue_remove(app: tauri::AppHandle, item_id: String) -> Result<(), String> {
+    audio::queue_remove(&app, item_id)
+}
+
+#[tauri::command]
+pub fn audio_queue_move_up(app: tauri::AppHandle, item_id: String) -> Result<(), String> {
+    audio::queue_move_up(&app, item_id)
+}
+
+#[tauri::command]
+pub fn audio_queue_move_down(app: tauri::AppHandle, item_id: String) -> Result<(), String> {
+    audio::queue_move_down(&app, item_id)
+}
+
+#[tauri::command]
+pub fn audio_queue_clear(app: tauri::AppHandle) -> Result<(), String> {
+    audio::queue_clear(&app)
+}
+
+#[tauri::command]
+pub fn audio_queue_get_state(app: tauri::AppHandle) -> QueueState {
+    audio::get_queue_state(&app)
+}
+
+#[tauri::command]
+pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<(), String> {
+    audio::queue_set(&app, items)
 }

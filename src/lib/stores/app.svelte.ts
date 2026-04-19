@@ -1,6 +1,15 @@
 import {
 	addFeed,
-	audioPlay,
+	audioGetState,
+	audioPlayWithQueue,
+	audioQueueClear,
+	audioQueueEnqueue,
+	audioQueueGetState,
+	audioQueueMoveDown,
+	audioQueueMoveUp,
+	audioQueuePlayNext,
+	audioQueueRemove,
+	audioQueueSet,
 	audioSeek,
 	audioStop,
 	audioToggle,
@@ -273,6 +282,7 @@ function invalidateAllQueries(): void {
 	app.selectedItemId = null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function toFeedListItem(item: FeedItem): FeedListItem {
 	const {
 		summaryText: _1,
@@ -801,7 +811,8 @@ async function initAudioEventListeners(): Promise<void> {
 	});
 
 	const unlistenEnded = await listen<BackendPlaybackEndedEvent>('playback-ended', () => {
-		void handlePlaybackEnded();
+		// Backend now handles queue auto-advance — just update local state from backend
+		void syncQueueFromBackend();
 	});
 
 	const unlistenStopped = await listen('playback-stopped', () => {
@@ -809,7 +820,22 @@ async function initAudioEventListeners(): Promise<void> {
 		persistSession();
 	});
 
-	audioEventUnlisteners = [unlistenState, unlistenEnded, unlistenStopped];
+	const unlistenQueueChanged = await listen<{
+		current: { itemId: string; url: string; title: string; durationSeconds: number } | null;
+		manualCount: number;
+		autoCount: number;
+	}>('queue-changed', async () => {
+		// Queue changed in backend — fetch updated state and sync to frontend
+		try {
+			const backendQueue = await audioQueueGetState();
+			// We store item IDs for display, but actual queue logic is in backend
+			// For now, just don't clear - we'll rebuild from playback context
+		} catch (e) {
+			console.error('Failed to sync queue from backend', e);
+		}
+	});
+
+	audioEventUnlisteners = [unlistenState, unlistenEnded, unlistenStopped, unlistenQueueChanged];
 }
 
 export async function initializeApp(): Promise<void> {
@@ -1042,6 +1068,20 @@ export function getReaderRequestItemId(): string | null {
 	return app.readerRequestItemId;
 }
 
+function itemToQueuedItem(item: MediaListItem): {
+	itemId: string;
+	url: string;
+	title: string;
+	durationSeconds: number;
+} {
+	return {
+		itemId: item.id,
+		url: item.mediaEnclosure.url,
+		title: item.title,
+		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0
+	};
+}
+
 export function playAudioItem(item: MediaListItem, { autoPlay = true } = {}): void {
 	app.audioItemsById[item.id] = item;
 	app.currentPlaybackState = {
@@ -1053,14 +1093,33 @@ export function playAudioItem(item: MediaListItem, { autoPlay = true } = {}): vo
 	};
 
 	if (autoPlay) {
-		void audioPlay(
-			item.id,
-			item.mediaEnclosure.url,
-			item.playbackPositionSeconds,
-			item.mediaEnclosure.durationSeconds ?? 0
-		).catch((error: unknown) => {
-			console.error('Failed to start audio playback.', error);
-		});
+		// Build the queue: items in manual + auto queues (excluding current item)
+		const queueItems: { itemId: string; url: string; title: string; durationSeconds: number }[] =
+			[];
+		const currentItemId = item.id;
+
+		for (const id of app.manualQueue) {
+			if (id !== currentItemId) {
+				const qItem = app.audioItemsById[id] ?? app.itemSummariesById[id];
+				if (qItem && isMediaItem(qItem)) {
+					queueItems.push(itemToQueuedItem(qItem));
+				}
+			}
+		}
+		for (const id of app.autoQueue) {
+			if (id !== currentItemId) {
+				const qItem = app.audioItemsById[id] ?? app.itemSummariesById[id];
+				if (qItem && isMediaItem(qItem)) {
+					queueItems.push(itemToQueuedItem(qItem));
+				}
+			}
+		}
+
+		void audioPlayWithQueue(itemToQueuedItem(item), queueItems, item.playbackPositionSeconds).catch(
+			(error: unknown) => {
+				console.error('Failed to start audio playback.', error);
+			}
+		);
 	}
 }
 
@@ -1077,9 +1136,15 @@ export function stopPlayback(): void {
  * Has no effect if nothing is loaded.
  */
 export function requestTogglePlayback(): void {
+	console.log('[requestTogglePlayback] called, currentPlaybackState:', app.currentPlaybackState);
 	if (!app.currentPlaybackState) {
+		console.log('[requestTogglePlayback] early return - no currentPlaybackState');
 		return;
 	}
+	// Also fetch actual backend state to see if there's a playing item
+	audioGetState().then((backendState: BackendPlaybackState | null) => {
+		console.log('[requestTogglePlayback] backend state:', backendState);
+	});
 	void audioToggle().catch((error: unknown) => {
 		console.error('Failed to toggle playback.', error);
 	});
@@ -1141,6 +1206,35 @@ function applyBackendPlaybackState(event: BackendPlaybackState): void {
 		isPlaying: event.isPlaying,
 		autoPlay: false
 	};
+}
+
+async function syncQueueFromBackend(): Promise<void> {
+	const backendQueue = await audioQueueGetState();
+	// Update frontend display state from backend
+	// Note: The actual queue operations go through backend commands
+	// This just syncs the display state for UI purposes
+	const currentItem = backendQueue.current;
+	if (currentItem && app.currentPlaybackState) {
+		// Check if the current playing item changed (auto-advance happened)
+		if (currentItem.itemId !== app.currentPlaybackState.itemId) {
+			// Auto-advance happened — update current state
+			const item =
+				app.audioItemsById[currentItem.itemId] ?? app.itemSummariesById[currentItem.itemId];
+			if (item && isMediaItem(item)) {
+				app.currentPlaybackState = {
+					itemId: currentItem.itemId,
+					positionSeconds: 0,
+					durationSeconds: currentItem.durationSeconds,
+					isPlaying: true,
+					autoPlay: false
+				};
+				app.audioItemsById[currentItem.itemId] = item;
+				// Mark as read when playback auto-advances
+				void markItemRead(currentItem.itemId, true);
+			}
+		}
+	}
+	persistSession();
 }
 
 export function updatePlaybackPosition(positionSeconds: number, durationSeconds: number): void {
@@ -1274,6 +1368,15 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 
 	app.manualQueue = ids;
 	app.autoQueue = [];
+
+	// Sync to backend - only include media items
+	const queueItems = items.filter(isMediaItem).map((item) => ({
+		itemId: item.id,
+		url: item.mediaEnclosure.url,
+		title: item.title,
+		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0
+	}));
+	void audioQueueSet(queueItems).catch(console.error);
 }
 
 /** Append an item to the end of the manual queue. No-op if already queued or currently playing. */
@@ -1291,6 +1394,9 @@ export function enqueueAudioItem(item: MediaListItem): void {
 	// Also remove from autoQueue to avoid duplicates in the combined view
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
 	app.manualQueue = [...app.manualQueue, item.id];
+
+	// Sync to backend
+	void audioQueueEnqueue(itemToQueuedItem(item)).catch(console.error);
 	persistSession();
 }
 
@@ -1304,6 +1410,9 @@ export function playAudioItemNext(item: MediaListItem): void {
 	const filteredManual = app.manualQueue.filter((id) => id !== item.id);
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
 	app.manualQueue = [item.id, ...filteredManual];
+
+	// Sync to backend
+	void audioQueuePlayNext(itemToQueuedItem(item)).catch(console.error);
 	persistSession();
 }
 
@@ -1315,6 +1424,7 @@ export function moveQueuedItemUp(itemId: string): void {
 		const next = [...app.manualQueue];
 		[next[manualIndex - 1], next[manualIndex]] = [next[manualIndex], next[manualIndex - 1]];
 		app.manualQueue = next;
+		void audioQueueMoveUp(itemId).catch(console.error);
 		return;
 	}
 
@@ -1325,10 +1435,12 @@ export function moveQueuedItemUp(itemId: string): void {
 		const next = [...app.autoQueue];
 		[next[autoIndex - 1], next[autoIndex]] = [next[autoIndex], next[autoIndex - 1]];
 		app.autoQueue = next;
+		void audioQueueMoveUp(itemId).catch(console.error);
 	} else if (autoIndex === 0) {
 		// Promote from auto to manual (move to end of manual queue)
 		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
 		app.manualQueue = [...app.manualQueue, itemId];
+		void audioQueueMoveUp(itemId).catch(console.error);
 	}
 	persistSession();
 }
@@ -1341,6 +1453,7 @@ export function moveQueuedItemDown(itemId: string): void {
 		const next = [...app.manualQueue];
 		[next[manualIndex], next[manualIndex + 1]] = [next[manualIndex + 1], next[manualIndex]];
 		app.manualQueue = next;
+		void audioQueueMoveDown(itemId).catch(console.error);
 		return;
 	}
 
@@ -1348,6 +1461,7 @@ export function moveQueuedItemDown(itemId: string): void {
 		// Demote from manual to auto (move to start of auto queue)
 		app.manualQueue = app.manualQueue.filter((id) => id !== itemId);
 		app.autoQueue = [itemId, ...app.autoQueue];
+		void audioQueueMoveDown(itemId).catch(console.error);
 		return;
 	}
 
@@ -1357,6 +1471,7 @@ export function moveQueuedItemDown(itemId: string): void {
 		const next = [...app.autoQueue];
 		[next[autoIndex], next[autoIndex + 1]] = [next[autoIndex + 1], next[autoIndex]];
 		app.autoQueue = next;
+		void audioQueueMoveDown(itemId).catch(console.error);
 	}
 	persistSession();
 }
@@ -1368,6 +1483,7 @@ export function removeQueuedItem(itemId: string): void {
 	} else {
 		app.autoQueue = app.autoQueue.filter((id) => id !== itemId);
 	}
+	void audioQueueRemove(itemId).catch(console.error);
 	persistSession();
 }
 
@@ -1375,6 +1491,7 @@ export function removeQueuedItem(itemId: string): void {
 export function clearQueue(): void {
 	app.manualQueue = [];
 	app.autoQueue = [];
+	void audioQueueClear().catch(console.error);
 	persistSession();
 }
 
@@ -1475,6 +1592,7 @@ function deriveAutoContinuation(playingItemId: string): string[] {
  * 3. Preserves manual queue entries untouched
  */
 export function startPlaybackFromContext(item: MediaListItem): void {
+	console.log('[startPlaybackFromContext] called for:', item.id, item.title);
 	// Remove from either queue if present (it's now playing, not queued)
 	app.manualQueue = app.manualQueue.filter((id) => id !== item.id);
 	app.autoQueue = app.autoQueue.filter((id) => id !== item.id);
