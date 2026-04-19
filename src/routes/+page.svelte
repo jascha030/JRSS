@@ -157,28 +157,26 @@
 		}
 	}
 
-	function handleStationSave(input: import('$lib/types/rss').CreateStationInput) {
-		return async () => {
-			try {
-				if (editingStation) {
-					await updateExistingStation({
-						id: editingStation.id,
-						name: input.name,
-						feedIds: input.feedIds,
-						episodeFilter: input.episodeFilter,
-						sortOrder: input.sortOrder
-					});
-					toast.success('Station updated.');
-				} else {
-					await createStation(input);
-					toast.success('Station created.');
-				}
-				isStationEditorOpen = false;
-				editingStation = null;
-			} catch (error: unknown) {
-				toast.error(error instanceof Error ? error.message : 'Unable to save station.');
+	async function handleStationSave(input: import('$lib/types/rss').CreateStationInput) {
+		try {
+			if (editingStation) {
+				await updateExistingStation({
+					id: editingStation.id,
+					name: input.name,
+					feedIds: input.feedIds,
+					episodeFilter: input.episodeFilter,
+					sortOrder: input.sortOrder
+				});
+				toast.success('Station updated.');
+			} else {
+				await createStation(input);
+				toast.success('Station created.');
 			}
-		};
+			isStationEditorOpen = false;
+			editingStation = null;
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to save station.');
+		}
 	}
 
 	function handleStationDelete() {
