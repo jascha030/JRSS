@@ -1,11 +1,11 @@
-use crate::audio::{self, PlaybackStateEvent};
+use crate::audio::{self, OutputDeviceInfo, PlaybackStateEvent};
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
     CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
     ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord, UpdateStationInput,
 };
-use crate::queue::{QueuedItem, QueueState};
+use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
 use tauri::State;
 
@@ -185,11 +185,9 @@ pub async fn save_playback_session(
 ) -> Result<(), String> {
     let db_path = state.db_path();
 
-    tauri::async_runtime::spawn_blocking(move || {
-        db::save_playback_session(&db_path, &session)
-    })
-    .await
-    .map_err(|error| format!("Native task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || db::save_playback_session(&db_path, &session))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -219,9 +217,7 @@ pub async fn set_feed_sort_order(
 }
 
 #[tauri::command]
-pub async fn clear_playback_session(
-    state: State<'_, DatabaseState>,
-) -> Result<(), String> {
+pub async fn clear_playback_session(state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || db::clear_playback_session(&db_path))
@@ -269,10 +265,7 @@ pub async fn update_station(
 }
 
 #[tauri::command]
-pub async fn delete_station(
-    id: String,
-    state: State<'_, DatabaseState>,
-) -> Result<(), String> {
+pub async fn delete_station(id: String, state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || db::delete_station(&db_path, &id))
@@ -308,7 +301,13 @@ pub fn audio_play(
     start_position_seconds: f64,
     duration_hint_seconds: f64,
 ) -> Result<(), String> {
-    audio::play_url(&app, item_id, url, start_position_seconds, duration_hint_seconds)
+    audio::play_url(
+        &app,
+        item_id,
+        url,
+        start_position_seconds,
+        duration_hint_seconds,
+    )
 }
 
 #[tauri::command]
@@ -351,6 +350,24 @@ pub fn audio_get_state(app: tauri::AppHandle) -> Option<PlaybackStateEvent> {
     audio::get_playback_state(&app)
 }
 
+#[tauri::command]
+pub fn audio_list_output_devices(app: tauri::AppHandle) -> Vec<OutputDeviceInfo> {
+    audio::list_output_devices(&app)
+}
+
+#[tauri::command]
+pub fn audio_get_output_device(app: tauri::AppHandle) -> Option<String> {
+    audio::get_selected_output_device(&app)
+}
+
+#[tauri::command]
+pub fn audio_set_output_device(
+    app: tauri::AppHandle,
+    device_id: Option<String>,
+) -> Result<(), String> {
+    audio::set_output_device(&app, device_id)
+}
+
 // ---------------------------------------------------------------------------
 // Queue management — backend-owned for headless playback
 // ---------------------------------------------------------------------------
@@ -363,16 +380,7 @@ pub fn audio_play_with_queue(
     auto_queue: Vec<QueuedItem>,
     start_position_seconds: f64,
 ) -> Result<(), String> {
-    log::info!(
-        "audio_play_with_queue: item={}, manual_len={}, auto_len={}",
-        item.item_id,
-        manual_queue.len(),
-        auto_queue.len()
-    );
-    let result =
-        audio::play_with_queue(&app, item, manual_queue, auto_queue, start_position_seconds);
-    log::info!("audio_play_with_queue: result={:?}", result);
-    result
+    audio::play_with_queue(&app, item, manual_queue, auto_queue, start_position_seconds)
 }
 
 #[tauri::command]

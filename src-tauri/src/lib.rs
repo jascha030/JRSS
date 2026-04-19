@@ -24,7 +24,7 @@ pub fn run() {
                 )?;
             }
 
-            #[cfg(debug_assertions)] 
+            #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
                 window.open_devtools();
@@ -35,7 +35,7 @@ pub fn run() {
             app.manage(database_state);
 
             let audio_state = AudioState::new(app.handle().clone())
-                .map_err(|e| Box::<dyn std::error::Error>::from(e))?;
+                .map_err(Box::<dyn std::error::Error>::from)?;
             app.manage(audio_state);
 
             Ok(())
@@ -69,6 +69,9 @@ pub fn run() {
             commands::audio_set_volume,
             commands::audio_set_speed,
             commands::audio_get_state,
+            commands::audio_list_output_devices,
+            commands::audio_get_output_device,
+            commands::audio_set_output_device,
             commands::audio_play_with_queue,
             commands::audio_queue_enqueue,
             commands::audio_queue_play_next,

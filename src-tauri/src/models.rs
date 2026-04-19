@@ -20,7 +20,9 @@ impl ItemListSection {
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ItemSortOrder {
+    #[default]
     NewestFirst,
     OldestFirst,
 }
@@ -31,12 +33,6 @@ impl ItemSortOrder {
             Self::NewestFirst => "i.published_at DESC, i.id DESC",
             Self::OldestFirst => "i.published_at ASC, i.id ASC",
         }
-    }
-}
-
-impl Default for ItemSortOrder {
-    fn default() -> Self {
-        Self::NewestFirst
     }
 }
 

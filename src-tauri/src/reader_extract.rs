@@ -69,7 +69,7 @@ fn extract_reader_content_from_html(
     fallback_title: &str,
 ) -> AppResult<ReaderContentRecord> {
     let mut cursor = Cursor::new(html.as_bytes());
-    let readable = extract(&mut cursor, &final_url, ExtractOptions::default())
+    let readable = extract(&mut cursor, final_url, ExtractOptions::default())
         .map_err(|error| format!("Failed to extract readable article content: {error}"))?;
     let content_html = sanitize_reader_html(&readable.content, final_url);
     let content_text = normalize_reader_text(&readable.text);
@@ -94,11 +94,11 @@ fn extract_reader_content_from_html(
 
     Ok(ReaderContentRecord {
         title: clean_metadata_value(&readable.title)
-            .or_else(|| extract_title(&html))
+            .or_else(|| extract_title(html))
             .or_else(|| clean_metadata_value(fallback_title))
             .unwrap_or_else(|| "Untitled article".to_string()),
-        byline: extract_byline(&html),
-        excerpt: extract_excerpt(&html)
+        byline: extract_byline(html),
+        excerpt: extract_excerpt(html)
             .or_else(|| content_text.as_deref().and_then(build_excerpt_from_text)),
         content_html,
         content_text,
