@@ -2,27 +2,13 @@
 //!
 //! ## Architecture
 //!
-//! rodio's `OutputStream` is `!Send`, so it cannot live in Tauri managed state
-//! directly. Instead, we spawn a dedicated **audio thread** at app startup that
-//! owns the `OutputStream`, `Sink`, and all playback state. The rest of the app
-//! communicates with it via a channel of [`AudioCommand`] messages.
-//!
-//! A position-polling loop on the same thread emits Tauri events back to the
-//! frontend, and persists playback position to SQLite periodically.
-//!
-//! ## Streaming
+//! A dedicated audio thread owns the rodio device sink handle, player, device
+//! selection state, and all playback/queue state. The rest of the app
+//! communicates with it via [`AudioCommand`] messages.
 //!
 //! Audio data is streamed from an HTTP URL into a temporary file on disk.
 //! A [`StreamingFile`] wrapper presents this growing file as a blocking
-//! `Read + Seek` source suitable for rodio's `Decoder`. Reads at the download
-//! frontier block until data arrives, enabling immediate playback while the
-//! download continues in the background.
-//!
-//! ## Queue integration
-//!
-//! The queue lives in the audio thread so playback can continue without any
-//! frontend window. When a track ends, the audio thread automatically advances
-//! to the next queued item.
+//! `Read + Seek` source suitable for rodio's `Decoder`.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -31,7 +17,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
-use rodio::{Decoder, OutputStream, Sink};
+use ::rodio::cpal;
+use ::rodio::cpal::traits::{DeviceTrait, HostTrait};
+use ::rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -43,7 +31,6 @@ use crate::queue::{QueueState, QueuedItem};
 // Event payloads — emitted to the frontend
 // ---------------------------------------------------------------------------
 
-/// Playback state emitted to the frontend via Tauri events.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackStateEvent {
@@ -54,18 +41,26 @@ pub struct PlaybackStateEvent {
     pub volume: f64,
 }
 
-/// Emitted once when a track finishes naturally.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackEndedEvent {
     pub item_id: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutputDeviceInfo {
+    pub id: String,
+    pub name: String,
+    pub is_default: bool,
+    pub channels: Option<u16>,
+    pub sample_rate: Option<u32>,
+}
+
 // ---------------------------------------------------------------------------
 // StreamingFile — a growing file that blocks reads at the download edge
 // ---------------------------------------------------------------------------
 
-/// Shared metadata for the download-in-progress.
 struct DownloadMeta {
     bytes_written: AtomicU64,
     complete: AtomicBool,
@@ -82,8 +77,6 @@ impl DownloadMeta {
     }
 }
 
-/// Read handle into a file being written to concurrently.
-/// Blocks on read when the cursor is at the download frontier.
 struct StreamingFile {
     file: File,
     cursor: u64,
@@ -91,7 +84,7 @@ struct StreamingFile {
 }
 
 impl StreamingFile {
-    fn open(path: &std::path::Path, meta: Arc<DownloadMeta>) -> io::Result<Self> {
+    fn open(path: &Path, meta: Arc<DownloadMeta>) -> io::Result<Self> {
         let file = File::open(path)?;
         Ok(Self {
             file,
@@ -120,7 +113,6 @@ impl Read for StreamingFile {
                 return Ok(0);
             }
 
-            // At the frontier — wait for more data.
             std::thread::sleep(Duration::from_millis(50));
         }
     }
@@ -163,7 +155,6 @@ enum AudioCommand {
         duration_hint_seconds: f64,
         temp_dir: PathBuf,
     },
-    /// Play a specific item and set the entire queue (replaces current queue).
     PlayWithQueue {
         item: QueuedItem,
         manual_queue: Vec<QueuedItem>,
@@ -184,39 +175,40 @@ enum AudioCommand {
     SetSpeed {
         speed: f32,
     },
-    /// Request current state snapshot — response sent via the oneshot.
     GetState {
         reply: mpsc::Sender<Option<PlaybackStateEvent>>,
     },
-    /// Enqueue an item to the manual queue.
     QueueEnqueue {
         item: QueuedItem,
     },
-    /// Insert an item at the front of the manual queue.
     QueuePlayNext {
         item: QueuedItem,
     },
-    /// Remove an item from the queue.
     QueueRemove {
         item_id: String,
     },
-    /// Move an item up in its segment.
     QueueMoveUp {
         item_id: String,
     },
-    /// Move an item down in its segment.
     QueueMoveDown {
         item_id: String,
     },
-    /// Clear the queue.
     QueueClear,
-    /// Request current queue state.
     QueueGetState {
         reply: mpsc::Sender<QueueState>,
     },
-    /// Replace entire queue (e.g., when loading a playlist).
     QueueSet {
         items: Vec<QueuedItem>,
+    },
+    ListOutputDevices {
+        reply: mpsc::Sender<Vec<OutputDeviceInfo>>,
+    },
+    GetSelectedOutputDevice {
+        reply: mpsc::Sender<Option<String>>,
+    },
+    SetOutputDevice {
+        device_id: Option<String>,
+        reply: mpsc::Sender<Result<(), String>>,
     },
 }
 
@@ -224,13 +216,11 @@ enum AudioCommand {
 // AudioState — Tauri-managed handle (just a sender)
 // ---------------------------------------------------------------------------
 
-/// Tauri-managed state. Contains only a channel sender to the audio thread.
 pub struct AudioState {
     tx: mpsc::Sender<AudioCommand>,
 }
 
 impl AudioState {
-    /// Spawn the audio thread and return the handle.
     pub fn new(app: AppHandle) -> Result<Self, String> {
         let (tx, rx) = mpsc::channel::<AudioCommand>();
 
@@ -324,22 +314,19 @@ pub fn play_with_queue(
     auto_queue: Vec<QueuedItem>,
     start_position_seconds: f64,
 ) -> Result<(), String> {
-    log::info!("play_with_queue: sending command for item={}", item.item_id);
     let state = app.state::<AudioState>();
     let temp_dir = app
         .path()
         .temp_dir()
         .map_err(|e| format!("No temp dir: {e}"))?;
 
-    let send_result = state.send(AudioCommand::PlayWithQueue {
+    state.send(AudioCommand::PlayWithQueue {
         item,
         manual_queue,
         auto_queue,
         start_position_seconds,
         temp_dir,
-    });
-    log::info!("play_with_queue: send result={:?}", send_result);
-    send_result
+    })
 }
 
 pub fn queue_enqueue(app: &AppHandle, item: QueuedItem) -> Result<(), String> {
@@ -385,13 +372,44 @@ pub fn queue_set(app: &AppHandle, items: Vec<QueuedItem>) -> Result<(), String> 
         .send(AudioCommand::QueueSet { items })
 }
 
+pub fn list_output_devices(app: &AppHandle) -> Vec<OutputDeviceInfo> {
+    let state = app.state::<AudioState>();
+    let (reply_tx, reply_rx) = mpsc::channel();
+    let _ = state.send(AudioCommand::ListOutputDevices { reply: reply_tx });
+    reply_rx
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap_or_default()
+}
+
+pub fn get_selected_output_device(app: &AppHandle) -> Option<String> {
+    let state = app.state::<AudioState>();
+    let (reply_tx, reply_rx) = mpsc::channel();
+    let _ = state.send(AudioCommand::GetSelectedOutputDevice { reply: reply_tx });
+    reply_rx.recv_timeout(Duration::from_secs(2)).ok().flatten()
+}
+
+pub fn set_output_device(app: &AppHandle, device_id: Option<String>) -> Result<(), String> {
+    let state = app.state::<AudioState>();
+    let (reply_tx, reply_rx) = mpsc::channel();
+
+    state.send(AudioCommand::SetOutputDevice {
+        device_id,
+        reply: reply_tx,
+    })?;
+
+    reply_rx
+        .recv_timeout(Duration::from_secs(5))
+        .map_err(|_| "Timed out waiting for audio device change".to_string())?
+}
+
 // ---------------------------------------------------------------------------
-// Audio thread — owns OutputStream, Sink, and all playback state
+// Audio thread — owns MixerDeviceSink, Player, and all playback state
 // ---------------------------------------------------------------------------
 
 struct AudioThread {
-    _stream: OutputStream,
-    sink: Option<Sink>,
+    sink_handle: Option<MixerDeviceSink>,
+    player: Option<Player>,
+    selected_output_device_id: Option<String>,
     current_item_id: Option<String>,
     stored_position_seconds: f64,
     duration_seconds: f64,
@@ -404,6 +422,19 @@ struct AudioThread {
 }
 
 impl AudioThread {
+    fn ensure_output_sink(&mut self) -> Result<(), String> {
+        if self.sink_handle.is_none() {
+            self.rebuild_output_sink()?;
+        }
+        Ok(())
+    }
+
+    fn rebuild_output_sink(&mut self) -> Result<(), String> {
+        let handle = open_output_sink(self.selected_output_device_id.as_deref())?;
+        self.sink_handle = Some(handle);
+        Ok(())
+    }
+
     fn handle_play(
         &mut self,
         item_id: String,
@@ -411,127 +442,110 @@ impl AudioThread {
         start_position_seconds: f64,
         duration_hint_seconds: f64,
         temp_dir: PathBuf,
-        stream_handle: &rodio::OutputStreamHandle,
-    ) {
-        log::info!("handle_play: item_id={}, url={}", item_id, url);
-        // Stop current playback.
-        self.stop_current();
+    ) -> Result<(), String> {
+        self.teardown_output_only();
+        self.ensure_output_sink()?;
+
+        self.current_item_id = Some(item_id.clone());
+        self.stored_position_seconds = start_position_seconds.max(0.0);
+        self.duration_seconds = duration_hint_seconds.max(0.0);
 
         let meta = DownloadMeta::new();
         let temp_path = temp_dir.join(format!("jrss-audio-{}.tmp", uuid::Uuid::new_v4()));
 
-        // Create the temp file.
-        if let Err(e) = File::create(&temp_path) {
-            log::error!("Failed to create temp file: {}", e);
-            return;
-        }
-        log::info!("handle_play: temp file created at {:?}", temp_path);
+        File::create(&temp_path)
+            .map_err(|e| format!("Failed to create temp file for audio stream: {e}"))?;
 
-        // Spawn HTTP download thread.
         let dl_meta = Arc::clone(&meta);
         let dl_path = temp_path.clone();
         let dl_url = url.clone();
         std::thread::Builder::new()
             .name("jrss-download".into())
             .spawn(move || {
-                log::info!("download thread: starting for {}", dl_url);
                 if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
                     log::error!("Audio download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
-                } else {
-                    log::info!("download thread: completed successfully");
                 }
             })
-            .ok();
+            .map_err(|e| {
+                cleanup_failed_playback_start(&meta, &temp_path);
+                format!("Failed to spawn audio download thread: {e}")
+            })?;
 
-        // Wait for minimum data to start decoding.
-        log::info!("handle_play: waiting for minimum data (64KB)");
         if let Err(e) = wait_for_minimum_data(&meta, 64 * 1024, Duration::from_secs(10)) {
-            log::error!("Audio startup failed: {}", e);
-            meta.cancelled.store(true, Ordering::Release);
-            let _ = std::fs::remove_file(&temp_path);
-            return;
+            cleanup_failed_playback_start(&meta, &temp_path);
+            return Err(format!("Audio startup failed: {e}"));
         }
-        log::info!("handle_play: got enough data, creating decoder");
 
-        // Open streaming reader and decode.
         let streaming = match StreamingFile::open(&temp_path, Arc::clone(&meta)) {
             Ok(s) => s,
             Err(e) => {
-                log::error!("Failed to open streaming file: {}", e);
-                meta.cancelled.store(true, Ordering::Release);
-                let _ = std::fs::remove_file(&temp_path);
-                return;
+                cleanup_failed_playback_start(&meta, &temp_path);
+                return Err(format!("Failed to open streaming file: {e}"));
             }
         };
 
         let decoder = match Decoder::new(streaming) {
             Ok(d) => d,
             Err(e) => {
-                log::error!("Failed to decode audio: {}", e);
-                meta.cancelled.store(true, Ordering::Release);
-                let _ = std::fs::remove_file(&temp_path);
-                return;
+                cleanup_failed_playback_start(&meta, &temp_path);
+                return Err(format!("Failed to decode audio: {e}"));
             }
         };
-        log::info!("handle_play: decoder created successfully");
 
-        let sink = match Sink::try_new(stream_handle) {
-            Ok(s) => s,
-            Err(e) => {
-                log::error!("Failed to create sink: {}", e);
-                meta.cancelled.store(true, Ordering::Release);
-                let _ = std::fs::remove_file(&temp_path);
-                return;
-            }
-        };
-        log::info!("handle_play: sink created, starting playback");
+        let handle = self
+            .sink_handle
+            .as_ref()
+            .ok_or_else(|| "No output sink available".to_string())?;
 
-        sink.set_volume(self.volume);
-        sink.set_speed(self.speed);
-        sink.append(decoder);
+        let player = Player::connect_new(handle.mixer());
+        player.set_volume(self.volume);
+        player.set_speed(self.speed);
+        player.append(decoder);
 
         if start_position_seconds > 0.0 {
-            let _ = sink.try_seek(Duration::from_secs_f64(start_position_seconds));
+            let _ = player.try_seek(Duration::from_secs_f64(start_position_seconds));
         }
 
-        self.sink = Some(sink);
-        self.current_item_id = Some(item_id);
-        self.stored_position_seconds = start_position_seconds;
-        self.duration_seconds = duration_hint_seconds;
+        self.player = Some(player);
         self.download_meta = Some(meta);
         self.temp_path = Some(temp_path);
-        log::info!("handle_play: playback started!");
+
+        Ok(())
     }
 
-    fn stop_current(&mut self) {
+    fn teardown_output_only(&mut self) {
         if let Some(ref meta) = self.download_meta {
             meta.cancelled.store(true, Ordering::Release);
         }
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(player) = self.player.take() {
+            player.stop();
         }
         if let Some(ref path) = self.temp_path {
             let _ = std::fs::remove_file(path);
         }
+        self.download_meta = None;
+        self.temp_path = None;
+    }
+
+    fn stop_current(&mut self) {
+        self.teardown_output_only();
         self.current_item_id = None;
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
-        self.download_meta = None;
-        self.temp_path = None;
     }
 
     fn snapshot(&self) -> Option<PlaybackStateEvent> {
         let item_id = self.current_item_id.as_ref()?;
         let position_seconds = self
-            .sink
+            .player
             .as_ref()
-            .map(|sink| sink.get_pos().as_secs_f64())
+            .map(|player| player.get_pos().as_secs_f64())
             .unwrap_or(self.stored_position_seconds);
         let is_playing = self
-            .sink
+            .player
             .as_ref()
-            .map(|sink| !sink.is_paused() && !sink.empty())
+            .map(|player| !player.is_paused() && !player.empty())
             .unwrap_or(false);
 
         Some(PlaybackStateEvent {
@@ -544,8 +558,8 @@ impl AudioThread {
     }
 
     fn sync_cached_position(&mut self) {
-        if let Some(ref sink) = self.sink {
-            self.stored_position_seconds = sink.get_pos().as_secs_f64();
+        if let Some(ref player) = self.player {
+            self.stored_position_seconds = player.get_pos().as_secs_f64();
         }
     }
 
@@ -575,6 +589,34 @@ impl AudioThread {
             log::error!("Failed to save playback session: {error}");
         }
     }
+
+    fn change_output_device(&mut self, device_id: Option<String>) -> Result<(), String> {
+        self.sync_cached_position();
+
+        let had_current_item = self.queue.current_item().is_some();
+        let should_pause_after_restore = self
+            .player
+            .as_ref()
+            .map(|player| player.is_paused())
+            .unwrap_or(true);
+
+        self.teardown_output_only();
+        self.sink_handle = None;
+        self.selected_output_device_id = device_id;
+
+        self.rebuild_output_sink()?;
+
+        if had_current_item {
+            resume_current_item(self)?;
+            if should_pause_after_restore {
+                if let Some(ref player) = self.player {
+                    player.pause();
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for AudioThread {
@@ -584,18 +626,10 @@ impl Drop for AudioThread {
 }
 
 fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
-    // Open the audio output on this thread (OutputStream is !Send).
-    let (stream, stream_handle) = match OutputStream::try_default() {
-        Ok(pair) => pair,
-        Err(e) => {
-            log::error!("Failed to open audio output: {e}");
-            return;
-        }
-    };
-
     let mut state = AudioThread {
-        _stream: stream,
-        sink: None,
+        sink_handle: None,
+        player: None,
+        selected_output_device_id: None,
         current_item_id: None,
         stored_position_seconds: 0.0,
         duration_seconds: 0.0,
@@ -609,13 +643,16 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
     restore_persisted_session(&mut state);
 
+    if let Err(error) = state.rebuild_output_sink() {
+        log::error!("Failed to open initial audio output: {error}");
+    }
+
     let poll_interval = Duration::from_millis(500);
     let persist_interval = Duration::from_secs(5);
     let mut last_persist = Instant::now();
     let mut was_playing = false;
 
     loop {
-        // Non-blocking receive with timeout for polling.
         match rx.recv_timeout(poll_interval) {
             Ok(cmd) => match cmd {
                 AudioCommand::Play {
@@ -632,52 +669,43 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         title: String::new(),
                         duration_seconds: duration_hint_seconds,
                     });
-                    state.current_item_id = Some(item_id.clone());
-                    state.stored_position_seconds = start_position_seconds;
-                    state.duration_seconds = duration_hint_seconds;
-                    state.handle_play(
+
+                    if let Err(error) = state.handle_play(
                         item_id,
                         url,
                         start_position_seconds,
                         duration_hint_seconds,
                         temp_dir,
-                        &stream_handle,
-                    );
+                    ) {
+                        log::error!("Play failed: {error}");
+                    }
+
                     state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::Pause => {
-                    if let Some(ref sink) = state.sink {
-                        sink.pause();
+                    if let Some(ref player) = state.player {
+                        player.pause();
                     }
                     state.persist_session();
                 }
                 AudioCommand::Resume => {
-                    if let Some(ref sink) = state.sink {
-                        sink.play();
-                    } else if let Err(error) = resume_current_item(&mut state, &stream_handle) {
+                    if let Some(ref player) = state.player {
+                        player.play();
+                    } else if let Err(error) = resume_current_item(&mut state) {
                         log::info!("Resume ignored: {error}");
                     }
                     state.persist_session();
                 }
                 AudioCommand::TogglePlayback => {
-                    log::info!(
-                        "TogglePlayback: sink={:?}, is_paused={}",
-                        state.sink.as_ref().map(|s| s.is_paused()),
-                        state.sink.as_ref().map(|s| s.is_paused()).unwrap_or(false)
-                    );
-                    if let Some(ref sink) = state.sink {
-                        if sink.is_paused() {
-                            log::info!("TogglePlayback: playing");
-                            sink.play();
+                    if let Some(ref player) = state.player {
+                        if player.is_paused() {
+                            player.play();
                         } else {
-                            log::info!("TogglePlayback: pausing");
-                            sink.pause();
+                            player.pause();
                         }
-                    } else {
-                        match resume_current_item(&mut state, &stream_handle) {
-                            Ok(()) => log::info!("TogglePlayback: resumed from persisted session"),
-                            Err(error) => log::info!("TogglePlayback ignored: {error}"),
-                        }
+                    } else if let Err(error) = resume_current_item(&mut state) {
+                        log::info!("TogglePlayback ignored: {error}");
                     }
                     state.persist_session();
                 }
@@ -698,8 +726,8 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::Seek { position_seconds } => {
-                    if let Some(ref sink) = state.sink {
-                        let _ = sink.try_seek(Duration::from_secs_f64(position_seconds));
+                    if let Some(ref player) = state.player {
+                        let _ = player.try_seek(Duration::from_secs_f64(position_seconds.max(0.0)));
                     } else if state.current_item_id.is_some() {
                         state.stored_position_seconds = position_seconds.max(0.0);
                     }
@@ -707,14 +735,14 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
                 AudioCommand::SetVolume { volume } => {
                     state.volume = volume;
-                    if let Some(ref sink) = state.sink {
-                        sink.set_volume(volume);
+                    if let Some(ref player) = state.player {
+                        player.set_volume(volume);
                     }
                 }
                 AudioCommand::SetSpeed { speed } => {
                     state.speed = speed;
-                    if let Some(ref sink) = state.sink {
-                        sink.set_speed(speed);
+                    if let Some(ref player) = state.player {
+                        player.set_speed(speed);
                     }
                 }
                 AudioCommand::GetState { reply } => {
@@ -727,30 +755,23 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     start_position_seconds,
                     temp_dir,
                 } => {
-                    log::info!(
-                        "AudioThread received PlayWithQueue: item={}, manual_len={}, auto_len={}",
-                        item.item_id,
-                        manual_queue.len(),
-                        auto_queue.len()
-                    );
                     was_playing = false;
                     state
                         .queue
                         .replace(Some(item.clone()), manual_queue, auto_queue);
-                    state.current_item_id = Some(item.item_id.clone());
-                    state.stored_position_seconds = start_position_seconds;
-                    state.duration_seconds = item.duration_seconds;
-                    if let Some(current) = state.queue.current_item() {
-                        log::info!("AudioThread calling handle_play for: {}", current.item_id);
-                        state.handle_play(
-                            current.item_id.clone(),
-                            current.url.clone(),
+
+                    if let Some(current) = state.queue.current_item().cloned() {
+                        if let Err(error) = state.handle_play(
+                            current.item_id,
+                            current.url,
                             start_position_seconds,
                             current.duration_seconds,
                             temp_dir,
-                            &stream_handle,
-                        );
+                        ) {
+                            log::error!("PlayWithQueue failed: {error}");
+                        }
                     }
+
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
@@ -794,21 +815,30 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
+                AudioCommand::ListOutputDevices { reply } => {
+                    let _ = reply.send(list_output_devices_internal());
+                }
+                AudioCommand::GetSelectedOutputDevice { reply } => {
+                    let _ = reply.send(state.selected_output_device_id.clone());
+                }
+                AudioCommand::SetOutputDevice { device_id, reply } => {
+                    let result = state.change_output_device(device_id);
+                    if result.is_ok() {
+                        state.persist_session();
+                        if let Some(snapshot) = state.snapshot() {
+                            let _ = app.emit("playback-state-changed", snapshot);
+                        }
+                    }
+                    let _ = reply.send(result);
+                }
             },
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                // Fall through to polling logic.
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                // App is shutting down.
-                break;
-            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
 
-        // --- Polling: emit state + detect track end ---
         if let Some(snapshot) = state.snapshot() {
             let _ = app.emit("playback-state-changed", &snapshot);
 
-            // Periodic position persist.
             if snapshot.is_playing && last_persist.elapsed() >= persist_interval {
                 last_persist = Instant::now();
                 let db = app.state::<crate::db::DatabaseState>();
@@ -820,13 +850,13 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 state.persist_session();
             }
 
-            // Detect track end.
             if was_playing && !snapshot.is_playing {
-                if let Some(ref sink) = state.sink {
-                    if sink.empty() {
+                if let Some(ref player) = state.player {
+                    if player.empty() {
                         let finished_item_id = snapshot.item_id.clone();
                         let db = app.state::<crate::db::DatabaseState>();
                         let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
+
                         state.stop_current();
                         let _ = app.emit(
                             "playback-ended",
@@ -835,17 +865,25 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                             },
                         );
 
-                        // Auto-advance to next item in queue.
                         if let Some(next_item) = state.queue.shift_next() {
-                            let temp_dir = app.path().temp_dir().unwrap_or_default();
-                            state.handle_play(
-                                next_item.item_id.clone(),
-                                next_item.url.clone(),
-                                0.0,
-                                next_item.duration_seconds,
-                                temp_dir,
-                                &stream_handle,
-                            );
+                            match app.path().temp_dir() {
+                                Ok(temp_dir) => {
+                                    if let Err(error) = state.handle_play(
+                                        next_item.item_id.clone(),
+                                        next_item.url.clone(),
+                                        0.0,
+                                        next_item.duration_seconds,
+                                        temp_dir,
+                                    ) {
+                                        log::error!("Auto-advance failed: {error}");
+                                    }
+                                }
+                                Err(error) => {
+                                    log::error!(
+                                        "Failed to resolve temp dir for auto-advance: {error}"
+                                    );
+                                }
+                            }
                         } else {
                             state.queue.clear_current();
                             let _ = app.emit("playback-stopped", ());
@@ -865,6 +903,83 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
+
+fn list_output_devices_internal() -> Vec<OutputDeviceInfo> {
+    let host = cpal::default_host();
+
+    let default_name = host
+        .default_output_device()
+        .and_then(|device| device.name().ok());
+
+    let Ok(devices) = host.output_devices() else {
+        return Vec::new();
+    };
+
+    devices
+        .filter_map(|device| {
+            let name = device.name().ok()?;
+            let default_config = device.default_output_config().ok();
+
+            Some(OutputDeviceInfo {
+                id: name.clone(),
+                name: name.clone(),
+                is_default: default_name.as_deref() == Some(name.as_str()),
+                channels: default_config.as_ref().map(|cfg| cfg.channels()),
+                sample_rate: default_config.as_ref().map(|cfg| cfg.sample_rate()),
+            })
+        })
+        .collect()
+}
+
+fn find_output_device(device_id: Option<&str>) -> Result<cpal::Device, String> {
+    let host = cpal::default_host();
+
+    match device_id {
+        Some(target) => {
+            let mut devices = host
+                .output_devices()
+                .map_err(|e| format!("Failed to enumerate output devices: {e}"))?;
+
+            devices
+                .find(|device| device.name().ok().as_deref() == Some(target))
+                .ok_or_else(|| format!("Output device not found: {target}"))
+        }
+        None => host
+            .default_output_device()
+            .ok_or_else(|| "No default output device".to_string()),
+    }
+}
+
+fn open_output_sink(selected_device_id: Option<&str>) -> Result<MixerDeviceSink, String> {
+    let device = find_output_device(selected_device_id)?;
+
+    let default_config = device
+        .default_output_config()
+        .map_err(|e| format!("Failed to query default output config: {e}"))?;
+
+    let channels = 2u16
+        .try_into()
+        .map_err(|_| "Invalid channel count for output sink".to_string())?;
+
+    let sample_rate = default_config
+        .sample_rate()
+        .try_into()
+        .map_err(|_| "Invalid sample rate for output sink".to_string())?;
+
+    let builder = DeviceSinkBuilder::from_device(device)
+        .map_err(|e| format!("Failed to create output sink builder: {e}"))?
+        .with_channels(channels)
+        .with_sample_rate(sample_rate);
+
+    builder
+        .open_sink_or_fallback()
+        .map_err(|e| format!("Failed to open output sink: {e}"))
+}
+
+fn cleanup_failed_playback_start(meta: &DownloadMeta, temp_path: &Path) {
+    meta.cancelled.store(true, Ordering::Release);
+    let _ = std::fs::remove_file(temp_path);
+}
 
 fn feed_item_to_queued_item(item: crate::models::FeedItemRecord) -> Option<QueuedItem> {
     let enclosure = item.media_enclosure?;
@@ -931,10 +1046,7 @@ fn restore_persisted_session(state: &mut AudioThread) {
     }
 }
 
-fn resume_current_item(
-    state: &mut AudioThread,
-    stream_handle: &rodio::OutputStreamHandle,
-) -> Result<(), String> {
+fn resume_current_item(state: &mut AudioThread) -> Result<(), String> {
     let Some(current) = state.queue.current_item().cloned() else {
         return Err("No current item to resume".to_string());
     };
@@ -955,13 +1067,9 @@ fn resume_current_item(
             current.duration_seconds
         },
         temp_dir,
-        stream_handle,
-    );
-
-    Ok(())
+    )
 }
 
-/// Block until at least `min_bytes` have been downloaded, or `timeout` elapses.
 fn wait_for_minimum_data(
     meta: &DownloadMeta,
     min_bytes: u64,
@@ -984,8 +1092,7 @@ fn wait_for_minimum_data(
     }
 }
 
-/// Download `url` into `path`, updating `meta` as bytes arrive.
-fn download_to_file(url: &str, path: &std::path::Path, meta: &DownloadMeta) -> Result<(), String> {
+fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), String> {
     let response = reqwest::blocking::Client::new()
         .get(url)
         .send()
