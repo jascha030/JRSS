@@ -93,6 +93,11 @@
 		top: number;
 	};
 
+	type VisibleRange = {
+		startIndex: number;
+		endIndex: number;
+	};
+
 	let scrollViewport = $state<HTMLDivElement | null>(null);
 	let viewportHeight = $state(0);
 	let windowWidth = $state(0);
@@ -108,17 +113,29 @@
 		return item.previewText;
 	}
 
-	const visibleRows = $derived.by((): VisibleRow[] => {
+	const visibleRange = $derived.by((): VisibleRange | null => {
 		if (totalCount === 0) {
-			return [];
+			return null;
 		}
 
 		const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
 		const visibleCount = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
 		const endIndex = Math.min(totalCount, startIndex + visibleCount);
+
+		return {
+			startIndex,
+			endIndex
+		};
+	});
+
+	const visibleRows = $derived.by((): VisibleRow[] => {
+		if (!visibleRange) {
+			return [];
+		}
+
 		const rows: VisibleRow[] = [];
 
-		for (let index = startIndex; index < endIndex; index += 1) {
+		for (let index = visibleRange.startIndex; index < visibleRange.endIndex; index += 1) {
 			const itemId = itemIdsByIndex[index];
 			const item = itemId ? (itemsById[itemId] ?? null) : null;
 
@@ -164,14 +181,11 @@
 	});
 
 	$effect(() => {
-		if (visibleRows.length === 0) {
+		if (!visibleRange) {
 			return;
 		}
 
-		const startIndex = visibleRows[0].index;
-		const endIndex = visibleRows[visibleRows.length - 1].index;
-
-		void onVisibleRangeChange(startIndex, endIndex);
+		void onVisibleRangeChange(visibleRange.startIndex, visibleRange.endIndex - 1);
 	});
 
 	onMount(() => {
@@ -419,22 +433,13 @@
 								oncontextmenu={isMediaItem(item)
 									? (event) => void openAudioContextMenu(event, item)
 									: (event) => void openArticleContextMenu(event, item)}
+								onclick={() => onSelectItem(item.id)}
 							>
-								<button
-									type="button"
-									class="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-									aria-label={`Open article: ${item.title}`}
-									aria-pressed={selectedItemId === item.id}
-									onclick={() => onSelectItem(item.id)}
-								></button>
-
 								{#if !item.read}
 									<div class="absolute inset-x-3 inset-y-6 size-2 rounded-full bg-accent-dot"></div>
 								{/if}
 
-								<div
-									class="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
-								>
+								<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 									<div
 										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-[0.16em] text-fg-muted uppercase"
 									>
@@ -458,7 +463,7 @@
 								</div>
 
 								<div
-									class="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
+									class="relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
 								>
 									<div class="flex flex-wrap items-center gap-2">
 										{#if isMediaItem(item)}
@@ -470,7 +475,7 @@
 										{/if}
 									</div>
 
-									<div class="pointer-events-auto flex flex-wrap gap-2">
+									<div class="flex flex-wrap gap-2" onclick={(e) => e.stopPropagation()}>
 										{#if isMediaItem(item)}
 											<DynamicPlayButton {item} compact={true} size="sm" />
 										{/if}

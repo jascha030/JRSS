@@ -1,5 +1,7 @@
 <script lang="ts">
 	import {
+		getPlaybackPositionForItem,
+		isAudioLoading,
 		isAudioPlaying,
 		isItemCurrentAudio,
 		requestTogglePlayback,
@@ -20,19 +22,26 @@
 	let { item, size = 'lg', compact = false }: Props = $props();
 
 	const isSmall = $derived(size === 'sm');
-	const hasProgress = $derived(item.playbackPositionSeconds > 0);
 	const total = $derived(item.mediaEnclosure.durationSeconds ?? 0);
+	const isCurrentItem = $derived(isItemCurrentAudio(item.id));
+	const isStoreLoading = $derived(isCurrentItem && isAudioLoading());
+	const isPlaying = $derived(isCurrentItem && isAudioPlaying());
+	const playbackPosition = $derived(
+		getPlaybackPositionForItem(item.id, item.playbackPositionSeconds)
+	);
+	const hasProgress = $derived(playbackPosition > 0);
+	const isLoading = $derived(isStoreLoading);
 
 	const progress = $derived(
 		compact
-			? formatDuration(total - item.playbackPositionSeconds)
+			? formatDuration(total - playbackPosition)
 			: hasProgress
-				? `${formatDuration(item.playbackPositionSeconds)} / ${formatDuration(total)}`
+				? `${formatDuration(playbackPosition)} / ${formatDuration(total)}`
 				: formatDuration(total)
 	);
 
-	function handleClick() {
-		if (isItemCurrentAudio(item.id)) {
+	function handleAction() {
+		if (isCurrentItem) {
 			requestTogglePlayback();
 		} else {
 			startPlaybackFromContext(item);
@@ -41,11 +50,15 @@
 </script>
 
 <button
+	type="button"
 	class="btn-primary flex flex-row rounded-xl align-middle"
 	class:btn-sm={isSmall}
-	onclick={handleClick}
+	onclick={handleAction}
+	disabled={isLoading}
 >
-	{#if !isItemCurrentAudio(item.id) || (isItemCurrentAudio(item.id) && !isAudioPlaying())}
+	{#if isLoading}
+		<Icon icon="lucide:loader-2" class={isSmall ? 'size-4 animate-spin' : 'size-5 animate-spin'} />
+	{:else if !isCurrentItem || !isPlaying}
 		<Icon icon="lucide:play" class={isSmall ? 'size-4' : 'size-5'} />
 	{:else}
 		<Icon icon="lucide:pause" class={isSmall ? 'size-4' : 'size-5'} />

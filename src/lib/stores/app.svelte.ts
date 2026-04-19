@@ -47,6 +47,7 @@ import type {
 } from '$lib/types/rss';
 import { isMediaItem } from '$lib/types/rss';
 import { logPerf, measurePerfAsync } from '$lib/utils/perfDebug';
+import { tick } from 'svelte';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 export type SidebarSection = 'all' | 'unread' | 'media' | 'settings' | null;
@@ -67,6 +68,11 @@ interface AppState {
 	feeds: Feed[];
 	stations: Station[];
 	currentPlaybackState: PlaybackState | null;
+	/**
+	 * Whether audio is currently loading/buffering.
+	 * Set to true when starting playback, false when playback begins or fails.
+	 */
+	isAudioLoading: boolean;
 	/**
 	 * Explicit user-initiated queue entries (Play next / Add to queue).
 	 * These always play before auto-continuation entries.
@@ -127,6 +133,7 @@ const initialState: AppState = {
 	feeds: [],
 	stations: [],
 	currentPlaybackState: null,
+	isAudioLoading: false,
 	manualQueue: [],
 	autoQueue: [],
 	isCreatingFeed: false,
@@ -317,13 +324,31 @@ function patchItemSummary(
 	const existingItem = app.itemSummariesById[itemId];
 
 	if (existingItem) {
-		app.itemSummariesById[itemId] = { ...existingItem, ...patch };
+		const nextRead = patch.read ?? existingItem.read;
+		const nextPlaybackPosition =
+			patch.playbackPositionSeconds ?? existingItem.playbackPositionSeconds;
+
+		if (
+			nextRead !== existingItem.read ||
+			nextPlaybackPosition !== existingItem.playbackPositionSeconds
+		) {
+			app.itemSummariesById[itemId] = { ...existingItem, ...patch };
+		}
 	}
 
 	const existingAudioItem = app.audioItemsById[itemId];
 
 	if (existingAudioItem) {
-		app.audioItemsById[itemId] = { ...existingAudioItem, ...patch };
+		const nextRead = patch.read ?? existingAudioItem.read;
+		const nextPlaybackPosition =
+			patch.playbackPositionSeconds ?? existingAudioItem.playbackPositionSeconds;
+
+		if (
+			nextRead !== existingAudioItem.read ||
+			nextPlaybackPosition !== existingAudioItem.playbackPositionSeconds
+		) {
+			app.audioItemsById[itemId] = { ...existingAudioItem, ...patch };
+		}
 	}
 }
 
@@ -565,6 +590,22 @@ export function isAudioPlaying(): boolean {
 	return app.currentPlaybackState?.isPlaying ?? false;
 }
 
+/** Whether audio is currently loading/buffering. */
+export function isAudioLoading(): boolean {
+	return app.isAudioLoading;
+}
+
+export function getPlaybackPositionForItem(
+	itemId: string,
+	fallbackPositionSeconds: number
+): number {
+	if (app.currentPlaybackState?.itemId === itemId) {
+		return app.currentPlaybackState.positionSeconds;
+	}
+
+	return fallbackPositionSeconds;
+}
+
 export function getCurrentAudioItem(): MediaListItem | null {
 	const playbackState = app.currentPlaybackState;
 
@@ -653,6 +694,8 @@ export async function ensureVisibleRangeLoaded(
 // Backend-owned playback session sync
 // ---------------------------------------------------------------------------
 
+const inFlightAudioItemHydrations: Record<string, Promise<void> | undefined> = {};
+
 async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
 	const missingIds = [...new Set(itemIds)].filter(
 		(itemId) => !app.audioItemsById[itemId] && !app.itemSummariesById[itemId]
@@ -662,17 +705,39 @@ async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
 		return;
 	}
 
-	try {
-		const items = await getItemsByIds(missingIds);
+	const newIds = missingIds.filter((itemId) => !inFlightAudioItemHydrations[itemId]);
 
-		for (const item of items) {
-			if (isMediaItem(item)) {
-				app.audioItemsById[item.id] = item;
-				app.itemSummariesById[item.id] = item;
+	if (newIds.length > 0) {
+		const newRequest = (async () => {
+			try {
+				const items = await getItemsByIds(newIds);
+
+				for (const item of items) {
+					if (isMediaItem(item)) {
+						app.audioItemsById[item.id] = item;
+						app.itemSummariesById[item.id] = item;
+					}
+				}
+			} catch (error) {
+				console.error('Failed to hydrate audio items from backend state.', error);
+			} finally {
+				for (const itemId of newIds) {
+					delete inFlightAudioItemHydrations[itemId];
+				}
 			}
+		})();
+
+		for (const itemId of newIds) {
+			inFlightAudioItemHydrations[itemId] = newRequest;
 		}
-	} catch (error) {
-		console.error('Failed to hydrate audio items from backend state.', error);
+	}
+
+	const pendingRequests = missingIds
+		.map((itemId) => inFlightAudioItemHydrations[itemId])
+		.filter((request): request is Promise<void> => request !== undefined);
+
+	if (pendingRequests.length > 0) {
+		await Promise.all(pendingRequests);
 	}
 }
 
@@ -744,7 +809,7 @@ async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenState = await listen<BackendPlaybackState>('playback-state-changed', (event) => {
 		void ensureAudioItemsLoaded([event.payload.itemId]).then(() => {
-			applyBackendPlaybackState(event.payload);
+			applyBackendPlaybackState(event.payload, true);
 		});
 	});
 
@@ -1050,6 +1115,21 @@ function queueIdsToQueuedItems(itemIds: string[]): {
 	return queueItems;
 }
 
+async function yieldForPlaybackUiPaint(): Promise<void> {
+	await tick();
+
+	await new Promise<void>((resolve) => {
+		if (typeof window === 'undefined') {
+			setTimeout(resolve, 0);
+			return;
+		}
+
+		window.requestAnimationFrame(() => {
+			window.setTimeout(resolve, 0);
+		});
+	});
+}
+
 export function playAudioItem(
 	item: MediaListItem,
 	{
@@ -1064,17 +1144,33 @@ export function playAudioItem(
 ): void {
 	app.audioItemsById[item.id] = item;
 	app.itemSummariesById[item.id] = item;
+	app.isAudioLoading = true;
+	app.currentPlaybackState = {
+		itemId: item.id,
+		positionSeconds: startPositionSeconds,
+		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
+		isPlaying: false
+	};
 
-	void audioPlayWithQueue(
-		itemToQueuedItem(item),
-		queueIdsToQueuedItems(manualQueueIds),
-		queueIdsToQueuedItems(autoQueueIds),
-		startPositionSeconds
-	)
-		.then(() => syncAudioSessionFromBackend())
-		.catch((error: unknown) => {
+	void (async () => {
+		try {
+			await yieldForPlaybackUiPaint();
+			await audioPlayWithQueue(
+				itemToQueuedItem(item),
+				queueIdsToQueuedItems(manualQueueIds),
+				queueIdsToQueuedItems(autoQueueIds),
+				startPositionSeconds
+			);
+		} catch (error: unknown) {
 			console.error('Failed to start audio playback.', error);
-		});
+			app.isAudioLoading = false;
+			void syncAudioSessionFromBackend().catch((syncError: unknown) => {
+				console.error('Failed to resync audio after playback start failure.', syncError);
+			});
+		}
+	})();
+	// Note: Loading state is cleared by applyBackendPlaybackState when it receives
+	// a playback-state-changed event from the backend (with fromEvent=true)
 }
 
 export function stopPlayback(): void {
@@ -1088,8 +1184,22 @@ export function stopPlayback(): void {
  * Has no effect if nothing is loaded.
  */
 export function requestTogglePlayback(): void {
+	const currentPlaybackState = app.currentPlaybackState;
+
+	if (!currentPlaybackState) {
+		return;
+	}
+
+	app.currentPlaybackState = {
+		...currentPlaybackState,
+		isPlaying: !currentPlaybackState.isPlaying
+	};
+
 	void audioToggle().catch((error: unknown) => {
 		console.error('Failed to toggle playback.', error);
+		void syncAudioSessionFromBackend().catch((syncError: unknown) => {
+			console.error('Failed to resync audio after toggle failure.', syncError);
+		});
 	});
 }
 
@@ -1106,13 +1216,29 @@ export function requestSeekTo(positionSeconds: number): void {
  * Apply a backend playback state event to the store.
  * Called by the Tauri event listener — not by UI components.
  */
-function applyBackendPlaybackState(event: BackendPlaybackState): void {
+function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boolean = false): void {
 	const positionSeconds = Math.floor(event.positionSeconds);
 	const durationSeconds = Math.floor(event.durationSeconds);
-	const previousItemId = app.currentPlaybackState?.itemId;
-	const wasPlaying = app.currentPlaybackState?.isPlaying ?? false;
+	const previous = app.currentPlaybackState;
 
-	patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
+	// Check if playback state actually changed
+	const playbackUnchanged =
+		previous &&
+		previous.itemId === event.itemId &&
+		previous.positionSeconds === positionSeconds &&
+		previous.durationSeconds === durationSeconds &&
+		previous.isPlaying === event.isPlaying;
+
+	if (playbackUnchanged) {
+		// Still clear loading if this was an event
+		if (fromEvent) {
+			app.isAudioLoading = false;
+		}
+		return;
+	}
+
+	const previousItemId = previous?.itemId;
+	const wasPlaying = previous?.isPlaying ?? false;
 
 	app.currentPlaybackState = {
 		itemId: event.itemId,
@@ -1120,6 +1246,18 @@ function applyBackendPlaybackState(event: BackendPlaybackState): void {
 		durationSeconds,
 		isPlaying: event.isPlaying
 	};
+
+	// Avoid mutating the large item summary maps on every playback tick.
+	// We only sync the stored position back into list data when playback is not active.
+	if (!event.isPlaying) {
+		patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
+	}
+
+	// Only clear loading state when we receive an actual event from the backend,
+	// not when syncing state via polling (which happens before audio is ready)
+	if (fromEvent) {
+		app.isAudioLoading = false;
+	}
 
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
 		void markItemRead(event.itemId, true);
@@ -1344,7 +1482,6 @@ function deriveAutoContinuation(playingItemId: string): string[] {
  * 3. Preserves manual queue entries untouched
  */
 export function startPlaybackFromContext(item: MediaListItem): void {
-	console.log('[startPlaybackFromContext] called for:', item.id, item.title);
 	const manualQueueIds = app.manualQueue.filter((itemId) => itemId !== item.id);
 	const autoQueueIds = deriveAutoContinuation(item.id);
 

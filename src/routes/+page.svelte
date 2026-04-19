@@ -57,20 +57,18 @@
 	let isStationEditorOpen = $state(false);
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 
-	const {
-		feeds,
-		stations,
-		isCreatingFeed,
-		syncingFeedIds,
-		readerLoadingItemIds,
-		selectedFeedId,
-		selectedItemId,
-		selectedSection,
-		selectedStationId,
-		currentPlaybackState,
-		itemSummariesById,
-		feedSearchTerm
-	} = $derived.by(() => app);
+	const feeds = $derived(app.feeds);
+	const stations = $derived(app.stations);
+	const isCreatingFeed = $derived(app.isCreatingFeed);
+	const syncingFeedIds = $derived(app.syncingFeedIds);
+	const readerLoadingItemIds = $derived(app.readerLoadingItemIds);
+	const selectedFeedId = $derived(app.selectedFeedId);
+	const selectedItemId = $derived(app.selectedItemId);
+	const selectedSection = $derived(app.selectedSection);
+	const selectedStationId = $derived(app.selectedStationId);
+	const currentPlaybackState = $derived(app.currentPlaybackState);
+	const itemSummariesById = $derived(app.itemSummariesById);
+	const feedSearchTerm = $derived(app.feedSearchTerm);
 
 	const selectedFeed = $derived(getSelectedFeed());
 	const selectedStation = $derived(getSelectedStation());
@@ -179,27 +177,25 @@
 		}
 	}
 
-	function handleStationDelete() {
+	async function handleStationDelete() {
 		if (!selectedStationId) return;
-		return async () => {
-			try {
-				await deleteExistingStation(selectedStationId);
-				toast.success('Station deleted.');
-			} catch (error: unknown) {
-				toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-			}
-		};
+
+		try {
+			await deleteExistingStation(selectedStationId);
+			toast.success('Station deleted.');
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
+		}
 	}
 
-	function handlePlayStation() {
+	async function handlePlayStation() {
 		if (!selectedStationId) return;
-		return async () => {
-			try {
-				await playStation(selectedStationId);
-			} catch (error: unknown) {
-				toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-			}
-		};
+
+		try {
+			await playStation(selectedStationId);
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
+		}
 	}
 
 	function handleEditStation() {
@@ -300,10 +296,10 @@
 									{itemIdsByIndex}
 									itemsById={itemSummariesById}
 									isRefreshing={isSelectedFeedRefreshing}
-									onDeleteStation={handleStationDelete()}
+									onDeleteStation={handleStationDelete}
 									onEditStation={handleEditStation}
 									onMarkRead={markItemRead}
-									onPlayStation={handlePlayStation()}
+									onPlayStation={handlePlayStation}
 									onRefresh={handleRefreshFeed}
 									onSearchChange={setFeedSearchTerm}
 									onSelectItem={selectItem}
