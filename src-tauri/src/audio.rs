@@ -17,6 +17,12 @@
 //! `Read + Seek` source suitable for rodio's `Decoder`. Reads at the download
 //! frontier block until data arrives, enabling immediate playback while the
 //! download continues in the background.
+//!
+//! ## Queue integration
+//!
+//! The queue lives in the audio thread so playback can continue without any
+//! frontend window. When a track ends, the audio thread automatically advances
+//! to the next queued item.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -28,6 +34,8 @@ use std::time::{Duration, Instant};
 use rodio::{Decoder, OutputStream, Sink};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
+
+use crate::queue::{QueueState, QueuedItem};
 
 // ---------------------------------------------------------------------------
 // Event payloads — emitted to the frontend
@@ -153,6 +161,13 @@ enum AudioCommand {
         duration_hint_seconds: f64,
         temp_dir: PathBuf,
     },
+    /// Play a specific item and set the entire queue (replaces current queue).
+    PlayWithQueue {
+        item: QueuedItem,
+        queue: Vec<QueuedItem>,
+        start_position_seconds: f64,
+        temp_dir: PathBuf,
+    },
     Pause,
     Resume,
     TogglePlayback,
@@ -169,6 +184,36 @@ enum AudioCommand {
     /// Request current state snapshot — response sent via the oneshot.
     GetState {
         reply: mpsc::Sender<Option<PlaybackStateEvent>>,
+    },
+    /// Enqueue an item to the manual queue.
+    QueueEnqueue {
+        item: QueuedItem,
+    },
+    /// Insert an item at the front of the manual queue.
+    QueuePlayNext {
+        item: QueuedItem,
+    },
+    /// Remove an item from the queue.
+    QueueRemove {
+        item_id: String,
+    },
+    /// Move an item up in its segment.
+    QueueMoveUp {
+        item_id: String,
+    },
+    /// Move an item down in its segment.
+    QueueMoveDown {
+        item_id: String,
+    },
+    /// Clear the queue.
+    QueueClear,
+    /// Request current queue state.
+    QueueGetState {
+        reply: mpsc::Sender<QueueState>,
+    },
+    /// Replace entire queue (e.g., when loading a playlist).
+    QueueSet {
+        items: Vec<QueuedItem>,
     },
 }
 
@@ -269,6 +314,72 @@ pub fn get_playback_state(app: &AppHandle) -> Option<PlaybackStateEvent> {
     reply_rx.recv_timeout(Duration::from_secs(1)).ok()?
 }
 
+pub fn play_with_queue(
+    app: &AppHandle,
+    item: QueuedItem,
+    queue: Vec<QueuedItem>,
+    start_position_seconds: f64,
+) -> Result<(), String> {
+    log::info!("play_with_queue: sending command for item={}", item.item_id);
+    let state = app.state::<AudioState>();
+    let temp_dir = app
+        .path()
+        .temp_dir()
+        .map_err(|e| format!("No temp dir: {e}"))?;
+
+    let send_result = state.send(AudioCommand::PlayWithQueue {
+        item,
+        queue,
+        start_position_seconds,
+        temp_dir,
+    });
+    log::info!("play_with_queue: send result={:?}", send_result);
+    send_result
+}
+
+pub fn queue_enqueue(app: &AppHandle, item: QueuedItem) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueueEnqueue { item })
+}
+
+pub fn queue_play_next(app: &AppHandle, item: QueuedItem) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueuePlayNext { item })
+}
+
+pub fn queue_remove(app: &AppHandle, item_id: String) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueueRemove { item_id })
+}
+
+pub fn queue_move_up(app: &AppHandle, item_id: String) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueueMoveUp { item_id })
+}
+
+pub fn queue_move_down(app: &AppHandle, item_id: String) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueueMoveDown { item_id })
+}
+
+pub fn queue_clear(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueueClear)
+}
+
+pub fn get_queue_state(app: &AppHandle) -> QueueState {
+    let state = app.state::<AudioState>();
+    let (reply_tx, reply_rx) = mpsc::channel();
+    let _ = state.send(AudioCommand::QueueGetState { reply: reply_tx });
+    reply_rx
+        .recv_timeout(Duration::from_secs(1))
+        .unwrap_or_default()
+}
+
+pub fn queue_set(app: &AppHandle, items: Vec<QueuedItem>) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::QueueSet { items })
+}
+
 // ---------------------------------------------------------------------------
 // Audio thread — owns OutputStream, Sink, and all playback state
 // ---------------------------------------------------------------------------
@@ -282,6 +393,8 @@ struct AudioThread {
     temp_path: Option<PathBuf>,
     volume: f32,
     speed: f32,
+    queue: QueueState,
+    app: AppHandle,
 }
 
 impl AudioThread {
@@ -294,6 +407,7 @@ impl AudioThread {
         temp_dir: PathBuf,
         stream_handle: &rodio::OutputStreamHandle,
     ) {
+        log::info!("handle_play: item_id={}, url={}", item_id, url);
         // Stop current playback.
         self.stop_current();
 
@@ -302,9 +416,10 @@ impl AudioThread {
 
         // Create the temp file.
         if let Err(e) = File::create(&temp_path) {
-            log::error!("Failed to create temp file: {e}");
+            log::error!("Failed to create temp file: {}", e);
             return;
         }
+        log::info!("handle_play: temp file created at {:?}", temp_path);
 
         // Spawn HTTP download thread.
         let dl_meta = Arc::clone(&meta);
@@ -313,26 +428,31 @@ impl AudioThread {
         std::thread::Builder::new()
             .name("jrss-download".into())
             .spawn(move || {
+                log::info!("download thread: starting for {}", dl_url);
                 if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
-                    log::error!("Audio download failed: {e}");
+                    log::error!("Audio download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
+                } else {
+                    log::info!("download thread: completed successfully");
                 }
             })
             .ok();
 
         // Wait for minimum data to start decoding.
+        log::info!("handle_play: waiting for minimum data (64KB)");
         if let Err(e) = wait_for_minimum_data(&meta, 64 * 1024, Duration::from_secs(10)) {
-            log::error!("Audio startup failed: {e}");
+            log::error!("Audio startup failed: {}", e);
             meta.cancelled.store(true, Ordering::Release);
             let _ = std::fs::remove_file(&temp_path);
             return;
         }
+        log::info!("handle_play: got enough data, creating decoder");
 
         // Open streaming reader and decode.
         let streaming = match StreamingFile::open(&temp_path, Arc::clone(&meta)) {
             Ok(s) => s,
             Err(e) => {
-                log::error!("Failed to open streaming file: {e}");
+                log::error!("Failed to open streaming file: {}", e);
                 meta.cancelled.store(true, Ordering::Release);
                 let _ = std::fs::remove_file(&temp_path);
                 return;
@@ -342,22 +462,24 @@ impl AudioThread {
         let decoder = match Decoder::new(streaming) {
             Ok(d) => d,
             Err(e) => {
-                log::error!("Failed to decode audio: {e}");
+                log::error!("Failed to decode audio: {}", e);
                 meta.cancelled.store(true, Ordering::Release);
                 let _ = std::fs::remove_file(&temp_path);
                 return;
             }
         };
+        log::info!("handle_play: decoder created successfully");
 
         let sink = match Sink::try_new(stream_handle) {
             Ok(s) => s,
             Err(e) => {
-                log::error!("Failed to create sink: {e}");
+                log::error!("Failed to create sink: {}", e);
                 meta.cancelled.store(true, Ordering::Release);
                 let _ = std::fs::remove_file(&temp_path);
                 return;
             }
         };
+        log::info!("handle_play: sink created, starting playback");
 
         sink.set_volume(self.volume);
         sink.set_speed(self.speed);
@@ -372,6 +494,7 @@ impl AudioThread {
         self.duration_seconds = duration_hint_seconds;
         self.download_meta = Some(meta);
         self.temp_path = Some(temp_path);
+        log::info!("handle_play: playback started!");
     }
 
     fn stop_current(&mut self) {
@@ -429,6 +552,8 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         temp_path: None,
         volume: 1.0,
         speed: 1.0,
+        queue: QueueState::default(),
+        app: app.clone(),
     };
 
     let poll_interval = Duration::from_millis(500);
@@ -468,12 +593,21 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     }
                 }
                 AudioCommand::TogglePlayback => {
+                    log::info!(
+                        "TogglePlayback: sink={:?}, is_paused={}",
+                        state.sink.as_ref().map(|s| s.is_paused()),
+                        state.sink.as_ref().map(|s| s.is_paused()).unwrap_or(false)
+                    );
                     if let Some(ref sink) = state.sink {
                         if sink.is_paused() {
+                            log::info!("TogglePlayback: playing");
                             sink.play();
                         } else {
+                            log::info!("TogglePlayback: pausing");
                             sink.pause();
                         }
+                    } else {
+                        log::info!("TogglePlayback: no sink!");
                     }
                 }
                 AudioCommand::Stop => {
@@ -499,6 +633,66 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
                 AudioCommand::GetState { reply } => {
                     let _ = reply.send(state.snapshot());
+                }
+                AudioCommand::PlayWithQueue {
+                    item,
+                    queue,
+                    start_position_seconds,
+                    temp_dir,
+                } => {
+                    log::info!(
+                        "AudioThread received PlayWithQueue: item={}, queue_len={}",
+                        item.item_id,
+                        queue.len()
+                    );
+                    was_playing = false;
+                    // Set up the queue: first item is the one to play now, rest go to manual.
+                    let mut all_items = vec![item];
+                    all_items.extend(queue);
+                    state.queue.set_queue(all_items);
+                    if let Some(current) = state.queue.current_item() {
+                        log::info!("AudioThread calling handle_play for: {}", current.item_id);
+                        state.handle_play(
+                            current.item_id.clone(),
+                            current.url.clone(),
+                            start_position_seconds,
+                            current.duration_seconds,
+                            temp_dir,
+                            &stream_handle,
+                        );
+                    }
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueEnqueue { item } => {
+                    state.queue.enqueue(item);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueuePlayNext { item } => {
+                    state.queue.play_next(item);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueRemove { item_id } => {
+                    state.queue.remove(&item_id);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueMoveUp { item_id } => {
+                    state.queue.move_up(&item_id);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueMoveDown { item_id } => {
+                    state.queue.move_down(&item_id);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueClear => {
+                    state.queue.clear();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueGetState { reply } => {
+                    let _ = reply.send(state.queue.clone());
+                }
+                AudioCommand::QueueSet { items } => {
+                    state.queue.set_queue(items);
+                    let _ = app.emit("queue-changed", state.queue.to_event());
                 }
             },
             Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -529,9 +723,27 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             if was_playing && !snapshot.is_playing {
                 if let Some(ref sink) = state.sink {
                     if sink.empty() {
-                        let item_id = snapshot.item_id.clone();
+                        let finished_item_id = snapshot.item_id.clone();
                         state.stop_current();
-                        let _ = app.emit("playback-ended", PlaybackEndedEvent { item_id });
+                        let _ = app.emit(
+                            "playback-ended",
+                            PlaybackEndedEvent {
+                                item_id: finished_item_id.clone(),
+                            },
+                        );
+
+                        // Auto-advance to next item in queue.
+                        if let Some(next_item) = state.queue.shift_next() {
+                            let temp_dir = app.path().temp_dir().unwrap_or_default();
+                            state.handle_play(
+                                next_item.item_id.clone(),
+                                next_item.url.clone(),
+                                0.0,
+                                next_item.duration_seconds,
+                                temp_dir,
+                                &stream_handle,
+                            );
+                        }
                     }
                 }
             }

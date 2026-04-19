@@ -3,6 +3,7 @@ mod commands;
 mod db;
 mod feed_ingest;
 mod models;
+mod queue;
 mod reader_extract;
 
 use audio::AudioState;
@@ -67,7 +68,16 @@ pub fn run() {
             commands::audio_seek,
             commands::audio_set_volume,
             commands::audio_set_speed,
-            commands::audio_get_state
+            commands::audio_get_state,
+            commands::audio_play_with_queue,
+            commands::audio_queue_enqueue,
+            commands::audio_queue_play_next,
+            commands::audio_queue_remove,
+            commands::audio_queue_move_up,
+            commands::audio_queue_move_down,
+            commands::audio_queue_clear,
+            commands::audio_queue_get_state,
+            commands::audio_queue_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
