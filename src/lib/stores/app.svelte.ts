@@ -763,7 +763,8 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 			itemId: queueState.current.itemId,
 			positionSeconds: fallbackPosition,
 			durationSeconds: queueState.current.durationSeconds,
-			isPlaying: false
+			isPlaying: false,
+			volume: app.currentPlaybackState?.volume ?? 1
 		};
 	}
 }
@@ -1149,7 +1150,8 @@ export function playAudioItem(
 		itemId: item.id,
 		positionSeconds: startPositionSeconds,
 		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
-		isPlaying: false
+		isPlaying: false,
+		volume: app.currentPlaybackState?.volume ?? 1
 	};
 
 	void (async () => {
@@ -1227,7 +1229,8 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		previous.itemId === event.itemId &&
 		previous.positionSeconds === positionSeconds &&
 		previous.durationSeconds === durationSeconds &&
-		previous.isPlaying === event.isPlaying;
+		previous.isPlaying === event.isPlaying &&
+		previous.volume === event.volume;
 
 	if (playbackUnchanged) {
 		// Still clear loading if this was an event
@@ -1244,7 +1247,8 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		itemId: event.itemId,
 		positionSeconds,
 		durationSeconds,
-		isPlaying: event.isPlaying
+		isPlaying: event.isPlaying,
+		volume: event.volume
 	};
 
 	// Avoid mutating the large item summary maps on every playback tick.

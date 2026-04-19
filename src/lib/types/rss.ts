@@ -124,6 +124,7 @@ export interface PlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+	volume: number;
 }
 
 export interface ItemPageQuery {
