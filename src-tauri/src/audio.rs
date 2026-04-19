@@ -17,9 +17,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
-use ::rodio::cpal;
-use ::rodio::cpal::traits::{DeviceTrait, HostTrait};
-use ::rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player};
+use rodio::cpal;
+use rodio::cpal::traits::{DeviceTrait, HostTrait};
+use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -57,12 +57,32 @@ pub struct OutputDeviceInfo {
     pub sample_rate: Option<u32>,
 }
 
+// PrefetchState — background download that can be adopted by playback
+
+struct PrefetchState {
+    item_id: String,
+    _url: String,
+    cache_path: PathBuf,
+    meta: Arc<DownloadMeta>,
+    download_thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl PrefetchState {
+    fn cancel(&mut self) {
+        self.meta.cancelled.store(true, Ordering::Release);
+        if let Some(handle) = self.download_thread.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
-// StreamingFile — a growing file that blocks reads at the download edge
+// DownloadMeta — tracks download progress and completion
 // ---------------------------------------------------------------------------
 
 struct DownloadMeta {
     bytes_written: AtomicU64,
+    total_size: AtomicU64,
     complete: AtomicBool,
     cancelled: AtomicBool,
 }
@@ -71,11 +91,16 @@ impl DownloadMeta {
     fn new() -> Arc<Self> {
         Arc::new(Self {
             bytes_written: AtomicU64::new(0),
+            total_size: AtomicU64::new(0),
             complete: AtomicBool::new(false),
             cancelled: AtomicBool::new(false),
         })
     }
 }
+
+// ---------------------------------------------------------------------------
+// StreamingFile — a growing file that blocks reads at the download edge
+// ---------------------------------------------------------------------------
 
 struct StreamingFile {
     file: File,
@@ -113,7 +138,7 @@ impl Read for StreamingFile {
                 return Ok(0);
             }
 
-            std::thread::sleep(Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(5));
         }
     }
 }
@@ -121,6 +146,13 @@ impl Read for StreamingFile {
 impl Seek for StreamingFile {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         let available = self.meta.bytes_written.load(Ordering::Acquire);
+        let total_size = self.meta.total_size.load(Ordering::Acquire);
+        let effective_size = if total_size > 0 {
+            total_size
+        } else {
+            available
+        };
+
         let new_pos = match pos {
             SeekFrom::Start(n) => n,
             SeekFrom::Current(n) => {
@@ -132,9 +164,9 @@ impl Seek for StreamingFile {
             }
             SeekFrom::End(n) => {
                 if n >= 0 {
-                    available.saturating_add(n as u64)
+                    effective_size.saturating_add(n as u64)
                 } else {
-                    available.saturating_sub(n.unsigned_abs())
+                    effective_size.saturating_sub(n.unsigned_abs())
                 }
             }
         };
@@ -209,6 +241,11 @@ enum AudioCommand {
     SetOutputDevice {
         device_id: Option<String>,
         reply: mpsc::Sender<Result<(), String>>,
+    },
+    #[allow(dead_code)]
+    Prefetch {
+        item_id: String,
+        url: String,
     },
 }
 
@@ -402,6 +439,12 @@ pub fn set_output_device(app: &AppHandle, device_id: Option<String>) -> Result<(
         .map_err(|_| "Timed out waiting for audio device change".to_string())?
 }
 
+#[allow(dead_code)]
+pub fn prefetch_item(app: &AppHandle, item_id: String, url: String) -> Result<(), String> {
+    app.state::<AudioState>()
+        .send(AudioCommand::Prefetch { item_id, url })
+}
+
 // ---------------------------------------------------------------------------
 // Audio thread — owns MixerDeviceSink, Player, and all playback state
 // ---------------------------------------------------------------------------
@@ -419,6 +462,7 @@ struct AudioThread {
     speed: f32,
     queue: QueueState,
     app: AppHandle,
+    prefetch: Option<PrefetchState>,
 }
 
 impl AudioThread {
@@ -441,57 +485,111 @@ impl AudioThread {
         url: String,
         start_position_seconds: f64,
         duration_hint_seconds: f64,
-        temp_dir: PathBuf,
+        _temp_dir: PathBuf,
     ) -> Result<(), String> {
+        let play_start = Instant::now();
+
+        // Check for matching prefetch BEFORE tearing down
+        let prefetch_match = self
+            .prefetch
+            .as_ref()
+            .is_some_and(|p| p.item_id == item_id && !p.meta.cancelled.load(Ordering::Acquire));
+
+        if prefetch_match {
+            log::info!("Prefetch hit for item_id={}", item_id);
+        } else {
+            // Cancel any existing prefetch before teardown
+            if let Some(mut prefetch) = self.prefetch.take() {
+                log::debug!("Cancelling prefetch for item_id={}", prefetch.item_id);
+                prefetch.cancel();
+            }
+        }
+
+        let teardown_start = Instant::now();
         self.teardown_output_only();
+        log::debug!("Teardown took {:?}", teardown_start.elapsed());
+
         self.ensure_output_sink()?;
 
         self.current_item_id = Some(item_id.clone());
         self.stored_position_seconds = start_position_seconds.max(0.0);
         self.duration_seconds = duration_hint_seconds.max(0.0);
 
-        let meta = DownloadMeta::new();
-        let temp_path = temp_dir.join(format!("jrss-audio-{}.tmp", uuid::Uuid::new_v4()));
+        let (meta, cache_path, is_adopted_prefetch) = if prefetch_match {
+            let prefetch = self.prefetch.take().unwrap();
+            let meta = Arc::clone(&prefetch.meta);
+            let path = prefetch.cache_path.clone();
 
-        File::create(&temp_path)
-            .map_err(|e| format!("Failed to create temp file for audio stream: {e}"))?;
+            // Wait for prefetch thread to finish or detach
+            if let Some(handle) = prefetch.download_thread {
+                let _ = handle.join();
+            }
 
-        let dl_meta = Arc::clone(&meta);
-        let dl_path = temp_path.clone();
-        let dl_url = url.clone();
-        std::thread::Builder::new()
-            .name("jrss-download".into())
-            .spawn(move || {
-                if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
-                    log::error!("Audio download failed: {}", e);
-                    dl_meta.complete.store(true, Ordering::Release);
-                }
-            })
-            .map_err(|e| {
-                cleanup_failed_playback_start(&meta, &temp_path);
-                format!("Failed to spawn audio download thread: {e}")
-            })?;
+            (meta, path, true)
+        } else {
+            let cache_dir = get_audio_cache_path(&self.app)?;
+            let cache_path = cache_dir.join(format!("{}.mp3", hash_item_id(&item_id)));
+            log::debug!(
+                "Checking cache for playback: item_id={}, path={:?}",
+                item_id,
+                cache_path
+            );
+            let meta = DownloadMeta::new();
 
-        if let Err(e) = wait_for_minimum_data(&meta, 64 * 1024, Duration::from_secs(10)) {
-            cleanup_failed_playback_start(&meta, &temp_path);
-            return Err(format!("Audio startup failed: {e}"));
+            // Check for complete cache
+            if is_cache_complete(&cache_path) {
+                log::info!("Cache hit (complete) for item_id={}", item_id);
+                meta.complete.store(true, Ordering::Release);
+                let size = std::fs::metadata(&cache_path).map(|m| m.len()).unwrap_or(0);
+                meta.bytes_written.store(size, Ordering::Release);
+                meta.total_size.store(size, Ordering::Release);
+            } else {
+                // Start download in background
+                let dl_meta = Arc::clone(&meta);
+                let dl_path = cache_path.clone();
+                let dl_url = url.clone();
+                std::thread::Builder::new()
+                    .name("jrss-download".into())
+                    .spawn(move || {
+                        if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
+                            log::error!("Audio download failed: {}", e);
+                            dl_meta.complete.store(true, Ordering::Release);
+                        }
+                    })
+                    .map_err(|e| format!("Failed to spawn audio download thread: {e}"))?;
+            }
+
+            (meta, cache_path, false)
+        };
+
+        let wait_start = Instant::now();
+        if !is_adopted_prefetch {
+            if let Err(e) = wait_for_minimum_data(&meta, 64 * 1024, Duration::from_secs(10)) {
+                cleanup_failed_playback_start(&meta, &cache_path);
+                return Err(format!("Audio startup failed: {e}"));
+            }
         }
+        log::debug!("Wait for data took {:?}", wait_start.elapsed());
 
-        let streaming = match StreamingFile::open(&temp_path, Arc::clone(&meta)) {
+        let open_start = Instant::now();
+        let streaming = match StreamingFile::open(&cache_path, Arc::clone(&meta)) {
             Ok(s) => s,
             Err(e) => {
-                cleanup_failed_playback_start(&meta, &temp_path);
+                cleanup_failed_playback_start(&meta, &cache_path);
                 return Err(format!("Failed to open streaming file: {e}"));
             }
         };
+        log::debug!("Open streaming file took {:?}", open_start.elapsed());
 
+        let decode_start = Instant::now();
         let decoder = match Decoder::new(streaming) {
             Ok(d) => d,
             Err(e) => {
-                cleanup_failed_playback_start(&meta, &temp_path);
+                cleanup_failed_playback_start(&meta, &cache_path);
                 return Err(format!("Failed to decode audio: {e}"));
             }
         };
+        log::debug!("Decoder creation took {:?}", decode_start.elapsed());
 
         let handle = self
             .sink_handle
@@ -503,13 +601,39 @@ impl AudioThread {
         player.set_speed(self.speed);
         player.append(decoder);
 
+        let seek_start = Instant::now();
         if start_position_seconds > 0.0 {
-            let _ = player.try_seek(Duration::from_secs_f64(start_position_seconds));
-        }
+            let seek_duration = Duration::from_secs_f64(start_position_seconds);
+            if player.try_seek(seek_duration).is_err() {
+                log::warn!("try_seek failed (MP3 without seek table?), restarting at position");
+                // MP3 doesn't support seeking, restart at position by dropping and recreating
+                drop(player);
 
-        self.player = Some(player);
+                let streaming = StreamingFile::open(&cache_path, Arc::clone(&meta))
+                    .map_err(|e| format!("Failed to reopen streaming file: {e}"))?;
+                let decoder = Decoder::new(streaming)
+                    .map_err(|e| format!("Failed to recreate decoder: {e}"))?;
+                let player = Player::connect_new(handle.mixer());
+                player.set_volume(self.volume);
+                player.set_speed(self.speed);
+                player.append(decoder);
+
+                self.player = Some(player);
+            } else {
+                self.player = Some(player);
+            }
+        } else {
+            self.player = Some(player);
+        }
+        log::debug!("Seek operation took {:?}", seek_start.elapsed());
+
         self.download_meta = Some(meta);
-        self.temp_path = Some(temp_path);
+        self.temp_path = Some(cache_path);
+
+        // Prefetch next item in queue for seamless transition
+        self.prefetch_next_in_queue();
+
+        log::info!("Total handle_play took {:?}", play_start.elapsed());
 
         Ok(())
     }
@@ -522,7 +646,12 @@ impl AudioThread {
             player.stop();
         }
         if let Some(ref path) = self.temp_path {
-            let _ = std::fs::remove_file(path);
+            // Only remove if not in cache (cache files persist)
+            let cache_dir = get_audio_cache_path(&self.app).ok();
+            let is_cache_file = cache_dir.as_ref().is_some_and(|dir| path.starts_with(dir));
+            if !is_cache_file {
+                let _ = std::fs::remove_file(path);
+            }
         }
         self.download_meta = None;
         self.temp_path = None;
@@ -533,6 +662,18 @@ impl AudioThread {
         self.current_item_id = None;
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
+    }
+
+    /// Prefetch the next item in queue so it's ready when current finishes
+    fn prefetch_next_in_queue(&mut self) {
+        if let Some(next_item) = self.queue.peek_next() {
+            let item_id = next_item.item_id.clone();
+            let url = next_item.url.clone();
+            log::debug!("Prefetching next item in queue: item_id={}", item_id);
+            self.handle_prefetch(item_id, url);
+        } else {
+            log::debug!("No next item in queue to prefetch");
+        }
     }
 
     fn snapshot(&self) -> Option<PlaybackStateEvent> {
@@ -617,11 +758,75 @@ impl AudioThread {
 
         Ok(())
     }
+
+    fn handle_prefetch(&mut self, item_id: String, url: String) {
+        // Cancel any existing prefetch
+        if let Some(mut prefetch) = self.prefetch.take() {
+            if prefetch.item_id != item_id {
+                log::debug!("Cancelling prefetch for item_id={}", prefetch.item_id);
+                prefetch.cancel();
+            }
+        }
+
+        // Check if already cached
+        let cache_path = match get_audio_cache_path(&self.app) {
+            Ok(dir) => dir.join(format!("{}.mp3", hash_item_id(&item_id))),
+            Err(e) => {
+                log::error!("Failed to get cache path for prefetch: {e}");
+                return;
+            }
+        };
+
+        log::debug!(
+            "Checking cache for prefetch: item_id={}, path={:?}",
+            item_id,
+            cache_path
+        );
+
+        if is_cache_complete(&cache_path) {
+            log::info!("Prefetch skipped - already cached: item_id={}", item_id);
+            return;
+        }
+
+        // Start prefetch download
+        let meta = DownloadMeta::new();
+        let dl_meta = Arc::clone(&meta);
+        let dl_path = cache_path.clone();
+        let dl_url = url.clone();
+
+        let handle = std::thread::Builder::new()
+            .name("jrss-prefetch".into())
+            .spawn(move || {
+                if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
+                    log::error!("Prefetch download failed: {}", e);
+                    dl_meta.complete.store(true, Ordering::Release);
+                }
+            });
+
+        match handle {
+            Ok(thread) => {
+                log::info!("Started prefetch for item_id={}", item_id);
+                self.prefetch = Some(PrefetchState {
+                    item_id,
+                    _url: url,
+                    cache_path,
+                    meta,
+                    download_thread: Some(thread),
+                });
+            }
+            Err(e) => {
+                log::error!("Failed to spawn prefetch thread: {e}");
+            }
+        }
+    }
 }
 
 impl Drop for AudioThread {
     fn drop(&mut self) {
         self.stop_current();
+        if let Some(mut prefetch) = self.prefetch.take() {
+            prefetch.cancel();
+        }
     }
 }
 
@@ -639,9 +844,10 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         speed: 1.0,
         queue: QueueState::default(),
         app: app.clone(),
+        prefetch: None,
     };
 
-    restore_persisted_session(&mut state);
+    restore_persisted_session(&mut state, &app);
 
     if let Err(error) = state.rebuild_output_sink() {
         log::error!("Failed to open initial audio output: {error}");
@@ -726,11 +932,55 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::Seek { position_seconds } => {
-                    if let Some(ref player) = state.player {
-                        let _ = player.try_seek(Duration::from_secs_f64(position_seconds.max(0.0)));
-                    } else if state.current_item_id.is_some() {
-                        state.stored_position_seconds = position_seconds.max(0.0);
+                    let seek_start = Instant::now();
+                    let seek_result = state.player.as_ref().map(|player| {
+                        let target = Duration::from_secs_f64(position_seconds.max(0.0));
+                        player.try_seek(target)
+                    });
+
+                    match seek_result {
+                        Some(Ok(())) => {
+                            // Seek succeeded, nothing more to do
+                        }
+                        _ => {
+                            // Seek failed or no player - restart at position
+                            if seek_result.is_some() {
+                                log::warn!(
+                                    "Seek failed in decoder, will restart playback at position"
+                                );
+                            }
+                            state.stored_position_seconds = position_seconds.max(0.0);
+                            let current = state.queue.current_item().cloned();
+                            if let Some(item) = current {
+                                // Take ownership of player before teardown
+                                let _ = state.player.take();
+                                state.teardown_output_only();
+                                let temp_dir = match app.path().temp_dir() {
+                                    Ok(dir) => dir,
+                                    Err(e) => {
+                                        log::error!("Failed to get temp dir for seek-restart: {e}");
+                                        return;
+                                    }
+                                };
+                                if let Err(error) = state.handle_play(
+                                    item.item_id,
+                                    item.url,
+                                    state.stored_position_seconds,
+                                    if state.duration_seconds > 0.0 {
+                                        state.duration_seconds
+                                    } else {
+                                        item.duration_seconds
+                                    },
+                                    temp_dir,
+                                ) {
+                                    log::error!("Seek-restart failed: {error}");
+                                }
+                            } else if state.current_item_id.is_some() {
+                                state.stored_position_seconds = position_seconds.max(0.0);
+                            }
+                        }
                     }
+                    log::debug!("Seek command took {:?}", seek_start.elapsed());
                     state.persist_session();
                 }
                 AudioCommand::SetVolume { volume } => {
@@ -777,26 +1027,31 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
                 AudioCommand::QueueEnqueue { item } => {
                     state.queue.enqueue(item);
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueuePlayNext { item } => {
                     state.queue.play_next(item);
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueRemove { item_id } => {
                     state.queue.remove(&item_id);
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueMoveUp { item_id } => {
                     state.queue.move_up(&item_id);
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueMoveDown { item_id } => {
                     state.queue.move_down(&item_id);
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
@@ -812,6 +1067,7 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state
                         .queue
                         .replace(state.queue.current.clone(), items, Vec::new());
+                    state.prefetch_next_in_queue();
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
@@ -830,6 +1086,9 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         }
                     }
                     let _ = reply.send(result);
+                }
+                AudioCommand::Prefetch { item_id, url } => {
+                    state.handle_prefetch(item_id, url);
                 }
             },
             Err(mpsc::RecvTimeoutError::Timeout) => {}
@@ -907,9 +1166,10 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 fn list_output_devices_internal() -> Vec<OutputDeviceInfo> {
     let host = cpal::default_host();
 
-    let default_name = host
+    let default_id: Option<String> = host
         .default_output_device()
-        .and_then(|device| device.name().ok());
+        .and_then(|device| device.id().ok())
+        .map(|id| id.to_string());
 
     let Ok(devices) = host.output_devices() else {
         return Vec::new();
@@ -917,13 +1177,15 @@ fn list_output_devices_internal() -> Vec<OutputDeviceInfo> {
 
     devices
         .filter_map(|device| {
-            let name = device.name().ok()?;
+            let id = device.id().ok()?;
+            let desc = device.description().ok()?;
             let default_config = device.default_output_config().ok();
+            let id_str = id.to_string();
 
             Some(OutputDeviceInfo {
-                id: name.clone(),
-                name: name.clone(),
-                is_default: default_name.as_deref() == Some(name.as_str()),
+                id: id_str.clone(),
+                name: desc.to_string(),
+                is_default: default_id.as_ref() == Some(&id_str),
                 channels: default_config.as_ref().map(|cfg| cfg.channels()),
                 sample_rate: default_config.as_ref().map(|cfg| cfg.sample_rate()),
             })
@@ -941,7 +1203,12 @@ fn find_output_device(device_id: Option<&str>) -> Result<cpal::Device, String> {
                 .map_err(|e| format!("Failed to enumerate output devices: {e}"))?;
 
             devices
-                .find(|device| device.name().ok().as_deref() == Some(target))
+                .find(|device| {
+                    device
+                        .id()
+                        .map(|id| id.to_string() == target)
+                        .unwrap_or(false)
+                })
                 .ok_or_else(|| format!("Output device not found: {target}"))
         }
         None => host
@@ -999,7 +1266,7 @@ fn load_queued_item(db_path: &Path, item_id: String) -> Option<QueuedItem> {
         .and_then(feed_item_to_queued_item)
 }
 
-fn restore_persisted_session(state: &mut AudioThread) {
+fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
     let db_state = state.app.state::<db::DatabaseState>();
     let db_path = db_state.db_path();
 
@@ -1040,6 +1307,11 @@ fn restore_persisted_session(state: &mut AudioThread) {
             .map(|item| item.duration_seconds)
             .unwrap_or(0.0)
     };
+
+    // Start prefetch for restored session
+    if let Some(ref current_item) = current {
+        state.handle_prefetch(current_item.item_id.clone(), current_item.url.clone());
+    }
 
     if state.queue.current.is_none() && !state.queue.is_empty() {
         state.persist_session();
@@ -1093,6 +1365,7 @@ fn wait_for_minimum_data(
 }
 
 fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), String> {
+    let dl_start = Instant::now();
     let response = reqwest::blocking::Client::new()
         .get(url)
         .send()
@@ -1102,10 +1375,18 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
         return Err(format!("HTTP {}", response.status()));
     }
 
+    // Capture Content-Length for total size
+    if let Some(content_length) = response.content_length() {
+        meta.total_size.store(content_length, Ordering::Release);
+        log::debug!("Download content-length: {} bytes", content_length);
+    }
+
     let mut file = std::fs::OpenOptions::new()
         .write(true)
+        .create(true)
+        .truncate(true)
         .open(path)
-        .map_err(|e| format!("Failed to open temp file for writing: {e}"))?;
+        .map_err(|e| format!("Failed to open file for writing: {e}"))?;
 
     let mut reader = response;
     let mut buf = [0u8; 32 * 1024];
@@ -1118,6 +1399,14 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
         match reader.read(&mut buf) {
             Ok(0) => {
                 meta.complete.store(true, Ordering::Release);
+                let elapsed = dl_start.elapsed();
+                let bytes = meta.bytes_written.load(Ordering::Acquire);
+                log::info!(
+                    "Download complete: {} bytes in {:?} ({:.2} KB/s)",
+                    bytes,
+                    elapsed,
+                    bytes as f64 / 1024.0 / elapsed.as_secs_f64()
+                );
                 return Ok(());
             }
             Ok(n) => {
@@ -1130,4 +1419,63 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
             Err(e) => return Err(format!("Read error: {e}")),
         }
     }
+}
+
+fn hash_item_id(item_id: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    item_id.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn get_audio_cache_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {e}"))?;
+    let cache_dir = app_data.join("audio_cache");
+    ensure_audio_cache_dir(&cache_dir)?;
+    Ok(cache_dir)
+}
+
+fn ensure_audio_cache_dir(cache_dir: &Path) -> Result<(), String> {
+    if !cache_dir.exists() {
+        std::fs::create_dir_all(cache_dir)
+            .map_err(|e| format!("Failed to create audio cache dir: {e}"))?;
+    }
+    Ok(())
+}
+
+fn is_cache_complete(path: &Path) -> bool {
+    if !path.exists() {
+        log::debug!("Cache file does not exist: {:?}", path);
+        return false;
+    }
+
+    let metadata = match std::fs::metadata(path) {
+        Ok(m) => m,
+        Err(e) => {
+            log::debug!("Failed to read cache file metadata: {:?} - {}", path, e);
+            return false;
+        }
+    };
+
+    if !metadata.is_file() {
+        log::debug!("Cache path is not a file: {:?}", path);
+        return false;
+    }
+
+    // Consider complete if file has non-zero size and is at least 10KB
+    // (arbitrary minimum for valid audio files)
+    let size = metadata.len();
+    let is_complete = size >= 10 * 1024;
+    log::debug!(
+        "Cache file check: {:?} - size={} bytes, complete={}",
+        path,
+        size,
+        is_complete
+    );
+    is_complete
 }
