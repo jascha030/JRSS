@@ -227,7 +227,7 @@ pub struct UpdateStationInput {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackSessionRecord {
-    pub current_item_id: String,
+    pub current_item_id: Option<String>,
     pub position_seconds: i64,
     pub duration_seconds: i64,
     pub manual_queue: Vec<String>,

@@ -359,11 +359,18 @@ pub fn audio_get_state(app: tauri::AppHandle) -> Option<PlaybackStateEvent> {
 pub fn audio_play_with_queue(
     app: tauri::AppHandle,
     item: QueuedItem,
-    queue: Vec<QueuedItem>,
+    manual_queue: Vec<QueuedItem>,
+    auto_queue: Vec<QueuedItem>,
     start_position_seconds: f64,
 ) -> Result<(), String> {
-    log::info!("audio_play_with_queue: item={}, queue_len={}", item.item_id, queue.len());
-    let result = audio::play_with_queue(&app, item, queue, start_position_seconds);
+    log::info!(
+        "audio_play_with_queue: item={}, manual_len={}, auto_len={}",
+        item.item_id,
+        manual_queue.len(),
+        auto_queue.len()
+    );
+    let result =
+        audio::play_with_queue(&app, item, manual_queue, auto_queue, start_position_seconds);
     log::info!("audio_play_with_queue: result={:?}", result);
     result
 }
