@@ -28,8 +28,8 @@
 
 	let isSeeking = $state(false);
 	let seekPosition = $state(0);
-	let volume = $state(1);
-	let isMuted = $state(false);
+	let volumeOverride = $state<number | null>(null);
+	let previousNonZeroVolume = $state(1);
 
 	let displayPosition = $derived(isSeeking ? seekPosition : (playbackState?.positionSeconds ?? 0));
 
@@ -39,7 +39,9 @@
 		return (displayPosition / dur) * 100;
 	});
 
-	let effectiveVolume = $derived(isMuted ? 0 : volume);
+	let backendVolume = $derived(playbackState?.volume ?? 1);
+	let effectiveVolume = $derived(volumeOverride ?? backendVolume);
+	let isMuted = $derived(effectiveVolume === 0);
 	let volumePercent = $derived(effectiveVolume * 100);
 
 	let titleViewportEl: HTMLDivElement | null = $state(null);
@@ -86,14 +88,22 @@
 	}
 
 	function handleVolumeInput(event: Event & { currentTarget: HTMLInputElement }) {
-		volume = Number(event.currentTarget.value);
-		if (isMuted && volume > 0) {
-			isMuted = false;
+		const nextVolume = Number(event.currentTarget.value);
+		volumeOverride = nextVolume;
+
+		if (nextVolume > 0) {
+			previousNonZeroVolume = nextVolume;
 		}
 	}
 
 	function toggleMute() {
-		isMuted = !isMuted;
+		if (effectiveVolume === 0) {
+			volumeOverride = previousNonZeroVolume > 0 ? previousNonZeroVolume : 1;
+			return;
+		}
+
+		previousNonZeroVolume = effectiveVolume;
+		volumeOverride = 0;
 	}
 
 	function cancelTitleAnimationFrame() {
@@ -285,7 +295,27 @@
 	});
 
 	$effect(() => {
-		void audioSetVolume(effectiveVolume);
+		if (backendVolume > 0) {
+			previousNonZeroVolume = backendVolume;
+		}
+	});
+
+	$effect(() => {
+		if (volumeOverride !== null && Math.abs(volumeOverride - backendVolume) < 0.001) {
+			volumeOverride = null;
+		}
+	});
+
+	$effect(() => {
+		if (Math.abs(effectiveVolume - backendVolume) < 0.001) {
+			return;
+		}
+
+		const timeout = window.setTimeout(() => {
+			void audioSetVolume(effectiveVolume);
+		}, 125);
+
+		return () => window.clearTimeout(timeout);
 	});
 
 	$effect(() => {

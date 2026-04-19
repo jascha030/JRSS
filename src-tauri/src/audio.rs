@@ -758,6 +758,9 @@ impl AudioThread {
             if prefetch.item_id != item_id {
                 log::debug!("Cancelling prefetch for item_id={}", prefetch.item_id);
                 prefetch.cancel();
+            } else {
+                self.prefetch = Some(prefetch);
+                return;
             }
         }
 
@@ -1288,6 +1291,7 @@ fn open_output_sink(selected_device_id: Option<&str>) -> Result<MixerDeviceSink,
 fn cleanup_failed_playback_start(meta: &DownloadMeta, temp_path: &Path) {
     meta.cancelled.store(true, Ordering::Release);
     let _ = std::fs::remove_file(temp_path);
+    let _ = std::fs::remove_file(cache_complete_marker_path(temp_path));
 }
 
 fn feed_item_to_queued_item(item: crate::models::FeedItemRecord) -> Option<QueuedItem> {
@@ -1408,6 +1412,9 @@ fn wait_for_minimum_data(
 
 fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), String> {
     let dl_start = Instant::now();
+    let marker_path = cache_complete_marker_path(path);
+    let _ = std::fs::remove_file(&marker_path);
+
     let response = reqwest::blocking::Client::new()
         .get(url)
         .send()
@@ -1423,12 +1430,13 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
         log::debug!("Download content-length: {} bytes", content_length);
     }
 
-    let mut file = std::fs::OpenOptions::new()
+    let file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .open(path)
         .map_err(|e| format!("Failed to open file for writing: {e}"))?;
+    let mut file = io::BufWriter::new(file);
 
     let mut reader = response;
     let mut buf = [0u8; 32 * 1024];
@@ -1440,6 +1448,9 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
 
         match reader.read(&mut buf) {
             Ok(0) => {
+                file.flush().map_err(|e| format!("Flush failed: {e}"))?;
+                std::fs::write(&marker_path, b"complete")
+                    .map_err(|e| format!("Failed to write cache completion marker: {e}"))?;
                 meta.complete.store(true, Ordering::Release);
                 let elapsed = dl_start.elapsed();
                 let bytes = meta.bytes_written.load(Ordering::Acquire);
@@ -1454,7 +1465,6 @@ fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), S
             Ok(n) => {
                 file.write_all(&buf[..n])
                     .map_err(|e| format!("Write failed: {e}"))?;
-                file.flush().map_err(|e| format!("Flush failed: {e}"))?;
                 meta.bytes_written.fetch_add(n as u64, Ordering::Release);
             }
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
@@ -1490,6 +1500,13 @@ fn ensure_audio_cache_dir(cache_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn cache_complete_marker_path(path: &Path) -> PathBuf {
+    match path.file_name().and_then(|name| name.to_str()) {
+        Some(file_name) => path.with_file_name(format!("{file_name}.complete")),
+        None => path.with_extension("complete"),
+    }
+}
+
 fn is_cache_complete(path: &Path) -> bool {
     if !path.exists() {
         log::debug!("Cache file does not exist: {:?}", path);
@@ -1509,10 +1526,14 @@ fn is_cache_complete(path: &Path) -> bool {
         return false;
     }
 
-    // Consider complete if file has non-zero size and is at least 10KB
-    // (arbitrary minimum for valid audio files)
+    let marker_path = cache_complete_marker_path(path);
+    if !marker_path.exists() {
+        log::debug!("Cache marker does not exist: {:?}", marker_path);
+        return false;
+    }
+
     let size = metadata.len();
-    let is_complete = size >= 10 * 1024;
+    let is_complete = size > 0;
     log::debug!(
         "Cache file check: {:?} - size={} bytes, complete={}",
         path,
