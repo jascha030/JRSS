@@ -2,7 +2,8 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { tick } from 'svelte';
-	import { audioToggle, audioSeek, audioSetVolume } from '$lib/services/feedService';
+	import { audioSeek, audioSetVolume } from '$lib/services/feedService';
+	import { isAudioLoading, requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
@@ -70,7 +71,7 @@
 	}
 
 	function togglePlayback() {
-		void audioToggle();
+		requestTogglePlayback();
 	}
 
 	function handleSeekInput(event: Event & { currentTarget: HTMLInputElement }) {
@@ -428,8 +429,13 @@
 						class="btn-primary flex size-9 items-center justify-center rounded-xl text-sm"
 						type="button"
 						onclick={togglePlayback}
+						disabled={isAudioLoading()}
 					>
-						{#if playbackState.isPlaying}
+						{#if isAudioLoading()}
+							{#key isAudioLoading()}
+								<Icon icon="lucide:loader-2" class="size-5 animate-spin" />
+							{/key}
+						{:else if playbackState.isPlaying}
 							<Icon icon="lucide:pause" class="size-5" />
 						{:else}
 							<Icon icon="lucide:play" class="size-5" />

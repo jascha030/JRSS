@@ -228,9 +228,7 @@ export async function audioResume(): Promise<void> {
 }
 
 export async function audioToggle(): Promise<void> {
-	console.log('[audioToggle] calling backend');
 	await invokeCommand('audio_toggle');
-	console.log('[audioToggle] done');
 }
 
 export async function audioStop(): Promise<void> {
@@ -270,18 +268,12 @@ export async function audioPlayWithQueue(
 	autoQueue: QueuedItem[],
 	startPositionSeconds: number
 ): Promise<void> {
-	console.log('[audio] audioPlayWithQueue called', {
-		itemId: item.itemId,
-		manualQueueLength: manualQueue.length,
-		autoQueueLength: autoQueue.length
-	});
 	await invokeCommand('audio_play_with_queue', {
 		item,
 		manualQueue,
 		autoQueue,
 		startPositionSeconds
 	});
-	console.log('[audio] audioPlayWithQueue completed');
 }
 
 export async function audioQueueEnqueue(item: QueuedItem): Promise<void> {
