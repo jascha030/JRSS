@@ -2,7 +2,7 @@
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, Station } from '$lib/types/rss';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
-	import { Ellipsis, Plus, Radio } from '@lucide/svelte';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		collapsed: boolean;
@@ -191,7 +191,7 @@
 											: 'bg-linear-to-br from-emerald-400 to-emerald-600'
 									}`}
 								>
-									<Radio class="size-5" />
+									<Icon icon="ph:radio" class="size-5" />
 								</span>
 							</button>
 						{/each}
@@ -274,7 +274,7 @@
 									class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-surface-hover hover:text-fg-secondary"
 									onclick={(event) => void openFeedContextMenu(event, feed)}
 								>
-									<Ellipsis class="size-4" />
+									<Icon icon="lucide:ellipsis" class="size-4" />
 								</button>
 							</div>
 						{/each}
@@ -292,7 +292,7 @@
 						class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
 						onclick={onCreateStation}
 					>
-						<Plus class="size-3.5" />
+						<Icon icon="lucide:plus" class="size-3.5" />
 					</button>
 				</div>
 
@@ -310,7 +310,7 @@
 										: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 								}`}
 							>
-								<Radio class="size-4 shrink-0 text-emerald-500" />
+								<Icon icon="ph:radio" class="size-4 shrink-0 text-emerald-500" />
 								<span class="min-w-0 flex-1">
 									<span class="block truncate text-sm font-medium">{station.name}</span>
 									<span class="block truncate text-xs text-fg-muted">

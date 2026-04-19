@@ -10,7 +10,7 @@
 		openAudioContextMenu,
 		openFeedContextMenu
 	} from '$lib/utils/tauri-menu';
-	import { Play, Pencil, Trash2 } from '@lucide/svelte';
+	import Icon from '@iconify/svelte';
 	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -221,7 +221,7 @@
 						class="btn-primary flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm"
 						onclick={onPlayStation}
 					>
-						<Play class="size-4" />
+						<Icon icon="lucide:play" class="size-4" />
 						Play
 					</button>
 
@@ -231,7 +231,7 @@
 						class="btn-secondary rounded-xl px-3 py-2"
 						onclick={onEditStation}
 					>
-						<Pencil class="size-4" />
+						<Icon icon="lucide:pencil" class="size-4" />
 					</button>
 
 					<button
@@ -240,7 +240,7 @@
 						class="btn-secondary rounded-xl px-3 py-2 text-red-500 hover:text-red-600"
 						onclick={onDeleteStation}
 					>
-						<Trash2 class="size-4" />
+						<Icon icon="lucide:trash-2" class="size-4" />
 					</button>
 
 					<p class="text-sm text-fg-muted">{totalCount} episodes</p>
