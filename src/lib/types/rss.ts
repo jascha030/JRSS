@@ -124,11 +124,6 @@ export interface PlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
-	/**
-	 * When true, the AudioPlayer should call play() as soon as the source is ready.
-	 * Set by queue auto-advance; cleared by the player after initiating playback.
-	 */
-	autoPlay: boolean;
 }
 
 export interface ItemPageQuery {
@@ -150,7 +145,7 @@ export interface ItemPage<T> {
  * Stored as JSON in SQLite; restored on app launch.
  */
 export interface PlaybackSession {
-	currentItemId: string;
+	currentItemId?: string;
 	positionSeconds: number;
 	durationSeconds: number;
 	manualQueue: string[];
@@ -173,6 +168,19 @@ export interface BackendPlaybackState {
 /** Mirrors Rust `PlaybackEndedEvent`. */
 export interface BackendPlaybackEndedEvent {
 	itemId: string;
+}
+
+export interface BackendQueuedItem {
+	itemId: string;
+	url: string;
+	title: string;
+	durationSeconds: number;
+}
+
+export interface BackendQueueState {
+	manual: BackendQueuedItem[];
+	auto: BackendQueuedItem[];
+	current: BackendQueuedItem | null;
 }
 
 // ---------------------------------------------------------------------------

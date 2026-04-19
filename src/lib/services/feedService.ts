@@ -1,5 +1,6 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
 import type {
+	BackendQueueState,
 	BackendPlaybackState,
 	CreateStationInput,
 	Feed,
@@ -263,22 +264,23 @@ export interface QueuedItem {
 	durationSeconds: number;
 }
 
-export interface QueueState {
-	manual: QueuedItem[];
-	auto: QueuedItem[];
-	current: QueuedItem | null;
-}
-
 export async function audioPlayWithQueue(
 	item: QueuedItem,
-	queue: QueuedItem[],
+	manualQueue: QueuedItem[],
+	autoQueue: QueuedItem[],
 	startPositionSeconds: number
 ): Promise<void> {
 	console.log('[audio] audioPlayWithQueue called', {
 		itemId: item.itemId,
-		queueLength: queue.length
+		manualQueueLength: manualQueue.length,
+		autoQueueLength: autoQueue.length
 	});
-	await invokeCommand('audio_play_with_queue', { item, queue, startPositionSeconds });
+	await invokeCommand('audio_play_with_queue', {
+		item,
+		manualQueue,
+		autoQueue,
+		startPositionSeconds
+	});
 	console.log('[audio] audioPlayWithQueue completed');
 }
 
@@ -306,8 +308,8 @@ export async function audioQueueClear(): Promise<void> {
 	await invokeCommand('audio_queue_clear');
 }
 
-export async function audioQueueGetState(): Promise<QueueState> {
-	return invokeCommand<QueueState>('audio_queue_get_state');
+export async function audioQueueGetState(): Promise<BackendQueueState> {
+	return invokeCommand<BackendQueueState>('audio_queue_get_state');
 }
 
 export async function audioQueueSet(items: QueuedItem[]): Promise<void> {
