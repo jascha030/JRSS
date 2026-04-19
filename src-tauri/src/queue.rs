@@ -171,6 +171,11 @@ impl QueueState {
         self.current.as_ref()
     }
 
+    /// Peek at the next item without removing it (manual first, then auto).
+    pub fn peek_next(&self) -> Option<&QueuedItem> {
+        self.manual.front().or_else(|| self.auto.front())
+    }
+
     /// Serialize queue state for SQLite persistence.
     pub fn to_session_parts(&self) -> (Vec<String>, Vec<String>) {
         let manual: Vec<String> = self.manual.iter().map(|i| i.item_id.clone()).collect();
