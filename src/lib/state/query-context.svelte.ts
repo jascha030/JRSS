@@ -1,10 +1,20 @@
+/**
+ * Query Context
+ *
+ * Owns the composition of current view state into query specifications.
+ * This is the single source of truth for "what data should we be showing?"
+ *
+ * Composes from: selection, feedsState, stationsState
+ * Consumed by: items, playback, page
+ */
+
 import type { ItemPageQuery, ItemSortOrder } from '$lib/types/rss';
+import { selection } from './selection.svelte';
 import { feedsState } from './feeds.svelte';
-import { selection, getActiveListSection, normalizeSearchTerm } from './selection.svelte';
 import { stationsState } from './stations.svelte';
 
+const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
 const PAGE_SIZE = 100;
-export const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
 
 export type ItemsQuerySpec =
 	| {
@@ -19,18 +29,9 @@ export type ItemsQuerySpec =
 			sortOrder: ItemSortOrder;
 	  };
 
-function buildQueryKey(
-	feedId: string | null,
-	section: 'all' | 'unread' | 'media',
-	search: string,
-	sortOrder: ItemSortOrder
-): string {
-	const normalizedSearch = normalizeSearchTerm(search);
-	const base = `${section}::${feedId ?? 'all-feeds'}::${sortOrder}`;
-
-	return normalizedSearch ? `${base}::search:${normalizedSearch}` : base;
-}
-
+/**
+ * Compute the effective sort order for the active view.
+ */
 export function getEffectiveSortOrder(): ItemSortOrder {
 	if (selection.selectedStationId) {
 		const station = stationsState.stations.find((s) => s.id === selection.selectedStationId);
@@ -43,6 +44,37 @@ export function getEffectiveSortOrder(): ItemSortOrder {
 	}
 
 	return DEFAULT_SORT_ORDER;
+}
+
+export function normalizeSearchTerm(term: string): string {
+	return term.trim().toLowerCase();
+}
+
+export function getActiveListSection(): 'all' | 'unread' | 'media' | null {
+	if (selection.selectedSection === 'settings') {
+		return null;
+	}
+
+	if (selection.selectedFeedId) {
+		return 'all';
+	}
+
+	if (!selection.selectedSection) {
+		return 'all';
+	}
+
+	return selection.selectedSection;
+}
+
+function buildQueryKey(
+	feedId: string | null,
+	section: 'all' | 'unread' | 'media',
+	search: string,
+	sortOrder: ItemSortOrder
+): string {
+	const normalizedSearch = normalizeSearchTerm(search);
+	const base = `${section}::${feedId ?? 'all-feeds'}::${sortOrder}`;
+	return normalizedSearch ? `${base}::search:${normalizedSearch}` : base;
 }
 
 export function getActiveQuerySpec(): ItemsQuerySpec | null {
@@ -59,7 +91,6 @@ export function getActiveQuerySpec(): ItemsQuerySpec | null {
 	}
 
 	const section = getActiveListSection();
-
 	if (!section) {
 		return null;
 	}

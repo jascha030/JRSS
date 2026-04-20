@@ -6,14 +6,20 @@ import {
 	removeFeed,
 	setFeedSortOrder as persistFeedSortOrder
 } from '$lib/services/feedService';
-import { invalidateAllQueries } from './items.svelte';
-import { selection, selectFeed } from './selection.svelte';
+import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
+import { selection } from './selection.svelte';
 
 export const feedsState = $state({
 	feeds: [] as Feed[],
 	syncingFeedIds: [] as string[],
 	isCreatingFeed: false
 });
+
+export function resetFeedsState(): void {
+	feedsState.feeds = [];
+	feedsState.syncingFeedIds = [];
+	feedsState.isCreatingFeed = false;
+}
 
 export function getFeedById(feedId: string | null): Feed | null {
 	if (!feedId) return null;
@@ -51,8 +57,18 @@ export async function createFeed(url: string): Promise<Feed> {
 	try {
 		const createdFeed = await addFeed(url);
 		await loadFeeds();
+
+		// Select the new feed
+		selection.selectedFeedId = createdFeed.id;
+		selection.selectedStationId = null;
+		selection.selectedSection = null;
+		selection.selectedItemId = null;
+		selection.feedSearchTerm = '';
+
+		// Invalidate and reload for the new selection
 		invalidateAllQueries();
-		selectFeed(createdFeed.id);
+		await loadInitialItemsPage();
+
 		return createdFeed;
 	} finally {
 		feedsState.isCreatingFeed = false;
@@ -67,6 +83,9 @@ export async function refreshExistingFeed(feedId: string): Promise<Feed> {
 		await loadFeeds();
 		invalidateAllQueries();
 
+		// Reload the current view if we're looking at this feed
+		await loadInitialItemsPage();
+
 		return refreshedFeed;
 	} finally {
 		removeSyncingFeed(feedId);
@@ -77,9 +96,10 @@ export async function deleteExistingFeed(feedId: string): Promise<void> {
 	const feed = getFeedById(feedId);
 	if (!feed) return;
 
-	const { getCurrentAudioItem, stopPlayback } = await import('./playback.svelte');
+	// Stop playback and remove from queues if needed
+	const { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } =
+		await import('./playback.svelte');
 	const currentAudioItem = getCurrentAudioItem();
-	const { removeFromQueuesByFeedId } = await import('./playback.svelte');
 
 	if (currentAudioItem?.feedId === feedId) {
 		await stopPlayback();
@@ -89,14 +109,18 @@ export async function deleteExistingFeed(feedId: string): Promise<void> {
 	await removeFeed(feedId);
 
 	if (selection.selectedFeedId === feedId) {
-		selectFeed(null);
+		selection.selectedFeedId = null;
+		selection.selectedStationId = null;
+		selection.selectedSection = 'all';
+		selection.selectedItemId = null;
 	}
 
 	await loadFeeds();
 	invalidateAllQueries();
+	await loadInitialItemsPage();
 }
 
-export function setFeedSortOrder(order: ItemSortOrder): void {
+export async function setFeedSortOrder(order: ItemSortOrder): Promise<void> {
 	const feedId = selection.selectedFeedId;
 
 	if (!feedId) return;
@@ -120,5 +144,7 @@ export function setFeedSortOrder(order: ItemSortOrder): void {
 		console.error('Failed to persist feed sort order.', error);
 	});
 
+	// Invalidate and reload with new sort order
 	invalidateAllQueries();
+	await loadInitialItemsPage();
 }

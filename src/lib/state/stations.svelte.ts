@@ -5,16 +5,19 @@ import {
 	listStations,
 	updateStation as updateStationService
 } from '$lib/services/feedService';
-import { invalidateAllQueries, loadInitialItemsPage, setItemsDependencies } from './items.svelte';
+import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 
 export const stationsState = $state({
 	stations: [] as Station[]
 });
 
+export function resetStationsState(): void {
+	stationsState.stations = [];
+}
+
 export async function loadStations(): Promise<void> {
 	stationsState.stations = await listStations();
-	setItemsDependencies(stationsState.stations);
 
 	if (
 		selection.selectedStationId &&
