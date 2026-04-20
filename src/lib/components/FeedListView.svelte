@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder, Station } from '$lib/types/rss';
@@ -36,6 +36,7 @@
 		onEditStation?: () => void;
 		onDeleteStation?: () => void;
 		scrollToItemRequest?: { itemId: string; seq: number } | null;
+		onEnsureItemLoaded?: (itemId: string) => Promise<void>;
 	};
 
 	let {
@@ -60,7 +61,8 @@
 		onPlayStation,
 		onEditStation,
 		onDeleteStation,
-		scrollToItemRequest = null
+		scrollToItemRequest = null,
+		onEnsureItemLoaded
 	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
@@ -187,15 +189,23 @@
 	// Handle initial scroll position for scrollToItemRequest
 	$effect(() => {
 		const request = scrollToItemRequest;
-		if (
-			!hasAppliedInitialScroll &&
-			scrollViewport &&
-			request &&
-			totalCount > 0 &&
-			Object.keys(itemIdsByIndex).length > 0
-		) {
-			setInitialScrollPosition(request.itemId);
-			hasAppliedInitialScroll = true;
+		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
+			const index = getItemIndexById(request.itemId);
+
+			if (index !== null) {
+				// Item already loaded, scroll immediately
+				setInitialScrollPosition(request.itemId);
+				hasAppliedInitialScroll = true;
+			} else if (onEnsureItemLoaded) {
+				// Item not loaded yet, load it first then scroll
+				void onEnsureItemLoaded(request.itemId).then(() => {
+					// Wait for next tick so itemIdsByIndex is updated
+					void tick().then(() => {
+						setInitialScrollPosition(request.itemId);
+					});
+				});
+				hasAppliedInitialScroll = true;
+			}
 		}
 	});
 

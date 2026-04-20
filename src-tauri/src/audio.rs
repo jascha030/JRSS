@@ -717,6 +717,7 @@ impl AudioThread {
             duration_seconds: self.duration_seconds.floor() as i64,
             manual_queue,
             auto_queue,
+            playback_context: None, // Frontend-managed, not stored in backend session
         };
 
         if let Err(error) = db::save_playback_session(&db_path, &session) {

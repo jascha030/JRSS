@@ -20,12 +20,14 @@ import {
 	getItemsByIds,
 	listFeeds,
 	listStations,
+	loadPlaybackContext,
 	loadReaderContent,
 	markRead,
 	queryItemsPage,
 	queryStationEpisodes,
 	refreshFeed,
 	removeFeed,
+	savePlaybackContext,
 	setFeedSortOrder as persistFeedSortOrder,
 	updateStation as updateStationService
 } from '$lib/services/feedService';
@@ -102,6 +104,12 @@ interface AppState {
 	 */
 	readerRequestSeq: number;
 	readerRequestItemId: string | null;
+	/**
+	 * Tracks the origin context of the current playback session.
+	 * Used to navigate back to the correct view (feed or station) when clicking
+	 * on the now playing item in the audio player.
+	 */
+	playbackContext: { contextType: 'feed' | 'station'; id: string } | null;
 }
 
 const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
@@ -149,7 +157,8 @@ const initialState: AppState = {
 	loadingPageOffsetsByQueryKey: {},
 	initialLoadDoneByQueryKey: {},
 	readerRequestSeq: 0,
-	readerRequestItemId: null
+	readerRequestItemId: null,
+	playbackContext: null
 };
 
 const EMPTY_ITEM_IDS_BY_INDEX: ItemIdsByIndex = {};
@@ -630,6 +639,53 @@ export function getCurrentAudioItemFeed(): Feed | null {
 	return app.feeds.find((feed) => feed.id === item.feedId) ?? null;
 }
 
+export function getPlaybackContext(): { contextType: 'feed' | 'station'; id: string } | null {
+	return app.playbackContext;
+}
+
+/**
+ * Ensure a specific item is loaded by finding and loading its page.
+ * Used when navigating to an item that may not be in the currently loaded pages.
+ */
+export async function ensureItemLoaded(itemId: string): Promise<void> {
+	const querySpec = getActiveQuerySpec();
+
+	if (!querySpec) {
+		return;
+	}
+
+	const queryKey = querySpec.queryKey;
+	const itemIdsByIndex = app.itemIdsByIndexByQueryKey[queryKey];
+
+	// Check if item is already loaded
+	if (itemIdsByIndex && Object.values(itemIdsByIndex).includes(itemId)) {
+		return;
+	}
+
+	// Get total count to know how far to search
+	const totalCount = app.totalCountByQueryKey[queryKey] ?? 0;
+	if (totalCount === 0) {
+		return;
+	}
+
+	// Load pages until we find the item or exhaust the list
+	// We'll search in chunks of PAGE_SIZE
+	let offset = 0;
+	const maxOffset = Math.min(totalCount, 10000); // Safety limit
+
+	while (offset < maxOffset) {
+		await loadPage(queryKey, querySpec.query, offset);
+
+		// Check if item is now loaded after this page
+		const updatedItemIdsByIndex = app.itemIdsByIndexByQueryKey[queryKey];
+		if (updatedItemIdsByIndex && Object.values(updatedItemIdsByIndex).includes(itemId)) {
+			return;
+		}
+
+		offset += PAGE_SIZE;
+	}
+}
+
 export async function loadFeeds(): Promise<void> {
 	app.feeds = await listFeeds();
 
@@ -859,6 +915,7 @@ export async function initializeApp(): Promise<void> {
 	await loadStations();
 	await loadInitialItemsPage();
 	await syncAudioSessionFromBackend();
+	await restorePlaybackContext();
 }
 
 export function selectFeed(feedId: string | null): void {
@@ -1137,11 +1194,13 @@ export function playAudioItem(
 	{
 		manualQueueIds = app.manualQueue.filter((itemId) => itemId !== item.id),
 		autoQueueIds = app.autoQueue.filter((itemId) => itemId !== item.id),
-		startPositionSeconds = item.playbackPositionSeconds
+		startPositionSeconds = item.playbackPositionSeconds,
+		context
 	}: {
 		manualQueueIds?: string[];
 		autoQueueIds?: string[];
 		startPositionSeconds?: number;
+		context?: { contextType: 'feed' | 'station'; id: string } | null;
 	} = {}
 ): void {
 	app.audioItemsById[item.id] = item;
@@ -1154,6 +1213,12 @@ export function playAudioItem(
 		isPlaying: false,
 		volume: app.currentPlaybackState?.volume ?? 1
 	};
+
+	// Set playback context (defaults to feed context if not specified)
+	app.playbackContext = context ?? { contextType: 'feed', id: item.feedId };
+
+	// Persist playback context
+	void persistPlaybackContext();
 
 	void (async () => {
 		try {
@@ -1503,10 +1568,18 @@ export function startPlaybackFromContext(item: MediaListItem): void {
 	const manualQueueIds = app.manualQueue.filter((itemId) => itemId !== item.id);
 	const autoQueueIds = deriveAutoContinuation(item.id);
 
+	// Determine playback context from current selection
+	const context: { contextType: 'feed' | 'station'; id: string } | null = app.selectedStationId
+		? { contextType: 'station', id: app.selectedStationId }
+		: app.selectedFeedId
+			? { contextType: 'feed', id: app.selectedFeedId }
+			: null;
+
 	playAudioItem(item, {
 		manualQueueIds,
 		autoQueueIds,
-		startPositionSeconds: item.playbackPositionSeconds
+		startPositionSeconds: item.playbackPositionSeconds,
+		context
 	});
 }
 
@@ -1598,6 +1671,29 @@ export async function playStation(stationId: string): Promise<void> {
 
 	playAudioItem(firstItem, {
 		manualQueueIds: rest.map((item) => item.id),
-		autoQueueIds: []
+		autoQueueIds: [],
+		context: { contextType: 'station', id: stationId }
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Playback context persistence
+// ---------------------------------------------------------------------------
+
+/**
+ * Restore playback context from persisted storage.
+ * Called during app initialization.
+ */
+export async function restorePlaybackContext(): Promise<void> {
+	const context = await loadPlaybackContext();
+	if (context) {
+		app.playbackContext = context;
+	}
+}
+
+/**
+ * Persist playback context to storage.
+ */
+export async function persistPlaybackContext(): Promise<void> {
+	await savePlaybackContext(app.playbackContext);
 }

@@ -15,6 +15,7 @@
 		createFeed,
 		createStation,
 		deleteExistingStation,
+		ensureItemLoaded,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
 		getActiveTotalCount,
@@ -23,6 +24,7 @@
 		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getManualQueueLength,
+		getPlaybackContext,
 		getReaderRequestItemId,
 		getSelectedFeed,
 		getSelectedItem,
@@ -211,12 +213,22 @@
 	}
 
 	function handleNavigateToItem() {
-		if (currentAudioItem) {
-			selectFeed(currentAudioItem.feedId);
+		if (!currentAudioItem) return;
+
+		const context = getPlaybackContext();
+
+		if (context?.contextType === 'station') {
+			selectStation(context.id);
 			selectItem(currentAudioItem.id);
-			scrollRequestSeq += 1;
-			scrollToItemRequest = { itemId: currentAudioItem.id, seq: scrollRequestSeq };
+		} else {
+			// Default to feed context (either from context or fallback to item's feed)
+			const feedId = context?.contextType === 'feed' ? context.id : currentAudioItem.feedId;
+			selectFeed(feedId);
+			selectItem(currentAudioItem.id);
 		}
+
+		scrollRequestSeq += 1;
+		scrollToItemRequest = { itemId: currentAudioItem.id, seq: scrollRequestSeq };
 	}
 </script>
 
@@ -302,6 +314,7 @@
 									isRefreshing={isSelectedFeedRefreshing}
 									onDeleteStation={handleStationDelete}
 									onEditStation={handleEditStation}
+									onEnsureItemLoaded={ensureItemLoaded}
 									onMarkRead={markItemRead}
 									onPlayStation={handlePlayStation}
 									onRefresh={handleRefreshFeed}

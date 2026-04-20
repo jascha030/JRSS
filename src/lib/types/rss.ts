@@ -145,12 +145,18 @@ export interface ItemPage<T> {
  * Persisted playback session — matches the Rust PlaybackSessionRecord shape.
  * Stored as JSON in SQLite; restored on app launch.
  */
+export interface PlaybackContext {
+	contextType: 'feed' | 'station';
+	id: string;
+}
+
 export interface PlaybackSession {
 	currentItemId?: string;
 	positionSeconds: number;
 	durationSeconds: number;
 	manualQueue: string[];
 	autoQueue: string[];
+	playbackContext?: PlaybackContext;
 }
 
 // ---------------------------------------------------------------------------

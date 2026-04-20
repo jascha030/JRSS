@@ -1,7 +1,7 @@
 use crate::models::{
     CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
-    ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackSessionRecord, ReaderContentRecord,
-    StationRecord, StationWithFeedsRecord, UpdateStationInput,
+    ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackContextRecord, PlaybackSessionRecord,
+    ReaderContentRecord, StationRecord, StationWithFeedsRecord, UpdateStationInput,
 };
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
@@ -142,6 +142,12 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 );
 
 			 CREATE TABLE IF NOT EXISTS playback_session (
+			 	id INTEGER PRIMARY KEY CHECK(id = 1),
+			 	data_json TEXT NOT NULL,
+			 	updated_at TEXT NOT NULL
+			 );
+
+			 CREATE TABLE IF NOT EXISTS playback_context (
 			 	id INTEGER PRIMARY KEY CHECK(id = 1),
 			 	data_json TEXT NOT NULL,
 			 	updated_at TEXT NOT NULL
@@ -985,6 +991,60 @@ pub fn clear_playback_session(db_path: &Path) -> AppResult<()> {
         .map_err(|error| format!("Failed to clear playback session: {error}"))?;
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Playback context — frontend-managed context for feed/station
+// ---------------------------------------------------------------------------
+
+pub fn save_playback_context(
+    db_path: &Path,
+    context: Option<&PlaybackContextRecord>,
+) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    if let Some(ctx) = context {
+        let json = serde_json::to_string(ctx)
+            .map_err(|error| format!("Failed to serialize playback context: {error}"))?;
+        connection
+            .execute(
+                "INSERT INTO playback_context (id, data_json, updated_at)
+                 VALUES (1, ?1, datetime('now'))
+                 ON CONFLICT(id) DO UPDATE SET
+                 data_json = excluded.data_json,
+                 updated_at = excluded.updated_at",
+                params![json],
+            )
+            .map_err(|error| format!("Failed to save playback context: {error}"))?;
+    } else {
+        connection
+            .execute("DELETE FROM playback_context WHERE id = 1", [])
+            .map_err(|error| format!("Failed to clear playback context: {error}"))?;
+    }
+
+    Ok(())
+}
+
+pub fn load_playback_context(db_path: &Path) -> AppResult<Option<PlaybackContextRecord>> {
+    let connection = open_connection(db_path)?;
+
+    let result: Option<String> = connection
+        .query_row(
+            "SELECT data_json FROM playback_context WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| format!("Failed to load playback context: {error}"))?;
+
+    match result {
+        Some(json) => {
+            let context: PlaybackContextRecord = serde_json::from_str(&json)
+                .map_err(|error| format!("Failed to deserialize playback context: {error}"))?;
+            Ok(Some(context))
+        }
+        None => Ok(None),
+    }
 }
 
 // ---------------------------------------------------------------------------
