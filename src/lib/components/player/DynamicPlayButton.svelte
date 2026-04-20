@@ -59,12 +59,12 @@
 	{#if isLoading}
 		<Icon icon="lucide:loader-2" class={isSmall ? 'size-4 animate-spin' : 'size-5 animate-spin'} />
 	{:else if !isCurrentItem || !isPlaying}
-		<Icon icon="lucide:play" class={isSmall ? 'size-4' : 'size-5'} />
+		<Icon icon="heroicons:play-20-solid" class={isSmall ? 'size-4' : 'size-5'} />
 	{:else}
-		<Icon icon="lucide:pause" class={isSmall ? 'size-4' : 'size-5'} />
+		<Icon icon="heroicons:pause-20-solid" class={isSmall ? 'size-4' : 'size-5'} />
 	{/if}
 
 	{#if progress}
-		<span class="ml-2 tabular-nums">{progress}</span>
+		<span class="ml-2 tabular-nums font-semibold">{progress}</span>
 	{/if}
 </button>
