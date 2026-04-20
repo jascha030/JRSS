@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { isAudioLoading } from "$lib/stores/app.svelte";
-	import Icon from "@iconify/svelte";
+	import { isAudioLoading } from '$lib/stores/app.svelte';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		durationSeconds: number;

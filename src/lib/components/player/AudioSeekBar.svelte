@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { requestSeekTo } from "$lib/stores/app.svelte";
-	import type { PlaybackState } from "$lib/types/rss";
-	import { formatDuration } from "$lib/utils/format";
-	import RangeInput from "../RangeInput.svelte";
+	import { requestSeekTo } from '$lib/stores/app.svelte';
+	import type { PlaybackState } from '$lib/types/rss';
+	import { formatDuration } from '$lib/utils/format';
+	import RangeInput from '../RangeInput.svelte';
 
 	type Props = {
 		playbackState: PlaybackState;
@@ -10,11 +10,7 @@
 		class?: string;
 	};
 
-	let {
-		playbackState,
-		durationSeconds,
-        class: className = '',
-	}: Props = $props();
+	let { playbackState, durationSeconds, class: className = '' }: Props = $props();
 
 	let isSeeking = $state(false);
 	let seekPosition = $state(0);
