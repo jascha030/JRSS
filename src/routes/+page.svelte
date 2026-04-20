@@ -11,7 +11,12 @@
 	import SidebarContainer from '$lib/components/SidebarContainer.svelte';
 	import StationEditor from '$lib/components/StationEditor.svelte';
 	import {
-		app,
+		feedsState,
+		stationsState,
+		itemsState,
+		playbackState,
+		readerState,
+		selection,
 		clearQueue,
 		createFeed,
 		createStation,
@@ -19,6 +24,7 @@
 		ensureItemLoaded,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
+		getActiveQueryKey,
 		getActiveTotalCount,
 		getCurrentAudioItem,
 		getCurrentAudioItemFeed,
@@ -29,10 +35,10 @@
 		getReaderRequestItemId,
 		getSelectedFeed,
 		getSelectedItem,
-		getSelectedItemFeed,
 		getSelectedStation,
 		getUpcomingQueue,
 		initializeApp,
+		loadInitialItemsPage,
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
@@ -46,7 +52,7 @@
 		selectSection,
 		selectStation,
 		setFeedSearchTerm,
-		setItemSortOrder,
+		setFeedSortOrder,
 		updateExistingStation,
 		getReaderRequestSeq
 	} from '$lib/stores/app.svelte';
@@ -62,30 +68,35 @@
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
+	let lastLoadedQueryKey = $state<string | null>(null);
 
-	const feeds = $derived(app.feeds);
-	const stations = $derived(app.stations);
-	const isCreatingFeed = $derived(app.isCreatingFeed);
-	const syncingFeedIds = $derived(app.syncingFeedIds);
-	const readerLoadingItemIds = $derived(app.readerLoadingItemIds);
-	const selectedFeedId = $derived(app.selectedFeedId);
-	const selectedItemId = $derived(app.selectedItemId);
-	const selectedSection = $derived(app.selectedSection);
-	const selectedStationId = $derived(app.selectedStationId);
-	const currentPlaybackState = $derived(app.currentPlaybackState);
-	const itemSummariesById = $derived(app.itemSummariesById);
-	const feedSearchTerm = $derived(app.feedSearchTerm);
+	const feeds = $derived(feedsState.feeds);
+	const stations = $derived(stationsState.stations);
+	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
+	const syncingFeedIds = $derived(feedsState.syncingFeedIds);
+	const readerLoadingItemIds = $derived(readerState.readerLoadingItemIds);
+	const selectedFeedId = $derived(selection.selectedFeedId);
+	const selectedItemId = $derived(selection.selectedItemId);
+	const selectedSection = $derived(selection.selectedSection);
+	const selectedStationId = $derived(selection.selectedStationId);
+	const currentPlaybackState = $derived(playbackState.currentPlaybackState);
+	const itemSummariesById = $derived(itemsState.itemSummariesById);
+	const feedSearchTerm = $derived(selection.feedSearchTerm);
 
-	const selectedFeed = $derived(getSelectedFeed());
-	const selectedStation = $derived(getSelectedStation());
+	const selectedFeed = $derived(getSelectedFeed(feeds, selectedFeedId));
+	const selectedStation = $derived(getSelectedStation(stations, selectedStationId));
 	const selectedItem = $derived(getSelectedItem());
-	const selectedItemFeed = $derived(getSelectedItemFeed());
+	const selectedItemFeed = $derived(
+		selectedItem ? (feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
+	);
 	const currentAudioItem = $derived(getCurrentAudioItem());
 	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
 	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const itemSortOrder = $derived(getEffectiveSortOrder());
+	const itemSortOrder = $derived(
+		getEffectiveSortOrder(feeds, stations, selectedFeedId, selectedStationId)
+	);
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
@@ -115,6 +126,17 @@
 		void loadItemDetails(selectedItemId).catch((error: unknown) => {
 			toast.error(error instanceof Error ? error.message : 'Unable to load article details.');
 		});
+	});
+
+	// Load items when the active query changes (feed/station/section selection)
+	$effect(() => {
+		const queryKey = getActiveQueryKey();
+		if (queryKey && queryKey !== lastLoadedQueryKey) {
+			lastLoadedQueryKey = queryKey;
+			void loadInitialItemsPage().catch((error: unknown) => {
+				console.error('Failed to load items:', error);
+			});
+		}
 	});
 
 	onMount(() => void initializeApp());
@@ -330,7 +352,7 @@
 										onRefresh={handleRefreshFeed}
 										onSearchChange={setFeedSearchTerm}
 										onSelectItem={selectItem}
-										onSortOrderChange={setItemSortOrder}
+										onSortOrderChange={setFeedSortOrder}
 										onVisibleRangeChange={ensureVisibleRangeLoaded}
 										searchTerm={feedSearchTerm}
 										{isInitialLoading}
