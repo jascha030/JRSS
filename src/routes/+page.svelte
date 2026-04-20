@@ -56,6 +56,8 @@
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let isStationEditorOpen = $state(false);
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
+	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
+	let scrollRequestSeq = 0;
 
 	const feeds = $derived(app.feeds);
 	const stations = $derived(app.stations);
@@ -212,6 +214,8 @@
 		if (currentAudioItem) {
 			selectFeed(currentAudioItem.feedId);
 			selectItem(currentAudioItem.id);
+			scrollRequestSeq += 1;
+			scrollToItemRequest = { itemId: currentAudioItem.id, seq: scrollRequestSeq };
 		}
 	}
 </script>
@@ -313,6 +317,7 @@
 									{selectedSection}
 									{selectedStation}
 									{totalCount}
+									{scrollToItemRequest}
 								/>
 							</div>
 

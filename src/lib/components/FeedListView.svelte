@@ -35,6 +35,7 @@
 		onPlayStation?: () => void;
 		onEditStation?: () => void;
 		onDeleteStation?: () => void;
+		scrollToItemRequest?: { itemId: string; seq: number } | null;
 	};
 
 	let {
@@ -58,7 +59,8 @@
 		onSortOrderChange,
 		onPlayStation,
 		onEditStation,
-		onDeleteStation
+		onDeleteStation,
+		scrollToItemRequest = null
 	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
@@ -172,12 +174,38 @@
 		scheduleScrollTop(currentTarget.scrollTop);
 	}
 
+	let hasAppliedInitialScroll = $state(false);
+
 	$effect(() => {
 		if (!scrollViewport) {
 			return;
 		}
 
 		scrollTop = scrollViewport.scrollTop;
+	});
+
+	// Handle initial scroll position for scrollToItemRequest
+	$effect(() => {
+		const request = scrollToItemRequest;
+		if (
+			!hasAppliedInitialScroll &&
+			scrollViewport &&
+			request &&
+			totalCount > 0 &&
+			Object.keys(itemIdsByIndex).length > 0
+		) {
+			setInitialScrollPosition(request.itemId);
+			hasAppliedInitialScroll = true;
+		}
+	});
+
+	// Reset hasAppliedInitialScroll when scrollToItemRequest changes (access seq to track changes)
+	$effect(() => {
+		if (scrollToItemRequest) {
+			// Access seq to ensure effect re-runs when request changes
+			void scrollToItemRequest.seq;
+			hasAppliedInitialScroll = false;
+		}
 	});
 
 	$effect(() => {
@@ -187,6 +215,27 @@
 
 		void onVisibleRangeChange(visibleRange.startIndex, visibleRange.endIndex - 1);
 	});
+
+	function getItemIndexById(itemId: string): number | null {
+		for (const [index, id] of Object.entries(itemIdsByIndex)) {
+			if (id === itemId) {
+				return Number(index);
+			}
+		}
+		return null;
+	}
+
+	function setInitialScrollPosition(itemId: string): void {
+		if (!scrollViewport) return;
+
+		const index = getItemIndexById(itemId);
+		if (index === null) return;
+
+		const targetScrollTop = index * rowHeight;
+		// Set both reactive state and DOM element directly
+		scrollTop = targetScrollTop;
+		scrollViewport.scrollTop = targetScrollTop;
+	}
 
 	onMount(() => {
 		return () => {
