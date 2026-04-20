@@ -2,8 +2,12 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { tick } from 'svelte';
-	import { audioSeek, audioSetVolume } from '$lib/services/feedService';
-	import { isAudioLoading, requestTogglePlayback } from '$lib/stores/app.svelte';
+	import {
+		isAudioLoading,
+		requestSeekTo,
+		requestSetVolume,
+		requestTogglePlayback
+	} from '$lib/stores/app.svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
@@ -69,7 +73,7 @@
 		const current = playbackState?.positionSeconds ?? 0;
 		const dur = durationForPlayer();
 		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
-		void audioSeek(target);
+		requestSeekTo(target);
 	}
 
 	function togglePlayback() {
@@ -83,7 +87,7 @@
 
 	function handleSeekChange(event: Event & { currentTarget: HTMLInputElement }) {
 		const position = Number(event.currentTarget.value);
-		void audioSeek(position);
+		requestSeekTo(position);
 		isSeeking = false;
 	}
 
@@ -311,11 +315,7 @@
 			return;
 		}
 
-		const timeout = window.setTimeout(() => {
-			void audioSetVolume(effectiveVolume);
-		}, 125);
-
-		return () => window.clearTimeout(timeout);
+		requestSetVolume(effectiveVolume);
 	});
 
 	$effect(() => {

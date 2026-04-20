@@ -1180,6 +1180,13 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                                         temp_dir,
                                     ) {
                                         log::error!("Auto-advance failed: {error}");
+                                    } else {
+                                        emit_playback_snapshot(
+                                            &app,
+                                            &state,
+                                            &mut last_emit,
+                                            &mut last_emitted_state,
+                                        );
                                     }
                                 }
                                 Err(error) => {
