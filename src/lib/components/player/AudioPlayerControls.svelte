@@ -22,7 +22,7 @@
 
 <div class="flex items-center justify-center gap-3 {className}">
 	<button
-		class="flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+		class="btn-ghost flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
 		type="button"
 		aria-label="Back {skipSeconds} seconds"
 		onclick={() => onSkip(-skipSeconds)}
@@ -31,7 +31,7 @@
 	</button>
 
 	<button
-		class="btn-primary bg-fg-muted flex size-9 items-center justify-center rounded-xl text-sm"
+		class="btn-primary flex size-9 items-center justify-center rounded-xl bg-fg-muted text-sm"
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}

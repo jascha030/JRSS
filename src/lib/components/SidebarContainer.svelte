@@ -246,8 +246,8 @@
 				<span
 					class={`flex size-full items-center justify-center text-fg-inverse ${
 						selectedFeedId === feed.id
-							? 'bg-linear-to-br from-indigo-500 to-indigo-700'
-							: 'bg-linear-to-br from-indigo-400 to-indigo-600'
+							? 'from-primary-500 to-primary-700 bg-linear-to-br'
+							: 'from-primary-400 to-primary-600 bg-linear-to-br'
 					}`}
 				>
 					{(feed.title?.trim()?.[0] ?? '?').toUpperCase()}
@@ -272,8 +272,8 @@
 			<span
 				class={`flex size-full items-center justify-center text-fg-inverse ${
 					selectedStationId === station.id
-						? 'bg-linear-to-br from-emerald-500 to-emerald-700'
-						: 'bg-linear-to-br from-emerald-400 to-emerald-600'
+						? 'bg-linear-to-br from-success-500 to-success-700'
+						: 'bg-linear-to-br from-success-400 to-success-600'
 				}`}
 			>
 				<svg
@@ -389,7 +389,7 @@
 				viewBox="0 0 24 24"
 				stroke-width="1.5"
 				stroke="currentColor"
-				class="size-4 shrink-0 text-emerald-500"
+				class="size-4 shrink-0 text-success-600"
 			>
 				<path
 					stroke-linecap="round"

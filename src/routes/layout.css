@@ -1,19 +1,68 @@
 @import 'tailwindcss';
 
-@import '@skeletonlabs/skeleton';
-@import '@skeletonlabs/skeleton-svelte';
-@import '@skeletonlabs/skeleton/themes/cerberus';
-
 /* ──────────────────────────────────────────────
    Design tokens — single source of truth
    
-   Change a color here → it changes everywhere.
-   Dark mode overrides follow in the @media block.
+   JRSS Theme with custom success/warning/error scales.
    ────────────────────────────────────────────── */
 
 @theme {
-	--breakpoint-3xl: 120rem; /* 1920px */
-	--breakpoint-4xl: 144rem; /* 2304px */
+	--breakpoint-3xl: 120rem;
+	--breakpoint-4xl: 144rem;
+
+	/* ── Success scale (green) ─────────────────── */
+	--color-success-50: oklch(96.02% 0.06 123.44deg);
+	--color-success-100: oklch(92.63% 0.07 125.35deg);
+	--color-success-200: oklch(89.46% 0.09 127.06deg);
+	--color-success-300: oklch(86% 0.11 128.34deg);
+	--color-success-400: oklch(82.86% 0.12 129.39deg);
+	--color-success-500: oklch(79.53% 0.14 130.13deg);
+	--color-success-600: oklch(72.06% 0.14 130.94deg);
+	--color-success-700: oklch(64.68% 0.14 132.06deg);
+	--color-success-800: oklch(56.86% 0.13 133.03deg);
+	--color-success-900: oklch(49.13% 0.13 134.63deg);
+	--color-success-950: oklch(40.92% 0.12 136.44deg);
+
+	/* ── Warning scale (amber/orange) ──────────── */
+	--color-warning-50: oklch(94.95% 0.05 82.79deg);
+	--color-warning-100: oklch(92.97% 0.09 90.4deg);
+	--color-warning-200: oklch(90.99% 0.13 92.33deg);
+	--color-warning-300: oklch(89.39% 0.16 93.26deg);
+	--color-warning-400: oklch(87.78% 0.17 92.22deg);
+	--color-warning-500: oklch(86.52% 0.18 90.37deg);
+	--color-warning-600: oklch(78.49% 0.16 87.67deg);
+	--color-warning-700: oklch(70.38% 0.14 83.69deg);
+	--color-warning-800: oklch(62.15% 0.13 79.7deg);
+	--color-warning-900: oklch(53.6% 0.11 72.84deg);
+	--color-warning-950: oklch(44.65% 0.1 64.13deg);
+
+	/* ── Error scale (red) ─────────────────────── */
+	--color-error-50: oklch(86.55% 0.08 49.75deg);
+	--color-error-100: oklch(81.04% 0.11 39.2deg);
+	--color-error-200: oklch(75.91% 0.13 33.62deg);
+	--color-error-300: oklch(71.18% 0.17 30.46deg);
+	--color-error-400: oklch(67.05% 0.19 29.05deg);
+	--color-error-500: oklch(63.72% 0.22 28.71deg);
+	--color-error-600: oklch(57.69% 0.2 28.5deg);
+	--color-error-700: oklch(51.61% 0.19 28.49deg);
+	--color-error-800: oklch(45.32% 0.17 28.57deg);
+	--color-error-900: oklch(38.98% 0.15 28.66deg);
+	--color-error-950: oklch(32.27% 0.13 29.23deg);
+
+	/* ── Surface scale (neutral gray) ──────────── */
+	--color-surface-50: oklch(98.21% 0 none);
+	--color-surface-100: oklch(93.1% 0 none);
+	--color-surface-200: oklch(84.52% 0 none);
+	--color-surface-300: oklch(74.94% 0.02 277.81deg);
+	--color-surface-400: oklch(65.52% 0.04 275.96deg);
+	--color-surface-500: oklch(57.24% 0.08 273.19deg);
+	--color-surface-600: oklch(47.62% 0.08 272.02deg);
+	--color-surface-700: oklch(38.28% 0.08 269.54deg);
+	--color-surface-800: oklch(29.58% 0.07 268.61deg);
+	--color-surface-900: oklch(19.96% 0.05 267.11deg);
+	--color-surface-950: oklch(12.88% 0.04 264.7deg);
+
+	/* ── Semantic tokens ───────────────────────── */
 
 	/* Surfaces — opaque */
 	--color-surface: #ffffff;
@@ -26,8 +75,7 @@
 	/* Surfaces — semi-transparent (backdrop-blur contexts) */
 	--color-surface-glass: rgb(255 255 255 / 0.8);
 	--color-surface-glass-heavy: rgb(255 255 255 / 0.95);
-	/* --color-surface-shell: rgb(241 245 249 / 0.8); */
-	--color-surface-shell: var(--color-slate-100);
+	--color-surface-shell: #f1f5f9;
 	--color-surface-main: rgb(241 245 249 / 0.7);
 
 	/* Foreground (text) */
@@ -50,7 +98,6 @@
 
 	/* Interactive — primary button surface */
 	--color-interactive: #020617;
-	/* --color-interactive-hover: #1e293b; */
 	--color-interactive-hover: #2e405c;
 	--color-interactive-text: #ffffff;
 
@@ -105,7 +152,6 @@
 		--color-accent-dot: #6366f1;
 
 		--color-interactive: #e9edf2;
-		/* --color-interactive-hover: #e4e8ed; */
 		--color-interactive-hover: #ffffff;
 		--color-interactive-text: #020617;
 
@@ -124,34 +170,96 @@
 	}
 }
 
-/* ── Button component classes ─────────────────
-   Colors from tokens. Size/radius stays inline.
+/* ── Button component classes ──────────────────
+   Base shape: rounded-xl, px-4 py-3, text-sm font-medium
+   Variants: primary (accent), secondary (outlined), danger, success, warning
+   Sizes: default, .btn-sm (smaller), .btn-round (icon)
    ───────────────────────────────────────────── */
 
-.btn-primary {
-	@apply bg-interactive text-interactive-text transition-colors hover:bg-interactive-hover;
-}
-
+/* Base button shape */
 .btn {
-	@apply rounded-xl px-4 py-3 text-sm font-medium;
+	@apply rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150;
 }
 
-.btn-primary.btn-sm,
-.btn-secondary.btn-sm {
-	@apply rounded-full px-3 py-2 text-xs;
+/* Primary — accent color (purple) */
+.btn-primary {
+	@apply bg-accent text-white shadow-sm hover:bg-accent-hover;
 }
 
+.btn-primary:disabled {
+	@apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
+}
+
+/* Secondary — outlined, subtle */
 .btn-secondary {
-	@apply rounded-2xl border border-border-strong text-fg-secondary transition-colors hover:border-border-hover hover:text-fg;
-}
-
-.btn-primary.btn-sm.btn-round,
-.btn-secondary.btn-sm.btn-round {
-	@apply rounded-full p-2;
+	@apply border border-border-strong bg-surface-card text-fg-secondary shadow-sm hover:border-border-hover hover:bg-surface-hover hover:text-fg;
 }
 
 .btn-secondary:disabled {
-	@apply cursor-not-allowed opacity-60;
+	@apply cursor-not-allowed border-border bg-surface opacity-60 shadow-none;
+}
+
+/* Danger — for destructive actions */
+.btn-danger {
+	@apply bg-error-600 text-white shadow-sm hover:bg-error-700;
+}
+
+.btn-danger:disabled {
+	@apply cursor-not-allowed bg-error-400 opacity-60 shadow-none;
+}
+
+/* Success — for positive actions */
+.btn-success {
+	@apply bg-success-600 text-white shadow-sm hover:bg-success-700;
+}
+
+.btn-success:disabled {
+	@apply cursor-not-allowed bg-success-400 opacity-60 shadow-none;
+}
+
+/* Warning — for cautionary actions */
+.btn-warning {
+	@apply bg-warning-500 text-slate-950 shadow-sm hover:bg-warning-600;
+}
+
+.btn-warning:disabled {
+	@apply cursor-not-allowed bg-warning-400 opacity-60 shadow-none;
+}
+
+/* Ghost — minimal, text only with hover background
+   Matches feed labels in sidebar */
+.btn-ghost {
+	@apply text-fg-muted hover:bg-surface-hover hover:text-fg;
+}
+
+.btn-ghost:disabled {
+	@apply cursor-not-allowed opacity-40;
+}
+
+/* Active state for ghost buttons (like selected feed) */
+.btn-ghost-active {
+	@apply bg-surface-active text-fg;
+}
+
+/* Small size modifier */
+.btn-sm {
+	@apply rounded-full px-3 py-2 text-xs;
+}
+
+/* Icon button — square with rounded-full
+   Works standalone or combined with .btn or .btn-sm */
+.btn-round {
+	@apply flex aspect-square items-center justify-center rounded-full p-0;
+}
+
+/* Default round button size (40px) */
+.btn-round:not(.btn-sm) {
+	@apply size-10;
+}
+
+/* Small round button size (32px) */
+.btn-round.btn-sm {
+	@apply size-8;
 }
 
 /* ── Toast notifications ─────────────────────── */
@@ -170,15 +278,15 @@
 }
 
 .toast-success {
-	border-left-color: #16a34a;
+	border-left-color: var(--color-success-500);
 }
 
 .toast-error {
-	border-left-color: #dc2626;
+	border-left-color: var(--color-error-500);
 }
 
 .toast-warning {
-	border-left-color: #d97706;
+	border-left-color: var(--color-warning-500);
 }
 
 .toast-info {

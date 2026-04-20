@@ -310,7 +310,7 @@
 					<button
 						type="button"
 						title="Delete station"
-						class="btn-secondary rounded-xl px-3 py-2 text-red-500 hover:text-red-600"
+						class="btn-danger btn-sm"
 						onclick={onDeleteStation}
 					>
 						<Icon icon="lucide:trash-2" class="size-4" />
