@@ -27,23 +27,23 @@
 		aria-label="Back {skipSeconds} seconds"
 		onclick={() => onSkip(-skipSeconds)}
 	>
-		<Icon icon="lucide:rewind" class="size-5" />
+		<Icon icon="heroicons:backward-solid" class="size-7" />
 	</button>
 
 	<button
-		class="btn-primary flex size-9 items-center justify-center rounded-xl text-sm"
+		class="btn-primary bg-fg-muted flex size-9 items-center justify-center rounded-xl text-sm"
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}
 	>
 		{#if isAudioLoading()}
 			{#key isAudioLoading()}
-				<Icon icon="lucide:loader-2" class="size-5 animate-spin" />
+				<Icon icon="lucide:loader-2" class="size-6 animate-spin" />
 			{/key}
 		{:else if isPlaying}
-			<Icon icon="lucide:pause" class="size-5" />
+			<Icon icon="heroicons:pause-solid" class="size-6" />
 		{:else}
-			<Icon icon="lucide:play" class="size-5" />
+			<Icon icon="heroicons:play-solid" class="size-6" />
 		{/if}
 	</button>
 
@@ -53,6 +53,6 @@
 		aria-label="Forward {skipSeconds} seconds"
 		onclick={() => onSkip(skipSeconds)}
 	>
-		<Icon icon="lucide:fast-forward" class="size-5" />
+		<Icon icon="heroicons:forward-solid" class="size-7" />
 	</button>
 </div>
