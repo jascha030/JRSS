@@ -1,6 +1,7 @@
 <script lang="ts">
 	/**
 	 * Audio player info component with album art and scrolling title.
+	 * Simplified for the compact bottom bar player only.
 	 */
 	import type { MediaListItem } from '$lib/types/rss';
 	import { tick } from 'svelte';
@@ -9,24 +10,12 @@
 	type Props = {
 		item: MediaListItem | null;
 		imageUrl?: string;
-		label?: string;
 		onNavigate?: () => void;
 		onShowCover?: () => void;
-		showLabel?: boolean;
-		imageSize?: 'sm' | 'md' | 'lg' | 'xl';
 		class?: string;
 	};
 
-	let {
-		item,
-		imageUrl,
-		label = 'Now playing',
-		onNavigate,
-		onShowCover,
-		showLabel = true,
-		imageSize = 'sm',
-		class: className = ''
-	}: Props = $props();
+	let { item, imageUrl, onNavigate, onShowCover: onShowCover = undefined, class: className = '' }: Props = $props();
 
 	const TITLE_START_DELAY_MS = 1200;
 	const TITLE_END_PAUSE_MS = 900;
@@ -46,20 +35,6 @@
 	let titleLoopToken = 0;
 	let titlePaused = false;
 	let titleCurrentAnimationFrame: number | null = null;
-
-	const sizeClasses = {
-		sm: 'size-12',
-		md: 'size-16',
-		lg: 'size-24',
-		xl: 'size-48'
-	};
-
-	const textSizeClasses = {
-		sm: 'text-sm',
-		md: 'text-sm',
-		lg: 'text-base',
-		xl: 'text-2xl'
-	};
 
 	function cancelTitleAnimationFrame() {
 		if (titleCurrentAnimationFrame !== null) {
@@ -297,23 +272,15 @@
 				onclick={onShowCover}
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 			>
-				<img
-					src={imageUrl}
-					alt=""
-					class="{sizeClasses[imageSize]} rounded-lg object-cover shadow-sm select-none"
-				/>
+				<img src={imageUrl} alt="" class="size-12 rounded-lg object-cover shadow-sm select-none" />
 			</button>
 		{/if}
 
 		<div class="min-w-0">
-			{#if showLabel}
-				<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">{label}</p>
-			{/if}
+			<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
 
 			<button
-				class="mt-1 block w-full text-left font-semibold text-fg transition-colors select-none hover:text-accent focus-visible:text-accent {textSizeClasses[
-					imageSize
-				]}"
+				class="mt-1 block w-full text-left text-sm font-semibold text-fg transition-colors select-none hover:text-accent focus-visible:text-accent"
 				type="button"
 				onclick={onNavigate}
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
