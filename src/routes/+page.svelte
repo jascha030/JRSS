@@ -256,9 +256,9 @@
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
-        if (playerMode === 'cover') {
-            playerMode = 'default';
-        }
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
 
 		const context = getPlaybackContext();
 
@@ -300,6 +300,14 @@
 			imageUrl={currentAudioItemFeed?.imageUrl}
 			playbackState={currentPlaybackState}
 			onNavigateToItem={handleNavigateToItem}
+			onClose={() => (playerMode = 'default')}
+			queueItems={upcomingQueue}
+			{manualQueueLength}
+			{feeds}
+			onRemoveQueueItem={removeQueuedItem}
+			onMoveQueueItemUp={moveQueuedItemUp}
+			onMoveQueueItemDown={moveQueuedItemDown}
+			onClearQueue={clearQueue}
 		/>
 	{:else}
 		<QueueDrawer
