@@ -15,7 +15,13 @@
 		class?: string;
 	};
 
-	let { item, imageUrl, onNavigate, onShowCover: onShowCover = undefined, class: className = '' }: Props = $props();
+	let {
+		item,
+		imageUrl,
+		onNavigate,
+		onShowCover: onShowCover = undefined,
+		class: className = ''
+	}: Props = $props();
 
 	const TITLE_START_DELAY_MS = 1200;
 	const TITLE_END_PAUSE_MS = 900;
