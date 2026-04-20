@@ -65,6 +65,6 @@
 	{/if}
 
 	{#if progress}
-		<span class="ml-2 tabular-nums font-semibold">{progress}</span>
+		<span class="ml-2 font-semibold tabular-nums">{progress}</span>
 	{/if}
 </button>

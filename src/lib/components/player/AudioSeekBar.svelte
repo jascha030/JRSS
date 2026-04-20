@@ -30,7 +30,7 @@
 </script>
 
 <div class="flex flex-1 items-center gap-3 {className}">
-	<span class="w-12 text-right text-xs text-fg-muted tabular-nums">
+	<span class="text-xs text-fg-muted tabular-nums">
 		{formatDuration(displayPosition)}
 	</span>
 
@@ -43,7 +43,7 @@
 		onchange={handleSeekChange}
 	/>
 
-	<span class="w-12 text-xs text-fg-muted tabular-nums">
+	<span class="text-xs text-fg-muted tabular-nums">
 		{formatDuration(durationSeconds)}
 	</span>
 </div>
