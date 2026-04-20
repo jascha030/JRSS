@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
+	import CoverView from '$lib/components/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
 	import FeedListView from '$lib/components/FeedListView.svelte';
 	import Header from '$lib/components/Header.svelte';
@@ -56,6 +57,7 @@
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
+	let playerMode = $state<'default' | 'cover' | 'mini'>('default');
 	let isStationEditorOpen = $state(false);
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
@@ -249,121 +251,131 @@
 />
 
 <div class="h-screen overflow-hidden bg-surface-shell">
-	<QueueDrawer
-		open={isQueueDrawerOpen}
-		queueItems={upcomingQueue}
-		{manualQueueLength}
-		{feeds}
-		onRemoveItem={removeQueuedItem}
-		onMoveItemUp={moveQueuedItemUp}
-		onMoveItemDown={moveQueuedItemDown}
-		onClearQueue={clearQueue}
-		onClose={() => (isQueueDrawerOpen = false)}
-	/>
-
-	<div class="relative h-full overflow-hidden">
-		<SidebarContainer
+	{#if playerMode === 'cover'}
+		<CoverView
+			item={currentAudioItem}
+			imageUrl={currentAudioItemFeed?.imageUrl}
+			playbackState={currentPlaybackState}
+			onNavigateToItem={handleNavigateToItem}
+		/>
+	{:else}
+		<QueueDrawer
+			open={isQueueDrawerOpen}
+			queueItems={upcomingQueue}
+			{manualQueueLength}
 			{feeds}
-			{stations}
-			{selectedFeedId}
-			{selectedStationId}
-			{selectedSection}
-			onSelectFeed={selectFeed}
-			onSelectSection={selectSection}
-			onSelectStation={selectStation}
-			onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
-			onCreateStation={handleCreateStation}
-			refreshingFeedIds={syncingFeedIds}
-			isCollapsed={isSidebarCollapsed}
+			onRemoveItem={removeQueuedItem}
+			onMoveItemUp={moveQueuedItemUp}
+			onMoveItemDown={moveQueuedItemDown}
+			onClearQueue={clearQueue}
+			onClose={() => (isQueueDrawerOpen = false)}
 		/>
 
-		<div
-			class={`relative z-30 h-full transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none md:absolute md:inset-y-0 md:left-0 ${
-				isSidebarCollapsed
-					? 'md:w-[calc(100%+6rem)] md:translate-x-24'
-					: 'md:w-[calc(100%+18rem)] md:translate-x-72'
-			}`}
-		>
+		<div class="relative h-full overflow-hidden">
+			<SidebarContainer
+				{feeds}
+				{stations}
+				{selectedFeedId}
+				{selectedStationId}
+				{selectedSection}
+				onSelectFeed={selectFeed}
+				onSelectSection={selectSection}
+				onSelectStation={selectStation}
+				onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
+				onCreateStation={handleCreateStation}
+				refreshingFeedIds={syncingFeedIds}
+				isCollapsed={isSidebarCollapsed}
+			/>
+
 			<div
-				class={`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden ${
-					isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
+				class={`relative z-30 h-full transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none md:absolute md:inset-y-0 md:left-0 ${
+					isSidebarCollapsed
+						? 'md:w-[calc(100%+6rem)] md:translate-x-24'
+						: 'md:w-[calc(100%+18rem)] md:translate-x-72'
 				}`}
 			>
-				<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
-					<header
-						class="flex h-20 shrink-0 items-center justify-end border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8"
-					>
-						<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-							<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
-						</div>
-					</header>
+				<div
+					class={`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden ${
+						isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
+					}`}
+				>
+					<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
+						<header
+							class="flex h-20 shrink-0 items-center justify-end border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8"
+						>
+							<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+								<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
+							</div>
+						</header>
 
-					{#if feeds.length === 0 && !isInitialLoading}
-						<EmptyFeedView />
-					{:else if selectedSection === 'settings'}
-						<SettingsView />
-					{:else}
-						<div class="flex min-h-0 flex-1 overflow-hidden">
-							<div
-								class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-border 2xl:basis-1/3"
-							>
-								<FeedListView
-									{feeds}
-									{itemIdsByIndex}
-									itemsById={itemSummariesById}
-									isRefreshing={isSelectedFeedRefreshing}
-									onDeleteStation={handleStationDelete}
-									onEditStation={handleEditStation}
-									onEnsureItemLoaded={ensureItemLoaded}
-									onMarkRead={markItemRead}
-									onPlayStation={handlePlayStation}
-									onRefresh={handleRefreshFeed}
-									onSearchChange={setFeedSearchTerm}
-									onSelectItem={selectItem}
-									onSortOrderChange={setItemSortOrder}
-									onVisibleRangeChange={ensureVisibleRangeLoaded}
-									searchTerm={feedSearchTerm}
-									{isInitialLoading}
-									{itemSortOrder}
-									{selectedFeed}
-									{selectedItemId}
-									{selectedSection}
-									{selectedStation}
-									{totalCount}
-									{scrollToItemRequest}
+						{#if feeds.length === 0 && !isInitialLoading}
+							<EmptyFeedView />
+						{:else if selectedSection === 'settings'}
+							<SettingsView />
+						{:else}
+							<div class="flex min-h-0 flex-1 overflow-hidden">
+								<div
+									class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-border 2xl:basis-1/3"
+								>
+									<FeedListView
+										{feeds}
+										{itemIdsByIndex}
+										itemsById={itemSummariesById}
+										isRefreshing={isSelectedFeedRefreshing}
+										onDeleteStation={handleStationDelete}
+										onEditStation={handleEditStation}
+										onEnsureItemLoaded={ensureItemLoaded}
+										onMarkRead={markItemRead}
+										onPlayStation={handlePlayStation}
+										onRefresh={handleRefreshFeed}
+										onSearchChange={setFeedSearchTerm}
+										onSelectItem={selectItem}
+										onSortOrderChange={setItemSortOrder}
+										onVisibleRangeChange={ensureVisibleRangeLoaded}
+										searchTerm={feedSearchTerm}
+										{isInitialLoading}
+										{itemSortOrder}
+										{selectedFeed}
+										{selectedItemId}
+										{selectedSection}
+										{selectedStation}
+										{totalCount}
+										{scrollToItemRequest}
+									/>
+								</div>
+
+								<ReaderPane
+									{selectedItem}
+									{selectedItemFeed}
+									{readerPaneMode}
+									{isSelectedItemReaderLoading}
+									{hasSelectedItemReaderContent}
+									{isReaderPaneActive}
+									{canUseReaderMode}
+									onLoadReaderView={handleLoadReaderView}
+									onReaderPaneModeChange={(mode) => (readerPaneMode = mode)}
 								/>
 							</div>
+						{/if}
+					</main>
 
-							<ReaderPane
-								{selectedItem}
-								{selectedItemFeed}
-								{readerPaneMode}
-								{isSelectedItemReaderLoading}
-								{hasSelectedItemReaderContent}
-								{isReaderPaneActive}
-								{canUseReaderMode}
-								onLoadReaderView={handleLoadReaderView}
-								onReaderPaneModeChange={(mode) => (readerPaneMode = mode)}
+					<AudioPlayer
+						item={currentAudioItem}
+						imageUrl={currentAudioItemFeed?.imageUrl}
+						playbackState={currentPlaybackState}
+						onNavigateToItem={handleNavigateToItem}
+						onShowCover={() => (playerMode = 'cover')}
+					>
+						{#snippet controls()}
+							<QueueToggleButton
+								isOpen={isQueueDrawerOpen}
+								{queueLength}
+								onToggle={() => (isQueueDrawerOpen = !isQueueDrawerOpen)}
 							/>
-						</div>
-					{/if}
-				</main>
-
-				<AudioPlayer
-					item={currentAudioItem}
-					imageUrl={currentAudioItemFeed?.imageUrl}
-					playbackState={currentPlaybackState}
-					onNavigateToItem={handleNavigateToItem}
-				>
-					{#snippet controls()}
-						<QueueToggleButton
-							isOpen={isQueueDrawerOpen}
-							{queueLength}
-							onToggle={() => (isQueueDrawerOpen = !isQueueDrawerOpen)}
-						/>
-					{/snippet}
-				</AudioPlayer>
+						{/snippet}
+					</AudioPlayer>
+				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 </div>
