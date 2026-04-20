@@ -40,7 +40,7 @@
 		<!-- single scroll container for both rail and panel -->
 		<div class="flex h-full overflow-y-auto">
 			<!-- rail -->
-			<div class="flex w-24 shrink-0 flex-col border-r border-border bg-surface">
+			<div class="flex w-24 shrink-0 flex-col bg-surface">
 				<div
 					class="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-center border-b border-border bg-surface"
 				>
@@ -68,7 +68,7 @@
 					</button>
 				</div>
 
-				<div class="flex-1 py-3">
+				<div class="flex-1 py-3 border-r border-border">
 					<div class="space-y-1 px-2">
 						{@render sidebarRailSections()}
 					</div>
