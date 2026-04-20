@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Feed, Station } from '$lib/types/rss';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
+	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 
 	type Props = {
 		feeds: Feed[];
@@ -233,6 +234,7 @@
 		<button
 			type="button"
 			onclick={() => onSelectFeed(feed.id)}
+			oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 			title={feed.title}
 			class={`mx-auto flex size-12 items-center justify-center overflow-hidden rounded-2xl text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 				selectedFeedId === feed.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''
@@ -324,6 +326,7 @@
 			<button
 				type="button"
 				onclick={() => onSelectFeed(feed.id)}
+				oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 				class={`flex h-12 min-w-0 flex-1 items-center rounded-2xl px-3 py-2.5 text-left transition-colors ${
 					selectedFeedId === feed.id
 						? 'bg-surface-active text-fg'
@@ -346,6 +349,7 @@
 			<button
 				type="button"
 				title="Open feed context menu"
+				onclick={(e) => void openFeedContextMenu(e, feed)}
 				aria-label={`Open ${feed.title} context menu`}
 				class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-surface-hover hover:text-fg-secondary"
 			>
