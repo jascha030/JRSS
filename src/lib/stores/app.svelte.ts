@@ -11,6 +11,7 @@ import {
 	audioQueueRemove,
 	audioQueueSet,
 	audioSeek,
+	audioSetVolume,
 	audioStop,
 	audioToggle,
 	createStation as createStationService,
@@ -1192,11 +1193,6 @@ export function requestTogglePlayback(): void {
 		return;
 	}
 
-	app.currentPlaybackState = {
-		...currentPlaybackState,
-		isPlaying: !currentPlaybackState.isPlaying
-	};
-
 	void audioToggle().catch((error: unknown) => {
 		console.error('Failed to toggle playback.', error);
 		void syncAudioSessionFromBackend().catch((syncError: unknown) => {
@@ -1212,6 +1208,24 @@ export function requestSeekTo(positionSeconds: number): void {
 	void audioSeek(positionSeconds).catch((error: unknown) => {
 		console.error('Failed to seek.', error);
 	});
+}
+
+let pendingVolumeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function requestSetVolume(volume: number): void {
+	if (pendingVolumeTimeout !== null) {
+		clearTimeout(pendingVolumeTimeout);
+	}
+
+	pendingVolumeTimeout = setTimeout(() => {
+		pendingVolumeTimeout = null;
+		void audioSetVolume(volume).catch((error: unknown) => {
+			console.error('Failed to set volume.', error);
+			void syncAudioSessionFromBackend().catch((syncError: unknown) => {
+				console.error('Failed to resync audio after volume failure.', syncError);
+			});
+		});
+	}, 125);
 }
 
 /**
