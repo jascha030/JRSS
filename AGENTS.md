@@ -46,7 +46,7 @@ SPA mode: `ssr = false` and `prerender = true` in `src/routes/+layout.ts`. All r
 - **Svelte 5**: runes mode enforced project-wide (see `svelte.config.js`); do not remove runes config without migrating to Svelte 6
 - **Formatting**: tabs, single quotes, no trailing commas, 100 char width (Prettier)
 - **Tailwind CSS v4** via Vite plugin; Prettier class sorting uses `src/routes/layout.css` as the stylesheet reference
-- **Rust edition 2021**, min rustc 1.77.2
+- **Rust edition 2024**, min rustc 1.85.0
 
 ## Handle with care
 
