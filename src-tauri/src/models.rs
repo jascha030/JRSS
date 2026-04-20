@@ -218,6 +218,14 @@ pub struct UpdateStationInput {
     pub feed_ids: Option<Vec<String>>,
 }
 
+/// Frontend-managed playback context for feed/station tracking.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackContextRecord {
+    pub context_type: String,
+    pub id: String,
+}
+
 /// Persisted playback session — stored as an opaque JSON blob in SQLite.
 /// The frontend owns the shape; the backend just stores and returns it.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -228,4 +236,5 @@ pub struct PlaybackSessionRecord {
     pub duration_seconds: i64,
     pub manual_queue: Vec<String>,
     pub auto_queue: Vec<String>,
+    pub playback_context: Option<PlaybackContextRecord>,
 }

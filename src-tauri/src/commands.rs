@@ -422,3 +422,30 @@ pub fn audio_queue_get_state(app: tauri::AppHandle) -> QueueState {
 pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<(), String> {
     audio::queue_set(&app, items)
 }
+
+// ---------------------------------------------------------------------------
+// Playback context — frontend-managed persistence for feed/station context
+// ---------------------------------------------------------------------------
+
+use crate::models::PlaybackContextRecord;
+
+#[tauri::command]
+pub async fn save_playback_context(
+    state: tauri::State<'_, db::DatabaseState>,
+    context: Option<PlaybackContextRecord>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+    tauri::async_runtime::spawn_blocking(move || db::save_playback_context(&db_path, context.as_ref()))
+        .await
+        .map_err(|error| format!("Failed to save playback context: {error}"))?
+}
+
+#[tauri::command]
+pub async fn load_playback_context(
+    state: tauri::State<'_, db::DatabaseState>,
+) -> Result<Option<PlaybackContextRecord>, String> {
+    let db_path = state.db_path();
+    tauri::async_runtime::spawn_blocking(move || db::load_playback_context(&db_path))
+        .await
+        .map_err(|error| format!("Failed to load playback context: {error}"))?
+}

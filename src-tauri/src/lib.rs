@@ -90,7 +90,9 @@ pub fn run() {
             commands::audio_queue_move_down,
             commands::audio_queue_clear,
             commands::audio_queue_get_state,
-            commands::audio_queue_set
+            commands::audio_queue_set,
+            commands::save_playback_context,
+            commands::load_playback_context
         ]);
 
     let app = builder

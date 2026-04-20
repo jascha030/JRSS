@@ -119,6 +119,24 @@ export async function clearPlaybackSession(): Promise<void> {
 	await invokeCommand('clear_playback_session');
 }
 
+export async function savePlaybackContext(
+	context: { contextType: 'feed' | 'station'; id: string } | null
+): Promise<void> {
+	await invokeCommand('save_playback_context', { context });
+}
+
+export async function loadPlaybackContext(): Promise<{
+	contextType: 'feed' | 'station';
+	id: string;
+} | null> {
+	if (!isTauriRuntime()) {
+		return null;
+	}
+	return invokeCommand<{ contextType: 'feed' | 'station'; id: string } | null>(
+		'load_playback_context'
+	);
+}
+
 export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> {
 	if (itemIds.length === 0) {
 		return [];
