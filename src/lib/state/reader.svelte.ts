@@ -13,6 +13,12 @@ export const readerState = $state({
 	readerRequestItemId: null as string | null
 });
 
+export function resetReaderState(): void {
+	readerState.readerLoadingItemIds = [];
+	readerState.readerRequestSeq = 0;
+	readerState.readerRequestItemId = null;
+}
+
 function addUnique<T>(values: T[], value: T): void {
 	if (!values.includes(value)) {
 		values.push(value);

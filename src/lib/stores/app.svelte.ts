@@ -13,24 +13,35 @@
 // ---------------------------------------------------------------------------
 export {
 	selection,
+	resetSelectionState,
 	selectFeed,
 	selectStation,
 	selectSection,
 	selectItem,
 	setFeedSearchTerm,
-	getEffectiveSortOrder,
 	getSelectedFeed,
 	getSelectedStation,
-	getActiveListSection,
-	normalizeSearchTerm,
 	type SidebarSection
 } from '../state/selection.svelte';
+
+// ---------------------------------------------------------------------------
+// Query Context (active query composition)
+// ---------------------------------------------------------------------------
+export {
+	getEffectiveSortOrder,
+	getActiveQuerySpec,
+	getActiveQueryKey,
+	getActiveListSection,
+	normalizeSearchTerm,
+	type ItemsQuerySpec
+} from '../state/query-context.svelte';
 
 // ---------------------------------------------------------------------------
 // Feeds (feed CRUD, feed list)
 // ---------------------------------------------------------------------------
 export {
 	feedsState,
+	resetFeedsState,
 	loadFeeds,
 	createFeed,
 	refreshExistingFeed,
@@ -47,6 +58,7 @@ export {
 // ---------------------------------------------------------------------------
 export {
 	stationsState,
+	resetStationsState,
 	loadStations,
 	createStation,
 	updateExistingStation,
@@ -58,6 +70,7 @@ export {
 // ---------------------------------------------------------------------------
 export {
 	itemsState,
+	resetItemsState,
 	invalidateAllQueries,
 	loadInitialItemsPage,
 	ensureVisibleRangeLoaded,
@@ -66,13 +79,15 @@ export {
 	markItemRead,
 	loadItemsByIds,
 	getSelectedItem,
-	getActiveQueryKey,
 	getActiveTotalCount,
 	getActiveItemIdsByIndex,
 	getActiveLoadedPageOffsets,
 	getIsActiveInitialLoading,
-	setItemsDependencies,
-	type ItemsQuerySpec
+	registerItem,
+	registerItems,
+	patchItemSummary,
+	getItemById,
+	getMediaItemById
 } from '../state/items.svelte';
 
 // ---------------------------------------------------------------------------
@@ -80,6 +95,7 @@ export {
 // ---------------------------------------------------------------------------
 export {
 	readerState,
+	resetReaderState,
 	loadReaderView,
 	requestOpenInReader,
 	getReaderRequestSeq,
@@ -91,6 +107,7 @@ export {
 // ---------------------------------------------------------------------------
 export {
 	playbackState,
+	resetPlaybackState,
 	initAudioEventListeners,
 	syncAudioSessionFromBackend,
 	playAudioItem,
@@ -124,51 +141,26 @@ export {
 // ---------------------------------------------------------------------------
 // App Initialization
 // ---------------------------------------------------------------------------
-import { selection } from '../state/selection.svelte';
-import { feedsState, loadFeeds } from '../state/feeds.svelte';
-import { stationsState, loadStations } from '../state/stations.svelte';
+import { resetSelectionState } from '../state/selection.svelte';
+import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
+import { resetStationsState, loadStations } from '../state/stations.svelte';
+import { resetItemsState, loadInitialItemsPage } from '../state/items.svelte';
+import { resetReaderState } from '../state/reader.svelte';
 import {
-	itemsState,
-	invalidateAllQueries,
-	setItemsDependencies,
-	loadInitialItemsPage
-} from '../state/items.svelte';
-import { readerState } from '../state/reader.svelte';
-import {
-	playbackState,
+	resetPlaybackState,
 	initAudioEventListeners,
 	syncAudioSessionFromBackend,
 	restorePlaybackContext
 } from '../state/playback.svelte';
 
 export async function initializeApp(): Promise<void> {
-	// Reset selection state
-	selection.selectedFeedId = null;
-	selection.selectedItemId = null;
-	selection.selectedSection = 'all';
-	selection.selectedStationId = null;
-	selection.feedSearchTerm = '';
-
-	// Reset playback state
-	playbackState.currentPlaybackState = null;
-	playbackState.isAudioLoading = false;
-	playbackState.manualQueue = [];
-	playbackState.autoQueue = [];
-	playbackState.playbackContext = null;
-
-	// Reset feed state
-	feedsState.isCreatingFeed = false;
-	feedsState.syncingFeedIds = [];
-
-	// Reset reader state
-	readerState.readerLoadingItemIds = [];
-	readerState.readerRequestSeq = 0;
-	readerState.readerRequestItemId = null;
-
-	// Reset item state
-	itemsState.itemSummariesById = {};
-	itemsState.itemDetailsById = {};
-	invalidateAllQueries();
+	// Reset all state slices
+	resetSelectionState();
+	resetPlaybackState();
+	resetFeedsState();
+	resetStationsState();
+	resetItemsState();
+	resetReaderState();
 
 	// Initialize
 	await initAudioEventListeners();
@@ -178,102 +170,3 @@ export async function initializeApp(): Promise<void> {
 	await syncAudioSessionFromBackend();
 	await restorePlaybackContext();
 }
-
-// ---------------------------------------------------------------------------
-// Legacy state export (for gradual migration)
-// This replicates the old `export const app = $state(...)` structure
-// to minimize breaking changes during migration.
-// ---------------------------------------------------------------------------
-
-/**
- * Legacy composite state object.
- * @deprecated Import specific state modules instead for better tree-shaking and clarity.
- */
-export const app = {
-	// Selection
-	get selectedFeedId() {
-		return selection.selectedFeedId;
-	},
-	get selectedItemId() {
-		return selection.selectedItemId;
-	},
-	get selectedSection() {
-		return selection.selectedSection;
-	},
-	get selectedStationId() {
-		return selection.selectedStationId;
-	},
-	get feedSearchTerm() {
-		return selection.feedSearchTerm;
-	},
-
-	// Feeds
-	get feeds() {
-		return feedsState.feeds;
-	},
-	get syncingFeedIds() {
-		return feedsState.syncingFeedIds;
-	},
-	get isCreatingFeed() {
-		return feedsState.isCreatingFeed;
-	},
-
-	// Stations
-	get stations() {
-		return stationsState.stations;
-	},
-
-	// Items
-	get itemSummariesById() {
-		return itemsState.itemSummariesById;
-	},
-	get itemDetailsById() {
-		return itemsState.itemDetailsById;
-	},
-	get itemIdsByIndexByQueryKey() {
-		return itemsState.itemIdsByIndexByQueryKey;
-	},
-	get totalCountByQueryKey() {
-		return itemsState.totalCountByQueryKey;
-	},
-	get loadedPageOffsetsByQueryKey() {
-		return itemsState.loadedPageOffsetsByQueryKey;
-	},
-	get loadingPageOffsetsByQueryKey() {
-		return itemsState.loadingPageOffsetsByQueryKey;
-	},
-	get initialLoadDoneByQueryKey() {
-		return itemsState.initialLoadDoneByQueryKey;
-	},
-
-	// Playback
-	get currentPlaybackState() {
-		return playbackState.currentPlaybackState;
-	},
-	get isAudioLoading() {
-		return playbackState.isAudioLoading;
-	},
-	get manualQueue() {
-		return playbackState.manualQueue;
-	},
-	get autoQueue() {
-		return playbackState.autoQueue;
-	},
-	get playbackContext() {
-		return playbackState.playbackContext;
-	},
-	get audioItemsById() {
-		return playbackState.audioItemsById;
-	},
-
-	// Reader
-	get readerLoadingItemIds() {
-		return readerState.readerLoadingItemIds;
-	},
-	get readerRequestSeq() {
-		return readerState.readerRequestSeq;
-	},
-	get readerRequestItemId() {
-		return readerState.readerRequestItemId;
-	}
-};

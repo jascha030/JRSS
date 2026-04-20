@@ -1,11 +1,5 @@
-import type {
-	FeedItem,
-	FeedItemDetails,
-	FeedListItem,
-	ItemPageQuery,
-	Station,
-	ItemSortOrder
-} from '$lib/types/rss';
+import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/rss';
+import { isMediaItem } from '$lib/types/rss';
 import {
 	getItemDetails,
 	getItemsByIds,
@@ -14,7 +8,14 @@ import {
 	queryStationEpisodes
 } from '$lib/services/feedService';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
-import { selection, getActiveListSection, normalizeSearchTerm } from './selection.svelte';
+import { selection } from './selection.svelte';
+import {
+	getActiveQuerySpec,
+	getActiveQueryKey,
+	getActiveListSection,
+	normalizeSearchTerm,
+	type ItemsQuerySpec
+} from './query-context.svelte';
 
 const PAGE_SIZE = 100;
 const PAGE_PREFETCH = 1;
@@ -33,6 +34,16 @@ export const itemsState = $state({
 	initialLoadDoneByQueryKey: {} as Record<QueryKey, boolean>
 });
 
+export function resetItemsState(): void {
+	itemsState.itemSummariesById = {};
+	itemsState.itemDetailsById = {};
+	itemsState.itemIdsByIndexByQueryKey = {};
+	itemsState.totalCountByQueryKey = {};
+	itemsState.loadedPageOffsetsByQueryKey = {};
+	itemsState.loadingPageOffsetsByQueryKey = {};
+	itemsState.initialLoadDoneByQueryKey = {};
+}
+
 export function invalidateAllQueries(): void {
 	itemsState.itemIdsByIndexByQueryKey = {};
 	itemsState.loadedPageOffsetsByQueryKey = {};
@@ -42,89 +53,8 @@ export function invalidateAllQueries(): void {
 	selection.selectedItemId = null;
 }
 
-export type ItemsQuerySpec =
-	| {
-			kind: 'feed-items';
-			queryKey: string;
-			query: ItemPageQuery;
-	  }
-	| {
-			kind: 'station-items';
-			queryKey: string;
-			stationId: string;
-			sortOrder: ItemSortOrder;
-	  };
-
-const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
-
-function getEffectiveSortOrder(
-	stations: Station[],
-	selectedStationId: string | null
-): ItemSortOrder {
-	if (selectedStationId) {
-		const station = stations.find((s: Station) => s.id === selectedStationId);
-		return station?.sortOrder ?? DEFAULT_SORT_ORDER;
-	}
-	// For feed sorting, handled differently via feed's sortOrder
-	return DEFAULT_SORT_ORDER;
-}
-
-function buildQueryKey(
-	feedId: string | null,
-	section: 'all' | 'unread' | 'media',
-	search: string,
-	sortOrder: ItemSortOrder
-): QueryKey {
-	const normalizedSearch = normalizeSearchTerm(search);
-	const base = `${section}::${feedId ?? 'all-feeds'}::${sortOrder}`;
-	return normalizedSearch ? `${base}::search:${normalizedSearch}` : base;
-}
-
-// Dependencies injected to avoid circular deps
-let stationsCache: Station[] = [];
-
-export function setItemsDependencies(stations: Station[]): void {
-	stationsCache = stations;
-}
-
-export function getActiveQuerySpec(): ItemsQuerySpec | null {
-	if (selection.selectedStationId) {
-		const station = stationsCache.find((s: Station) => s.id === selection.selectedStationId);
-		const sortOrder = station?.sortOrder ?? DEFAULT_SORT_ORDER;
-
-		return {
-			kind: 'station-items',
-			queryKey: `station::${selection.selectedStationId}::${sortOrder}`,
-			stationId: selection.selectedStationId,
-			sortOrder
-		};
-	}
-
-	const section = getActiveListSection(selection.selectedSection, selection.selectedFeedId);
-	if (!section) {
-		return null;
-	}
-
-	const search = selection.selectedFeedId ? normalizeSearchTerm(selection.feedSearchTerm) : '';
-	const sortOrder = getEffectiveSortOrder(stationsCache, selection.selectedStationId);
-
-	return {
-		kind: 'feed-items',
-		queryKey: buildQueryKey(selection.selectedFeedId, section, search, sortOrder),
-		query: {
-			feedId: selection.selectedFeedId ?? undefined,
-			section,
-			offset: 0,
-			limit: PAGE_SIZE,
-			search: search || undefined,
-			sortOrder
-		}
-	};
-}
-
-export function getActiveQueryKey(): string | null {
-	return getActiveQuerySpec()?.queryKey ?? null;
-}
+// Re-export for convenience
+export { getActiveQuerySpec, getActiveQueryKey, type ItemsQuerySpec };
 
 export function getActiveTotalCount(): number {
 	const queryKey = getActiveQueryKey();
@@ -218,7 +148,32 @@ export function storeItemDetails(item: FeedItem): void {
 	};
 }
 
-/** Patch shared base fields on an item. */
+// ---------------------------------------------------------------------------
+// Shared item mutation helpers
+// These ensure both itemsState and playback audioItemsById stay in sync
+// ---------------------------------------------------------------------------
+
+/**
+ * Register an item in the shared cache.
+ * Call this when loading items that may be used by playback.
+ */
+export function registerItem(item: FeedListItem): void {
+	itemsState.itemSummariesById[item.id] = item;
+}
+
+/**
+ * Register multiple items in the shared cache.
+ */
+export function registerItems(items: FeedListItem[]): void {
+	for (const item of items) {
+		itemsState.itemSummariesById[item.id] = item;
+	}
+}
+
+/**
+ * Patch shared base fields on an item.
+ * Updates itemsState. Playback module should call this via import.
+ */
 export function patchItemSummary(
 	itemId: string,
 	patch: Partial<Pick<FeedListItem, 'read' | 'playbackPositionSeconds'>>
@@ -433,7 +388,7 @@ export async function markItemRead(itemId: string, read: boolean): Promise<void>
 
 	try {
 		await markRead(itemId, read);
-		if (getActiveListSection(selection.selectedSection, selection.selectedFeedId) === 'unread') {
+		if (getActiveListSection() === 'unread') {
 			await loadInitialItemsPage();
 		}
 	} catch (error) {
@@ -464,4 +419,20 @@ export function getSelectedItem(): FeedItem | null {
 
 	const details = itemsState.itemDetailsById[selection.selectedItemId];
 	return details ? { ...listItem, ...details } : listItem;
+}
+
+/**
+ * Resolve an item by ID, checking itemSummariesById.
+ * Used by playback to look up queue items.
+ */
+export function getItemById(itemId: string): FeedListItem | null {
+	return itemsState.itemSummariesById[itemId] ?? null;
+}
+
+/**
+ * Resolve a media item by ID.
+ */
+export function getMediaItemById(itemId: string): MediaListItem | null {
+	const item = itemsState.itemSummariesById[itemId];
+	return item && isMediaItem(item) ? item : null;
 }

@@ -2,7 +2,7 @@ import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 import {
-	app,
+	selection,
 	deleteFeed,
 	enqueueAudioItem,
 	isAudioPlaying,
@@ -27,7 +27,7 @@ import type { ArticleListItem, Feed, MediaListItem } from '$lib/types/rss';
  * a specific feed. When true, "Open feed" is a meaningful navigation action.
  */
 function isInSectionView(): boolean {
-	return app.selectedFeedId === null;
+	return selection.selectedFeedId === null;
 }
 
 // ---------------------------------------------------------------------------

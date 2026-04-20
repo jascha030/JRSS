@@ -1,3 +1,4 @@
+/* eslint-disable svelte/prefer-svelte-reactivity */
 import type {
 	BackendPlaybackEndedEvent,
 	BackendPlaybackState,
@@ -22,22 +23,21 @@ import {
 	audioStop,
 	audioToggle,
 	loadPlaybackContext,
-	savePlaybackContext
+	savePlaybackContext,
+	queryStationEpisodes
 } from '$lib/services/feedService';
 import { tick } from 'svelte';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { itemsState, patchItemSummary } from './items.svelte';
+import {
+	itemsState,
+	patchItemSummary,
+	loadItemsByIds,
+	markItemRead,
+	registerItem,
+	getActiveQueryKey
+} from './items.svelte';
 import { selection } from './selection.svelte';
 import { feedsState } from './feeds.svelte';
-
-export const playbackState = $state({
-	currentPlaybackState: null as PlaybackState | null,
-	isAudioLoading: false,
-	manualQueue: [] as string[],
-	autoQueue: [] as string[],
-	playbackContext: null as { contextType: 'feed' | 'station'; id: string } | null,
-	audioItemsById: {} as Record<string, FeedListItem>
-});
 
 export type PlaybackState = {
 	itemId: string;
@@ -46,6 +46,28 @@ export type PlaybackState = {
 	isPlaying: boolean;
 	volume: number;
 };
+
+export const playbackState = $state({
+	currentPlaybackState: null as PlaybackState | null,
+	isAudioLoading: false,
+	manualQueue: [] as string[],
+	autoQueue: [] as string[],
+	playbackContext: null as { contextType: 'feed' | 'station'; id: string } | null,
+	/**
+	 * Cache of items known to playback.
+	 * These are also registered in itemsState.itemSummariesById for consistency.
+	 */
+	audioItemsById: {} as Record<string, FeedListItem>
+});
+
+export function resetPlaybackState(): void {
+	playbackState.currentPlaybackState = null;
+	playbackState.isAudioLoading = false;
+	playbackState.manualQueue = [];
+	playbackState.autoQueue = [];
+	playbackState.playbackContext = null;
+	playbackState.audioItemsById = {};
+}
 
 // ---------------------------------------------------------------------------
 // Audio event listeners
@@ -68,6 +90,7 @@ export async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenEnded = await listen<BackendPlaybackEndedEvent>('playback-ended', (event) => {
 		patchItemSummary(event.payload.itemId, { playbackPositionSeconds: 0 });
+		patchAudioItem(event.payload.itemId, { playbackPositionSeconds: 0 });
 	});
 
 	const unlistenStopped = await listen('playback-stopped', () => {
@@ -90,14 +113,52 @@ export async function initAudioEventListeners(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Item cache helpers - keep both caches in sync
+// ---------------------------------------------------------------------------
+
+/**
+ * Register an item in both playback and items caches.
+ */
+function registerAudioItem(item: FeedListItem): void {
+	playbackState.audioItemsById[item.id] = item;
+	registerItem(item);
+}
+
+/**
+ * Patch an item in the playback cache (in addition to items cache).
+ */
+function patchAudioItem(
+	itemId: string,
+	patch: Partial<Pick<FeedListItem, 'read' | 'playbackPositionSeconds'>>
+): void {
+	const existingItem = playbackState.audioItemsById[itemId];
+	if (existingItem) {
+		playbackState.audioItemsById[itemId] = { ...existingItem, ...patch };
+	}
+}
+
+/**
+ * Resolve an item from either cache.
+ */
+function resolveItem(itemId: string): FeedListItem | null {
+	return playbackState.audioItemsById[itemId] ?? itemsState.itemSummariesById[itemId] ?? null;
+}
+
+/**
+ * Resolve a media item from either cache.
+ */
+function resolveAudioItem(itemId: string): MediaListItem | null {
+	const item = resolveItem(itemId);
+	return item && isMediaItem(item) ? item : null;
+}
+
+// ---------------------------------------------------------------------------
 // Backend-owned playback session sync
 // ---------------------------------------------------------------------------
 
 const inFlightAudioItemHydrations: Record<string, Promise<void> | undefined> = {};
 
 async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
-	const { loadItemsByIds } = await import('./items.svelte');
-
 	const missingIds = [...new Set(itemIds)].filter(
 		(itemId) => !playbackState.audioItemsById[itemId] && !itemsState.itemSummariesById[itemId]
 	);
@@ -114,8 +175,7 @@ async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
 				const items = await loadItemsByIds(newIds);
 				for (const item of items) {
 					if (isMediaItem(item)) {
-						playbackState.audioItemsById[item.id] = item;
-						itemsState.itemSummariesById[item.id] = item;
+						registerAudioItem(item);
 					}
 				}
 			} catch (error) {
@@ -156,9 +216,7 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 		!playbackState.currentPlaybackState ||
 		playbackState.currentPlaybackState.itemId !== queueState.current.itemId
 	) {
-		const currentItem =
-			playbackState.audioItemsById[queueState.current.itemId] ??
-			itemsState.itemSummariesById[queueState.current.itemId];
+		const currentItem = resolveItem(queueState.current.itemId);
 		const fallbackPosition =
 			currentItem && isMediaItem(currentItem) ? currentItem.playbackPositionSeconds : 0;
 
@@ -187,7 +245,6 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		previous.volume === event.volume;
 
 	if (playbackUnchanged) {
-		// Still clear loading if this was an event
 		if (fromEvent) {
 			playbackState.isAudioLoading = false;
 		}
@@ -205,29 +262,21 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		volume: event.volume
 	};
 
-	// Avoid mutating the large item summary maps on every playback tick.
-	// We only sync the stored position back into list data when playback is not active.
+	// Sync position back to caches when playback stops
 	if (!event.isPlaying) {
 		patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
+		patchAudioItem(event.itemId, { playbackPositionSeconds: positionSeconds });
 	}
 
-	// Only clear loading state when we receive an actual event from the backend
 	if (fromEvent) {
 		playbackState.isAudioLoading = false;
 	}
 
 	// Mark as read when playback starts
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
-		void markItemReadPlayback(event.itemId);
-	}
-}
-
-async function markItemReadPlayback(itemId: string): Promise<void> {
-	const { markItemRead } = await import('./items.svelte');
-	try {
-		await markItemRead(itemId, true);
-	} catch (error) {
-		console.error('Failed to mark item as read during playback.', error);
+		void markItemRead(event.itemId, true).catch((error) => {
+			console.error('Failed to mark item as read during playback.', error);
+		});
 	}
 }
 
@@ -297,8 +346,8 @@ function queueIdsToQueuedItems(itemIds: string[]): {
 	const queueItems: { itemId: string; url: string; title: string; durationSeconds: number }[] = [];
 
 	for (const itemId of itemIds) {
-		const queuedItem = playbackState.audioItemsById[itemId] ?? itemsState.itemSummariesById[itemId];
-		if (queuedItem && isMediaItem(queuedItem)) {
+		const queuedItem = resolveAudioItem(itemId);
+		if (queuedItem) {
 			queueItems.push(itemToQueuedItem(queuedItem));
 		}
 	}
@@ -319,8 +368,7 @@ export function playAudioItem(
 		context?: { contextType: 'feed' | 'station'; id: string } | null;
 	} = {}
 ): void {
-	playbackState.audioItemsById[item.id] = item;
-	itemsState.itemSummariesById[item.id] = item;
+	registerAudioItem(item);
 	playbackState.isAudioLoading = true;
 	playbackState.currentPlaybackState = {
 		itemId: item.id,
@@ -403,19 +451,12 @@ export function requestSetVolume(volume: number): void {
 // Queue operations
 // ---------------------------------------------------------------------------
 
-/** Resolve an item ID to a MediaListItem, or null. */
-function resolveAudioItem(itemId: string): MediaListItem | null {
-	const item = playbackState.audioItemsById[itemId] ?? itemsState.itemSummariesById[itemId];
-	return item && isMediaItem(item) ? item : null;
-}
-
 export function getManualQueueLength(): number {
 	return playbackState.manualQueue.length;
 }
 
 export function getUpcomingQueue(): MediaListItem[] {
 	const items: MediaListItem[] = [];
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral dedup set, not reactive state
 	const seen = new Set<string>();
 
 	for (const itemId of playbackState.manualQueue) {
@@ -438,7 +479,6 @@ export function getUpcomingQueue(): MediaListItem[] {
 }
 
 export function setPlaybackQueue(items: FeedListItem[]): void {
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- ephemeral dedup set, not reactive state
 	const seen = new Set<string>();
 	const queueItems: { itemId: string; url: string; title: string; durationSeconds: number }[] = [];
 
@@ -447,8 +487,7 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 			continue;
 		}
 		seen.add(item.id);
-		playbackState.audioItemsById[item.id] = item;
-		itemsState.itemSummariesById[item.id] = item;
+		registerAudioItem(item);
 		queueItems.push(itemToQueuedItem(item));
 	}
 
@@ -464,8 +503,7 @@ export function enqueueAudioItem(item: MediaListItem): void {
 		return;
 	}
 
-	playbackState.audioItemsById[item.id] = item;
-	itemsState.itemSummariesById[item.id] = item;
+	registerAudioItem(item);
 
 	void audioQueueEnqueue(itemToQueuedItem(item)).catch(console.error);
 }
@@ -475,8 +513,7 @@ export function playAudioItemNext(item: MediaListItem): void {
 		return;
 	}
 
-	playbackState.audioItemsById[item.id] = item;
-	itemsState.itemSummariesById[item.id] = item;
+	registerAudioItem(item);
 
 	void audioQueuePlayNext(itemToQueuedItem(item)).catch(console.error);
 }
@@ -500,7 +537,7 @@ export function clearQueue(): void {
 export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {
 	const queuedIdsToRemove = [...playbackState.manualQueue, ...playbackState.autoQueue].filter(
 		(itemId) => {
-			const item = playbackState.audioItemsById[itemId] ?? itemsState.itemSummariesById[itemId];
+			const item = resolveItem(itemId);
 			return item ? item.feedId === feedId : false;
 		}
 	);
@@ -512,11 +549,11 @@ export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {
 	}
 
 	playbackState.manualQueue = playbackState.manualQueue.filter((id) => {
-		const item = playbackState.audioItemsById[id] ?? itemsState.itemSummariesById[id];
+		const item = resolveItem(id);
 		return item ? item.feedId !== feedId : true;
 	});
 	playbackState.autoQueue = playbackState.autoQueue.filter((id) => {
-		const item = playbackState.audioItemsById[id] ?? itemsState.itemSummariesById[id];
+		const item = resolveItem(id);
 		return item ? item.feedId !== feedId : true;
 	});
 }
@@ -575,7 +612,7 @@ function deriveAutoContinuation(playingItemId: string): string[] {
 
 		const candidate = itemsState.itemSummariesById[candidateId];
 		if (candidate && isMediaItem(candidate)) {
-			playbackState.audioItemsById[candidateId] = candidate;
+			registerAudioItem(candidate);
 			continuation.push(candidateId);
 		}
 	}
@@ -604,7 +641,6 @@ export function startPlaybackFromContext(item: MediaListItem): void {
 }
 
 export async function playStation(stationId: string): Promise<void> {
-	const { queryStationEpisodes } = await import('$lib/services/feedService');
 	const page = await queryStationEpisodes(stationId, 0, 500);
 	const mediaItems = page.items.filter(isMediaItem);
 
@@ -615,10 +651,9 @@ export async function playStation(stationId: string): Promise<void> {
 	const firstItem = mediaItems[0];
 	const rest = mediaItems.slice(1);
 
-	// Register all items in audioItemsById
+	// Register all items
 	for (const item of mediaItems) {
-		playbackState.audioItemsById[item.id] = item;
-		itemsState.itemSummariesById[item.id] = item;
+		registerAudioItem(item);
 	}
 
 	playAudioItem(firstItem, {
@@ -657,10 +692,7 @@ export function getCurrentAudioItem(): MediaListItem | null {
 		return null;
 	}
 
-	const currentItem =
-		playbackState.audioItemsById[state.itemId] ?? itemsState.itemSummariesById[state.itemId];
-
-	return currentItem && isMediaItem(currentItem) ? currentItem : null;
+	return resolveAudioItem(state.itemId);
 }
 
 export function getCurrentAudioItemFeed() {
@@ -696,5 +728,3 @@ export function getPlaybackPositionForItem(
 	}
 	return fallbackPositionSeconds;
 }
-
-import { getActiveQueryKey } from './items.svelte';

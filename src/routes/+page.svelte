@@ -17,6 +17,7 @@
 		playbackState,
 		readerState,
 		selection,
+		getActiveQueryKey,
 		clearQueue,
 		createFeed,
 		createStation,
@@ -24,7 +25,6 @@
 		ensureItemLoaded,
 		ensureVisibleRangeLoaded,
 		getActiveItemIdsByIndex,
-		getActiveQueryKey,
 		getActiveTotalCount,
 		getCurrentAudioItem,
 		getCurrentAudioItemFeed,
@@ -33,6 +33,7 @@
 		getManualQueueLength,
 		getPlaybackContext,
 		getReaderRequestItemId,
+		getReaderRequestSeq,
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedStation,
@@ -53,13 +54,15 @@
 		selectStation,
 		setFeedSearchTerm,
 		setFeedSortOrder,
-		updateExistingStation,
-		getReaderRequestSeq
+		updateExistingStation
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
+	// ---------------------------------------------------------------------------
+	// Local UI state (not in shared stores)
+	// ---------------------------------------------------------------------------
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
@@ -68,8 +71,11 @@
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
-	let lastLoadedQueryKey = $state<string | null>(null);
+	let lastQueryKey = $state<string | null>(null);
 
+	// ---------------------------------------------------------------------------
+	// Derived state from stores
+	// ---------------------------------------------------------------------------
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
 	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
@@ -83,8 +89,9 @@
 	const itemSummariesById = $derived(itemsState.itemSummariesById);
 	const feedSearchTerm = $derived(selection.feedSearchTerm);
 
-	const selectedFeed = $derived(getSelectedFeed(feeds, selectedFeedId));
-	const selectedStation = $derived(getSelectedStation(stations, selectedStationId));
+	// Computed selectors
+	const selectedFeed = $derived(getSelectedFeed(feeds));
+	const selectedStation = $derived(getSelectedStation(stations));
 	const selectedItem = $derived(getSelectedItem());
 	const selectedItemFeed = $derived(
 		selectedItem ? (feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
@@ -94,9 +101,7 @@
 	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const itemSortOrder = $derived(
-		getEffectiveSortOrder(feeds, stations, selectedFeedId, selectedStationId)
-	);
+	const itemSortOrder = $derived(getEffectiveSortOrder());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
@@ -114,12 +119,29 @@
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
+	// ---------------------------------------------------------------------------
+	// Effects
+	// ---------------------------------------------------------------------------
+
+	// Load items when the active query changes (feed/station/section/search selection)
+	$effect(() => {
+		const queryKey = getActiveQueryKey();
+		if (queryKey && queryKey !== lastQueryKey) {
+			lastQueryKey = queryKey;
+			void loadInitialItemsPage().catch((error: unknown) => {
+				console.error('Failed to load items:', error);
+			});
+		}
+	});
+
+	// Reset reader mode when item changes
 	$effect(() => {
 		if (selectedItemId) {
 			readerPaneMode = 'feed';
 		}
 	});
 
+	// Load item details when selection changes
 	$effect(() => {
 		if (!selectedItemId) return;
 
@@ -128,19 +150,10 @@
 		});
 	});
 
-	// Load items when the active query changes (feed/station/section selection)
-	$effect(() => {
-		const queryKey = getActiveQueryKey();
-		if (queryKey && queryKey !== lastLoadedQueryKey) {
-			lastLoadedQueryKey = queryKey;
-			void loadInitialItemsPage().catch((error: unknown) => {
-				console.error('Failed to load items:', error);
-			});
-		}
-	});
-
+	// Initialize app on mount
 	onMount(() => void initializeApp());
 
+	// Handle reader view requests from context menu
 	let lastConsumedReaderSeq = 0;
 	$effect(() => {
 		if (readerRequestSeq > lastConsumedReaderSeq) {
@@ -149,6 +162,10 @@
 			if (itemId) void handleLoadReaderView(itemId);
 		}
 	});
+
+	// ---------------------------------------------------------------------------
+	// Event handlers
+	// ---------------------------------------------------------------------------
 
 	async function handleAddFeed(url: string) {
 		try {
@@ -238,6 +255,10 @@
 
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
+
+        if (playerMode === 'cover') {
+            playerMode = 'default';
+        }
 
 		const context = getPlaybackContext();
 
