@@ -42,7 +42,7 @@
 			<!-- rail -->
 			<div class="flex w-24 shrink-0 flex-col bg-surface">
 				<div
-					class="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-center border-b border-border bg-surface"
+					class="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-center border-r border-b border-border bg-surface"
 				>
 					<button
 						type="button"
@@ -68,7 +68,7 @@
 					</button>
 				</div>
 
-				<div class="flex-1 py-3 border-r border-border">
+				<div class="flex-1 border-r border-border py-3">
 					<div class="space-y-1 px-2">
 						{@render sidebarRailSections()}
 					</div>
@@ -128,7 +128,7 @@
 						</div>
 					</div>
 
-					<div class="mt-6 border-t border-border px-2 pt-4">
+					<div class="mt-5.75 border-t border-border px-2 pt-4">
 						<div class="mb-3 flex items-center justify-between px-3">
 							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
 								Stations
