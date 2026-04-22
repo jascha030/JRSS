@@ -12,8 +12,8 @@
 
 <button
 	type="button"
-	class={`btn-icon relative transition-colors ${
-		isOpen ? 'preset-tonal text-fg' : 'hover:preset-tonal text-fg-muted hover:text-fg'
+	class={`relative btn-icon rounded-xl transition-colors ${
+		isOpen ? 'preset-tonal text-fg' : 'text-fg-muted hover:preset-tonal hover:text-fg'
 	}`}
 	aria-label={isOpen ? 'Close queue' : `Open queue (${queueLength})`}
 	title={isOpen ? 'Close queue' : `Queue (${queueLength})`}
