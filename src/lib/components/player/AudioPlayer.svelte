@@ -6,10 +6,10 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { requestSeekTo, requestTogglePlayback } from '$lib/stores/app.svelte';
-	import AudioPlayerInfo from './player/AudioPlayerInfo.svelte';
-	import AudioPlayerControls from './player/AudioPlayerControls.svelte';
-	import AudioPlayerVolume from './player/AudioPlayerVolume.svelte';
-	import AudioSeekBar from './player/AudioSeekBar.svelte';
+	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
+	import AudioPlayerControls from './AudioPlayerControls.svelte';
+	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
+	import AudioSeekBar from './AudioSeekBar.svelte';
 
 	type Props = {
 		item: MediaListItem | null;

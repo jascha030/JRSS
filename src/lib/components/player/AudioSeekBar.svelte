@@ -2,7 +2,7 @@
 	import { requestSeekTo } from '$lib/stores/app.svelte';
 	import type { PlaybackState } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
-	import RangeInput from '../RangeInput.svelte';
+	import RangeInput from '../ui/RangeInput.svelte';
 
 	type Props = {
 		playbackState: PlaybackState;

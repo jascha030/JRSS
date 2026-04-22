@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { requestSetVolume } from '$lib/stores/app.svelte';
 	import Icon from '@iconify/svelte';
-	import RangeInput from '../RangeInput.svelte';
+	import RangeInput from '../ui/RangeInput.svelte';
 
 	type Props = {
 		volume: number;

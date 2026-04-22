@@ -12,7 +12,9 @@
 
 <button
 	type="button"
-	class="relative flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+	class={`btn-icon relative transition-colors ${
+		isOpen ? 'preset-tonal text-fg' : 'hover:preset-tonal text-fg-muted hover:text-fg'
+	}`}
 	aria-label={isOpen ? 'Close queue' : `Open queue (${queueLength})`}
 	title={isOpen ? 'Close queue' : `Queue (${queueLength})`}
 	onclick={onToggle}
@@ -21,7 +23,7 @@
 
 	{#if queueLength > 0}
 		<span
-			class="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-fg-inverse"
+			class="absolute -top-1 -right-1 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-fg-inverse"
 		>
 			{queueLength}
 		</span>

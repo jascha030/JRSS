@@ -11,7 +11,7 @@
 		openFeedContextMenu
 	} from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
-	import DynamicPlayButton from './player/DynamicPlayButton.svelte';
+	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
 	type Props = {
 		feeds: Feed[];
