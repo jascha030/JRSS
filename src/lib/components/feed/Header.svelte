@@ -33,7 +33,11 @@
 			class="ig-input"
 		/>
 
-		<button class="ig-btn preset-filled whitespace-nowrap" disabled={isLoading} type="submit">
+		<button
+			class="preset-filled-accent ig-btn whitespace-nowrap"
+			disabled={isLoading}
+			type="submit"
+		>
 			{isLoading ? 'Adding…' : 'Add feed'}
 		</button>
 	</div>

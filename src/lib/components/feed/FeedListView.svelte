@@ -284,17 +284,16 @@
 					<button
 						type="button"
 						title="Play station"
-						class="btn rounded-xl preset-filled"
+						class="preset-filled-accent btn-icon rounded-xl"
 						onclick={onPlayStation}
 					>
 						<Icon icon="lucide:play" class="size-4" />
-						<span>Play</span>
 					</button>
 
 					<button
 						type="button"
 						title="Edit station"
-						class="btn-icon rounded-xl preset-outlined"
+						class="preset-outlined-subtle btn-icon rounded-xl"
 						onclick={onEditStation}
 						aria-label="Edit station"
 					>
@@ -304,7 +303,7 @@
 					<button
 						type="button"
 						title="Delete station"
-						class="btn-icon rounded-xl preset-tonal text-error-500"
+						class="preset-filled-error btn-icon rounded-xl"
 						onclick={onDeleteStation}
 						aria-label="Delete station"
 					>
@@ -336,7 +335,7 @@
 
 						<button
 							title="Refresh feed"
-							class="btn-icon shrink-0 rounded-xl preset-outlined"
+							class="preset-outlined-subtle btn-icon shrink-0 rounded-xl"
 							disabled={isRefreshing}
 							type="button"
 							onclick={() => {
@@ -501,7 +500,7 @@
 
 										{#if !isMediaItem(item)}
 											<button
-												class="btn-icon rounded-xl preset-outlined"
+												class="preset-outlined-subtle btn-icon rounded-xl"
 												type="button"
 												aria-label={item.read ? 'Mark as unread' : 'Mark as read'}
 												onclick={() => {

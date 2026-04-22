@@ -89,7 +89,7 @@
 
 				<button
 					type="button"
-					class="btn-icon rounded-xl text-fg-muted hover:preset-tonal hover:text-fg"
+					class="preset-icon-subtle btn-icon rounded-xl"
 					aria-label="Close station editor"
 					onclick={onClose}
 				>
@@ -212,11 +212,11 @@
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-2">
-					<button type="button" class="btn rounded-xl preset-tonal" onclick={onClose}>
+					<button type="button" class="preset-outlined-subtle btn rounded-xl" onclick={onClose}>
 						Cancel
 					</button>
 
-					<button type="submit" class="btn rounded-xl preset-filled" disabled={!isValid}>
+					<button type="submit" class="preset-filled-accent btn rounded-xl" disabled={!isValid}>
 						{station ? 'Save changes' : 'Create station'}
 					</button>
 				</div>

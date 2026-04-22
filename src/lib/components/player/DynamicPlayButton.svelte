@@ -51,7 +51,7 @@
 
 <button
 	type="button"
-	class="btn preset-filled rounded-xl font-semibold"
+	class="preset-filled-accent btn rounded-xl font-semibold"
 	class:btn-sm={isSmall}
 	class:gap-1.5={compact}
 	class:gap-2={!compact}

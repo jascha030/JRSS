@@ -12,9 +12,7 @@
 
 <button
 	type="button"
-	class={`relative btn-icon rounded-xl transition-colors ${
-		isOpen ? 'preset-tonal text-fg' : 'text-fg-muted hover:preset-tonal hover:text-fg'
-	}`}
+	class={`relative btn-icon rounded-xl ${isOpen ? 'preset-tonal-active' : 'preset-icon-subtle'}`}
 	aria-label={isOpen ? 'Close queue' : `Open queue (${queueLength})`}
 	title={isOpen ? 'Close queue' : `Queue (${queueLength})`}
 	onclick={onToggle}

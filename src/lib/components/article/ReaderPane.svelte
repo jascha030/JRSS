@@ -68,7 +68,7 @@
 						</SegmentedControl>
 					{:else if canUseReaderMode}
 						<button
-							class="btn rounded-2xl preset-outlined"
+							class="preset-outlined-subtle btn rounded-xl"
 							disabled={isSelectedItemReaderLoading}
 							type="button"
 							onclick={() => onLoadReaderView(selectedItem.id)}
