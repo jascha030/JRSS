@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Feed, MediaListItem } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
+	import Icon from '@iconify/svelte';
 
 	type Props = {
 		open: boolean;
@@ -73,10 +74,9 @@
 	role="dialog"
 	aria-modal="true"
 	aria-labelledby="queue-title"
+	aria-hidden={!open}
 >
-	<div
-		class="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-5"
-	>
+	<div class="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
 		<div class="min-w-0">
 			<h2 id="queue-title" class="text-sm font-semibold text-fg">Playing next</h2>
 			<p class="text-xs text-fg-muted">
@@ -87,41 +87,19 @@
 
 		<button
 			type="button"
-			class="btn-icon text-fg-muted hover:bg-surface-hover hover:text-fg"
+			class="btn-icon rounded-xl text-fg-muted hover:preset-tonal hover:text-fg"
 			aria-label="Close queue"
 			title="Close queue"
 			onclick={onClose}
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="1.5"
-				stroke="currentColor"
-				class="size-5"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-			</svg>
+			<Icon icon="lucide:x" class="size-4" />
 		</button>
 	</div>
 
-	<div class="flex-1 overflow-y-auto bg-surface">
+	<div class="flex-1 overflow-y-auto">
 		{#if queueItems.length === 0}
 			<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke-width="1.5"
-					stroke="currentColor"
-					class="mb-3 size-10 text-fg-subtle"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"
-					/>
-				</svg>
+				<Icon icon="lucide:list-music" class="mb-3 size-10 text-fg-subtle" />
 				<p class="text-sm font-medium text-fg-muted">Queue is empty</p>
 				<p class="mt-1 text-xs text-fg-subtle">Press play on an episode to auto-populate</p>
 			</div>
@@ -173,23 +151,10 @@
 									type="button"
 									title="Move up"
 									aria-label={`Move ${item.title} up in queue`}
-									class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
+									class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
 									onclick={() => onMoveItemUp(item.id)}
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke-width="2"
-										stroke="currentColor"
-										class="size-3.5"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="m4.5 15.75 7.5-7.5 7.5 7.5"
-										/>
-									</svg>
+									<Icon icon="lucide:chevron-up" class="size-3.5" />
 								</button>
 							{/if}
 
@@ -197,19 +162,10 @@
 								type="button"
 								title="Remove from queue"
 								aria-label={`Remove ${item.title} from queue`}
-								class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
+								class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
 								onclick={() => onRemoveItem(item.id)}
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="1.5"
-									stroke="currentColor"
-									class="size-3.5"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-								</svg>
+								<Icon icon="lucide:x" class="size-3.5" />
 							</button>
 
 							{#if index < queueItems.length - 1}
@@ -217,23 +173,10 @@
 									type="button"
 									title="Move down"
 									aria-label={`Move ${item.title} down in queue`}
-									class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
+									class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
 									onclick={() => onMoveItemDown(item.id)}
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke-width="2"
-										stroke="currentColor"
-										class="size-3.5"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="m19.5 8.25-7.5 7.5-7.5-7.5"
-										/>
-									</svg>
+									<Icon icon="lucide:chevron-down" class="size-3.5" />
 								</button>
 							{/if}
 						</div>
@@ -244,8 +187,12 @@
 	</div>
 
 	{#if queueItems.length > 0}
-		<div class="shrink-0 border-t border-border bg-surface px-5 py-3">
-			<button type="button" class="btn w-full justify-center" onclick={onClearQueue}>
+		<div class="shrink-0 border-t border-border px-5 py-3">
+			<button
+				type="button"
+				class="btn w-full justify-center rounded-xl preset-tonal"
+				onclick={onClearQueue}
+			>
 				Clear queue
 			</button>
 		</div>
