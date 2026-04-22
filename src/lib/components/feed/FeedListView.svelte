@@ -186,20 +186,16 @@
 		scrollTop = scrollViewport.scrollTop;
 	});
 
-	// Handle initial scroll position for scrollToItemRequest
 	$effect(() => {
 		const request = scrollToItemRequest;
 		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
 			const index = getItemIndexById(request.itemId);
 
 			if (index !== null) {
-				// Item already loaded, scroll immediately
 				setInitialScrollPosition(request.itemId);
 				hasAppliedInitialScroll = true;
 			} else if (onEnsureItemLoaded) {
-				// Item not loaded yet, load it first then scroll
 				void onEnsureItemLoaded(request.itemId).then(() => {
-					// Wait for next tick so itemIdsByIndex is updated
 					void tick().then(() => {
 						setInitialScrollPosition(request.itemId);
 					});
@@ -209,10 +205,8 @@
 		}
 	});
 
-	// Reset hasAppliedInitialScroll when scrollToItemRequest changes (access seq to track changes)
 	$effect(() => {
 		if (scrollToItemRequest) {
-			// Access seq to ensure effect re-runs when request changes
 			void scrollToItemRequest.seq;
 			hasAppliedInitialScroll = false;
 		}
@@ -242,7 +236,6 @@
 		if (index === null) return;
 
 		const targetScrollTop = index * rowHeight;
-		// Set both reactive state and DOM element directly
 		scrollTop = targetScrollTop;
 		scrollViewport.scrollTop = targetScrollTop;
 	}
@@ -267,59 +260,63 @@
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
 	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">
-		<div class="flex flex-col flex-wrap gap-3 md:flex-row md:items-end md:justify-between">
-			<div>
-				<h2
-					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
-					class:select-none={selectedFeed}
-					oncontextmenu={selectedFeed
-						? (event) => void openFeedContextMenu(event, selectedFeed)
-						: undefined}
+		<div>
+			<h2
+				class="mt-2 text-2xl font-semibold tracking-tight text-fg"
+				class:select-none={selectedFeed}
+				oncontextmenu={selectedFeed
+					? (event) => void openFeedContextMenu(event, selectedFeed)
+					: undefined}
+			>
+				{pageHeading}
+			</h2>
+
+			{#if selectedFeed && selectedFeed.lastFetchedAt}
+				<p class="mt-1 text-xs text-fg-subtle">
+					Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
+				</p>
+			{/if}
+		</div>
+
+		<div class="mt-4 flex flex-wrap items-center gap-3">
+			{#if selectedStation}
+				<button
+					type="button"
+					title="Play station"
+					class="btn rounded-xl preset-filled"
+					onclick={onPlayStation}
 				>
-					{pageHeading}
-				</h2>
+					<Icon icon="lucide:play" class="size-4" />
+					<span>Play</span>
+				</button>
 
-				{#if selectedFeed && selectedFeed.lastFetchedAt}
-					<p class="mt-1 text-xs text-fg-subtle">
-						Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
-					</p>
-				{/if}
-			</div>
+				<button
+					type="button"
+					title="Edit station"
+					class="btn-icon rounded-xl preset-outlined"
+					onclick={onEditStation}
+					aria-label="Edit station"
+				>
+					<Icon icon="lucide:pencil" class="size-4" />
+				</button>
 
-			<div class="flex items-center gap-3">
-				{#if selectedStation}
-					<button
-						type="button"
-						title="Play station"
-						class="btn-primary flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm"
-						onclick={onPlayStation}
-					>
-						<Icon icon="lucide:play" class="size-4" />
-						Play
-					</button>
+				<button
+					type="button"
+					title="Delete station"
+					class="btn-icon rounded-xl preset-tonal text-error-500"
+					onclick={onDeleteStation}
+					aria-label="Delete station"
+				>
+					<Icon icon="lucide:trash-2" class="size-4" />
+				</button>
 
-					<button
-						type="button"
-						title="Edit station"
-						class="btn-secondary rounded-xl px-3 py-2"
-						onclick={onEditStation}
-					>
-						<Icon icon="lucide:pencil" class="size-4" />
-					</button>
-
-					<button
-						type="button"
-						title="Delete station"
-						class="btn-danger btn-sm"
-						onclick={onDeleteStation}
-					>
-						<Icon icon="lucide:trash-2" class="size-4" />
-					</button>
-
-					<p class="text-sm text-fg-muted">{totalCount} episodes</p>
-				{:else if selectedFeed}
+				<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
+			{:else if selectedFeed}
+				<div class="flex flex-wrap items-center gap-2">
+					<label class="sr-only" for="feed-sort-order">Sort order</label>
 					<select
-						class="rounded-xl border border-border bg-surface px-2 py-1.5 text-xs text-fg-muted transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+						id="feed-sort-order"
+						class="select min-w-36 rounded-xl text-sm"
 						aria-label="Sort order"
 						value={itemSortOrder}
 						onchange={(event) => {
@@ -335,97 +332,67 @@
 						<option value="newest_first">Newest first</option>
 						<option value="oldest_first">Oldest first</option>
 					</select>
-				{/if}
 
-				<p class="text-sm text-fg-muted">{totalCount} items</p>
-
-				{#if selectedFeed}
 					<button
 						title="Refresh feed"
-						class="btn-secondary rounded-xl px-3 py-2"
+						class="btn-icon shrink-0 rounded-xl preset-outlined"
 						disabled={isRefreshing}
 						type="button"
 						onclick={() => {
 							void onRefresh(selectedFeed.id);
 						}}
+						aria-label="Refresh feed"
 					>
 						{#key isRefreshing}
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke-width="1.5"
-								stroke="currentColor"
-								class="size-6"
-								class:animate-spin={isRefreshing}
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-								/>
-							</svg>
+							<Icon
+								icon="lucide:refresh-cw"
+								class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+							/>
 						{/key}
 					</button>
-				{/if}
-			</div>
+
+					<p class="ml-1 text-sm whitespace-nowrap text-fg-muted">{totalCount} items</p>
+				</div>
+			{:else}
+				<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} items</p>
+			{/if}
 		</div>
 
 		{#if selectedFeed}
-			<div class="relative mt-4">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 16 16"
-					fill="currentColor"
-					class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted"
-				>
-					<path
-						fill-rule="evenodd"
-						d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-						clip-rule="evenodd"
-					/>
-				</svg>
-				<input
-					bind:this={searchInputRef}
-					class="w-full rounded-xl border border-border bg-surface py-2 pr-9 pl-9 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
-					placeholder="Search this feed"
-					type="text"
-					value={searchTerm}
-					oninput={(event) => {
-						const target = event.currentTarget;
-						if (target instanceof HTMLInputElement) {
-							onSearchChange(target.value);
-						}
-					}}
-					onkeydown={(event) => {
-						if (event.key === 'Escape') {
-							onSearchChange('');
-							searchInputRef?.blur();
-						}
-					}}
-				/>
-				{#if hasActiveSearch}
-					<button
-						type="button"
-						class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-0.5 text-fg-muted transition-colors hover:text-fg"
-						title="Clear search"
-						onclick={() => {
-							onSearchChange('');
-							searchInputRef?.focus();
+			<div class="mt-4">
+				<label class="sr-only" for="feed-search">Search this feed</label>
+
+				<div class="input-group grid-cols-[auto_1fr_auto]">
+					<div class="ig-cell preset-tonal">
+						<Icon icon="lucide:search" class="size-4" />
+					</div>
+
+					<input
+						id="feed-search"
+						bind:this={searchInputRef}
+						class="ig-input"
+						placeholder="Search this feed"
+						type="search"
+						value={searchTerm}
+						oninput={(event) => {
+							const target = event.currentTarget;
+							if (target instanceof HTMLInputElement) {
+								onSearchChange(target.value);
+							}
 						}}
-					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 16 16"
-							fill="currentColor"
-							class="size-4"
-						>
-							<path
-								d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z"
-							/>
-						</svg>
-					</button>
-				{/if}
+						onkeydown={(event) => {
+							if (event.key === 'Escape') {
+								onSearchChange('');
+								searchInputRef?.blur();
+							}
+						}}
+					/>
+
+					<div class="ig-cell flex items-center gap-1 text-fg-muted">
+						<kbd class="kbd">⌘</kbd>
+						<kbd class="kbd">F</kbd>
+					</div>
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -439,9 +406,8 @@
 		{#if isInitialLoading}
 			<div class="px-6 py-4 lg:px-8">
 				<div class="space-y-4">
-					<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 					{#each Array.from({ length: 4 }) as _, index (index)}
-						<div class="rounded-3xl border border-border bg-surface-card px-6 py-5">
+						<div class="px-0 py-5">
 							<div class="h-3 w-32 rounded-full bg-skeleton"></div>
 							<div class="mt-5 h-6 w-3/4 rounded-full bg-skeleton"></div>
 							<div class="mt-3 space-y-2">
@@ -454,23 +420,19 @@
 				</div>
 			</div>
 		{:else if totalCount === 0}
-			<div class="px-6 py-8 lg:px-8">
-				<div
-					class="rounded-3xl border border-dashed border-border-strong bg-surface-card p-8 text-center shadow-sm"
-				>
-					{#if hasActiveSearch}
-						<h3 class="text-xl font-semibold text-fg">No matching items</h3>
-						<p class="mt-3 text-sm leading-6 text-fg-secondary">
-							Try a different search term or clear the filter.
-						</p>
-					{:else}
-						<h3 class="text-xl font-semibold text-fg">Nothing here yet</h3>
-						<p class="mt-3 text-sm leading-6 text-fg-secondary">
-							This view is wired up, but there are no matching items right now. Add more feeds or
-							switch filters to keep exploring the shell.
-						</p>
-					{/if}
-				</div>
+			<div class="px-6 py-12 text-center lg:px-8">
+				{#if hasActiveSearch}
+					<h3 class="text-xl font-semibold text-fg">No matching items</h3>
+					<p class="mt-3 text-sm leading-6 text-fg-secondary">
+						Try a different search term or clear the filter.
+					</p>
+				{:else}
+					<h3 class="text-xl font-semibold text-fg">Nothing here yet</h3>
+					<p class="mx-auto mt-3 max-w-xl text-sm leading-6 text-fg-secondary">
+						This view is wired up, but there are no matching items right now. Add more feeds or
+						switch filters to keep exploring the shell.
+					</p>
+				{/if}
 			</div>
 		{:else}
 			<div class="relative" style={`height: ${totalHeight}px;`}>
@@ -496,7 +458,7 @@
 								onclick={() => onSelectItem(item.id)}
 							>
 								{#if !item.read}
-									<div class="absolute inset-x-3 inset-y-6 size-2 rounded-full bg-accent-dot"></div>
+									<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>
 								{/if}
 
 								<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -527,11 +489,7 @@
 								>
 									<div class="flex flex-wrap items-center gap-2">
 										{#if isMediaItem(item)}
-											<span
-												class="rounded-full bg-surface-active px-2.5 py-1 text-xs font-medium text-fg-muted"
-											>
-												Podcast
-											</span>
+											<span class="badge preset-tonal-surface text-xs"> Podcast </span>
 										{/if}
 									</div>
 
@@ -543,8 +501,9 @@
 
 										{#if !isMediaItem(item)}
 											<button
-												class="btn-secondary rounded-xl px-3 py-2"
+												class="btn-icon rounded-xl preset-outlined"
 												type="button"
+												aria-label={item.read ? 'Mark as unread' : 'Mark as read'}
 												onclick={() => {
 													void onMarkRead(item.id, !item.read);
 												}}

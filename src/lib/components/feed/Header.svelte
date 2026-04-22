@@ -19,23 +19,22 @@
 	}
 </script>
 
-<form
-	class="flex w-full min-w-full flex-col gap-3 sm:flex-row sm:items-center"
-	onsubmit={handleSubmit}
->
-	<label class="sr-only" for="feedUrl"> RSS URL, Apple Podcasts URL, or Apple ID </label>
+<form class="w-full min-w-full" onsubmit={handleSubmit}>
+	<label class="sr-only" for="feedUrl">RSS URL, Apple Podcasts URL, or Apple ID</label>
 
-	<input
-		id="feedUrl"
-		name="feedUrl"
-		type="text"
-		bind:value={inputValue}
-		disabled={isLoading}
-		placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
-		class="min-w-0 flex-1 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
-	/>
+	<div class="input-group grid-cols-[1fr_auto]">
+		<input
+			id="feedUrl"
+			name="feedUrl"
+			type="text"
+			bind:value={inputValue}
+			disabled={isLoading}
+			placeholder="RSS URL, Apple Podcasts URL, or Apple ID"
+			class="ig-input"
+		/>
 
-	<button class="btn preset-filled whitespace-nowrap" disabled={isLoading} type="submit">
-		{isLoading ? 'Adding…' : 'Add feed'}
-	</button>
+		<button class="ig-btn preset-filled whitespace-nowrap" disabled={isLoading} type="submit">
+			{isLoading ? 'Adding…' : 'Add feed'}
+		</button>
+	</div>
 </form>

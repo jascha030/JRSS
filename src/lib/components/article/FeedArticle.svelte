@@ -10,7 +10,6 @@
 
 	let { item, feedTitle, feedImageUrl }: Props = $props();
 
-	// Prefer HTML content over text, with cascading fallback
 	const hasHtmlContent = $derived(!!item.contentHtml);
 	const hasTextContent = $derived(!!item.contentText && !hasHtmlContent);
 	const hasHtmlSummary = $derived(!!item.summaryHtml && !hasHtmlContent && !hasTextContent);
@@ -24,15 +23,19 @@
 
 <ArticleBase {feedTitle} {feedImageUrl} {item}>
 	{#if hasHtmlContent}
-		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<div class="article-html mt-10">{@html item.contentHtml}</div>
+		<div class="article-html mt-10">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html item.contentHtml}
+		</div>
 	{:else if hasTextContent}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
 			{item.contentText}
 		</div>
 	{:else if hasHtmlSummary}
-		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-		<div class="article-html mt-10">{@html item.summaryHtml}</div>
+		<div class="article-html mt-10">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html item.summaryHtml}
+		</div>
 	{:else if hasTextSummary}
 		<div class="mt-10 text-[1.05rem] leading-8 whitespace-pre-line text-fg-secondary">
 			{item.summaryText}

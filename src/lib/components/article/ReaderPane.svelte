@@ -3,6 +3,7 @@
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
 	import type { Feed, FeedItem } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
+	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	type ReaderPaneMode = 'feed' | 'reader';
 
@@ -45,34 +46,29 @@
 			>
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
-						<div class="inline-flex rounded-2xl border border-border-strong bg-surface p-1">
-							<button
-								class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-									readerPaneMode === 'feed'
-										? 'bg-interactive text-interactive-text'
-										: 'text-fg-muted hover:text-fg'
-								}`}
-								type="button"
-								onclick={() => onReaderPaneModeChange('feed')}
-							>
-								Feed view
-							</button>
+						<SegmentedControl
+							value={readerPaneMode}
+							onValueChange={(details) => onReaderPaneModeChange(details.value as ReaderPaneMode)}
+						>
+							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 
-							<button
-								class={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-									readerPaneMode === 'reader'
-										? 'bg-interactive text-interactive-text'
-										: 'text-fg-muted hover:text-fg'
-								}`}
-								type="button"
-								onclick={() => onReaderPaneModeChange('reader')}
-							>
-								Reader view
-							</button>
-						</div>
+							<SegmentedControl.Control class="rounded-2xl">
+								<SegmentedControl.Indicator />
+
+								<SegmentedControl.Item value="feed">
+									<SegmentedControl.ItemText>Feed view</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+
+								<SegmentedControl.Item value="reader">
+									<SegmentedControl.ItemText>Reader view</SegmentedControl.ItemText>
+									<SegmentedControl.ItemHiddenInput />
+								</SegmentedControl.Item>
+							</SegmentedControl.Control>
+						</SegmentedControl>
 					{:else if canUseReaderMode}
 						<button
-							class="btn-secondary rounded-2xl px-4 py-3"
+							class="btn rounded-2xl preset-outlined"
 							disabled={isSelectedItemReaderLoading}
 							type="button"
 							onclick={() => onLoadReaderView(selectedItem.id)}
