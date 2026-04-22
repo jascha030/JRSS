@@ -260,102 +260,102 @@
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
 	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">
-		<div>
-			<h2
-				class="mt-2 text-2xl font-semibold tracking-tight text-fg"
-				class:select-none={selectedFeed}
-				oncontextmenu={selectedFeed
-					? (event) => void openFeedContextMenu(event, selectedFeed)
-					: undefined}
-			>
-				{pageHeading}
-			</h2>
-
-			{#if selectedFeed && selectedFeed.lastFetchedAt}
-				<p class="mt-1 text-xs text-fg-subtle">
-					Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
-				</p>
-			{/if}
-		</div>
-
-		<div class="mt-4 flex flex-wrap items-center gap-3">
-			{#if selectedStation}
-				<button
-					type="button"
-					title="Play station"
-					class="btn rounded-xl preset-filled"
-					onclick={onPlayStation}
+		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+			<div>
+				<h2
+					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
+					class:select-none={selectedFeed}
+					oncontextmenu={selectedFeed
+						? (event) => void openFeedContextMenu(event, selectedFeed)
+						: undefined}
 				>
-					<Icon icon="lucide:play" class="size-4" />
-					<span>Play</span>
-				</button>
+					{pageHeading}
+				</h2>
 
-				<button
-					type="button"
-					title="Edit station"
-					class="btn-icon rounded-xl preset-outlined"
-					onclick={onEditStation}
-					aria-label="Edit station"
-				>
-					<Icon icon="lucide:pencil" class="size-4" />
-				</button>
+				{#if selectedFeed && selectedFeed.lastFetchedAt}
+					<p class="mt-1 text-xs text-fg-subtle">
+						Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
+					</p>
+				{/if}
+			</div>
 
-				<button
-					type="button"
-					title="Delete station"
-					class="btn-icon rounded-xl preset-tonal text-error-500"
-					onclick={onDeleteStation}
-					aria-label="Delete station"
-				>
-					<Icon icon="lucide:trash-2" class="size-4" />
-				</button>
-
-				<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
-			{:else if selectedFeed}
-				<div class="flex flex-wrap items-center gap-2">
-					<label class="sr-only" for="feed-sort-order">Sort order</label>
-					<select
-						id="feed-sort-order"
-						class="select min-w-36 rounded-xl text-sm"
-						aria-label="Sort order"
-						value={itemSortOrder}
-						onchange={(event) => {
-							const target = event.currentTarget;
-							if (target instanceof HTMLSelectElement) {
-								const value = target.value;
-								if (value === 'newest_first' || value === 'oldest_first') {
-									onSortOrderChange(value);
-								}
-							}
-						}}
-					>
-						<option value="newest_first">Newest first</option>
-						<option value="oldest_first">Oldest first</option>
-					</select>
-
+			<div class="flex flex-wrap items-center gap-3">
+				{#if selectedStation}
 					<button
-						title="Refresh feed"
-						class="btn-icon shrink-0 rounded-xl preset-outlined"
-						disabled={isRefreshing}
 						type="button"
-						onclick={() => {
-							void onRefresh(selectedFeed.id);
-						}}
-						aria-label="Refresh feed"
+						title="Play station"
+						class="btn rounded-xl preset-filled"
+						onclick={onPlayStation}
 					>
-						{#key isRefreshing}
-							<Icon
-								icon="lucide:refresh-cw"
-								class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-							/>
-						{/key}
+						<Icon icon="lucide:play" class="size-4" />
+						<span>Play</span>
 					</button>
 
-					<p class="ml-1 text-sm whitespace-nowrap text-fg-muted">{totalCount} items</p>
-				</div>
-			{:else}
+					<button
+						type="button"
+						title="Edit station"
+						class="btn-icon rounded-xl preset-outlined"
+						onclick={onEditStation}
+						aria-label="Edit station"
+					>
+						<Icon icon="lucide:pencil" class="size-4" />
+					</button>
+
+					<button
+						type="button"
+						title="Delete station"
+						class="btn-icon rounded-xl preset-tonal text-error-500"
+						onclick={onDeleteStation}
+						aria-label="Delete station"
+					>
+						<Icon icon="lucide:trash-2" class="size-4" />
+					</button>
+
+					<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
+				{:else if selectedFeed}
+					<div class="flex shrink-0 items-center gap-2">
+						<label class="sr-only" for="feed-sort-order">Sort order</label>
+						<select
+							id="feed-sort-order"
+							class="select min-w-36 rounded-xl text-sm"
+							aria-label="Sort order"
+							value={itemSortOrder}
+							onchange={(event) => {
+								const target = event.currentTarget;
+								if (target instanceof HTMLSelectElement) {
+									const value = target.value;
+									if (value === 'newest_first' || value === 'oldest_first') {
+										onSortOrderChange(value);
+									}
+								}
+							}}
+						>
+							<option value="newest_first">Newest first</option>
+							<option value="oldest_first">Oldest first</option>
+						</select>
+
+						<button
+							title="Refresh feed"
+							class="btn-icon shrink-0 rounded-xl preset-outlined"
+							disabled={isRefreshing}
+							type="button"
+							onclick={() => {
+								void onRefresh(selectedFeed.id);
+							}}
+							aria-label="Refresh feed"
+						>
+							{#key isRefreshing}
+								<Icon
+									icon="lucide:refresh-cw"
+									class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+								/>
+							{/key}
+						</button>
+					</div>
+				{/if}
+
 				<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} items</p>
-			{/if}
+			</div>
 		</div>
 
 		{#if selectedFeed}
