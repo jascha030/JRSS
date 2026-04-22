@@ -9,6 +9,7 @@
 		imageUrl?: string;
 		onNavigate?: () => void;
 		onShowCover?: () => void;
+        showCover?: boolean;
 		class?: string;
 	};
 
@@ -17,6 +18,7 @@
 		imageUrl,
 		onNavigate,
 		onShowCover: onShowCover = undefined,
+        showCover = true,
 		class: className = ''
 	}: Props = $props();
 
@@ -268,22 +270,24 @@
 
 {#if item}
 	<div class={`flex min-w-0 items-center gap-3 ${className}`}>
-		<button
-			class="shrink-0 overflow-hidden rounded-xl"
-			type="button"
-			onclick={onShowCover}
-			oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
-			aria-label="Show cover art"
-		>
-			<Avatar class="size-12 rounded-xl shadow-sm">
-				{#if imageUrl}
-					<Avatar.Image src={imageUrl} alt="" class="object-cover" />
-				{/if}
-				<Avatar.Fallback class="grid h-full w-full place-items-center text-xs font-semibold">
-					♪
-				</Avatar.Fallback>
-			</Avatar>
-		</button>
+		{#if showCover}
+			<button
+				class="shrink-0 overflow-hidden rounded-xl"
+				type="button"
+				onclick={onShowCover}
+				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+				aria-label="Show cover art"
+			>
+				<Avatar class="size-12 rounded-xl shadow-sm">
+					{#if imageUrl}
+						<Avatar.Image src={imageUrl} alt="" class="object-cover" />
+					{/if}
+					<Avatar.Fallback class="grid h-full w-full place-items-center text-xs font-semibold">
+						♪
+					</Avatar.Fallback>
+				</Avatar>
+			</button>
+		{/if}
 
 		<div class="min-w-0 flex-1">
 			<p class="text-[0.65rem] font-semibold tracking-[0.18em] text-fg-muted uppercase">
