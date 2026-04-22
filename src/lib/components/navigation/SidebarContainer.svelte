@@ -246,8 +246,8 @@
 				<span
 					class={`flex size-full items-center justify-center text-fg-inverse ${
 						selectedFeedId === feed.id
-							? 'from-primary-500 to-primary-700 bg-linear-to-br'
-							: 'from-primary-400 to-primary-600 bg-linear-to-br'
+							? 'bg-linear-to-br from-primary-500 to-primary-700'
+							: 'bg-linear-to-br from-primary-400 to-primary-600'
 					}`}
 				>
 					{(feed.title?.trim()?.[0] ?? '?').toUpperCase()}

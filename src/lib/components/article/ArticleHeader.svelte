@@ -71,7 +71,7 @@
 					<DynamicPlayButton {item} size="sm" />
 
 					<button
-						class="btn-icon rounded-xl preset-outlined"
+						class="preset-outlined-subtle btn-icon rounded-full"
 						type="button"
 						aria-label="More audio actions"
 						onclick={(e) => void openAudioContextMenu(e, item)}

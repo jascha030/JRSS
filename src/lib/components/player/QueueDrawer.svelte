@@ -87,7 +87,7 @@
 
 		<button
 			type="button"
-			class="btn-icon rounded-xl text-fg-muted hover:preset-tonal hover:text-fg"
+			class="preset-icon-subtle btn-icon rounded-xl"
 			aria-label="Close queue"
 			title="Close queue"
 			onclick={onClose}
@@ -151,7 +151,7 @@
 									type="button"
 									title="Move up"
 									aria-label={`Move ${item.title} up in queue`}
-									class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
+									class="preset-icon-subtle btn-icon rounded-lg"
 									onclick={() => onMoveItemUp(item.id)}
 								>
 									<Icon icon="lucide:chevron-up" class="size-3.5" />
@@ -162,7 +162,7 @@
 								type="button"
 								title="Remove from queue"
 								aria-label={`Remove ${item.title} from queue`}
-								class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
+								class="preset-icon-subtle btn-icon rounded-lg"
 								onclick={() => onRemoveItem(item.id)}
 							>
 								<Icon icon="lucide:x" class="size-3.5" />
@@ -173,7 +173,7 @@
 									type="button"
 									title="Move down"
 									aria-label={`Move ${item.title} down in queue`}
-									class="btn-icon rounded-lg text-fg-subtle hover:preset-tonal hover:text-fg"
+									class="preset-icon-subtle btn-icon rounded-lg"
 									onclick={() => onMoveItemDown(item.id)}
 								>
 									<Icon icon="lucide:chevron-down" class="size-3.5" />
@@ -190,7 +190,7 @@
 		<div class="shrink-0 border-t border-border px-5 py-3">
 			<button
 				type="button"
-				class="btn w-full justify-center rounded-xl preset-tonal"
+				class="preset-outlined-subtle btn w-full justify-center rounded-xl"
 				onclick={onClearQueue}
 			>
 				Clear queue

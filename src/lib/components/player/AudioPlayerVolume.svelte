@@ -58,7 +58,7 @@
 
 <div class={`flex shrink-0 items-center gap-2 ${className}`}>
 	<button
-		class="btn-icon rounded-xl text-fg-muted transition-colors hover:text-fg"
+		class="preset-icon-subtle btn-icon rounded-xl"
 		type="button"
 		onclick={toggleMute}
 		aria-label={isMuted ? 'Unmute' : 'Mute'}
