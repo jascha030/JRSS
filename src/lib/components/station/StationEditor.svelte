@@ -6,9 +6,14 @@
 		StationEpisodeFilter,
 		ItemSortOrder
 	} from '$lib/types/rss';
-	import { SvelteSet } from 'svelte/reactivity';
 	import Icon from '@iconify/svelte';
-	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import {
+		Combobox,
+		Portal,
+		SegmentedControl,
+		type ComboboxRootProps,
+		useListCollection
+	} from '@skeletonlabs/skeleton-svelte';
 
 	type Props = {
 		open: boolean;
@@ -18,36 +23,98 @@
 		onClose: () => void;
 	};
 
+	type FeedOption = {
+		label: string;
+		value: string;
+	};
+
 	let { open, station, feeds, onSave, onClose }: Props = $props();
 
 	const mediaFeeds = $derived(feeds.filter((feed) => feed.kind === 'media'));
 
+	const allPodcastOptions = $derived.by<FeedOption[]>(() =>
+		mediaFeeds.map((feed) => ({
+			label: feed.title,
+			value: feed.id
+		}))
+	);
+
 	let name = $state('');
 	let episodeFilter = $state<StationEpisodeFilter>('all');
 	let sortOrder = $state<ItemSortOrder>('newest_first');
-	let selectedFeedIds = $state(new SvelteSet<string>());
+	let selectedFeedValues = $state<string[]>([]);
+	let filteredPodcastOptions = $state<FeedOption[]>([]);
+
+	const collection = $derived(
+		useListCollection({
+			items: filteredPodcastOptions,
+			itemToString: (item) => item.label,
+			itemToValue: (item) => item.value
+		})
+	);
+
+	const selectedFeedTitleById = $derived.by(() => {
+		const map: Record<string, string> = {};
+		for (const option of allPodcastOptions) {
+			map[option.value] = option.label;
+		}
+		return map;
+	});
+
+	const selectedFeedOptions = $derived.by(() =>
+		selectedFeedValues
+			.map((id) => {
+				const label = selectedFeedTitleById[id];
+				return label ? { value: id, label } : null;
+			})
+			.filter((item): item is FeedOption => item !== null)
+	);
+
+	const isValid = $derived(name.trim().length > 0 && selectedFeedValues.length > 0);
+
+	$effect(() => {
+		filteredPodcastOptions = allPodcastOptions;
+	});
 
 	$effect(() => {
 		if (open) {
 			name = station?.name ?? '';
 			episodeFilter = station?.episodeFilter ?? 'all';
 			sortOrder = station?.sortOrder ?? 'newest_first';
-			selectedFeedIds = new SvelteSet(station?.feedIds ?? []);
+			selectedFeedValues = station?.feedIds ?? [];
+			filteredPodcastOptions = allPodcastOptions;
 		}
 	});
 
-	function toggleFeed(feedId: string): void {
-		if (selectedFeedIds.has(feedId)) {
-			selectedFeedIds.delete(feedId);
-		} else {
-			selectedFeedIds.add(feedId);
+	const onComboboxOpenChange = () => {
+		filteredPodcastOptions = allPodcastOptions;
+	};
+
+	const onComboboxInputValueChange: ComboboxRootProps['onInputValueChange'] = (event) => {
+		const query = event.inputValue.toLowerCase().trim();
+
+		if (!query) {
+			filteredPodcastOptions = allPodcastOptions;
+			return;
 		}
+
+		filteredPodcastOptions = allPodcastOptions.filter((item) =>
+			item.label.toLowerCase().includes(query)
+		);
+	};
+
+	const onComboboxValueChange: ComboboxRootProps['onValueChange'] = (event) => {
+		selectedFeedValues = [...event.value];
+	};
+
+	function removeSelectedFeed(feedId: string) {
+		selectedFeedValues = selectedFeedValues.filter((id) => id !== feedId);
 	}
 
 	function handleSubmit(): void {
 		const trimmedName = name.trim();
 
-		if (!trimmedName || selectedFeedIds.size === 0) {
+		if (!trimmedName || selectedFeedValues.length === 0) {
 			return;
 		}
 
@@ -55,11 +122,9 @@
 			name: trimmedName,
 			episodeFilter,
 			sortOrder,
-			feedIds: [...selectedFeedIds]
+			feedIds: selectedFeedValues
 		});
 	}
-
-	const isValid = $derived(name.trim().length > 0 && selectedFeedIds.size > 0);
 </script>
 
 {#if open}
@@ -89,7 +154,7 @@
 
 				<button
 					type="button"
-					class="preset-icon-subtle btn-icon rounded-xl"
+					class="btn-icon rounded-xl text-fg-muted hover:preset-tonal hover:text-fg"
 					aria-label="Close station editor"
 					onclick={onClose}
 				>
@@ -179,44 +244,82 @@
 				</div>
 
 				<div>
-					<p class="text-sm font-medium text-fg-secondary">Podcasts</p>
+					<div class="mb-2 flex items-center justify-between gap-3">
+						<p class="text-sm font-medium text-fg-secondary">Podcasts</p>
+						<p class="text-xs text-fg-muted">{selectedFeedValues.length} selected</p>
+					</div>
 
 					{#if mediaFeeds.length === 0}
-						<p class="mt-2 text-sm text-fg-muted">
+						<p class="text-sm text-fg-muted">
 							No podcast feeds added yet. Add a podcast feed first.
 						</p>
 					{:else}
-						<div
-							class="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2"
-						>
-							{#each mediaFeeds as feed (feed.id)}
-								<label
-									class={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
-										selectedFeedIds.has(feed.id) ? 'bg-surface-active' : 'hover:bg-surface-hover'
-									}`}
-								>
-									<input
-										type="checkbox"
-										checked={selectedFeedIds.has(feed.id)}
-										onchange={() => toggleFeed(feed.id)}
-										class="size-4 rounded border-border text-accent focus:ring-ring"
-									/>
+						<div class="space-y-3">
+							<Combobox
+								class="w-full"
+								placeholder="Search podcasts..."
+								{collection}
+								{onComboboxOpenChange}
+								onInputValueChange={onComboboxInputValueChange}
+								value={selectedFeedValues}
+								onValueChange={onComboboxValueChange}
+								multiple
+							>
+								<Combobox.Label class="sr-only">Search podcasts</Combobox.Label>
 
-									<span class="min-w-0 flex-1">
-										<span class="block truncate text-sm text-fg">{feed.title}</span>
-									</span>
-								</label>
-							{/each}
+								<Combobox.Control>
+									<Combobox.Input />
+									<Combobox.Trigger />
+								</Combobox.Control>
+
+								<Portal>
+									<Combobox.Positioner>
+										<Combobox.Content class="z-50 max-h-64 overflow-y-auto">
+											{#if filteredPodcastOptions.length === 0}
+												<div class="px-3 py-2 text-sm text-fg-muted">No podcasts found</div>
+											{:else}
+												{#each filteredPodcastOptions as item (item.value)}
+													<Combobox.Item {item}>
+														<Combobox.ItemText>{item.label}</Combobox.ItemText>
+														<Combobox.ItemIndicator />
+													</Combobox.Item>
+												{/each}
+											{/if}
+										</Combobox.Content>
+									</Combobox.Positioner>
+								</Portal>
+							</Combobox>
+
+							{#if selectedFeedOptions.length > 0}
+								<div class="flex flex-wrap gap-2">
+									{#each selectedFeedOptions as feed (feed.value)}
+										<span
+											class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-fg"
+										>
+											<span class="max-w-56 truncate">{feed.label}</span>
+
+											<button
+												type="button"
+												class="grid size-4 place-items-center rounded-full text-fg-muted transition-colors hover:text-fg"
+												aria-label={`Remove ${feed.label}`}
+												onclick={() => removeSelectedFeed(feed.value)}
+											>
+												<Icon icon="lucide:x" class="size-3" />
+											</button>
+										</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
 					{/if}
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-2">
-					<button type="button" class="preset-outlined-subtle btn rounded-xl" onclick={onClose}>
+					<button type="button" class="btn rounded-xl preset-tonal" onclick={onClose}>
 						Cancel
 					</button>
 
-					<button type="submit" class="preset-filled-accent btn rounded-xl" disabled={!isValid}>
+					<button type="submit" class="btn rounded-xl preset-filled" disabled={!isValid}>
 						{station ? 'Save changes' : 'Create station'}
 					</button>
 				</div>
