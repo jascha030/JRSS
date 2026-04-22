@@ -1,15 +1,16 @@
 <script lang="ts">
-	import AudioPlayer from '$lib/components/AudioPlayer.svelte';
-	import CoverView from '$lib/components/CoverView.svelte';
+	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
+	import CoverView from '$lib/components/player/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
-	import FeedListView from '$lib/components/FeedListView.svelte';
-	import Header from '$lib/components/Header.svelte';
-	import QueueDrawer from '$lib/components/QueueDrawer.svelte';
-	import QueueToggleButton from '$lib/components/QueueToggleButton.svelte';
-	import ReaderPane from '$lib/components/ReaderPane.svelte';
-	import SettingsView from '$lib/components/SettingsView.svelte';
-	import SidebarContainer from '$lib/components/SidebarContainer.svelte';
-	import StationEditor from '$lib/components/StationEditor.svelte';
+	import FeedListView from '$lib/components/feed/FeedListView.svelte';
+	import Header from '$lib/components/feed/Header.svelte';
+	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
+	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
+	import ReaderPane from '$lib/components/article/ReaderPane.svelte';
+	import SettingsView from '$lib/components/settings/SettingsView.svelte';
+	import SidebarContainer from '$lib/components/navigation/SidebarContainer.svelte';
+	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
 		stationsState,
@@ -351,13 +352,11 @@
 					}`}
 				>
 					<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
-						<header
-							class="flex h-20 shrink-0 items-center justify-end border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8"
-						>
-							<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+						<AppBar class="shrink-0 border-b border-border bg-surface-glass backdrop-blur">
+							<AppBar.Toolbar class="grid-cols-1 px-6 py-4 lg:px-8">
 								<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
-							</div>
-						</header>
+							</AppBar.Toolbar>
+						</AppBar>
 
 						{#if feeds.length === 0 && !isInitialLoading}
 							<EmptyFeedView />
