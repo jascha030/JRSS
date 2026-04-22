@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Feed, MediaListItem } from '$lib/types/rss';
-	import { formatDuration } from '$lib/utils/format';
 	import Icon from '@iconify/svelte';
+	import QueueList from './QueueList.svelte';
 
 	type Props = {
 		open: boolean;
@@ -26,35 +26,6 @@
 		onClearQueue,
 		onClose
 	}: Props = $props();
-
-	const hasAutoItems = $derived(queueItems.length > manualQueueLength);
-
-	let feedTitleById = $derived.by(() => {
-		const map: Record<string, string> = {};
-		for (const feed of feeds) {
-			map[feed.id] = feed.title;
-		}
-		return map;
-	});
-
-	function feedTitleForItem(item: MediaListItem): string | null {
-		return feedTitleById[item.feedId] ?? null;
-	}
-
-	function durationLabel(item: MediaListItem): string | null {
-		const duration = item.mediaEnclosure.durationSeconds;
-		if (!duration || duration <= 0) {
-			return null;
-		}
-
-		const position = item.playbackPositionSeconds;
-		if (position > 0) {
-			const remaining = Math.max(0, duration - position);
-			return `${formatDuration(remaining)} left`;
-		}
-
-		return formatDuration(duration);
-	}
 </script>
 
 {#if open}
@@ -97,93 +68,14 @@
 	</div>
 
 	<div class="flex-1 overflow-y-auto">
-		{#if queueItems.length === 0}
-			<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-				<Icon icon="lucide:list-music" class="mb-3 size-10 text-fg-subtle" />
-				<p class="text-sm font-medium text-fg-muted">Queue is empty</p>
-				<p class="mt-1 text-xs text-fg-subtle">Press play on an episode to auto-populate</p>
-			</div>
-		{:else}
-			<ul class="py-2">
-				{#each queueItems as item, index (item.id)}
-					{#if index === manualQueueLength && hasAutoItems}
-						<li class="flex items-center gap-3 px-5 py-2" aria-hidden="true">
-							<div class="h-px flex-1 bg-border"></div>
-							<span class="text-[10px] font-medium tracking-widest text-fg-subtle uppercase">
-								From this feed
-							</span>
-							<div class="h-px flex-1 bg-border"></div>
-						</li>
-					{/if}
-
-					<li
-						class="group relative flex items-start gap-3 px-5 py-3 transition-colors hover:bg-surface-hover"
-					>
-						<span
-							class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums"
-						>
-							{index + 1}
-						</span>
-
-						<div class="min-w-0 flex-1">
-							<p class="truncate text-sm font-medium text-fg">
-								{item.title}
-							</p>
-
-							{#if feedTitleForItem(item)}
-								<p class="mt-0.5 truncate text-xs text-fg-muted">
-									{feedTitleForItem(item)}
-								</p>
-							{/if}
-
-							{#if durationLabel(item)}
-								<p class="mt-0.5 text-xs text-fg-subtle tabular-nums">
-									{durationLabel(item)}
-								</p>
-							{/if}
-						</div>
-
-						<div
-							class="mt-0.5 flex shrink-0 flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-						>
-							{#if index > 0}
-								<button
-									type="button"
-									title="Move up"
-									aria-label={`Move ${item.title} up in queue`}
-									class="preset-icon-subtle btn-icon rounded-lg"
-									onclick={() => onMoveItemUp(item.id)}
-								>
-									<Icon icon="lucide:chevron-up" class="size-3.5" />
-								</button>
-							{/if}
-
-							<button
-								type="button"
-								title="Remove from queue"
-								aria-label={`Remove ${item.title} from queue`}
-								class="preset-icon-subtle btn-icon rounded-lg"
-								onclick={() => onRemoveItem(item.id)}
-							>
-								<Icon icon="lucide:x" class="size-3.5" />
-							</button>
-
-							{#if index < queueItems.length - 1}
-								<button
-									type="button"
-									title="Move down"
-									aria-label={`Move ${item.title} down in queue`}
-									class="preset-icon-subtle btn-icon rounded-lg"
-									onclick={() => onMoveItemDown(item.id)}
-								>
-									<Icon icon="lucide:chevron-down" class="size-3.5" />
-								</button>
-							{/if}
-						</div>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+		<QueueList
+			{queueItems}
+			{manualQueueLength}
+			{feeds}
+			{onRemoveItem}
+			{onMoveItemUp}
+			{onMoveItemDown}
+		/>
 	</div>
 
 	{#if queueItems.length > 0}
