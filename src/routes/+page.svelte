@@ -352,10 +352,11 @@
 					}`}
 				>
 					<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
-
-             							<!-- <div class=""> -->
-						<AppBar class="flex h-20 shrink-0 py-4 border-b border-border bg-surface-glass px-6 backdrop-blur lg:px-8">
-							<AppBar.Toolbar class="w-full flex justify-end items-center align-middle">
+						<!-- <div class=""> -->
+						<AppBar
+							class="flex h-20 shrink-0 border-b border-border bg-surface-glass px-6 py-4 backdrop-blur lg:px-8"
+						>
+							<AppBar.Toolbar class="flex w-full items-center justify-end align-middle">
 								<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
 							</AppBar.Toolbar>
 						</AppBar>

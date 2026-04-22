@@ -325,3 +325,19 @@ export async function audioQueueGetState(): Promise<BackendQueueState> {
 export async function audioQueueSet(items: QueuedItem[]): Promise<void> {
 	await invokeCommand('audio_queue_set', { items });
 }
+
+// ---------------------------------------------------------------------------
+// Cover art palette extraction
+// ---------------------------------------------------------------------------
+
+export async function extractCoverPalette(imageUrl: string): Promise<string[]> {
+	if (!isTauriRuntime()) {
+		return [];
+	}
+
+	if (!imageUrl.trim()) {
+		return [];
+	}
+
+	return invokeCommand<string[]>('extract_cover_palette', { imageUrl });
+}

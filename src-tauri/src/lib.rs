@@ -1,5 +1,6 @@
 mod audio;
 mod commands;
+mod cover_art;
 mod db;
 mod feed_ingest;
 mod models;
@@ -92,7 +93,8 @@ pub fn run() {
             commands::audio_queue_get_state,
             commands::audio_queue_set,
             commands::save_playback_context,
-            commands::load_playback_context
+            commands::load_playback_context,
+            commands::extract_cover_palette
         ]);
 
     let app = builder

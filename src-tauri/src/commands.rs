@@ -1,4 +1,5 @@
 use crate::audio::{self, OutputDeviceInfo, PlaybackStateEvent};
+use crate::cover_art;
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
@@ -448,4 +449,11 @@ pub async fn load_playback_context(
     tauri::async_runtime::spawn_blocking(move || db::load_playback_context(&db_path))
         .await
         .map_err(|error| format!("Failed to load playback context: {error}"))?
+}
+
+#[tauri::command]
+pub async fn extract_cover_palette(image_url: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || cover_art::extract_cover_palette(&image_url))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
 }
