@@ -20,7 +20,7 @@
 </script>
 
 <article
-	class="{surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl"
+	class={`${surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl`}
 >
 	<ArticleHeader {feedTitle} {feedImageUrl} {item} />
 
