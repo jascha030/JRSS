@@ -266,267 +266,6 @@
 	@apply size-8;
 }
 
-/* ── Skeleton Button Variants ───────────────────
-   Preset button styles following Skeleton conventions
-   ───────────────────────────────────────────── */
-
-/* Variant: Filled (solid background) */
-.variant-filled {
-	@apply bg-surface-500 text-white shadow-sm;
-}
-
-.variant-filled:hover {
-	@apply brightness-110;
-}
-
-.variant-filled-primary {
-	@apply bg-accent text-white shadow-sm;
-}
-
-.variant-filled-primary:hover {
-	@apply bg-accent-hover;
-}
-
-.variant-filled-secondary {
-	@apply bg-surface-600 text-white shadow-sm;
-}
-
-.variant-filled-success {
-	@apply bg-success-500 text-white shadow-sm;
-}
-
-.variant-filled-warning {
-	@apply bg-warning-500 text-slate-950 shadow-sm;
-}
-
-.variant-filled-error {
-	@apply bg-error-500 text-white shadow-sm;
-}
-
-/* Variant: Ghost (transparent with hover) */
-.variant-ghost {
-	@apply bg-transparent text-fg-muted;
-}
-
-.variant-ghost:hover {
-	@apply bg-surface-hover text-fg;
-}
-
-.variant-ghost-primary {
-	@apply bg-transparent text-accent;
-}
-
-.variant-ghost-primary:hover {
-	@apply bg-accent/10;
-}
-
-.variant-ghost-secondary {
-	@apply bg-transparent text-fg-muted;
-}
-
-.variant-ghost-secondary:hover {
-	@apply bg-surface-hover text-fg;
-}
-
-/* Variant: Soft (subtle background) */
-.variant-soft {
-	@apply bg-surface-100 text-fg-secondary;
-}
-
-.variant-soft:hover {
-	@apply bg-surface-200;
-}
-
-.variant-soft-primary {
-	@apply bg-accent/10 text-accent;
-}
-
-.variant-soft-primary:hover {
-	@apply bg-accent/20;
-}
-
-/* Variant: Ringed (outlined) */
-.variant-ringed {
-	@apply border-2 border-surface-400 bg-transparent text-fg-secondary;
-}
-
-.variant-ringed:hover {
-	@apply bg-surface-hover;
-}
-
-.variant-ringed-primary {
-	@apply border-2 border-accent bg-transparent text-accent;
-}
-
-.variant-ringed-primary:hover {
-	@apply bg-accent/10;
-}
-
-/* Play button preset - DynamicPlayButton style */
-.btn-play {
-	@apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-medium text-white shadow-sm transition-all duration-150;
-}
-
-.btn-play:hover {
-	@apply bg-accent-hover;
-}
-
-.btn-play:disabled {
-	@apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
-}
-
-.btn-play-sm {
-	@apply rounded-full px-3 py-2 text-xs;
-}
-
-/* ── Skeleton Typography Classes ────────────────
-   Consistent typography following Skeleton conventions
-   ───────────────────────────────────────────── */
-
-/* Heading styles */
-.h1 {
-	@apply text-3xl font-semibold tracking-tight text-fg;
-}
-
-.h2 {
-	@apply text-2xl font-semibold tracking-tight text-fg;
-}
-
-.h3 {
-	@apply text-xl font-semibold tracking-tight text-fg;
-}
-
-.h4 {
-	@apply text-lg font-semibold tracking-tight text-fg;
-}
-
-/* Body text */
-.body {
-	@apply text-base leading-7 text-fg-secondary;
-}
-
-.body-sm {
-	@apply text-sm leading-6 text-fg-secondary;
-}
-
-.body-xs {
-	@apply text-xs leading-5 text-fg-muted;
-}
-
-/* Labels and captions */
-.label {
-	@apply text-sm font-medium text-fg-secondary;
-}
-
-.caption {
-	@apply text-xs text-fg-muted;
-}
-
-/* Uppercase labels (for sections) */
-.label-section {
-	@apply text-xs font-medium tracking-[0.18em] text-fg-muted uppercase;
-}
-
-/* ── Skeleton UI Theme Classes ──────────────────
-   Styling for native HTML elements that work with
-   Skeleton components.
-   ───────────────────────────────────────────── */
-
-/* Checkbox styling */
-input[type='checkbox'] {
-	@apply rounded border-border-strong bg-surface text-accent focus:ring-2 focus:ring-ring;
-}
-
-/* Card component class */
-.card {
-	@apply rounded-3xl border border-border bg-surface-card shadow-sm;
-}
-
-/* Modal/Dialog backdrop */
-.modal-backdrop {
-	@apply bg-black/50 backdrop-blur-sm;
-}
-
-/* Modal/Dialog content */
-.modal-content {
-	@apply rounded-3xl border border-border bg-surface shadow-xl;
-}
-
-/* Drawer panel */
-.drawer {
-	@apply border-l border-border bg-surface shadow-xl;
-}
-
-/* Badge styling */
-.badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0.25rem 0.625rem;
-	font-size: 0.75rem;
-	font-weight: 500;
-	line-height: 1;
-	border-radius: 9999px;
-	white-space: nowrap;
-}
-
-/* Badge variants */
-.badge.variant-soft {
-	background: var(--color-surface-active);
-	color: var(--color-fg-muted);
-}
-
-/* KBD styling for keyboard shortcuts */
-.kbd {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0.25rem 0.5rem;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-	font-size: 0.75rem;
-	font-weight: 500;
-	line-height: 1;
-	color: var(--color-fg-muted);
-	background: var(--color-surface-active);
-	border: 1px solid var(--color-border-strong);
-	border-radius: 0.375rem;
-	box-shadow: 0 1px 0 var(--color-border-strong);
-	white-space: nowrap;
-}
-
-/* ── Toast notifications ─────────────────────── */
-
-.toast-base {
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	padding: 0.75rem 1rem;
-	border-radius: 0.75rem;
-	border: 1px solid var(--color-border);
-	background: var(--color-surface-card);
-	box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
-	border-left: 3px solid var(--color-border-strong);
-	min-width: 20rem;
-}
-
-.toast-success {
-	border-left-color: var(--color-success-500);
-}
-
-.toast-error {
-	border-left-color: var(--color-error-500);
-}
-
-.toast-warning {
-	border-left-color: var(--color-warning-500);
-}
-
-.toast-info {
-	border-left-color: var(--color-accent);
-}
-
-/* ── Base styles ──────────────────────────────── */
-
 :root {
 	color-scheme: light dark;
 	font-family:
@@ -548,3 +287,102 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
+@layer components {
+	/* -----------------------------------------------------------------
+       JRSS custom Skeleton-style presets
+       Use with:
+       - btn
+       - btn-icon
+       - btn-sm / btn-base / btn-lg
+       Add rounded-xl or rounded-full in markup as needed.
+    ----------------------------------------------------------------- */
+
+	.preset-filled-accent {
+		@apply bg-accent text-white shadow-sm;
+	}
+
+	.preset-filled-accent:hover:not(:disabled) {
+		@apply bg-accent-hover;
+	}
+
+	.preset-filled-accent:disabled {
+		@apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
+	}
+
+	.preset-outlined-subtle {
+		@apply border border-border-strong bg-surface-card text-fg-secondary shadow-sm;
+	}
+
+	.preset-outlined-subtle:hover:not(:disabled) {
+		@apply border-border-hover bg-surface-hover text-fg;
+	}
+
+	.preset-outlined-subtle:disabled {
+		@apply cursor-not-allowed border-border bg-surface opacity-60 shadow-none;
+	}
+
+	.preset-filled-error {
+		@apply bg-error-600 text-white shadow-sm;
+	}
+
+	.preset-filled-error:hover:not(:disabled) {
+		@apply bg-error-700;
+	}
+
+	.preset-filled-error:disabled {
+		@apply cursor-not-allowed bg-error-400 opacity-60 shadow-none;
+	}
+
+	.preset-filled-success {
+		@apply bg-success-600 text-white shadow-sm;
+	}
+
+	.preset-filled-success:hover:not(:disabled) {
+		@apply bg-success-700;
+	}
+
+	.preset-filled-success:disabled {
+		@apply cursor-not-allowed bg-success-400 opacity-60 shadow-none;
+	}
+
+	.preset-filled-warning {
+		@apply bg-warning-500 text-slate-950 shadow-sm;
+	}
+
+	.preset-filled-warning:hover:not(:disabled) {
+		@apply bg-warning-600;
+	}
+
+	.preset-filled-warning:disabled {
+		@apply cursor-not-allowed bg-warning-400 opacity-60 shadow-none;
+	}
+
+	.preset-ghost-muted {
+		@apply text-fg-muted shadow-none;
+	}
+
+	.preset-ghost-muted:hover:not(:disabled) {
+		@apply bg-surface-hover text-fg;
+	}
+
+	.preset-ghost-muted:disabled {
+		@apply cursor-not-allowed opacity-40;
+	}
+
+	.preset-tonal-active {
+		@apply bg-surface-active text-fg;
+	}
+
+	/* Optional helper preset for icon-only subtle buttons */
+	.preset-icon-subtle {
+		@apply text-fg-muted shadow-none;
+	}
+
+	.preset-icon-subtle:hover:not(:disabled) {
+		@apply bg-surface-hover text-fg;
+	}
+
+	.preset-icon-subtle:disabled {
+		@apply cursor-not-allowed opacity-40;
+	}
+}

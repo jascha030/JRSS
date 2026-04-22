@@ -8,12 +8,11 @@
 	} from '$lib/types/rss';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Icon from '@iconify/svelte';
+	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	type Props = {
 		open: boolean;
-		/** Pass an existing station to edit, or null to create a new one. */
 		station: Station | null;
-		/** Only media feeds are relevant for stations. */
 		feeds: Feed[];
 		onSave: (input: CreateStationInput) => void;
 		onClose: () => void;
@@ -28,7 +27,6 @@
 	let sortOrder = $state<ItemSortOrder>('newest_first');
 	let selectedFeedIds = $state(new SvelteSet<string>());
 
-	// Reset form when dialog opens or station changes
 	$effect(() => {
 		if (open) {
 			name = station?.name ?? '';
@@ -65,29 +63,34 @@
 </script>
 
 {#if open}
-	<!-- Backdrop -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
 		onkeydown={(event) => {
 			if (event.key === 'Escape') {
 				onClose();
 			}
 		}}
 	>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="absolute inset-0" onclick={onClose}></div>
+		<button
+			type="button"
+			class="absolute inset-0"
+			aria-label="Close station editor"
+			onclick={onClose}
+		></button>
 
 		<div
-			class="relative z-10 w-full max-w-lg rounded-3xl border border-border bg-surface p-6 shadow-xl"
+			class="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl"
 		>
 			<div class="flex items-center justify-between">
 				<h2 class="text-lg font-semibold text-fg">
 					{station ? 'Edit station' : 'New station'}
 				</h2>
+
 				<button
 					type="button"
-					class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+					class="btn-icon rounded-xl text-fg-muted hover:preset-tonal hover:text-fg"
+					aria-label="Close station editor"
 					onclick={onClose}
 				>
 					<Icon icon="lucide:x" class="size-4" />
@@ -101,51 +104,80 @@
 					handleSubmit();
 				}}
 			>
-				<!-- Name -->
 				<div>
 					<label for="station-name" class="block text-sm font-medium text-fg-secondary">
 						Name
 					</label>
+
 					<input
 						id="station-name"
 						type="text"
 						bind:value={name}
 						placeholder="My station"
-						class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+						class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
 					/>
 				</div>
 
-				<!-- Episode filter -->
 				<div>
-					<label for="station-filter" class="block text-sm font-medium text-fg-secondary">
-						Episodes
-					</label>
-					<select
-						id="station-filter"
-						bind:value={episodeFilter}
-						class="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+					<p class="mb-2 text-sm font-medium text-fg-secondary">Episodes</p>
+
+					<SegmentedControl
+						value={episodeFilter}
+						onValueChange={(details) => {
+							const value = details.value;
+							if (value === 'all' || value === 'unplayed') {
+								episodeFilter = value;
+							}
+						}}
 					>
-						<option value="all">All episodes</option>
-						<option value="unplayed">Unplayed only</option>
-					</select>
+						<SegmentedControl.Label class="sr-only">Episode filter</SegmentedControl.Label>
+
+						<SegmentedControl.Control class="rounded-xl">
+							<SegmentedControl.Indicator />
+
+							<SegmentedControl.Item value="all">
+								<SegmentedControl.ItemText>All episodes</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+
+							<SegmentedControl.Item value="unplayed">
+								<SegmentedControl.ItemText>Unplayed only</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+						</SegmentedControl.Control>
+					</SegmentedControl>
 				</div>
 
-				<!-- Sort order -->
 				<div>
-					<label for="station-sort" class="block text-sm font-medium text-fg-secondary">
-						Sort order
-					</label>
-					<select
-						id="station-sort"
-						bind:value={sortOrder}
-						class="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-fg transition outline-none focus:border-border-hover focus:ring-2 focus:ring-ring"
+					<p class="mb-2 text-sm font-medium text-fg-secondary">Sort order</p>
+
+					<SegmentedControl
+						value={sortOrder}
+						onValueChange={(details) => {
+							const value = details.value;
+							if (value === 'newest_first' || value === 'oldest_first') {
+								sortOrder = value;
+							}
+						}}
 					>
-						<option value="newest_first">Newest first</option>
-						<option value="oldest_first">Oldest first</option>
-					</select>
+						<SegmentedControl.Label class="sr-only">Station sort order</SegmentedControl.Label>
+
+						<SegmentedControl.Control class="rounded-xl">
+							<SegmentedControl.Indicator />
+
+							<SegmentedControl.Item value="newest_first">
+								<SegmentedControl.ItemText>Newest first</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+
+							<SegmentedControl.Item value="oldest_first">
+								<SegmentedControl.ItemText>Oldest first</SegmentedControl.ItemText>
+								<SegmentedControl.ItemHiddenInput />
+							</SegmentedControl.Item>
+						</SegmentedControl.Control>
+					</SegmentedControl>
 				</div>
 
-				<!-- Feed picker -->
 				<div>
 					<p class="text-sm font-medium text-fg-secondary">Podcasts</p>
 
@@ -159,7 +191,9 @@
 						>
 							{#each mediaFeeds as feed (feed.id)}
 								<label
-									class="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-surface-hover"
+									class={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
+										selectedFeedIds.has(feed.id) ? 'bg-surface-active' : 'hover:bg-surface-hover'
+									}`}
 								>
 									<input
 										type="checkbox"
@@ -167,6 +201,7 @@
 										onchange={() => toggleFeed(feed.id)}
 										class="size-4 rounded border-border text-accent focus:ring-ring"
 									/>
+
 									<span class="min-w-0 flex-1">
 										<span class="block truncate text-sm text-fg">{feed.title}</span>
 									</span>
@@ -177,8 +212,11 @@
 				</div>
 
 				<div class="flex items-center justify-end gap-3 pt-2">
-					<button type="button" class="btn-secondary btn" onclick={onClose}>Cancel</button>
-					<button type="submit" class="btn-primary btn" disabled={!isValid}>
+					<button type="button" class="btn rounded-xl preset-tonal" onclick={onClose}>
+						Cancel
+					</button>
+
+					<button type="submit" class="btn rounded-xl preset-filled" disabled={!isValid}>
 						{station ? 'Save changes' : 'Create station'}
 					</button>
 				</div>
