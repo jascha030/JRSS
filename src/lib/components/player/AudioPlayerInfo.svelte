@@ -9,7 +9,7 @@
 		imageUrl?: string;
 		onNavigate?: () => void;
 		onShowCover?: () => void;
-        showCover?: boolean;
+		showCover?: boolean;
 		class?: string;
 	};
 
@@ -18,7 +18,7 @@
 		imageUrl,
 		onNavigate,
 		onShowCover: onShowCover = undefined,
-        showCover = true,
+		showCover = true,
 		class: className = ''
 	}: Props = $props();
 

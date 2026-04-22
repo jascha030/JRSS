@@ -283,7 +283,7 @@
 		<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
 
 		{#if selectedFeed}
-			<div class="mt-4 w-full flex flex-wrap flex-row items-center justify-between gap-4">
+			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
 				<div class="flex-1">
 					<label class="sr-only" for="feed-search">Search this feed</label>
 
