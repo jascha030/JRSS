@@ -7,10 +7,10 @@
 	import type { Snippet } from 'svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import { requestSeekTo, requestTogglePlayback } from '$lib/stores/app.svelte';
-	import AudioPlayerControls from './player/AudioPlayerControls.svelte';
-	import AudioPlayerInfo from './player/AudioPlayerInfo.svelte';
-	import AudioSeekBar from './player/AudioSeekBar.svelte';
-	import AudioPlayerVolume from './player/AudioPlayerVolume.svelte';
+	import AudioPlayerControls from './AudioPlayerControls.svelte';
+	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
+	import AudioSeekBar from './AudioSeekBar.svelte';
+	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
 
 	type Props = {
 		item: MediaListItem | null;

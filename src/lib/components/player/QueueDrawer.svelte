@@ -42,9 +42,7 @@
 
 	function durationLabel(item: MediaListItem): string | null {
 		const duration = item.mediaEnclosure.durationSeconds;
-		if (!duration || duration <= 0) {
-			return null;
-		}
+		if (!duration || duration <= 0) return null;
 
 		const position = item.playbackPositionSeconds;
 		if (position > 0) {
@@ -56,37 +54,36 @@
 	}
 </script>
 
-<!-- Backdrop -->
 {#if open}
 	<button
 		type="button"
 		class="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] transition-opacity"
 		aria-label="Close queue"
-		onclick={onClose}
 		tabindex="-1"
+		onclick={onClose}
 	></button>
 {/if}
 
-<!-- Drawer panel -->
 <div
 	class={`fixed inset-y-0 right-0 z-50 flex w-80 transform-gpu flex-col border-l border-border bg-surface shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none ${
 		open ? 'translate-x-0' : 'translate-x-full'
 	}`}
 	role="dialog"
-	aria-label="Playback queue"
+	aria-modal="true"
+	aria-labelledby="queue-title"
 >
-	<!-- Header -->
 	<div class="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
 		<div class="min-w-0">
-			<h2 class="text-sm font-semibold text-fg">Playing next</h2>
+			<h2 id="queue-title" class="text-sm font-semibold text-fg">Playing next</h2>
 			<p class="text-xs text-fg-muted">
 				{queueItems.length}
 				{queueItems.length === 1 ? 'episode' : 'episodes'}
 			</p>
 		</div>
+
 		<button
 			type="button"
-			class="flex size-8 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+			class="btn-icon hover:preset-tonal text-fg-muted hover:text-fg"
 			aria-label="Close queue"
 			onclick={onClose}
 		>
@@ -94,7 +91,7 @@
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
 				viewBox="0 0 24 24"
-				stroke-width="1.5"
+				stroke-width="1,5"
 				stroke="currentColor"
 				class="size-5"
 			>
@@ -103,7 +100,6 @@
 		</button>
 	</div>
 
-	<!-- Queue list -->
 	<div class="flex-1 overflow-y-auto">
 		{#if queueItems.length === 0}
 			<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -111,7 +107,7 @@
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"
 					viewBox="0 0 24 24"
-					stroke-width="1.5"
+					stroke-width="1,5"
 					stroke="currentColor"
 					class="mb-3 size-10 text-fg-subtle"
 				>
@@ -125,10 +121,10 @@
 				<p class="mt-1 text-xs text-fg-subtle">Press play on an episode to auto-populate</p>
 			</div>
 		{:else}
-			<ul class="py-2">
+			<ul class="space-y-1 p-2">
 				{#each queueItems as item, index (item.id)}
 					{#if index === manualQueueLength && hasAutoItems}
-						<li class="flex items-center gap-3 px-5 py-2" aria-hidden="true">
+						<li class="flex items-center gap-3 px-3 py-2" aria-hidden="true">
 							<div class="h-px flex-1 bg-border"></div>
 							<span class="text-[10px] font-medium tracking-widest text-fg-subtle uppercase">
 								From this feed
@@ -136,43 +132,43 @@
 							<div class="h-px flex-1 bg-border"></div>
 						</li>
 					{/if}
+
 					<li
-						class="group relative flex items-start gap-3 px-5 py-3 transition-colors hover:bg-surface-hover"
+						class="group flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-surface-hover"
 					>
-						<!-- Index badge -->
 						<span
-							class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums"
+							class="mt-0,5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums"
 						>
 							{index + 1}
 						</span>
 
-						<!-- Item info -->
 						<div class="min-w-0 flex-1">
 							<p class="truncate text-sm font-medium text-fg">
 								{item.title}
 							</p>
+
 							{#if feedTitleForItem(item)}
-								<p class="mt-0.5 truncate text-xs text-fg-muted">
+								<p class="mt-0,5 truncate text-xs text-fg-muted">
 									{feedTitleForItem(item)}
 								</p>
 							{/if}
+
 							{#if durationLabel(item)}
-								<p class="mt-0.5 text-xs text-fg-subtle tabular-nums">
+								<p class="mt-0,5 text-xs text-fg-subtle tabular-nums">
 									{durationLabel(item)}
 								</p>
 							{/if}
 						</div>
 
-						<!-- Reorder & remove buttons -->
 						<div
-							class="mt-0.5 flex shrink-0 flex-col items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+							class="mt-0,5 flex shrink-0 flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
 						>
 							{#if index > 0}
 								<button
 									type="button"
 									title="Move up"
 									aria-label={`Move ${item.title} up in queue`}
-									class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+									class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
 									onclick={() => onMoveItemUp(item.id)}
 								>
 									<svg
@@ -181,7 +177,7 @@
 										viewBox="0 0 24 24"
 										stroke-width="2"
 										stroke="currentColor"
-										class="size-3.5"
+										class="size-3,5"
 									>
 										<path
 											stroke-linecap="round"
@@ -191,30 +187,32 @@
 									</svg>
 								</button>
 							{/if}
+
 							<button
 								type="button"
 								title="Remove from queue"
 								aria-label={`Remove ${item.title} from queue`}
-								class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+								class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
 								onclick={() => onRemoveItem(item.id)}
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									fill="none"
 									viewBox="0 0 24 24"
-									stroke-width="1.5"
+									stroke-width="1,5"
 									stroke="currentColor"
-									class="size-3.5"
+									class="size-3,5"
 								>
 									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 								</svg>
 							</button>
+
 							{#if index < queueItems.length - 1}
 								<button
 									type="button"
 									title="Move down"
 									aria-label={`Move ${item.title} down in queue`}
-									class="flex size-6 items-center justify-center rounded text-fg-subtle hover:bg-surface-active hover:text-fg-secondary"
+									class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
 									onclick={() => onMoveItemDown(item.id)}
 								>
 									<svg
@@ -223,7 +221,7 @@
 										viewBox="0 0 24 24"
 										stroke-width="2"
 										stroke="currentColor"
-										class="size-3.5"
+										class="size-3,5"
 									>
 										<path
 											stroke-linecap="round"
@@ -240,14 +238,9 @@
 		{/if}
 	</div>
 
-	<!-- Footer -->
 	{#if queueItems.length > 0}
 		<div class="shrink-0 border-t border-border px-5 py-3">
-			<button
-				type="button"
-				class="btn-secondary w-full rounded-xl px-3 py-2"
-				onclick={onClearQueue}
-			>
+			<button type="button" class="btn preset-tonal w-full justify-center" onclick={onClearQueue}>
 				Clear queue
 			</button>
 		</div>
