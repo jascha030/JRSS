@@ -1,121 +1,125 @@
 @import 'tailwindcss';
+@import '@skeletonlabs/skeleton';
+@import '@skeletonlabs/skeleton-svelte';
+
+@import '../jrss.css';
 
 /* ──────────────────────────────────────────────
    Design tokens — single source of truth
-   
+
    JRSS Theme with custom success/warning/error scales.
    ────────────────────────────────────────────── */
 
 @theme {
-	--breakpoint-3xl: 120rem;
-	--breakpoint-4xl: 144rem;
+    --breakpoint-3xl: 120rem;
+    --breakpoint-4xl: 144rem;
 
-	/* ── Success scale (green) ─────────────────── */
-	--color-success-50: oklch(96.02% 0.06 123.44deg);
-	--color-success-100: oklch(92.63% 0.07 125.35deg);
-	--color-success-200: oklch(89.46% 0.09 127.06deg);
-	--color-success-300: oklch(86% 0.11 128.34deg);
-	--color-success-400: oklch(82.86% 0.12 129.39deg);
-	--color-success-500: oklch(79.53% 0.14 130.13deg);
-	--color-success-600: oklch(72.06% 0.14 130.94deg);
-	--color-success-700: oklch(64.68% 0.14 132.06deg);
-	--color-success-800: oklch(56.86% 0.13 133.03deg);
-	--color-success-900: oklch(49.13% 0.13 134.63deg);
-	--color-success-950: oklch(40.92% 0.12 136.44deg);
+    /* ── Success scale (green) ─────────────────── */
+    --color-success-50: oklch(96.02% 0.06 123.44deg);
+    --color-success-100: oklch(92.63% 0.07 125.35deg);
+    --color-success-200: oklch(89.46% 0.09 127.06deg);
+    --color-success-300: oklch(86% 0.11 128.34deg);
+    --color-success-400: oklch(82.86% 0.12 129.39deg);
+    --color-success-500: oklch(79.53% 0.14 130.13deg);
+    --color-success-600: oklch(72.06% 0.14 130.94deg);
+    --color-success-700: oklch(64.68% 0.14 132.06deg);
+    --color-success-800: oklch(56.86% 0.13 133.03deg);
+    --color-success-900: oklch(49.13% 0.13 134.63deg);
+    --color-success-950: oklch(40.92% 0.12 136.44deg);
 
-	/* ── Warning scale (amber/orange) ──────────── */
-	--color-warning-50: oklch(94.95% 0.05 82.79deg);
-	--color-warning-100: oklch(92.97% 0.09 90.4deg);
-	--color-warning-200: oklch(90.99% 0.13 92.33deg);
-	--color-warning-300: oklch(89.39% 0.16 93.26deg);
-	--color-warning-400: oklch(87.78% 0.17 92.22deg);
-	--color-warning-500: oklch(86.52% 0.18 90.37deg);
-	--color-warning-600: oklch(78.49% 0.16 87.67deg);
-	--color-warning-700: oklch(70.38% 0.14 83.69deg);
-	--color-warning-800: oklch(62.15% 0.13 79.7deg);
-	--color-warning-900: oklch(53.6% 0.11 72.84deg);
-	--color-warning-950: oklch(44.65% 0.1 64.13deg);
+    /* ── Warning scale (amber/orange) ──────────── */
+    --color-warning-50: oklch(94.95% 0.05 82.79deg);
+    --color-warning-100: oklch(92.97% 0.09 90.4deg);
+    --color-warning-200: oklch(90.99% 0.13 92.33deg);
+    --color-warning-300: oklch(89.39% 0.16 93.26deg);
+    --color-warning-400: oklch(87.78% 0.17 92.22deg);
+    --color-warning-500: oklch(86.52% 0.18 90.37deg);
+    --color-warning-600: oklch(78.49% 0.16 87.67deg);
+    --color-warning-700: oklch(70.38% 0.14 83.69deg);
+    --color-warning-800: oklch(62.15% 0.13 79.7deg);
+    --color-warning-900: oklch(53.6% 0.11 72.84deg);
+    --color-warning-950: oklch(44.65% 0.1 64.13deg);
 
-	/* ── Error scale (red) ─────────────────────── */
-	--color-error-50: oklch(86.55% 0.08 49.75deg);
-	--color-error-100: oklch(81.04% 0.11 39.2deg);
-	--color-error-200: oklch(75.91% 0.13 33.62deg);
-	--color-error-300: oklch(71.18% 0.17 30.46deg);
-	--color-error-400: oklch(67.05% 0.19 29.05deg);
-	--color-error-500: oklch(63.72% 0.22 28.71deg);
-	--color-error-600: oklch(57.69% 0.2 28.5deg);
-	--color-error-700: oklch(51.61% 0.19 28.49deg);
-	--color-error-800: oklch(45.32% 0.17 28.57deg);
-	--color-error-900: oklch(38.98% 0.15 28.66deg);
-	--color-error-950: oklch(32.27% 0.13 29.23deg);
+    /* ── Error scale (red) ─────────────────────── */
+    --color-error-50: oklch(86.55% 0.08 49.75deg);
+    --color-error-100: oklch(81.04% 0.11 39.2deg);
+    --color-error-200: oklch(75.91% 0.13 33.62deg);
+    --color-error-300: oklch(71.18% 0.17 30.46deg);
+    --color-error-400: oklch(67.05% 0.19 29.05deg);
+    --color-error-500: oklch(63.72% 0.22 28.71deg);
+    --color-error-600: oklch(57.69% 0.2 28.5deg);
+    --color-error-700: oklch(51.61% 0.19 28.49deg);
+    --color-error-800: oklch(45.32% 0.17 28.57deg);
+    --color-error-900: oklch(38.98% 0.15 28.66deg);
+    --color-error-950: oklch(32.27% 0.13 29.23deg);
 
-	/* ── Surface scale (neutral gray) ──────────── */
-	--color-surface-50: oklch(98.21% 0 none);
-	--color-surface-100: oklch(93.1% 0 none);
-	--color-surface-200: oklch(84.52% 0 none);
-	--color-surface-300: oklch(74.94% 0.02 277.81deg);
-	--color-surface-400: oklch(65.52% 0.04 275.96deg);
-	--color-surface-500: oklch(57.24% 0.08 273.19deg);
-	--color-surface-600: oklch(47.62% 0.08 272.02deg);
-	--color-surface-700: oklch(38.28% 0.08 269.54deg);
-	--color-surface-800: oklch(29.58% 0.07 268.61deg);
-	--color-surface-900: oklch(19.96% 0.05 267.11deg);
-	--color-surface-950: oklch(12.88% 0.04 264.7deg);
+    /* ── Surface scale (neutral gray) ──────────── */
+    --color-surface-50: oklch(98.21% 0 none);
+    --color-surface-100: oklch(93.1% 0 none);
+    --color-surface-200: oklch(84.52% 0 none);
+    --color-surface-300: oklch(74.94% 0.02 277.81deg);
+    --color-surface-400: oklch(65.52% 0.04 275.96deg);
+    --color-surface-500: oklch(57.24% 0.08 273.19deg);
+    --color-surface-600: oklch(47.62% 0.08 272.02deg);
+    --color-surface-700: oklch(38.28% 0.08 269.54deg);
+    --color-surface-800: oklch(29.58% 0.07 268.61deg);
+    --color-surface-900: oklch(19.96% 0.05 267.11deg);
+    --color-surface-950: oklch(12.88% 0.04 264.7deg);
 
-	/* ── Semantic tokens ───────────────────────── */
+    /* ── Semantic tokens ───────────────────────── */
 
-	/* Surfaces — opaque */
-	--color-surface: #ffffff;
-	--color-surface-alt: #f1f5f9;
-	--color-surface-card: #ffffff;
-	--color-surface-active: #f1f5f9;
-	--color-surface-hover: #f8fafc;
-	--color-surface-inset: rgb(248 250 252 / 0.8);
+    /* Surfaces — opaque */
+    --color-surface: #ffffff;
+    --color-surface-alt: #f1f5f9;
+    --color-surface-card: #ffffff;
+    --color-surface-active: #f1f5f9;
+    --color-surface-hover: #f8fafc;
+    --color-surface-inset: rgb(248 250 252 / 0.8);
 
-	/* Surfaces — semi-transparent (backdrop-blur contexts) */
-	--color-surface-glass: rgb(255 255 255 / 0.8);
-	--color-surface-glass-heavy: rgb(255 255 255 / 0.95);
-	--color-surface-shell: #f1f5f9;
-	--color-surface-main: rgb(241 245 249 / 0.7);
+    /* Surfaces — semi-transparent (backdrop-blur contexts) */
+    --color-surface-glass: rgb(255 255 255 / 0.8);
+    --color-surface-glass-heavy: rgb(255 255 255 / 0.95);
+    --color-surface-shell: #f1f5f9;
+    --color-surface-main: rgb(241 245 249 / 0.7);
 
-	/* Foreground (text) */
-	--color-fg: #020617;
-	--color-fg-secondary: #334155;
-	--color-fg-muted: #64748b;
-	--color-fg-subtle: #94a3b8;
-	--color-fg-inverse: #ffffff;
-	--color-fg-link: #2563eb;
+    /* Foreground (text) */
+    --color-fg: #020617;
+    --color-fg-secondary: #334155;
+    --color-fg-muted: #64748b;
+    --color-fg-subtle: #94a3b8;
+    --color-fg-inverse: #ffffff;
+    --color-fg-link: #2563eb;
 
-	/* Borders */
-	--color-border: #e2e8f0;
-	--color-border-strong: #cbd5e1;
-	--color-border-hover: #94a3b8;
+    /* Borders */
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+    --color-border-hover: #94a3b8;
 
-	/* Accent — brand/highlight */
-	--color-accent: #4f46e5;
-	--color-accent-hover: #6366f1;
-	--color-accent-dot: #6366f1;
+    /* Accent — brand/highlight */
+    --color-accent: #4f46e5;
+    --color-accent-hover: #6366f1;
+    --color-accent-dot: #6366f1;
 
-	/* Interactive — primary button surface */
-	--color-interactive: #020617;
-	--color-interactive-hover: #2e405c;
-	--color-interactive-text: #ffffff;
+    /* Interactive — primary button surface */
+    --color-interactive: #020617;
+    --color-interactive-hover: #2e405c;
+    --color-interactive-text: #ffffff;
 
-	/* Focus ring */
-	--color-ring: #cbd5e1;
+    /* Focus ring */
+    --color-ring: #cbd5e1;
 
-	/* Skeleton loading */
-	--color-skeleton: #e2e8f0;
+    /* Skeleton loading */
+    --color-skeleton: #e2e8f0;
 
-	/* Article content (used in ArticleBase <style> block) */
-	--color-article-body: #334155;
-	--color-article-heading: #0f172a;
-	--color-article-link: #2563eb;
-	--color-article-blockquote-border: #cbd5e1;
-	--color-article-blockquote-text: #475569;
-	--color-article-caption: #64748b;
-	--color-article-code-bg: #f1f5f9;
-	--color-article-table-border: #e2e8f0;
+    /* Article content (used in ArticleBase <style> block) */
+    --color-article-body: #334155;
+    --color-article-heading: #0f172a;
+    --color-article-link: #2563eb;
+    --color-article-blockquote-border: #cbd5e1;
+    --color-article-blockquote-text: #475569;
+    --color-article-caption: #64748b;
+    --color-article-code-bg: #f1f5f9;
+    --color-article-table-border: #e2e8f0;
 }
 
 /* ── Dark overrides ───────────────────────────
@@ -124,50 +128,50 @@
    ───────────────────────────────────────────── */
 
 @media (prefers-color-scheme: dark) {
-	:root {
-		--color-surface: #020617;
-		--color-surface-alt: #0f172a;
-		--color-surface-card: #0f172a;
-		--color-surface-active: #1e293b;
-		--color-surface-hover: #0f172a;
-		--color-surface-inset: rgb(15 23 42 / 0.6);
-		--color-surface-glass: rgb(2 6 23 / 0.8);
-		--color-surface-glass-heavy: rgb(2 6 23 / 0.95);
-		--color-surface-shell: #020617;
-		--color-surface-main: rgb(2 6 23 / 0.7);
+    :root {
+        --color-surface: #020617;
+        --color-surface-alt: #0f172a;
+        --color-surface-card: #0f172a;
+        --color-surface-active: #1e293b;
+        --color-surface-hover: #0f172a;
+        --color-surface-inset: rgb(15 23 42 / 0.6);
+        --color-surface-glass: rgb(2 6 23 / 0.8);
+        --color-surface-glass-heavy: rgb(2 6 23 / 0.95);
+        --color-surface-shell: #020617;
+        --color-surface-main: rgb(2 6 23 / 0.7);
 
-		--color-fg: #ffffff;
-		--color-fg-secondary: #e2e8f0;
-		--color-fg-muted: #94a3b8;
-		--color-fg-subtle: #64748b;
-		--color-fg-inverse: #020617;
-		--color-fg-link: #60a5fa;
+        --color-fg: #ffffff;
+        --color-fg-secondary: #e2e8f0;
+        --color-fg-muted: #94a3b8;
+        --color-fg-subtle: #64748b;
+        --color-fg-inverse: #020617;
+        --color-fg-link: #60a5fa;
 
-		--color-border: #1e293b;
-		--color-border-strong: #334155;
-		--color-border-hover: #64748b;
+        --color-border: #1e293b;
+        --color-border-strong: #334155;
+        --color-border-hover: #64748b;
 
-		--color-accent: #6366f1;
-		--color-accent-hover: #818cf8;
-		--color-accent-dot: #6366f1;
+        --color-accent: #6366f1;
+        --color-accent-hover: #818cf8;
+        --color-accent-dot: #6366f1;
 
-		--color-interactive: #e9edf2;
-		--color-interactive-hover: #ffffff;
-		--color-interactive-text: #020617;
+        --color-interactive: #e9edf2;
+        --color-interactive-hover: #ffffff;
+        --color-interactive-text: #020617;
 
-		--color-ring: #334155;
+        --color-ring: #334155;
 
-		--color-skeleton: #1e293b;
+        --color-skeleton: #1e293b;
 
-		--color-article-body: #e2e8f0;
-		--color-article-heading: #f8fafc;
-		--color-article-link: #60a5fa;
-		--color-article-blockquote-border: #475569;
-		--color-article-blockquote-text: #cbd5e1;
-		--color-article-caption: #94a3b8;
-		--color-article-code-bg: #0f172a;
-		--color-article-table-border: #334155;
-	}
+        --color-article-body: #e2e8f0;
+        --color-article-heading: #f8fafc;
+        --color-article-link: #60a5fa;
+        --color-article-blockquote-border: #475569;
+        --color-article-blockquote-text: #cbd5e1;
+        --color-article-caption: #94a3b8;
+        --color-article-code-bg: #0f172a;
+        --color-article-table-border: #334155;
+    }
 }
 
 /* ── Button component classes ──────────────────
@@ -178,140 +182,368 @@
 
 /* Base button shape */
 .btn {
-	@apply rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150;
+    @apply rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150;
 }
 
 /* Primary — accent color (purple) */
 .btn-primary {
-	@apply bg-accent text-white shadow-sm hover:bg-accent-hover;
+    @apply bg-accent text-white shadow-sm hover:bg-accent-hover;
 }
 
 .btn-primary:disabled {
-	@apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
+    @apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
 }
 
 /* Secondary — outlined, subtle */
 .btn-secondary {
-	@apply border border-border-strong bg-surface-card text-fg-secondary shadow-sm hover:border-border-hover hover:bg-surface-hover hover:text-fg;
+    @apply border border-border-strong bg-surface-card text-fg-secondary shadow-sm hover:border-border-hover hover:bg-surface-hover hover:text-fg;
 }
 
 .btn-secondary:disabled {
-	@apply cursor-not-allowed border-border bg-surface opacity-60 shadow-none;
+    @apply cursor-not-allowed border-border bg-surface opacity-60 shadow-none;
 }
 
 /* Danger — for destructive actions */
 .btn-danger {
-	@apply bg-error-600 text-white shadow-sm hover:bg-error-700;
+    @apply bg-error-600 text-white shadow-sm hover:bg-error-700;
 }
 
 .btn-danger:disabled {
-	@apply cursor-not-allowed bg-error-400 opacity-60 shadow-none;
+    @apply cursor-not-allowed bg-error-400 opacity-60 shadow-none;
 }
 
 /* Success — for positive actions */
 .btn-success {
-	@apply bg-success-600 text-white shadow-sm hover:bg-success-700;
+    @apply bg-success-600 text-white shadow-sm hover:bg-success-700;
 }
 
 .btn-success:disabled {
-	@apply cursor-not-allowed bg-success-400 opacity-60 shadow-none;
+    @apply cursor-not-allowed bg-success-400 opacity-60 shadow-none;
 }
 
 /* Warning — for cautionary actions */
 .btn-warning {
-	@apply bg-warning-500 text-slate-950 shadow-sm hover:bg-warning-600;
+    @apply bg-warning-500 text-slate-950 shadow-sm hover:bg-warning-600;
 }
 
 .btn-warning:disabled {
-	@apply cursor-not-allowed bg-warning-400 opacity-60 shadow-none;
+    @apply cursor-not-allowed bg-warning-400 opacity-60 shadow-none;
 }
 
 /* Ghost — minimal, text only with hover background
    Matches feed labels in sidebar */
 .btn-ghost {
-	@apply text-fg-muted hover:bg-surface-hover hover:text-fg;
+    @apply text-fg-muted hover:bg-surface-hover hover:text-fg;
 }
 
 .btn-ghost:disabled {
-	@apply cursor-not-allowed opacity-40;
+    @apply cursor-not-allowed opacity-40;
 }
 
 /* Active state for ghost buttons (like selected feed) */
 .btn-ghost-active {
-	@apply bg-surface-active text-fg;
+    @apply bg-surface-active text-fg;
 }
 
 /* Small size modifier */
 .btn-sm {
-	@apply rounded-full px-3 py-2 text-xs;
+    @apply rounded-full px-3 py-2 text-xs;
 }
 
 /* Icon button — square with rounded-full
    Works standalone or combined with .btn or .btn-sm */
 .btn-round {
-	@apply flex aspect-square items-center justify-center rounded-full p-0;
+    @apply flex aspect-square items-center justify-center rounded-full p-0;
 }
 
 /* Default round button size (40px) */
 .btn-round:not(.btn-sm) {
-	@apply size-10;
+    @apply size-10;
 }
 
 /* Small round button size (32px) */
 .btn-round.btn-sm {
-	@apply size-8;
+    @apply size-8;
+}
+
+/* ── Skeleton Button Variants ───────────────────
+   Preset button styles following Skeleton conventions
+   ───────────────────────────────────────────── */
+
+/* Variant: Filled (solid background) */
+.variant-filled {
+    @apply bg-surface-500 text-white shadow-sm;
+}
+
+.variant-filled:hover {
+    @apply brightness-110;
+}
+
+.variant-filled-primary {
+    @apply bg-accent text-white shadow-sm;
+}
+
+.variant-filled-primary:hover {
+    @apply bg-accent-hover;
+}
+
+.variant-filled-secondary {
+    @apply bg-surface-600 text-white shadow-sm;
+}
+
+.variant-filled-success {
+    @apply bg-success-500 text-white shadow-sm;
+}
+
+.variant-filled-warning {
+    @apply bg-warning-500 text-slate-950 shadow-sm;
+}
+
+.variant-filled-error {
+    @apply bg-error-500 text-white shadow-sm;
+}
+
+/* Variant: Ghost (transparent with hover) */
+.variant-ghost {
+    @apply bg-transparent text-fg-muted;
+}
+
+.variant-ghost:hover {
+    @apply bg-surface-hover text-fg;
+}
+
+.variant-ghost-primary {
+    @apply bg-transparent text-accent;
+}
+
+.variant-ghost-primary:hover {
+    @apply bg-accent/10;
+}
+
+.variant-ghost-secondary {
+    @apply bg-transparent text-fg-muted;
+}
+
+.variant-ghost-secondary:hover {
+    @apply bg-surface-hover text-fg;
+}
+
+/* Variant: Soft (subtle background) */
+.variant-soft {
+    @apply bg-surface-100 text-fg-secondary;
+}
+
+.variant-soft:hover {
+    @apply bg-surface-200;
+}
+
+.variant-soft-primary {
+    @apply bg-accent/10 text-accent;
+}
+
+.variant-soft-primary:hover {
+    @apply bg-accent/20;
+}
+
+/* Variant: Ringed (outlined) */
+.variant-ringed {
+    @apply border-2 border-surface-400 bg-transparent text-fg-secondary;
+}
+
+.variant-ringed:hover {
+    @apply bg-surface-hover;
+}
+
+.variant-ringed-primary {
+    @apply border-2 border-accent bg-transparent text-accent;
+}
+
+.variant-ringed-primary:hover {
+    @apply bg-accent/10;
+}
+
+/* Play button preset - DynamicPlayButton style */
+.btn-play {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-medium text-white shadow-sm transition-all duration-150;
+}
+
+.btn-play:hover {
+    @apply bg-accent-hover;
+}
+
+.btn-play:disabled {
+    @apply cursor-not-allowed bg-fg-muted opacity-60 shadow-none;
+}
+
+.btn-play-sm {
+    @apply rounded-full px-3 py-2 text-xs;
+}
+
+/* ── Skeleton Typography Classes ────────────────
+   Consistent typography following Skeleton conventions
+   ───────────────────────────────────────────── */
+
+/* Heading styles */
+.h1 {
+    @apply text-3xl font-semibold tracking-tight text-fg;
+}
+
+.h2 {
+    @apply text-2xl font-semibold tracking-tight text-fg;
+}
+
+.h3 {
+    @apply text-xl font-semibold tracking-tight text-fg;
+}
+
+.h4 {
+    @apply text-lg font-semibold tracking-tight text-fg;
+}
+
+/* Body text */
+.body {
+    @apply text-base leading-7 text-fg-secondary;
+}
+
+.body-sm {
+    @apply text-sm leading-6 text-fg-secondary;
+}
+
+.body-xs {
+    @apply text-xs leading-5 text-fg-muted;
+}
+
+/* Labels and captions */
+.label {
+    @apply text-sm font-medium text-fg-secondary;
+}
+
+.caption {
+    @apply text-xs text-fg-muted;
+}
+
+/* Uppercase labels (for sections) */
+.label-section {
+    @apply text-xs font-medium tracking-[0.18em] text-fg-muted uppercase;
+}
+
+/* ── Skeleton UI Theme Classes ──────────────────
+   Styling for native HTML elements that work with
+   Skeleton components.
+   ───────────────────────────────────────────── */
+
+/* Checkbox styling */
+input[type='checkbox'] {
+    @apply rounded border-border-strong bg-surface text-accent focus:ring-2 focus:ring-ring;
+}
+
+/* Card component class */
+.card {
+    @apply rounded-3xl border border-border bg-surface-card shadow-sm;
+}
+
+/* Modal/Dialog backdrop */
+.modal-backdrop {
+    @apply bg-black/50 backdrop-blur-sm;
+}
+
+/* Modal/Dialog content */
+.modal-content {
+    @apply rounded-3xl border border-border bg-surface shadow-xl;
+}
+
+/* Drawer panel */
+.drawer {
+    @apply border-l border-border bg-surface shadow-xl;
+}
+
+/* Badge styling */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    border-radius: 9999px;
+    white-space: nowrap;
+}
+
+/* Badge variants */
+.badge.variant-soft {
+    background: var(--color-surface-active);
+    color: var(--color-fg-muted);
+}
+
+/* KBD styling for keyboard shortcuts */
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--color-fg-muted);
+    background: var(--color-surface-active);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 0 var(--color-border-strong);
+    white-space: nowrap;
 }
 
 /* ── Toast notifications ─────────────────────── */
 
 .toast-base {
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	padding: 0.75rem 1rem;
-	border-radius: 0.75rem;
-	border: 1px solid var(--color-border);
-	background: var(--color-surface-card);
-	box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
-	border-left: 3px solid var(--color-border-strong);
-	min-width: 20rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-card);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+    border-left: 3px solid var(--color-border-strong);
+    min-width: 20rem;
 }
 
 .toast-success {
-	border-left-color: var(--color-success-500);
+    border-left-color: var(--color-success-500);
 }
 
 .toast-error {
-	border-left-color: var(--color-error-500);
+    border-left-color: var(--color-error-500);
 }
 
 .toast-warning {
-	border-left-color: var(--color-warning-500);
+    border-left-color: var(--color-warning-500);
 }
 
 .toast-info {
-	border-left-color: var(--color-accent);
+    border-left-color: var(--color-accent);
 }
 
 /* ── Base styles ──────────────────────────────── */
 
 :root {
-	color-scheme: light dark;
-	font-family:
-		'Inter',
-		'SF Pro Text',
-		'Segoe UI',
-		system-ui,
-		-apple-system,
-		BlinkMacSystemFont,
-		sans-serif;
+    color-scheme: light dark;
+    font-family:
+            'Inter',
+            'SF Pro Text',
+            'Segoe UI',
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
 }
 
 body {
-	margin: 0;
-	min-height: 100vh;
-	background: var(--color-surface);
-	color: var(--color-fg);
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--color-surface);
+    color: var(--color-fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
