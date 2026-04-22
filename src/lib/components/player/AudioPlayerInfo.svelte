@@ -1,10 +1,7 @@
 <script lang="ts">
-	/**
-	 * Audio player info component with album art and scrolling title.
-	 * Simplified for the compact bottom bar player only.
-	 */
 	import type { MediaListItem } from '$lib/types/rss';
 	import { tick } from 'svelte';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 
 	type Props = {
@@ -270,20 +267,28 @@
 </script>
 
 {#if item}
-	<div class="flex min-w-0 items-center gap-3 {className}">
-		{#if imageUrl}
-			<button
-				class="shrink-0"
-				type="button"
-				onclick={onShowCover}
-				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
-			>
-				<img src={imageUrl} alt="" class="size-12 rounded-lg object-cover shadow-sm select-none" />
-			</button>
-		{/if}
+	<div class={`flex min-w-0 items-center gap-3 ${className}`}>
+		<button
+			class="shrink-0 overflow-hidden rounded-xl"
+			type="button"
+			onclick={onShowCover}
+			oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+			aria-label="Show cover art"
+		>
+			<Avatar class="size-12 rounded-xl shadow-sm">
+				{#if imageUrl}
+					<Avatar.Image src={imageUrl} alt="" class="object-cover" />
+				{/if}
+				<Avatar.Fallback class="grid h-full w-full place-items-center text-xs font-semibold">
+					♪
+				</Avatar.Fallback>
+			</Avatar>
+		</button>
 
-		<div class="min-w-0">
-			<p class="text-xs font-medium tracking-[0.18em] text-fg-muted uppercase">Now playing</p>
+		<div class="min-w-0 flex-1">
+			<p class="text-[0.65rem] font-semibold tracking-[0.18em] text-fg-muted uppercase">
+				Now playing
+			</p>
 
 			<button
 				class="mt-1 block w-full text-left text-sm font-semibold text-fg transition-colors select-none hover:text-accent focus-visible:text-accent"
@@ -298,8 +303,7 @@
 				<div bind:this={titleViewportEl} class="overflow-hidden">
 					<span
 						bind:this={titleTextEl}
-						class:truncate={!titleIsOverflowing || titleReducedMotion}
-						class="block whitespace-nowrap will-change-transform"
+						class={`block whitespace-nowrap will-change-transform ${!titleIsOverflowing || titleReducedMotion ? 'truncate' : ''}`}
 						style={`transform: translateX(-${titleOffset}px);`}
 					>
 						{item.title}

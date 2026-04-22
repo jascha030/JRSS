@@ -51,10 +51,14 @@
 
 <button
 	type="button"
-	class="btn-primary flex flex-row rounded-xl align-middle"
+	class="btn preset-filled rounded-xl font-semibold"
 	class:btn-sm={isSmall}
+	class:gap-1.5={compact}
+	class:gap-2={!compact}
 	onclick={handleAction}
 	disabled={isLoading}
+	aria-label={isCurrentItem && isPlaying ? 'Pause audio' : 'Play audio'}
+	aria-pressed={isCurrentItem && isPlaying}
 >
 	{#if isLoading}
 		<Icon icon="lucide:loader-2" class={isSmall ? 'size-4 animate-spin' : 'size-5 animate-spin'} />
@@ -65,6 +69,6 @@
 	{/if}
 
 	{#if progress}
-		<span class="ml-2 font-semibold tabular-nums">{progress}</span>
+		<span class="tabular-nums">{progress}</span>
 	{/if}
 </button>

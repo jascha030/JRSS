@@ -42,7 +42,9 @@
 
 	function durationLabel(item: MediaListItem): string | null {
 		const duration = item.mediaEnclosure.durationSeconds;
-		if (!duration || duration <= 0) return null;
+		if (!duration || duration <= 0) {
+			return null;
+		}
 
 		const position = item.playbackPositionSeconds;
 		if (position > 0) {
@@ -72,7 +74,9 @@
 	aria-modal="true"
 	aria-labelledby="queue-title"
 >
-	<div class="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
+	<div
+		class="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-5"
+	>
 		<div class="min-w-0">
 			<h2 id="queue-title" class="text-sm font-semibold text-fg">Playing next</h2>
 			<p class="text-xs text-fg-muted">
@@ -83,15 +87,16 @@
 
 		<button
 			type="button"
-			class="btn-icon hover:preset-tonal text-fg-muted hover:text-fg"
+			class="btn-icon text-fg-muted hover:bg-surface-hover hover:text-fg"
 			aria-label="Close queue"
+			title="Close queue"
 			onclick={onClose}
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
 				viewBox="0 0 24 24"
-				stroke-width="1,5"
+				stroke-width="1.5"
 				stroke="currentColor"
 				class="size-5"
 			>
@@ -100,14 +105,14 @@
 		</button>
 	</div>
 
-	<div class="flex-1 overflow-y-auto">
+	<div class="flex-1 overflow-y-auto bg-surface">
 		{#if queueItems.length === 0}
 			<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"
 					viewBox="0 0 24 24"
-					stroke-width="1,5"
+					stroke-width="1.5"
 					stroke="currentColor"
 					class="mb-3 size-10 text-fg-subtle"
 				>
@@ -121,10 +126,10 @@
 				<p class="mt-1 text-xs text-fg-subtle">Press play on an episode to auto-populate</p>
 			</div>
 		{:else}
-			<ul class="space-y-1 p-2">
+			<ul class="py-2">
 				{#each queueItems as item, index (item.id)}
 					{#if index === manualQueueLength && hasAutoItems}
-						<li class="flex items-center gap-3 px-3 py-2" aria-hidden="true">
+						<li class="flex items-center gap-3 px-5 py-2" aria-hidden="true">
 							<div class="h-px flex-1 bg-border"></div>
 							<span class="text-[10px] font-medium tracking-widest text-fg-subtle uppercase">
 								From this feed
@@ -134,10 +139,10 @@
 					{/if}
 
 					<li
-						class="group flex items-start gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-surface-hover"
+						class="group relative flex items-start gap-3 px-5 py-3 transition-colors hover:bg-surface-hover"
 					>
 						<span
-							class="mt-0,5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums"
+							class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums"
 						>
 							{index + 1}
 						</span>
@@ -148,27 +153,27 @@
 							</p>
 
 							{#if feedTitleForItem(item)}
-								<p class="mt-0,5 truncate text-xs text-fg-muted">
+								<p class="mt-0.5 truncate text-xs text-fg-muted">
 									{feedTitleForItem(item)}
 								</p>
 							{/if}
 
 							{#if durationLabel(item)}
-								<p class="mt-0,5 text-xs text-fg-subtle tabular-nums">
+								<p class="mt-0.5 text-xs text-fg-subtle tabular-nums">
 									{durationLabel(item)}
 								</p>
 							{/if}
 						</div>
 
 						<div
-							class="mt-0,5 flex shrink-0 flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+							class="mt-0.5 flex shrink-0 flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
 						>
 							{#if index > 0}
 								<button
 									type="button"
 									title="Move up"
 									aria-label={`Move ${item.title} up in queue`}
-									class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
+									class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
 									onclick={() => onMoveItemUp(item.id)}
 								>
 									<svg
@@ -177,7 +182,7 @@
 										viewBox="0 0 24 24"
 										stroke-width="2"
 										stroke="currentColor"
-										class="size-3,5"
+										class="size-3.5"
 									>
 										<path
 											stroke-linecap="round"
@@ -192,16 +197,16 @@
 								type="button"
 								title="Remove from queue"
 								aria-label={`Remove ${item.title} from queue`}
-								class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
+								class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
 								onclick={() => onRemoveItem(item.id)}
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									fill="none"
 									viewBox="0 0 24 24"
-									stroke-width="1,5"
+									stroke-width="1.5"
 									stroke="currentColor"
-									class="size-3,5"
+									class="size-3.5"
 								>
 									<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
 								</svg>
@@ -212,7 +217,7 @@
 									type="button"
 									title="Move down"
 									aria-label={`Move ${item.title} down in queue`}
-									class="btn-icon hover:preset-tonal size-7 text-fg-subtle hover:text-fg"
+									class="btn-icon text-fg-subtle hover:bg-surface-active hover:text-fg"
 									onclick={() => onMoveItemDown(item.id)}
 								>
 									<svg
@@ -221,7 +226,7 @@
 										viewBox="0 0 24 24"
 										stroke-width="2"
 										stroke="currentColor"
-										class="size-3,5"
+										class="size-3.5"
 									>
 										<path
 											stroke-linecap="round"
@@ -239,8 +244,8 @@
 	</div>
 
 	{#if queueItems.length > 0}
-		<div class="shrink-0 border-t border-border px-5 py-3">
-			<button type="button" class="btn preset-tonal w-full justify-center" onclick={onClearQueue}>
+		<div class="shrink-0 border-t border-border bg-surface px-5 py-3">
+			<button type="button" class="btn w-full justify-center" onclick={onClearQueue}>
 				Clear queue
 			</button>
 		</div>

@@ -20,39 +20,41 @@
 	}: Props = $props();
 </script>
 
-<div class="flex items-center justify-center gap-3 {className}">
+<div class={`flex items-center justify-center gap-2 ${className}`}>
 	<button
-		class="btn-ghost flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+		class="btn-icon rounded-xl text-fg-muted transition-colors hover:text-fg"
 		type="button"
-		aria-label="Back {skipSeconds} seconds"
+		aria-label={`Back ${skipSeconds} seconds`}
 		onclick={() => onSkip(-skipSeconds)}
 	>
-		<Icon icon="heroicons:backward-solid" class="size-7" />
+		<Icon icon="heroicons:backward-solid" class="size-5" />
 	</button>
 
 	<button
-		class="btn-primary flex size-9 items-center justify-center rounded-xl bg-fg-muted text-sm"
+		class="btn-icon preset-filled rounded-xl shadow-sm"
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}
+		aria-label={isPlaying ? 'Pause' : 'Play'}
+		aria-pressed={isPlaying}
 	>
 		{#if isAudioLoading()}
 			{#key isAudioLoading()}
-				<Icon icon="lucide:loader-2" class="size-6 animate-spin" />
+				<Icon icon="lucide:loader-2" class="size-5 animate-spin" />
 			{/key}
 		{:else if isPlaying}
-			<Icon icon="heroicons:pause-solid" class="size-6" />
+			<Icon icon="heroicons:pause-solid" class="size-5" />
 		{:else}
-			<Icon icon="heroicons:play-solid" class="size-6" />
+			<Icon icon="heroicons:play-solid" class="size-5" />
 		{/if}
 	</button>
 
 	<button
-		class="flex size-9 items-center justify-center rounded-xl text-fg-muted transition-colors hover:text-fg"
+		class="btn-icon rounded-xl text-fg-muted transition-colors hover:text-fg"
 		type="button"
-		aria-label="Forward {skipSeconds} seconds"
+		aria-label={`Forward ${skipSeconds} seconds`}
 		onclick={() => onSkip(skipSeconds)}
 	>
-		<Icon icon="heroicons:forward-solid" class="size-7" />
+		<Icon icon="heroicons:forward-solid" class="size-5" />
 	</button>
 </div>
