@@ -1,8 +1,4 @@
 <script lang="ts">
-	/**
-	 * Compact audio player component for the bottom bar.
-	 * Uses AudioPlayerControls and AudioPlayerInfo sub-components.
-	 */
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
 	import { requestSeekTo, requestTogglePlayback } from '$lib/stores/app.svelte';
@@ -84,7 +80,7 @@
 
 {#if item && playbackState}
 	<div
-		class="sticky bottom-0 border-t border-border bg-surface-glass-heavy px-4 py-4 backdrop-blur"
+		class="sticky bottom-0 z-10 border-t border-border bg-surface-glass-heavy px-4 py-3 backdrop-blur"
 	>
 		<div class="mx-auto flex max-w-6xl items-center gap-6 4xl:max-w-400">
 			<AudioPlayerInfo
@@ -92,19 +88,26 @@
 				{imageUrl}
 				onNavigate={onNavigateToItem}
 				{onShowCover}
-				class="shrink-0 basis-48"
+				class="min-w-0 shrink-0 basis-56"
 			/>
 
-			<div class="flex min-w-0 flex-1 flex-row gap-4">
+			<div class="flex min-w-0 flex-1 items-center gap-4">
 				<AudioPlayerControls
 					durationSeconds={durationForPlayer()}
 					isPlaying={playbackState.isPlaying}
 					onTogglePlayback={togglePlayback}
 					onSkip={skip}
 					skipSeconds={SKIP_SECONDS}
+					class="shrink-0"
 				/>
-				<AudioSeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
-				<AudioPlayerVolume volume={playbackState.volume} />
+
+				<AudioSeekBar
+					{playbackState}
+					durationSeconds={durationForPlayer()}
+					class="min-w-0 flex-1"
+				/>
+
+				<AudioPlayerVolume volume={playbackState.volume} class="shrink-0" />
 			</div>
 
 			{#if controls}

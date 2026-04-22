@@ -29,21 +29,22 @@
 	}
 </script>
 
-<div class="flex flex-1 items-center gap-3 {className}">
-	<span class="text-xs text-fg-muted tabular-nums">
+<div class={`flex min-w-0 flex-1 items-center gap-3 ${className}`}>
+	<span class="shrink-0 text-xs text-fg-muted tabular-nums">
 		{formatDuration(displayPosition)}
 	</span>
 
 	<RangeInput
-		class="flex-1"
+		class="min-w-0 flex-1"
 		value={displayPosition}
 		max={durationSeconds}
 		step={1}
+		ariaLabel="Seek position"
 		oninput={handleSeekInput}
 		onchange={handleSeekChange}
 	/>
 
-	<span class="text-xs text-fg-muted tabular-nums">
+	<span class="shrink-0 text-xs text-fg-muted tabular-nums">
 		{formatDuration(durationSeconds)}
 	</span>
 </div>

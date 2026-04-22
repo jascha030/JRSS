@@ -56,12 +56,13 @@
 	});
 </script>
 
-<div class="flex shrink-0 items-center gap-2 {className}">
+<div class={`flex shrink-0 items-center gap-2 ${className}`}>
 	<button
-		class="flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted transition-colors hover:text-fg"
+		class="btn-icon rounded-xl text-fg-muted transition-colors hover:text-fg"
 		type="button"
 		onclick={toggleMute}
 		aria-label={isMuted ? 'Unmute' : 'Mute'}
+		aria-pressed={isMuted}
 	>
 		{#if isMuted || effectiveVolume === 0}
 			<Icon icon="lucide:volume-x" class="size-4" />
@@ -77,6 +78,7 @@
 		value={effectiveVolume}
 		max={1}
 		step={0.01}
+		ariaLabel="Volume"
 		fillColor="var(--color-fg-muted)"
 		oninput={handleVolumeInput}
 	/>
