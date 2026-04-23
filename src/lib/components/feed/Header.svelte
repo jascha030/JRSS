@@ -28,7 +28,6 @@
 	});
 </script>
 
-<button type="button" class="btn gap-2 preset-filled" onclick={onOpenDialog}>
+<button type="button" class="preset-filled-accent btn-icon rounded-xl" onclick={onOpenDialog}>
 	<Icon icon="lucide:plus" class="size-4" />
-	<span>Add feed</span>
 </button>
