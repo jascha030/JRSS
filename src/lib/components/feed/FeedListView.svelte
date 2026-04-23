@@ -282,6 +282,79 @@
 
 		<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
 
+		<div class="flex flex-wrap items-center justify-end gap-3 align-top">
+			{#if selectedStation}
+				<button
+					type="button"
+					title="Play station"
+					class="preset-filled-accent btn-icon rounded-xl"
+					onclick={onPlayStation}
+				>
+					<Icon icon="lucide:play" class="size-4" />
+				</button>
+
+				<button
+					type="button"
+					title="Edit station"
+					class="preset-outlined-subtle btn-icon rounded-xl"
+					onclick={onEditStation}
+					aria-label="Edit station"
+				>
+					<Icon icon="lucide:pencil" class="size-4" />
+				</button>
+
+				<button
+					type="button"
+					title="Delete station"
+					class="preset-filled-error btn-icon rounded-xl"
+					onclick={onDeleteStation}
+					aria-label="Delete station"
+				>
+					<Icon icon="lucide:trash-2" class="size-4" />
+				</button>
+			{:else if selectedFeed}
+				<div class="flex shrink-0 items-center gap-2">
+					<label class="sr-only" for="feed-sort-order">Sort order</label>
+					<select
+						id="feed-sort-order"
+						class="select min-w-36 rounded-xl text-sm"
+						aria-label="Sort order"
+						value={itemSortOrder}
+						onchange={(event) => {
+							const target = event.currentTarget;
+							if (target instanceof HTMLSelectElement) {
+								const value = target.value;
+								if (value === 'newest_first' || value === 'oldest_first') {
+									onSortOrderChange(value);
+								}
+							}
+						}}
+					>
+						<option value="newest_first">Newest first</option>
+						<option value="oldest_first">Oldest first</option>
+					</select>
+
+					<button
+						title="Refresh feed"
+						class="preset-outlined-subtle btn-icon shrink-0 rounded-xl"
+						disabled={isRefreshing}
+						type="button"
+						onclick={() => {
+							void onRefresh(selectedFeed.id);
+						}}
+						aria-label="Refresh feed"
+					>
+						{#key isRefreshing}
+							<Icon
+								icon="lucide:refresh-cw"
+								class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+							/>
+						{/key}
+					</button>
+				</div>
+			{/if}
+		</div>
+
 		{#if selectedFeed}
 			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
 				<div class="flex-1">
@@ -318,78 +391,6 @@
 							<kbd class="kbd">F</kbd>
 						</div>
 					</div>
-				</div>
-				<div class="flex flex-wrap items-center justify-end gap-3 align-top">
-					{#if selectedStation}
-						<button
-							type="button"
-							title="Play station"
-							class="preset-filled-accent btn-icon rounded-xl"
-							onclick={onPlayStation}
-						>
-							<Icon icon="lucide:play" class="size-4" />
-						</button>
-
-						<button
-							type="button"
-							title="Edit station"
-							class="preset-outlined-subtle btn-icon rounded-xl"
-							onclick={onEditStation}
-							aria-label="Edit station"
-						>
-							<Icon icon="lucide:pencil" class="size-4" />
-						</button>
-
-						<button
-							type="button"
-							title="Delete station"
-							class="preset-filled-error btn-icon rounded-xl"
-							onclick={onDeleteStation}
-							aria-label="Delete station"
-						>
-							<Icon icon="lucide:trash-2" class="size-4" />
-						</button>
-					{:else if selectedFeed}
-						<div class="flex shrink-0 items-center gap-2">
-							<label class="sr-only" for="feed-sort-order">Sort order</label>
-							<select
-								id="feed-sort-order"
-								class="select min-w-36 rounded-xl text-sm"
-								aria-label="Sort order"
-								value={itemSortOrder}
-								onchange={(event) => {
-									const target = event.currentTarget;
-									if (target instanceof HTMLSelectElement) {
-										const value = target.value;
-										if (value === 'newest_first' || value === 'oldest_first') {
-											onSortOrderChange(value);
-										}
-									}
-								}}
-							>
-								<option value="newest_first">Newest first</option>
-								<option value="oldest_first">Oldest first</option>
-							</select>
-
-							<button
-								title="Refresh feed"
-								class="preset-outlined-subtle btn-icon shrink-0 rounded-xl"
-								disabled={isRefreshing}
-								type="button"
-								onclick={() => {
-									void onRefresh(selectedFeed.id);
-								}}
-								aria-label="Refresh feed"
-							>
-								{#key isRefreshing}
-									<Icon
-										icon="lucide:refresh-cw"
-										class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-									/>
-								{/key}
-							</button>
-						</div>
-					{/if}
 				</div>
 			</div>
 		{/if}
