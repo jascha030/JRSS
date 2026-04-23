@@ -126,6 +126,7 @@
 		style:--cover-button-bg={coverTheme.buttonBg}
 		style:--cover-button-bg-hover={coverTheme.buttonBgHover}
 		style:--color-fg-muted={coverTheme.fgMuted}
+		style:--cover-seek-fill={coverTheme.accent}
 	>
 		<div class="pointer-events-none absolute inset-0">
 			<div class="cover-view-backdrop absolute inset-0"></div>
@@ -155,7 +156,7 @@
 						<img
 							src={imageUrl}
 							alt=""
-							class="mx-auto aspect-square w-full max-w-3xl rounded-lg object-cover shadow-sm select-none"
+							class="mx-auto aspect-square w-full max-w-3xl rounded-4xl object-cover shadow-sm select-none"
 						/>
 					{:else}
 						<div
@@ -358,5 +359,16 @@
      */
 	.cover-view-theme :global(.btn-icon) {
 		box-shadow: none;
+	}
+
+	/**
+	 * Range input (seek bar) styling to match play button accent color.
+	 */
+	.cover-view-theme :global(.player-range) {
+		--fill: var(--cover-seek-fill) !important;
+	}
+
+	.cover-view-theme :global(.player-range:focus-visible) {
+		outline-color: var(--cover-seek-fill) !important;
 	}
 </style>
