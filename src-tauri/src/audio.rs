@@ -541,10 +541,12 @@ impl AudioThread {
                 let dl_meta = Arc::clone(&meta);
                 let dl_path = cache_path.clone();
                 let dl_url = url.clone();
+                let dl_cache_dir = cache_dir.clone();
                 std::thread::Builder::new()
                     .name("jrss-download".into())
                     .spawn(move || {
-                        if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
+                        if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta, &dl_cache_dir)
+                        {
                             log::error!("Audio download failed: {}", e);
                             dl_meta.complete.store(true, Ordering::Release);
                         }
@@ -791,10 +793,12 @@ impl AudioThread {
         let dl_path = cache_path.clone();
         let dl_url = url.clone();
 
+        let cache_dir_for_prefetch = cache_path.parent().map(|p| p.to_path_buf());
         let handle = std::thread::Builder::new()
             .name("jrss-prefetch".into())
             .spawn(move || {
-                if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta) {
+                let cache_dir = cache_dir_for_prefetch.as_deref().unwrap_or(Path::new(""));
+                if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta, cache_dir) {
                     log::error!("Prefetch download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
                 }
@@ -1418,7 +1422,18 @@ fn wait_for_minimum_data(
     }
 }
 
-fn download_to_file(url: &str, path: &Path, meta: &DownloadMeta) -> Result<(), String> {
+fn download_to_file(
+    url: &str,
+    path: &Path,
+    meta: &DownloadMeta,
+    cache_dir: &Path,
+) -> Result<(), String> {
+    // Enforce cache size limit before starting download
+    // We don't know the exact size yet, so we check/enforce based on current state
+    if let Err(e) = enforce_cache_size_limit(cache_dir, 0) {
+        log::warn!("Failed to enforce cache size limit: {e}");
+    }
+
     let dl_start = Instant::now();
     let marker_path = cache_complete_marker_path(path);
     let _ = std::fs::remove_file(&marker_path);
@@ -1549,4 +1564,115 @@ fn is_cache_complete(path: &Path) -> bool {
         is_complete
     );
     is_complete
+}
+
+// Maximum cache size: 5 GB
+const MAX_CACHE_SIZE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
+
+/// Represents a cached file with its metadata for LRU eviction
+struct CacheFile {
+    path: PathBuf,
+    size: u64,
+    accessed: std::time::SystemTime,
+}
+
+/// Enforce the cache size limit by removing least-recently-used files.
+/// Call this before downloading a new file to make room if needed.
+fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(), String> {
+    let mut files: Vec<CacheFile> = Vec::new();
+    let mut total_size: u64 = 0;
+
+    // Read directory and collect all cached audio files
+    let entries = match std::fs::read_dir(cache_dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            log::warn!("Failed to read cache directory: {e}");
+            return Ok(());
+        }
+    };
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+
+        if !metadata.is_file() {
+            continue;
+        }
+
+        // Only consider .mp3 files (not .complete markers)
+        if path.extension().and_then(|e| e.to_str()) != Some("mp3") {
+            continue;
+        }
+
+        let size = metadata.len();
+        let accessed = metadata.accessed().unwrap_or_else(|_| {
+            metadata
+                .modified()
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+        });
+
+        total_size = total_size.saturating_add(size);
+        files.push(CacheFile {
+            path,
+            size,
+            accessed,
+        });
+    }
+
+    // Calculate how much space we need
+    let projected_size = total_size.saturating_add(new_file_bytes);
+
+    if projected_size <= MAX_CACHE_SIZE_BYTES {
+        log::debug!(
+            "Cache size: {} MB / {} MB - no cleanup needed",
+            total_size / (1024 * 1024),
+            MAX_CACHE_SIZE_BYTES / (1024 * 1024)
+        );
+        return Ok(());
+    }
+
+    // Sort by last accessed time (oldest first)
+    files.sort_by(|a, b| a.accessed.cmp(&b.accessed));
+
+    let mut freed: u64 = 0;
+    let mut removed_count: usize = 0;
+    let target_size = MAX_CACHE_SIZE_BYTES.saturating_sub(new_file_bytes);
+
+    for file in files {
+        if total_size.saturating_sub(freed) <= target_size {
+            break;
+        }
+
+        // Remove the file and its complete marker
+        let marker_path = cache_complete_marker_path(&file.path);
+
+        if let Err(e) = std::fs::remove_file(&file.path) {
+            log::warn!("Failed to remove cached file {:?}: {e}", file.path);
+            continue;
+        }
+        let _ = std::fs::remove_file(&marker_path);
+
+        freed = freed.saturating_add(file.size);
+        removed_count += 1;
+
+        log::info!(
+            "Evicted from cache: {:?} ({} MB)",
+            file.path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown"),
+            file.size / (1024 * 1024)
+        );
+    }
+
+    log::info!(
+        "Cache cleanup complete: removed {} files, freed {} MB",
+        removed_count,
+        freed / (1024 * 1024)
+    );
+
+    Ok(())
 }
