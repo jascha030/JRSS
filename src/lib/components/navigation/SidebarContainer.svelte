@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, Station } from '$lib/types/rss';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
@@ -33,6 +35,31 @@
 		refreshingFeedIds,
 		isCollapsed
 	}: Props = $props();
+
+	onMount(() => {
+		let unlistenSettings: UnlistenFn | undefined;
+		let unlistenNewStation: UnlistenFn | undefined;
+
+		const setupListeners = async () => {
+			unlistenSettings = await listen('menu-settings', () => {
+				onSelectSection('settings');
+			});
+			unlistenNewStation = await listen('menu-new-station', () => {
+				onCreateStation();
+			});
+		};
+
+		void setupListeners();
+
+		return () => {
+			if (unlistenSettings) {
+				unlistenSettings();
+			}
+			if (unlistenNewStation) {
+				unlistenNewStation();
+			}
+		};
+	});
 </script>
 
 <div class="absolute inset-y-0 left-0 z-20 hidden md:block">
