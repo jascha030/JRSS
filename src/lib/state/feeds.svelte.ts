@@ -8,6 +8,7 @@ import {
 } from '$lib/services/feedService';
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
+import { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } from './playback.svelte';
 
 export const feedsState = $state({
 	feeds: [] as Feed[],
@@ -97,8 +98,6 @@ export async function deleteExistingFeed(feedId: string): Promise<void> {
 	if (!feed) return;
 
 	// Stop playback and remove from queues if needed
-	const { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } =
-		await import('./playback.svelte');
 	const currentAudioItem = getCurrentAudioItem();
 
 	if (currentAudioItem?.feedId === feedId) {
