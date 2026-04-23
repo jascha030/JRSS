@@ -109,7 +109,7 @@
 
 {#if item && playbackState}
 	<div
-		class={`cover-view-theme fixed inset-0 overflow-hidden px-12 ${className}`}
+		class={`cover-view-theme fixed inset-0 min-h-[600px] overflow-hidden px-12 ${className}`}
 		style:--cover-bg-1={coverTheme.bg1}
 		style:--cover-bg-2={coverTheme.bg2}
 		style:--cover-bg-3={coverTheme.bg3}
@@ -148,19 +148,19 @@
 		{/if}
 
 		<div
-			class="relative z-10 grid h-full grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-center justify-center gap-8 p-8"
+			class="relative z-10 grid h-full min-h-140 grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-center justify-center gap-16 px-8 py-16"
 		>
-			<div class="min-w-0">
-				<div class="mx-auto flex w-full max-w-6xl flex-col p-12">
+			<div class="flex min-h-0 flex-col justify-center gap-16 overflow-hidden">
+				<div class="mx-auto flex min-h-50 w-full max-w-6xl flex-1 flex-col justify-center p-4">
 					{#if imageUrl}
 						<img
 							src={imageUrl}
 							alt=""
-							class="mx-auto aspect-square w-full max-w-3xl rounded-4xl object-cover shadow-sm select-none"
+							class="mx-auto aspect-square max-h-[60vh] w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
 						/>
 					{:else}
 						<div
-							class="mx-auto grid aspect-square w-full max-w-3xl place-items-center rounded-lg text-(--cover-fg-subtle)"
+							class="mx-auto grid aspect-square max-h-[60vh] w-auto max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
 							style:background-color={coverTheme.panelBg}
 						>
 							<Icon icon="lucide:disc-3" class="size-16" />
@@ -168,9 +168,9 @@
 					{/if}
 				</div>
 
-				<div class="mx-auto flex w-full max-w-6xl flex-col gap-6">
+				<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
 					<div
-						class="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-6 4xl:max-w-400"
+						class="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 4xl:max-w-400"
 					>
 						<div class="min-w-0">
 							<AudioPlayerInfo {item} showCover={false} onNavigate={onNavigateToItem} />
@@ -201,7 +201,7 @@
 				</div>
 			</div>
 
-			<div class="cover-view-side-panel flex h-full max-h-[80vh] min-w-0 flex-col rounded-2xl">
+			<div class="cover-view-side-panel flex h-full min-h-[400px] min-w-0 flex-col rounded-2xl">
 				<div class="flex h-16 shrink-0 items-center justify-between border-b px-4">
 					<div>
 						<h2 class="text-sm font-semibold text-white">Playing next</h2>
