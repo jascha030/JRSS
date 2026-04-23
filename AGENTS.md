@@ -1,56 +1,44 @@
 # AGENTS.md
 
-## What is JRSS
+## Snapshot
 
-Local-first desktop RSS reader with podcast support. Tauri v2 app: SvelteKit frontend + Rust backend with SQLite storage.
+- Tauri v2 desktop RSS/podcast reader. SvelteKit 2 + Svelte 5 frontend, Rust backend, SQLite stored in Tauri app data as `jrss.sqlite3`.
 
 ## Commands
 
-| Task          | Command               |
-| ------------- | --------------------- |
-| Install       | `bun install`         |
-| Dev           | `bun run tauri:dev`   |
-| Build         | `bun run tauri:build` |
-| Typecheck     | `bun run check`       |
-| Lint          | `bun run lint`        |
-| Format        | `bun run format`      |
-| Frontend only | `bun run dev`         |
-
-**Validation order:** `bun run check` -> `bun run lint` -> `bun run build`
-
-`bun run dev` runs the SvelteKit frontend only. Most features require the Rust backend; use `bun run tauri:dev` for full-stack dev. No test framework is configured.
+- Install: `bun install`
+- Full app dev: `bun run tauri:dev`
+- Frontend-only dev: `bun run dev`
+- Typecheck: `bun run check`
+- Lint: `bun run lint` (`prettier --check . && eslint .`)
+- Format: `bun run format`
+- Frontend build: `bun run build`
+- Native packaged build: `bun run tauri:build`
+- `bun run tauri:dev` already launches `bun run dev` via `src-tauri/tauri.conf.json`; do not start a second frontend server.
+- `bun run dev` serves `http://127.0.0.1:1420` only. Many features are Tauri-only; outside Tauri, `invokeCommand` throws and some services fall back to empty data.
+- No test runner, CI workflow, or pre-commit config is present.
+- Preferred validation order from repo instructions: `bun run check` -> `bun run lint` -> `bun run build`. Use `bun run tauri:build` when validating Rust/Tauri changes.
 
 ## Architecture
 
-SPA mode: `ssr = false` and `prerender = true` in `src/routes/+layout.ts`. All routing is client-side with `adapter-static` producing `build/index.html` as fallback.
+- SPA only: `src/routes/+layout.ts` sets `prerender = true` and `ssr = false`; `adapter-static` uses `build/index.html` as fallback.
+- Main UI entrypoint is `src/routes/+page.svelte`; startup runs `initializeApp()` from `src/lib/stores/app.svelte`.
+- Frontend state/actions live in `src/lib/state/*.svelte.ts`; `src/lib/stores/app.svelte` is the facade most components import.
+- Frontend/backend path is `state/*.svelte.ts` -> `src/lib/services/feedService.ts` -> `src/lib/services/tauriClient.ts` -> Tauri commands in `src-tauri/src/commands.rs`, registered in `src-tauri/src/lib.rs`.
+- `src/lib/types/rss.ts` holds frontend domain types plus raw IPC shapes. `feedService.ts` maps flat Rust payloads into discriminated unions.
+- Playback and queue are backend-owned in Rust (`src-tauri/src/audio.rs`, `src-tauri/src/queue.rs`) so playback survives UI/window teardown; frontend `src/lib/state/playback.svelte.ts` mirrors that state via Tauri events/commands.
 
-**Frontend-backend boundary:** all data access flows through `src/lib/services/tauriClient.ts` (`invokeCommand` wrapper around Tauri `invoke`) to Rust commands registered in `src-tauri/src/lib.rs` and defined in `src-tauri/src/commands.rs`.
+## Change Traps
 
-**Rust modules** (`src-tauri/src/`):
+- SQLite schema and migrations are all in `src-tauri/src/db.rs`. There is no external migration tool; schema changes must keep existing user databases working.
+- Keep `src/lib/types/rss.ts` and `src-tauri/src/models.rs` in sync when changing IPC fields or serde casing.
+- Keep Vite and Tauri config aligned: `bun run dev` serves `127.0.0.1:1420`, `src-tauri/tauri.conf.json` points `devUrl` there, and `frontendDist` expects `../build`.
+- Svelte 5 runes mode is forced for project files outside `node_modules` in `svelte.config.js`; state/store modules use `.svelte.ts`.
+- Formatting is enforced by Prettier: tabs, single quotes, no trailing commas, width 100. Tailwind class sorting uses `src/routes/layout.css`.
+- Rust toolchain is `edition = "2024"` with `rust-version = "1.87"`.
 
-- `commands.rs` — Tauri command handlers (the IPC surface)
-- `db.rs` — SQLite connection, schema migrations, all queries (~930 lines, the core of persistence)
-- `models.rs` — Rust structs/enums serialized to/from the frontend
-- `feed_ingest.rs` — RSS/Atom parsing and feed fetching
-- `reader_extract.rs` — article readability extraction
+## High-Risk Files
 
-**SQLite migrations** are embedded in `db.rs` (no external migration tool). Schema changes require updating the migration logic there.
-
-**Type sync is manual.** `src/lib/types/rss.ts` and `src-tauri/src/models.rs` must mirror each other. When changing a Rust model's fields or serde attributes, update the TS types to match, and vice versa.
-
-**Stores** use Svelte 5 runes (`.svelte.ts` files, e.g. `src/lib/stores/app.svelte.ts`).
-
-## Conventions
-
-- **TypeScript**: strict mode, no `any`, no non-null assertions, no type assertions
-- **Svelte 5**: runes mode enforced project-wide (see `svelte.config.js`); do not remove runes config without migrating to Svelte 6
-- **Formatting**: tabs, single quotes, no trailing commas, 100 char width (Prettier)
-- **Tailwind CSS v4** via Vite plugin; Prettier class sorting uses `src/routes/layout.css` as the stylesheet reference
-- **Rust edition 2024**, min rustc 1.85.0
-
-## Handle with care
-
-- `src-tauri/src/db.rs` — schema migrations and all queries; changes affect data persistence
-- `src/lib/types/rss.ts` + `src-tauri/src/models.rs` — must stay in sync across the IPC boundary
-- `src-tauri/gen/` — Tauri-generated code; do not edit manually
-- `svelte.config.js` — runes mode logic; do not remove without migrating to Svelte 6
+- `src-tauri/src/db.rs`: persistence, migrations, most queries
+- `src/lib/types/rss.ts` + `src-tauri/src/models.rs`: cross-IPC contract
+- `src/lib/state/playback.svelte.ts` + `src-tauri/src/audio.rs` + `src-tauri/src/queue.rs`: playback lifecycle and queue behavior
