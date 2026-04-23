@@ -109,7 +109,7 @@
 
 {#if item && playbackState}
 	<div
-		class={`cover-view-theme fixed inset-0 min-h-[600px] overflow-hidden px-12 ${className}`}
+		class={`cover-view-theme fixed inset-0 min-h-150 overflow-hidden px-12 ${className}`}
 		style:--cover-bg-1={coverTheme.bg1}
 		style:--cover-bg-2={coverTheme.bg2}
 		style:--cover-bg-3={coverTheme.bg3}
@@ -170,7 +170,7 @@
 
 				<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
 					<div
-						class="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 4xl:max-w-400"
+						class="mx-auto grid w-full max-w-6xl min-w-150 grid-cols-[minmax(200px,1fr)_auto_minmax(150px,1fr)] items-center gap-4 4xl:max-w-400"
 					>
 						<div class="min-w-0">
 							<AudioPlayerInfo {item} showCover={false} onNavigate={onNavigateToItem} />
@@ -201,7 +201,7 @@
 				</div>
 			</div>
 
-			<div class="cover-view-side-panel flex h-full min-h-[400px] min-w-0 flex-col rounded-2xl">
+			<div class="cover-view-side-panel flex h-full min-h-100 min-w-0 flex-col rounded-2xl">
 				<div class="flex h-16 shrink-0 items-center justify-between border-b px-4">
 					<div>
 						<h2 class="text-sm font-semibold text-white">Playing next</h2>
