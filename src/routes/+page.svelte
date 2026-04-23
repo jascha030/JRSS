@@ -366,7 +366,7 @@
 						<AppBar
 							class="flex h-20 shrink-0 border-b border-border bg-surface-glass px-6 py-4 backdrop-blur lg:px-8"
 						>
-							<AppBar.Toolbar class="flex w-full items-center justify-end align-middle">
+							<AppBar.Toolbar class="flex w-full px-4 items-center justify-end align-middle">
 								<Header onOpenDialog={() => (isFeedEditorOpen = true)} />
 							</AppBar.Toolbar>
 						</AppBar>
