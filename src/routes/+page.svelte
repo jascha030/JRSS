@@ -10,6 +10,7 @@
 	import ReaderPane from '$lib/components/article/ReaderPane.svelte';
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
 	import SidebarContainer from '$lib/components/navigation/SidebarContainer.svelte';
+	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
@@ -68,6 +69,7 @@
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let playerMode = $state<'default' | 'cover' | 'mini'>('default');
+	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
 	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
@@ -283,6 +285,13 @@
 	<meta name="description" content="RSS reader and podcast player." />
 </svelte:head>
 
+<FeedEditor
+	open={isFeedEditorOpen}
+	isLoading={isCreatingFeed}
+	onSave={handleAddFeed}
+	onClose={() => (isFeedEditorOpen = false)}
+/>
+
 <StationEditor
 	open={isStationEditorOpen}
 	station={editingStation}
@@ -357,7 +366,7 @@
 							class="flex h-20 shrink-0 border-b border-border bg-surface-glass px-6 py-4 backdrop-blur lg:px-8"
 						>
 							<AppBar.Toolbar class="flex w-full items-center justify-end align-middle">
-								<Header isLoading={isCreatingFeed} onSubmit={handleAddFeed} />
+								<Header onOpenDialog={() => (isFeedEditorOpen = true)} />
 							</AppBar.Toolbar>
 						</AppBar>
 
