@@ -242,24 +242,33 @@
 	}
 
 	onMount(() => {
-		let unlisten: UnlistenFn | undefined;
+		let unlistenSearch: UnlistenFn | undefined;
+		let unlistenRefresh: UnlistenFn | undefined;
 
-		const setupListener = async () => {
-			unlisten = await listen('menu-search-feed', () => {
+		const setupListeners = async () => {
+			unlistenSearch = await listen('menu-search-feed', () => {
 				if (selectedFeed) {
 					searchInputRef?.focus();
 				}
 			});
+			unlistenRefresh = await listen('menu-refresh-feed', () => {
+				if (selectedFeed && !isRefreshing) {
+					void onRefresh(selectedFeed.id);
+				}
+			});
 		};
 
-		void setupListener();
+		void setupListeners();
 
 		return () => {
 			if (scrollFrame !== 0) {
 				cancelAnimationFrame(scrollFrame);
 			}
-			if (unlisten) {
-				unlisten();
+			if (unlistenSearch) {
+				unlistenSearch();
+			}
+			if (unlistenRefresh) {
+				unlistenRefresh();
 			}
 		};
 	});
@@ -414,7 +423,7 @@
 		{#if isInitialLoading}
 			<div class="px-6 py-4 lg:px-8">
 				<div class="space-y-4">
-					{#each Array.from({ length: 4 }) as _, index (index)}
+					{#each Array.from({ length: 4 }), index (index)}
 						<div class="px-0 py-5">
 							<div class="h-3 w-32 rounded-full bg-skeleton"></div>
 							<div class="mt-5 h-6 w-3/4 rounded-full bg-skeleton"></div>

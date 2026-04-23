@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
-	import { requestSeekTo, requestTogglePlayback } from '$lib/stores/app.svelte';
+	import { requestSeekTo, requestSetVolume, requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import Icon from '@iconify/svelte';
 	import AudioPlayerControls from './AudioPlayerControls.svelte';
@@ -28,6 +30,7 @@
 	};
 
 	const SKIP_SECONDS = 15;
+	const VOLUME_STEP = 0.1;
 
 	let {
 		item,
@@ -67,22 +70,59 @@
 		requestTogglePlayback();
 	}
 
-	$effect(() => {
-		if (!item) return;
+	function adjustVolume(delta: number) {
+		if (!playbackState) return;
+		const newVolume = Math.max(0, Math.min(1, playbackState.volume + delta));
+		requestSetVolume(newVolume);
+	}
 
-		function handleKeydown(event: KeyboardEvent) {
-			if (event.code !== 'Space') return;
+	onMount(() => {
+		let unlistenPlayPause: UnlistenFn | undefined;
+		let unlistenSkipForward: UnlistenFn | undefined;
+		let unlistenSkipBackward: UnlistenFn | undefined;
+		let unlistenVolumeUp: UnlistenFn | undefined;
+		let unlistenVolumeDown: UnlistenFn | undefined;
+		let unlistenGoToFeed: UnlistenFn | undefined;
 
-			const tag = event.target instanceof Element ? event.target.tagName : '';
-			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
-			if (event.target instanceof HTMLElement && event.target.isContentEditable) return;
+		const setupListeners = async () => {
+			unlistenPlayPause = await listen('menu-play-pause', () => {
+				if (item) {
+					togglePlayback();
+				}
+			});
+			unlistenSkipForward = await listen('menu-skip-forward', () => {
+				if (item) {
+					skip(SKIP_SECONDS);
+				}
+			});
+			unlistenSkipBackward = await listen('menu-skip-backward', () => {
+				if (item) {
+					skip(-SKIP_SECONDS);
+				}
+			});
+			unlistenVolumeUp = await listen('menu-volume-up', () => {
+				adjustVolume(VOLUME_STEP);
+			});
+			unlistenVolumeDown = await listen('menu-volume-down', () => {
+				adjustVolume(-VOLUME_STEP);
+			});
+			unlistenGoToFeed = await listen('menu-go-to-feed', () => {
+				if (item && onNavigateToItem) {
+					onNavigateToItem();
+				}
+			});
+		};
 
-			event.preventDefault();
-			togglePlayback();
-		}
+		void setupListeners();
 
-		window.addEventListener('keydown', handleKeydown);
-		return () => window.removeEventListener('keydown', handleKeydown);
+		return () => {
+			if (unlistenPlayPause) unlistenPlayPause();
+			if (unlistenSkipForward) unlistenSkipForward();
+			if (unlistenSkipBackward) unlistenSkipBackward();
+			if (unlistenVolumeUp) unlistenVolumeUp();
+			if (unlistenVolumeDown) unlistenVolumeDown();
+			if (unlistenGoToFeed) unlistenGoToFeed();
+		};
 	});
 
 	$effect(() => {
