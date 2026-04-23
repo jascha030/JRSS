@@ -11,12 +11,16 @@
 	let { open, isLoading, onSave, onClose }: Props = $props();
 
 	let url = $state('');
+	let inputRef = $state<HTMLInputElement | null>(null);
 
 	const isValid = $derived(url.trim().length > 0);
 
 	$effect(() => {
 		if (open) {
 			url = '';
+			queueMicrotask(() => {
+				inputRef?.focus();
+			});
 		}
 	});
 
@@ -76,6 +80,7 @@
 					<input
 						id="feed-url"
 						type="text"
+						bind:this={inputRef}
 						bind:value={url}
 						disabled={isLoading}
 						placeholder="https://example.com/feed.xml"
