@@ -4,7 +4,7 @@ use crate::models::{
     ReaderContentRecord, StationRecord, StationWithFeedsRecord, UpdateStationInput,
 };
 use chrono::Utc;
-use rusqlite::{params, Connection, OptionalExtension, Row, Transaction};
+use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 use sha1_smol::Sha1;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -1,4 +1,4 @@
-use color_thief::{get_palette, ColorFormat};
+use color_thief::{ColorFormat, get_palette};
 use image::imageops::FilterType;
 use reqwest::blocking::Client;
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ fn normalize_image_url(image_url: &str) -> Result<String, String> {
 
     match parsed_url.scheme() {
         "http" | "https" => Ok(parsed_url.to_string()),
-        _ => Err("Image URL must use http or https.".to_string())
+        _ => Err("Image URL must use http or https.".to_string()),
     }
 }
 
@@ -46,8 +46,8 @@ pub fn extract_cover_palette(image_url: &str) -> Result<Vec<String>, String> {
         .bytes()
         .map_err(|error| format!("Failed to read cover image response body: {error}"))?;
 
-    let decoded =
-        image::load_from_memory(&bytes).map_err(|error| format!("Failed to decode cover image: {error}"))?;
+    let decoded = image::load_from_memory(&bytes)
+        .map_err(|error| format!("Failed to decode cover image: {error}"))?;
 
     let resized = if decoded.width() > 512 || decoded.height() > 512 {
         decoded.resize(512, 512, FilterType::Triangle)
