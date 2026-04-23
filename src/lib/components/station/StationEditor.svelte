@@ -44,6 +44,7 @@
 	let sortOrder = $state<ItemSortOrder>('newest_first');
 	let selectedFeedValues = $state<string[]>([]);
 	let filteredPodcastOptions = $state<FeedOption[]>([]);
+	let nameInputRef = $state<HTMLInputElement | null>(null);
 
 	const collection = $derived(
 		useListCollection({
@@ -83,6 +84,9 @@
 			sortOrder = station?.sortOrder ?? 'newest_first';
 			selectedFeedValues = station?.feedIds ?? [];
 			filteredPodcastOptions = allPodcastOptions;
+			queueMicrotask(() => {
+				nameInputRef?.focus();
+			});
 		}
 	});
 
@@ -131,6 +135,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		tabindex="-1"
 		onkeydown={(event) => {
 			if (event.key === 'Escape') {
 				onClose();
@@ -177,6 +182,7 @@
 					<input
 						id="station-name"
 						type="text"
+						bind:this={nameInputRef}
 						bind:value={name}
 						placeholder="My station"
 						class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"

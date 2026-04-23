@@ -173,6 +173,7 @@
 	async function handleAddFeed(url: string) {
 		try {
 			await createFeed(url);
+			isFeedEditorOpen = false;
 			toast.success('Feed loaded and saved locally.');
 		} catch (error: unknown) {
 			toast.error(error instanceof Error ? error.message : 'Unable to add that feed.');
