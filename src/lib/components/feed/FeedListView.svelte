@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder, Station } from '$lib/types/rss';
@@ -241,22 +242,30 @@
 	}
 
 	onMount(() => {
+		let unlisten: UnlistenFn | undefined;
+
+		const setupListener = async () => {
+			unlisten = await listen('menu-search-feed', () => {
+				if (selectedFeed) {
+					searchInputRef?.focus();
+				}
+			});
+		};
+
+		void setupListener();
+
 		return () => {
 			if (scrollFrame !== 0) {
 				cancelAnimationFrame(scrollFrame);
 			}
+			if (unlisten) {
+				unlisten();
+			}
 		};
 	});
-
-	function handleWindowKeydown(event: KeyboardEvent): void {
-		if (event.key === 'f' && event.metaKey && !event.shiftKey && selectedFeed) {
-			event.preventDefault();
-			searchInputRef?.focus();
-		}
-	}
 </script>
 
-<svelte:window bind:innerWidth={windowWidth} onkeydown={handleWindowKeydown} />
+<svelte:window bind:innerWidth={windowWidth} />
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
 	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">

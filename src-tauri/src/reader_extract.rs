@@ -3,7 +3,7 @@ use crate::models::ReaderContentRecord;
 use ammonia::{Builder, UrlRelative};
 use chrono::Utc;
 use html_escape::decode_html_entities;
-use readability::{extract, ExtractOptions};
+use readability::{ExtractOptions, extract};
 use regex::Regex;
 use reqwest::blocking::Client;
 use std::io::Cursor;
@@ -541,15 +541,21 @@ mod tests {
             r#"<meta property='og:title' content="Hello world" data-id=abc123>"#,
         );
 
-        assert!(attributes
-            .iter()
-            .any(|(name, value)| name == "property" && value == "og:title"));
-        assert!(attributes
-            .iter()
-            .any(|(name, value)| name == "content" && value == "Hello world"));
-        assert!(attributes
-            .iter()
-            .any(|(name, value)| name == "data-id" && value == "abc123"));
+        assert!(
+            attributes
+                .iter()
+                .any(|(name, value)| name == "property" && value == "og:title")
+        );
+        assert!(
+            attributes
+                .iter()
+                .any(|(name, value)| name == "content" && value == "Hello world")
+        );
+        assert!(
+            attributes
+                .iter()
+                .any(|(name, value)| name == "data-id" && value == "abc123")
+        );
     }
 
     #[test]

@@ -9,7 +9,7 @@ mod reader_extract;
 
 use audio::AudioState;
 use db::DatabaseState;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -48,6 +48,52 @@ pub fn run() {
             let audio_state = AudioState::new(app.handle().clone())
                 .map_err(Box::<dyn std::error::Error>::from)?;
             app.manage(audio_state);
+
+            // Set up menu with standard items and search accelerator
+            #[cfg(desktop)]
+            {
+                use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+
+                let search_item = MenuItemBuilder::with_id("search-feed", "Search Feed")
+                    .accelerator("CmdOrCtrl+F")
+                    .build(app)?;
+
+                // Create Edit submenu with standard edit items and search
+                let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .separator()
+                    .item(&search_item)
+                    .build()?;
+
+                // Create File submenu with standard items
+                let file_submenu = SubmenuBuilder::new(app, "File")
+                    .close_window()
+                    .separator()
+                    .quit()
+                    .build()?;
+
+                // Build the full menu
+                let menu = MenuBuilder::new(app)
+                    .item(&file_submenu)
+                    .item(&edit_submenu)
+                    .build()?;
+
+                app.set_menu(menu)?;
+
+                app.on_menu_event(move |app_handle: &tauri::AppHandle, event| {
+                    if event.id().0.as_str() == "search-feed" {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.emit("menu-search-feed", ());
+                        }
+                    }
+                });
+            }
 
             Ok(())
         })
@@ -105,7 +151,8 @@ pub fn run() {
         // Handle dock click to recreate window on macOS
         #[cfg(target_os = "macos")]
         if let tauri::RunEvent::Reopen {
-            has_visible_windows, ..
+            has_visible_windows,
+            ..
         } = event
         {
             if !has_visible_windows {

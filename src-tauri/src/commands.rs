@@ -436,9 +436,11 @@ pub async fn save_playback_context(
     context: Option<PlaybackContextRecord>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-    tauri::async_runtime::spawn_blocking(move || db::save_playback_context(&db_path, context.as_ref()))
-        .await
-        .map_err(|error| format!("Failed to save playback context: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        db::save_playback_context(&db_path, context.as_ref())
+    })
+    .await
+    .map_err(|error| format!("Failed to save playback context: {error}"))?
 }
 
 #[tauri::command]
