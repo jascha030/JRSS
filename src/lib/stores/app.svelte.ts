@@ -135,7 +135,9 @@ export {
 	isItemCurrentAudio,
 	isAudioPlaying,
 	isAudioLoading,
-	getPlaybackPositionForItem
+	getPlaybackPositionForItem,
+	getCoverTheme,
+	type CoverTheme
 } from '../state/playback.svelte';
 
 // ---------------------------------------------------------------------------

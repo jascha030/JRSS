@@ -24,7 +24,8 @@ import {
 	audioToggle,
 	loadPlaybackContext,
 	savePlaybackContext,
-	queryStationEpisodes
+	queryStationEpisodes,
+	extractCoverPalette
 } from '$lib/services/feedService';
 import { tick } from 'svelte';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -47,6 +48,42 @@ export type PlaybackState = {
 	volume: number;
 };
 
+export type CoverTheme = {
+	bg1: string;
+	bg2: string;
+	bg3: string;
+	glow1: string;
+	glow2: string;
+	glow3: string;
+	fg: string;
+	fgMuted: string;
+	fgSubtle: string;
+	accent: string;
+	accentContrast: string;
+	panelBg: string;
+	panelBorder: string;
+	buttonBg: string;
+	buttonBgHover: string;
+};
+
+const FALLBACK_COVER_THEME: CoverTheme = {
+	bg1: '#0f172a',
+	bg2: '#1e293b',
+	bg3: '#334155',
+	glow1: 'rgba(59, 130, 246, 0.28)',
+	glow2: 'rgba(168, 85, 247, 0.22)',
+	glow3: 'rgba(236, 72, 153, 0.20)',
+	fg: '#ffffff',
+	fgMuted: 'rgba(255, 255, 255, 0.78)',
+	fgSubtle: 'rgba(255, 255, 255, 0.56)',
+	accent: '#ffffff',
+	accentContrast: '#0f172a',
+	panelBg: 'rgba(255, 255, 255, 0.08)',
+	panelBorder: 'rgba(255, 255, 255, 0.16)',
+	buttonBg: 'rgba(255, 255, 255, 0.10)',
+	buttonBgHover: 'rgba(255, 255, 255, 0.16)'
+};
+
 export const playbackState = $state({
 	currentPlaybackState: null as PlaybackState | null,
 	isAudioLoading: false,
@@ -57,7 +94,12 @@ export const playbackState = $state({
 	 * Cache of items known to playback.
 	 * These are also registered in itemsState.itemSummariesById for consistency.
 	 */
-	audioItemsById: {} as Record<string, FeedListItem>
+	audioItemsById: {} as Record<string, FeedListItem>,
+	/**
+	 * Pre-calculated cover theme for the current track.
+	 * Extracted when a new track loads so CoverView can display instantly.
+	 */
+	coverTheme: FALLBACK_COVER_THEME as CoverTheme
 });
 
 export function resetPlaybackState(): void {
@@ -67,6 +109,170 @@ export function resetPlaybackState(): void {
 	playbackState.autoQueue = [];
 	playbackState.playbackContext = null;
 	playbackState.audioItemsById = {};
+	playbackState.coverTheme = FALLBACK_COVER_THEME;
+}
+
+// ---------------------------------------------------------------------------
+// Cover theme extraction
+// ---------------------------------------------------------------------------
+
+type Rgb = {
+	r: number;
+	g: number;
+	b: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+	return Math.min(max, Math.max(min, value));
+}
+
+function hexToRgb(hex: string): Rgb {
+	const normalized = hex.replace('#', '').trim();
+	const full =
+		normalized.length === 3
+			? normalized
+					.split('')
+					.map((part) => part + part)
+					.join('')
+			: normalized;
+
+	const int = Number.parseInt(full, 16);
+
+	return {
+		r: (int >> 16) & 255,
+		g: (int >> 8) & 255,
+		b: int & 255
+	};
+}
+
+function rgbToHex({ r, g, b }: Rgb): string {
+	return `#${[r, g, b]
+		.map((value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0'))
+		.join('')}`;
+}
+
+function rgba({ r, g, b }: Rgb, alpha: number): string {
+	return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`;
+}
+
+function mix(a: Rgb, b: Rgb, amount: number): Rgb {
+	const t = clamp(amount, 0, 1);
+	return {
+		r: a.r + (b.r - a.r) * t,
+		g: a.g + (b.g - a.g) * t,
+		b: a.b + (b.b - a.b) * t
+	};
+}
+
+function average(colors: Rgb[]): Rgb {
+	if (colors.length === 0) return { r: 255, g: 255, b: 255 };
+
+	const total = colors.reduce(
+		(acc, color) => {
+			acc.r += color.r;
+			acc.g += color.g;
+			acc.b += color.b;
+			return acc;
+		},
+		{ r: 0, g: 0, b: 0 }
+	);
+
+	return {
+		r: total.r / colors.length,
+		g: total.g / colors.length,
+		b: total.b / colors.length
+	};
+}
+
+function channelToLinear(value: number): number {
+	const s = value / 255;
+	return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance(color: Rgb): number {
+	return (
+		0.2126 * channelToLinear(color.r) +
+		0.7152 * channelToLinear(color.g) +
+		0.0722 * channelToLinear(color.b)
+	);
+}
+
+function contrastRatio(a: Rgb, b: Rgb): number {
+	const l1 = luminance(a);
+	const l2 = luminance(b);
+	const lighter = Math.max(l1, l2);
+	const darker = Math.min(l1, l2);
+	return (lighter + 0.05) / (darker + 0.05);
+}
+
+function readableTextFor(color: Rgb): Rgb {
+	const white = hexToRgb('#ffffff');
+	const slate = hexToRgb('#0f172a');
+
+	return contrastRatio(white, color) >= contrastRatio(slate, color) ? white : slate;
+}
+
+function buildThemeFromPalette(hexes: string[]): CoverTheme {
+	const source = hexes.map(hexToRgb).slice(0, 3);
+
+	while (source.length < 3) {
+		source.push(source[source.length - 1] ?? hexToRgb('#334155'));
+	}
+
+	const slate950 = hexToRgb('#020617');
+	const slate900 = hexToRgb('#0f172a');
+	const slate800 = hexToRgb('#1e293b');
+	const white = hexToRgb('#ffffff');
+
+	const bg1 = mix(source[0], slate950, 0.52);
+	const bg2 = mix(source[1], slate900, 0.45);
+	const bg3 = mix(source[2], slate800, 0.36);
+
+	const averageBg = average([bg1, bg2, bg3]);
+	const fgBase = readableTextFor(averageBg);
+	const lightForeground = contrastRatio(white, averageBg) >= 4.5 || fgBase.r > 127;
+
+	const fg = lightForeground ? white : hexToRgb('#0f172a');
+	const accentBase = mix(source[0], white, lightForeground ? 0.08 : 0);
+	const accentContrast = readableTextFor(accentBase);
+
+	return {
+		bg1: rgbToHex(bg1),
+		bg2: rgbToHex(bg2),
+		bg3: rgbToHex(bg3),
+		glow1: rgba(source[0], 0.3),
+		glow2: rgba(source[1], 0.24),
+		glow3: rgba(source[2], 0.2),
+		fg: rgbToHex(fg),
+		fgMuted: rgba(fg, lightForeground ? 0.78 : 0.76),
+		fgSubtle: rgba(fg, lightForeground ? 0.56 : 0.52),
+		accent: rgbToHex(accentBase),
+		accentContrast: rgbToHex(accentContrast),
+		panelBg: lightForeground ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
+		panelBorder: lightForeground ? 'rgba(255, 255, 255, 0.16)' : 'rgba(15, 23, 42, 0.12)',
+		buttonBg: lightForeground ? 'rgba(255, 255, 255, 0.10)' : 'rgba(15, 23, 42, 0.08)',
+		buttonBgHover: lightForeground ? 'rgba(255, 255, 255, 0.16)' : 'rgba(15, 23, 42, 0.14)'
+	};
+}
+
+/**
+ * Pre-calculate cover theme from an image URL.
+ * Call this when a new track loads so the theme is ready when CoverView opens.
+ */
+export async function precalculateCoverTheme(imageUrl: string | undefined): Promise<void> {
+	if (!imageUrl) {
+		playbackState.coverTheme = FALLBACK_COVER_THEME;
+		return;
+	}
+
+	try {
+		const palette = await extractCoverPalette(imageUrl);
+		playbackState.coverTheme =
+			palette.length > 0 ? buildThemeFromPalette(palette) : FALLBACK_COVER_THEME;
+	} catch (error) {
+		console.error('Failed to extract cover palette:', error);
+		playbackState.coverTheme = FALLBACK_COVER_THEME;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -254,6 +460,15 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 	const previousItemId = previous?.itemId;
 	const wasPlaying = previous?.isPlaying ?? false;
 
+	// If item changed, pre-calculate the cover theme
+	if (previousItemId !== event.itemId) {
+		const item = resolveItem(event.itemId);
+		if (item) {
+			const feed = feedsState.feeds.find((f) => f.id === item.feedId);
+			void precalculateCoverTheme(feed?.imageUrl);
+		}
+	}
+
 	playbackState.currentPlaybackState = {
 		itemId: event.itemId,
 		positionSeconds,
@@ -298,11 +513,18 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 
 	if (backendPlaybackState) {
 		applyBackendPlaybackState(backendPlaybackState);
-		return;
 	}
 
 	if (!backendQueueState.current) {
 		playbackState.currentPlaybackState = null;
+		return;
+	}
+
+	// Precalculate cover theme for restored session (handles app restart case)
+	const currentItem = resolveItem(backendQueueState.current.itemId);
+	if (currentItem) {
+		const feed = feedsState.feeds.find((f) => f.id === currentItem.feedId);
+		void precalculateCoverTheme(feed?.imageUrl);
 	}
 }
 
@@ -384,6 +606,10 @@ export function playAudioItem(
 	// Persist playback context
 	void persistPlaybackContext();
 
+	// Pre-calculate cover theme for the new track
+	const feed = feedsState.feeds.find((f) => f.id === item.feedId);
+	void precalculateCoverTheme(feed?.imageUrl);
+
 	void (async () => {
 		try {
 			await yieldForPlaybackUiPaint();
@@ -411,6 +637,7 @@ export function stopPlayback(): Promise<void> {
 
 export function requestTogglePlayback(): void {
 	const currentPlaybackState = playbackState.currentPlaybackState;
+    console.log(playbackState);
 	if (!currentPlaybackState) {
 		return;
 	}
@@ -727,4 +954,8 @@ export function getPlaybackPositionForItem(
 		return playbackState.currentPlaybackState.positionSeconds;
 	}
 	return fallbackPositionSeconds;
+}
+
+export function getCoverTheme(): CoverTheme {
+	return playbackState.coverTheme;
 }
