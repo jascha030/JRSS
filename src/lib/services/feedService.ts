@@ -1,5 +1,6 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauriClient';
 import type {
+	AppSettings,
 	BackendQueueState,
 	BackendPlaybackState,
 	CreateStationInput,
@@ -15,7 +16,11 @@ import type {
 	Station,
 	UpdateStationInput
 } from '$lib/types/rss';
-import { mapRawFeedItem, mapRawFeedListItem } from '$lib/types/rss';
+import {
+	DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+	mapRawFeedItem,
+	mapRawFeedListItem
+} from '$lib/types/rss';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 
 function normalizeFeedInput(url: string): string {
@@ -117,6 +122,24 @@ export async function loadPlaybackSession(): Promise<PlaybackSession | null> {
 
 export async function clearPlaybackSession(): Promise<void> {
 	await invokeCommand('clear_playback_session');
+}
+
+export async function loadAppSettings(): Promise<AppSettings> {
+	if (!isTauriRuntime()) {
+		return {
+			maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES
+		};
+	}
+
+	return invokeCommand<AppSettings>('load_app_settings');
+}
+
+export async function saveAppSettings(settings: AppSettings): Promise<AppSettings> {
+	if (!isTauriRuntime()) {
+		return settings;
+	}
+
+	return invokeCommand<AppSettings>('save_app_settings', { settings });
 }
 
 export async function savePlaybackContext(

@@ -1,7 +1,8 @@
 use crate::models::{
-    CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
-    ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackContextRecord, PlaybackSessionRecord,
-    ReaderContentRecord, StationRecord, StationWithFeedsRecord, UpdateStationInput,
+    AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
+    ItemPageQueryRecord, ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackContextRecord,
+    PlaybackSessionRecord, ReaderContentRecord, StationRecord, StationWithFeedsRecord,
+    UpdateStationInput,
 };
 use chrono::Utc;
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
@@ -48,6 +49,8 @@ const PREVIEW_TEXT_BACKFILL_QUERY: &str =
             ELSE 'No summary or content available.'
         END
       WHERE preview_text IS NULL OR trim(preview_text) = ''";
+
+pub const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES: i64 = 5 * 1024 * 1024 * 1024;
 
 pub struct DatabaseState {
     db_path: PathBuf,
@@ -153,6 +156,12 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 	updated_at TEXT NOT NULL
 			 );
 
+			 CREATE TABLE IF NOT EXISTS app_settings (
+			 	id INTEGER PRIMARY KEY CHECK(id = 1),
+			 	max_audio_cache_size_bytes INTEGER NOT NULL,
+			 	updated_at TEXT NOT NULL
+			 );
+
 			 CREATE INDEX IF NOT EXISTS idx_items_feed_id_published_at_id
 			 	ON items(feed_id, published_at DESC, id DESC);
 			 CREATE INDEX IF NOT EXISTS idx_items_published_at_id
@@ -172,8 +181,30 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     backfill_preview_text(&connection)?;
     migrate_feed_kind_values(&connection)?;
     ensure_stations_tables(&connection)?;
+    ensure_app_settings_row(&connection)?;
 
     Ok(())
+}
+
+fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
+    connection
+        .execute(
+            "INSERT INTO app_settings (id, max_audio_cache_size_bytes, updated_at)
+             VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO NOTHING",
+            params![DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to ensure app settings row: {error}"))?;
+
+    Ok(())
+}
+
+fn normalize_max_audio_cache_size_bytes(value: i64) -> AppResult<i64> {
+    if value <= 0 {
+        return Err("Audio cache size must be greater than 0 bytes.".to_string());
+    }
+
+    Ok(value)
 }
 
 fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
@@ -1045,6 +1076,55 @@ pub fn load_playback_context(db_path: &Path) -> AppResult<Option<PlaybackContext
         }
         None => Ok(None),
     }
+}
+
+// ---------------------------------------------------------------------------
+// App settings
+// ---------------------------------------------------------------------------
+
+pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
+    let connection = open_connection(db_path)?;
+    ensure_app_settings_row(&connection)?;
+
+    let max_audio_cache_size_bytes = connection
+        .query_row(
+            "SELECT max_audio_cache_size_bytes FROM app_settings WHERE id = 1",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| format!("Failed to load app settings: {error}"))?;
+
+    Ok(AppSettingsRecord {
+        max_audio_cache_size_bytes: normalize_max_audio_cache_size_bytes(
+            max_audio_cache_size_bytes,
+        )?,
+    })
+}
+
+pub fn save_app_settings(
+    db_path: &Path,
+    settings: &AppSettingsRecord,
+) -> AppResult<AppSettingsRecord> {
+    let connection = open_connection(db_path)?;
+    ensure_app_settings_row(&connection)?;
+
+    let max_audio_cache_size_bytes =
+        normalize_max_audio_cache_size_bytes(settings.max_audio_cache_size_bytes)?;
+
+    connection
+        .execute(
+            "INSERT INTO app_settings (id, max_audio_cache_size_bytes, updated_at)
+             VALUES (1, ?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET
+                max_audio_cache_size_bytes = excluded.max_audio_cache_size_bytes,
+                updated_at = excluded.updated_at",
+            params![max_audio_cache_size_bytes, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to save app settings: {error}"))?;
+
+    Ok(AppSettingsRecord {
+        max_audio_cache_size_bytes,
+    })
 }
 
 // ---------------------------------------------------------------------------

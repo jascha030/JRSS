@@ -190,6 +190,8 @@ pub fn run() {
             commands::save_playback_session,
             commands::load_playback_session,
             commands::clear_playback_session,
+            commands::load_app_settings,
+            commands::save_app_settings,
             commands::set_feed_sort_order,
             commands::list_stations,
             commands::create_station,
