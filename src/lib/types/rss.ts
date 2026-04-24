@@ -4,6 +4,8 @@ export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
 export type ItemListSection = 'all' | 'unread' | 'media';
 export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
+export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+
 export interface Feed {
 	id: string;
 	title: string;
@@ -157,6 +159,10 @@ export interface PlaybackSession {
 	manualQueue: string[];
 	autoQueue: string[];
 	playbackContext?: PlaybackContext;
+}
+
+export interface AppSettings {
+	maxAudioCacheSizeBytes: number;
 }
 
 // ---------------------------------------------------------------------------

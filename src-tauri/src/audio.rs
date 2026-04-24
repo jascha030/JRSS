@@ -542,11 +542,17 @@ impl AudioThread {
                 let dl_path = cache_path.clone();
                 let dl_url = url.clone();
                 let dl_cache_dir = cache_dir.clone();
+                let dl_cache_limit_bytes = get_audio_cache_size_limit_bytes(&self.app);
                 std::thread::Builder::new()
                     .name("jrss-download".into())
                     .spawn(move || {
-                        if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta, &dl_cache_dir)
-                        {
+                        if let Err(e) = download_to_file(
+                            &dl_url,
+                            &dl_path,
+                            &dl_meta,
+                            &dl_cache_dir,
+                            dl_cache_limit_bytes,
+                        ) {
                             log::error!("Audio download failed: {}", e);
                             dl_meta.complete.store(true, Ordering::Release);
                         }
@@ -792,13 +798,16 @@ impl AudioThread {
         let dl_meta = Arc::clone(&meta);
         let dl_path = cache_path.clone();
         let dl_url = url.clone();
+        let cache_limit_bytes = get_audio_cache_size_limit_bytes(&self.app);
 
         let cache_dir_for_prefetch = cache_path.parent().map(|p| p.to_path_buf());
         let handle = std::thread::Builder::new()
             .name("jrss-prefetch".into())
             .spawn(move || {
                 let cache_dir = cache_dir_for_prefetch.as_deref().unwrap_or(Path::new(""));
-                if let Err(e) = download_to_file(&dl_url, &dl_path, &dl_meta, cache_dir) {
+                if let Err(e) =
+                    download_to_file(&dl_url, &dl_path, &dl_meta, cache_dir, cache_limit_bytes)
+                {
                     log::error!("Prefetch download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
                 }
@@ -1427,10 +1436,9 @@ fn download_to_file(
     path: &Path,
     meta: &DownloadMeta,
     cache_dir: &Path,
+    max_cache_size_bytes: u64,
 ) -> Result<(), String> {
-    // Enforce cache size limit before starting download
-    // We don't know the exact size yet, so we check/enforce based on current state
-    if let Err(e) = enforce_cache_size_limit(cache_dir, 0) {
+    if let Err(e) = enforce_cache_size_limit(cache_dir, path, 0, max_cache_size_bytes) {
         log::warn!("Failed to enforce cache size limit: {e}");
     }
 
@@ -1451,6 +1459,12 @@ fn download_to_file(
     if let Some(content_length) = response.content_length() {
         meta.total_size.store(content_length, Ordering::Release);
         log::debug!("Download content-length: {} bytes", content_length);
+
+        if let Err(e) =
+            enforce_cache_size_limit(cache_dir, path, content_length, max_cache_size_bytes)
+        {
+            log::warn!("Failed to enforce cache size limit with content length: {e}");
+        }
     }
 
     let file = std::fs::OpenOptions::new()
@@ -1566,9 +1580,6 @@ fn is_cache_complete(path: &Path) -> bool {
     is_complete
 }
 
-// Maximum cache size: 5 GB
-const MAX_CACHE_SIZE_BYTES: u64 = 5 * 1024 * 1024 * 1024;
-
 /// Represents a cached file with its metadata for LRU eviction
 struct CacheFile {
     path: PathBuf,
@@ -1578,9 +1589,15 @@ struct CacheFile {
 
 /// Enforce the cache size limit by removing least-recently-used files.
 /// Call this before downloading a new file to make room if needed.
-fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(), String> {
+fn enforce_cache_size_limit(
+    cache_dir: &Path,
+    current_download_path: &Path,
+    new_file_bytes: u64,
+    max_cache_size_bytes: u64,
+) -> Result<(), String> {
     let mut files: Vec<CacheFile> = Vec::new();
-    let mut total_size: u64 = 0;
+    let mut other_files_size: u64 = 0;
+    let mut current_download_size: u64 = 0;
 
     // Read directory and collect all cached audio files
     let entries = match std::fs::read_dir(cache_dir) {
@@ -1614,7 +1631,12 @@ fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(),
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
         });
 
-        total_size = total_size.saturating_add(size);
+        if path == current_download_path {
+            current_download_size = size;
+            continue;
+        }
+
+        other_files_size = other_files_size.saturating_add(size);
         files.push(CacheFile {
             path,
             size,
@@ -1622,14 +1644,27 @@ fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(),
         });
     }
 
-    // Calculate how much space we need
-    let projected_size = total_size.saturating_add(new_file_bytes);
+    let projected_download_size = if new_file_bytes > 0 {
+        new_file_bytes
+    } else {
+        current_download_size
+    };
 
-    if projected_size <= MAX_CACHE_SIZE_BYTES {
+    if projected_download_size > max_cache_size_bytes {
+        log::warn!(
+            "Audio file exceeds configured cache limit: file={} MB, limit={} MB",
+            projected_download_size / (1024 * 1024),
+            max_cache_size_bytes / (1024 * 1024)
+        );
+    }
+
+    let projected_size = other_files_size.saturating_add(projected_download_size);
+
+    if projected_size <= max_cache_size_bytes {
         log::debug!(
             "Cache size: {} MB / {} MB - no cleanup needed",
-            total_size / (1024 * 1024),
-            MAX_CACHE_SIZE_BYTES / (1024 * 1024)
+            projected_size / (1024 * 1024),
+            max_cache_size_bytes / (1024 * 1024)
         );
         return Ok(());
     }
@@ -1639,10 +1674,10 @@ fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(),
 
     let mut freed: u64 = 0;
     let mut removed_count: usize = 0;
-    let target_size = MAX_CACHE_SIZE_BYTES.saturating_sub(new_file_bytes);
+    let target_size = max_cache_size_bytes.saturating_sub(projected_download_size);
 
     for file in files {
-        if total_size.saturating_sub(freed) <= target_size {
+        if other_files_size.saturating_sub(freed) <= target_size {
             break;
         }
 
@@ -1675,4 +1710,28 @@ fn enforce_cache_size_limit(cache_dir: &Path, new_file_bytes: u64) -> Result<(),
     );
 
     Ok(())
+}
+
+fn get_audio_cache_size_limit_bytes(app: &AppHandle) -> u64 {
+    let db_state = app.state::<db::DatabaseState>();
+    let db_path = db_state.db_path();
+
+    match db::load_app_settings(&db_path) {
+        Ok(settings) => match u64::try_from(settings.max_audio_cache_size_bytes) {
+            Ok(max_audio_cache_size_bytes) if max_audio_cache_size_bytes > 0 => {
+                max_audio_cache_size_bytes
+            }
+            Ok(_) | Err(_) => {
+                log::warn!(
+                    "Invalid audio cache size setting, falling back to default {} MB",
+                    (db::DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES as u64) / (1024 * 1024)
+                );
+                db::DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES as u64
+            }
+        },
+        Err(error) => {
+            log::warn!("Failed to load audio cache size setting, falling back to default: {error}");
+            db::DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES as u64
+        }
+    }
 }

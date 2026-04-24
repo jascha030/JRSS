@@ -3,8 +3,9 @@ use crate::cover_art;
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
-    CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord, ItemPageQueryRecord,
-    ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord, UpdateStationInput,
+    AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
+    ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord,
+    UpdateStationInput,
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
@@ -222,6 +223,29 @@ pub async fn clear_playback_session(state: State<'_, DatabaseState>) -> Result<(
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || db::clear_playback_session(&db_path))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn load_app_settings(
+    state: State<'_, DatabaseState>,
+) -> Result<AppSettingsRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::load_app_settings(&db_path))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn save_app_settings(
+    settings: AppSettingsRecord,
+    state: State<'_, DatabaseState>,
+) -> Result<AppSettingsRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::save_app_settings(&db_path, &settings))
         .await
         .map_err(|error| format!("Native task failed: {error}"))?
 }

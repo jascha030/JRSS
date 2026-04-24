@@ -238,3 +238,9 @@ pub struct PlaybackSessionRecord {
     pub auto_queue: Vec<String>,
     pub playback_context: Option<PlaybackContextRecord>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettingsRecord {
+    pub max_audio_cache_size_bytes: i64,
+}
