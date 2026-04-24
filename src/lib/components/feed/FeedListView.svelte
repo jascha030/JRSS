@@ -277,7 +277,7 @@
 <svelte:window bind:innerWidth={windowWidth} />
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
-	<div class="shrink-0 border-b border-border px-6 py-8 lg:px-8">
+	<div class="shrink-0 border-b border-border px-6 py-8 pb-7.75 lg:px-8">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
 				<h2

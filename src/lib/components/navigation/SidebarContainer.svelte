@@ -17,6 +17,7 @@
 		onSelectStation: (stationId: string) => void;
 		onToggleCollapse: () => void;
 		onCreateStation: () => void;
+		onAddFeed: () => void;
 		refreshingFeedIds: string[];
 		isCollapsed: boolean;
 	};
@@ -32,6 +33,7 @@
 		onSelectStation,
 		onToggleCollapse,
 		onCreateStation,
+		onAddFeed,
 		refreshingFeedIds,
 		isCollapsed
 	}: Props = $props();
@@ -64,21 +66,21 @@
 
 <div class="absolute inset-y-0 left-0 z-20 hidden md:block">
 	<aside
-		class="relative hidden h-full w-72 shrink-0 overflow-hidden border-r border-border bg-surface md:block"
+		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface md:block"
 	>
 		<!-- single scroll container for both rail and panel -->
 		<div class="flex h-full overflow-y-auto">
 			<!-- rail -->
-			<div class="flex w-24 shrink-0 flex-col bg-surface">
+			<div class="flex w-16 shrink-0 flex-col bg-surface">
 				<div
-					class="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-center border-r border-b border-border bg-surface"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface"
 				>
 					<button
 						type="button"
 						onclick={onToggleCollapse}
 						title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-						class="flex size-12 items-center justify-center rounded-2xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
+						class="flex size-9 items-center justify-center rounded-xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -103,7 +105,7 @@
 					</div>
 
 					<div class="mt-6 border-t border-border px-2 pt-4">
-						<div class="mt-6.5 space-y-2">
+						<div class="mt-9 space-y-2">
 							{@render sidebarFeedButtons()}
 						</div>
 					</div>
@@ -120,14 +122,14 @@
 
 			<!-- sliding panel -->
 			<div
-				class={`w-48 flex-1 shrink-0 transform-gpu bg-surface transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+				class={`w-44 flex-1 shrink-0 transform-gpu bg-surface transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 					isCollapsed
 						? 'pointer-events-none -translate-x-full opacity-0'
 						: 'translate-x-0 opacity-100'
 				}`}
 			>
 				<div
-					class="sticky top-0 z-10 flex h-20 shrink-0 items-center border-b border-border bg-surface px-4"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b border-border bg-surface px-3"
 				>
 					<div class="min-w-0">
 						<h1 class="truncate text-base font-semibold text-fg">Library</h1>
@@ -144,9 +146,20 @@
 					</div>
 
 					<div class="mt-6 border-t border-border px-2 pt-4">
-						<h2 class="mb-3 px-3 text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-							My feeds
-						</h2>
+						<div class="mb-3 flex items-center justify-between px-3">
+							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
+								My feeds
+							</h2>
+							<button
+								type="button"
+								title="Add feed"
+								aria-label="Add new feed"
+								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+								onclick={onAddFeed}
+							>
+								<Icon icon="lucide:plus" class="size-3.5" />
+							</button>
+						</div>
 
 						<div class="space-y-1">
 							{#if feeds.length === 0}
@@ -157,7 +170,7 @@
 						</div>
 					</div>
 
-					<div class="mt-5.75 border-t border-border px-2 pt-4">
+					<div class="mt-6 border-t border-border px-2 pt-4">
 						<div class="mb-3 flex items-center justify-between px-3">
 							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
 								Stations
@@ -210,13 +223,13 @@
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
 			title={section.label}
-			class={`mx-auto flex h-12 w-14 items-center justify-center rounded-2xl transition-colors ${
+			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
 				isActive
 					? 'bg-surface-active text-fg'
 					: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 			}`}
 		>
-			<Icon icon={section.icon} class="size-5" />
+			<Icon icon={section.icon} class="size-4" />
 		</button>
 	{/each}
 {/snippet}
@@ -228,7 +241,7 @@
 			onclick={() => onSelectFeed(feed.id)}
 			oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 			title={feed.title}
-			class={`mx-auto flex size-12 items-center justify-center overflow-hidden rounded-2xl text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
+			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 				selectedFeedId === feed.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : ''
 			}`}
 		>
@@ -255,7 +268,7 @@
 			type="button"
 			onclick={() => onSelectStation(station.id)}
 			title={station.name}
-			class={`mx-auto flex size-12 items-center justify-center overflow-hidden rounded-2xl text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
+			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 				selectedStationId === station.id
 					? 'ring-2 ring-accent ring-offset-2 ring-offset-surface'
 					: ''
@@ -300,7 +313,7 @@
 		<button
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
-			class={`flex h-12 w-full items-center rounded-2xl px-3 text-sm font-medium transition-colors ${
+			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
 				isActive
 					? 'bg-surface-active text-fg'
 					: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
@@ -319,7 +332,7 @@
 				type="button"
 				onclick={() => onSelectFeed(feed.id)}
 				oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
-				class={`flex h-12 min-w-0 flex-1 items-center rounded-2xl px-3 py-2.5 text-left transition-colors ${
+				class={`flex h-10 min-w-0 flex-1 items-center rounded-xl px-3 py-2 text-left transition-colors ${
 					selectedFeedId === feed.id
 						? 'bg-surface-active text-fg'
 						: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
@@ -369,7 +382,7 @@
 		<button
 			type="button"
 			onclick={() => onSelectStation(station.id)}
-			class={`flex h-12 w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+			class={`flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
 				selectedStationId === station.id
 					? 'bg-surface-active text-fg'
 					: 'text-fg-muted hover:bg-surface-hover hover:text-fg'

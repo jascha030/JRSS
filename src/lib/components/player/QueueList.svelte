@@ -105,7 +105,7 @@
 		<p class={classes.emptyText}>Press play on an episode to auto-populate</p>
 	</div>
 {:else}
-	<ul class="py-2 px-0">
+	<ul class="px-0 py-2">
 		{#each queueItems as item, index (item.id)}
 			{#if index === manualQueueLength && hasAutoItems}
 				<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
