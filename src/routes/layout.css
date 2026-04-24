@@ -8,11 +8,126 @@
    Design tokens — single source of truth
 
    JRSS Theme with custom success/warning/error scales.
+   Typography extended for macOS-style UI.
    ────────────────────────────────────────────── */
 
 @theme {
 	--breakpoint-3xl: 120rem;
 	--breakpoint-4xl: 144rem;
+
+	/* ── Typography tokens ─────────────────────── */
+
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI',
+		system-ui, sans-serif;
+
+	--font-serif: ui-serif, 'New York', 'Times New Roman', serif;
+
+	--font-mono:
+		ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+		'Courier New', monospace;
+
+	--font-weight-normal: 400;
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+
+	/* Tailwind text scale overrides */
+	--text-xs: 0.6875rem; /* 11px */
+	--text-xs--line-height: 1rem; /* 16px */
+	--text-xs--font-weight: 400;
+
+	--text-sm: 0.75rem; /* 12px */
+	--text-sm--line-height: 1rem; /* 16px */
+	--text-sm--font-weight: 400;
+
+	--text-base: 0.875rem; /* 14px */
+	--text-base--line-height: 1.25rem; /* 20px */
+	--text-base--font-weight: 400;
+
+	--text-md: 0.9375rem; /* 15px */
+	--text-md--line-height: 1.375rem; /* 22px */
+	--text-md--font-weight: 400;
+
+	--text-lg: 1.25rem; /* 20px */
+	--text-lg--line-height: 1.75rem; /* 28px */
+	--text-lg--font-weight: 600;
+	--text-lg--letter-spacing: -0.01em;
+
+	--text-xl: 1.5rem; /* 24px */
+	--text-xl--line-height: 2rem; /* 32px */
+	--text-xl--font-weight: 600;
+	--text-xl--letter-spacing: -0.015em;
+
+	--text-2xl: 1.75rem; /* 28px */
+	--text-2xl--line-height: 2.25rem; /* 36px */
+	--text-2xl--font-weight: 700;
+	--text-2xl--letter-spacing: -0.02em;
+
+	--text-3xl: 2.125rem; /* 34px */
+	--text-3xl--line-height: 2.625rem; /* 42px */
+	--text-3xl--font-weight: 700;
+	--text-3xl--letter-spacing: -0.025em;
+
+	--text-4xl: 2.5rem; /* 40px */
+	--text-4xl--line-height: 3rem; /* 48px */
+	--text-4xl--font-weight: 700;
+	--text-4xl--letter-spacing: -0.03em;
+
+	--text-5xl: 3rem; /* 48px */
+	--text-5xl--line-height: 3.5rem; /* 56px */
+	--text-5xl--font-weight: 700;
+	--text-5xl--letter-spacing: -0.035em;
+
+	/* Semantic UI/content text tokens */
+	--text-caption-2: 0.6875rem; /* 11px */
+	--text-caption-2--line-height: 1rem; /* 16px */
+	--text-caption-2--font-weight: 400;
+
+	--text-caption-1: 0.75rem; /* 12px */
+	--text-caption-1--line-height: 1rem; /* 16px */
+	--text-caption-1--font-weight: 400;
+
+	--text-footnote: 0.8125rem; /* 13px */
+	--text-footnote--line-height: 1.125rem; /* 18px */
+	--text-footnote--font-weight: 400;
+
+	--text-subheadline: 0.875rem; /* 14px */
+	--text-subheadline--line-height: 1.25rem; /* 20px */
+	--text-subheadline--font-weight: 400;
+
+	--text-body: 0.875rem; /* 14px */
+	--text-body--line-height: 1.25rem; /* 20px */
+	--text-body--font-weight: 400;
+
+	--text-callout: 0.9375rem; /* 15px */
+	--text-callout--line-height: 1.375rem; /* 22px */
+	--text-callout--font-weight: 400;
+
+	--text-headline: 0.9375rem; /* 15px */
+	--text-headline--line-height: 1.375rem; /* 22px */
+	--text-headline--font-weight: 600;
+
+	--text-title-3: 1.25rem; /* 20px */
+	--text-title-3--line-height: 1.75rem; /* 28px */
+	--text-title-3--font-weight: 600;
+	--text-title-3--letter-spacing: -0.01em;
+
+	--text-title-2: 1.5rem; /* 24px */
+	--text-title-2--line-height: 2rem; /* 32px */
+	--text-title-2--font-weight: 600;
+	--text-title-2--letter-spacing: -0.015em;
+
+	--text-title-1: 1.75rem; /* 28px */
+	--text-title-1--line-height: 2.25rem; /* 36px */
+	--text-title-1--font-weight: 700;
+	--text-title-1--letter-spacing: -0.02em;
+
+	--text-large-title: 2.125rem; /* 34px */
+	--text-large-title--line-height: 2.625rem; /* 42px */
+	--text-large-title--font-weight: 700;
+	--text-large-title--letter-spacing: -0.025em;
 
 	/* ── Success scale (green) ─────────────────── */
 	--color-success-50: oklch(96.02% 0.06 123.44deg);
@@ -174,6 +289,216 @@
 	}
 }
 
+:root {
+	color-scheme: light dark;
+	font-family: var(--font-sans);
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+		font-optical-sizing: auto;
+	}
+
+	body {
+		margin: 0;
+		min-height: 100vh;
+		background: var(--color-surface);
+		color: var(--color-fg);
+		font-family: var(--font-sans);
+		font-size: var(--text-body);
+		line-height: var(--text-body--line-height);
+		font-weight: var(--text-body--font-weight);
+	}
+
+	h1 {
+		font-size: var(--text-large-title);
+		line-height: var(--text-large-title--line-height);
+		font-weight: var(--text-large-title--font-weight);
+		letter-spacing: var(--text-large-title--letter-spacing);
+		color: var(--color-article-heading);
+	}
+
+	h2 {
+		font-size: var(--text-title-1);
+		line-height: var(--text-title-1--line-height);
+		font-weight: var(--text-title-1--font-weight);
+		letter-spacing: var(--text-title-1--letter-spacing);
+		color: var(--color-article-heading);
+	}
+
+	h3 {
+		font-size: var(--text-title-2);
+		line-height: var(--text-title-2--line-height);
+		font-weight: var(--text-title-2--font-weight);
+		letter-spacing: var(--text-title-2--letter-spacing);
+		color: var(--color-article-heading);
+	}
+
+	h4 {
+		font-size: var(--text-title-3);
+		line-height: var(--text-title-3--line-height);
+		font-weight: var(--text-title-3--font-weight);
+		letter-spacing: var(--text-title-3--letter-spacing);
+		color: var(--color-article-heading);
+	}
+
+	h5 {
+		font-size: var(--text-headline);
+		line-height: var(--text-headline--line-height);
+		font-weight: var(--text-headline--font-weight);
+		color: var(--color-article-heading);
+	}
+
+	h6 {
+		font-size: var(--text-subheadline);
+		line-height: var(--text-subheadline--line-height);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-fg-secondary);
+	}
+
+	p {
+		font-size: var(--text-body);
+		line-height: var(--text-body--line-height);
+		font-weight: var(--text-body--font-weight);
+		color: var(--color-article-body);
+	}
+
+	small {
+		font-size: var(--text-caption-1);
+		line-height: var(--text-caption-1--line-height);
+		font-weight: var(--text-caption-1--font-weight);
+		color: var(--color-article-caption);
+	}
+
+	label {
+		font-size: var(--text-footnote);
+		line-height: var(--text-footnote--line-height);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-fg-secondary);
+	}
+
+	strong,
+	b {
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-article-heading);
+	}
+
+	em,
+	i {
+		font-style: italic;
+	}
+
+	a {
+		color: var(--color-article-link);
+		text-decoration: none;
+	}
+
+	a:hover {
+		text-decoration: underline;
+	}
+
+	ul,
+	ol {
+		padding-left: 1.25rem;
+	}
+
+	ul {
+		list-style-type: disc;
+	}
+
+	ol {
+		list-style-type: decimal;
+	}
+
+	li {
+		font-size: var(--text-body);
+		line-height: var(--text-body--line-height);
+		color: var(--color-article-body);
+	}
+
+	blockquote {
+		font-size: var(--text-callout);
+		line-height: var(--text-callout--line-height);
+		font-weight: var(--text-callout--font-weight);
+		color: var(--color-article-blockquote-text);
+		border-left: 3px solid var(--color-article-blockquote-border);
+		padding-left: 1rem;
+		margin-left: 0;
+	}
+
+	figcaption {
+		font-size: var(--text-caption-1);
+		line-height: var(--text-caption-1--line-height);
+		font-weight: var(--text-caption-1--font-weight);
+		color: var(--color-article-caption);
+	}
+
+	code,
+	kbd,
+	samp,
+	pre {
+		font-family: var(--font-mono);
+		font-size: 0.875em;
+	}
+
+	code,
+	kbd {
+		background: var(--color-article-code-bg);
+		padding: 0.125rem 0.375rem;
+		border-radius: 0.375rem;
+	}
+
+	pre {
+		background: var(--color-article-code-bg);
+		padding: 1rem;
+		border-radius: 0.75rem;
+		overflow-x: auto;
+	}
+
+	pre code {
+		background: transparent;
+		padding: 0;
+		border-radius: 0;
+	}
+
+	hr {
+		border: 0;
+		border-top: 1px solid var(--color-border);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: var(--text-footnote);
+		line-height: var(--text-footnote--line-height);
+	}
+
+	th {
+		text-align: left;
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-article-heading);
+		padding: 0.625rem 0.75rem;
+		border-bottom: 1px solid var(--color-article-table-border);
+	}
+
+	td {
+		padding: 0.625rem 0.75rem;
+		color: var(--color-article-body);
+		border-bottom: 1px solid var(--color-article-table-border);
+	}
+
+	button,
+	input,
+	textarea,
+	select {
+		font: inherit;
+	}
+}
+
 /* ── Button component classes ──────────────────
    Base shape: rounded-xl, px-4 py-3, text-sm font-medium
    Variants: primary (accent), secondary (outlined), danger, success, warning
@@ -264,27 +589,6 @@
 /* Small round button size (32px) */
 .btn-round.btn-sm {
 	@apply size-8;
-}
-
-:root {
-	color-scheme: light dark;
-	font-family:
-		'Inter',
-		'SF Pro Text',
-		'Segoe UI',
-		system-ui,
-		-apple-system,
-		BlinkMacSystemFont,
-		sans-serif;
-}
-
-body {
-	margin: 0;
-	min-height: 100vh;
-	background: var(--color-surface);
-	color: var(--color-fg);
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
 }
 
 @layer components {
