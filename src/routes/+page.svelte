@@ -350,17 +350,13 @@
 			/>
 
 			<div
-				class={`relative z-30 h-full transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none md:absolute md:inset-y-0 md:left-0 ${
+				class={`relative z-30 h-full transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:absolute md:inset-y-0 ${
 					isSidebarCollapsed
-						? 'md:w-[calc(100%+6rem)] md:translate-x-24'
-						: 'md:w-[calc(100%+18rem)] md:translate-x-72'
+						? 'md:left-24 md:w-[calc(100%_-_6rem)]'
+						: 'md:left-72 md:w-[calc(100%_-_18rem)]'
 				}`}
 			>
-				<div
-					class={`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden ${
-						isSidebarCollapsed ? 'md:w-[calc(100%-12rem)]' : 'md:w-[calc(100%-36rem)]'
-					}`}
-				>
+				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
 					<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
 						<!-- <div class=""> -->
 						<AppBar

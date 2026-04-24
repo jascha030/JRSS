@@ -49,7 +49,7 @@
 					'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white/60 tabular-nums',
 				title: 'truncate text-sm font-medium text-white',
 				feedTitle: 'mt-0.5 truncate text-xs text-white/60',
-				duration: 'mt-0.5 text-xs text-white/40 tabular-nums',
+				duration: 'mt-0.5 text-base text-white/40 tabular-nums',
 				emptyIcon: 'mb-3 size-10 text-white/40',
 				emptyTitle: 'text-sm font-medium text-white/60',
 				emptyText: 'mt-1 text-xs text-white/40',
@@ -66,15 +66,15 @@
 			itemHover: 'hover:bg-surface-hover',
 			index:
 				'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums',
-			title: 'truncate text-sm font-medium text-fg',
+			title: 'truncate text-base font-medium text-fg',
 			feedTitle: 'mt-0.5 truncate text-xs text-fg-muted',
 			duration: 'mt-0.5 text-xs text-fg-subtle tabular-nums',
 			emptyIcon: 'mb-3 size-10 text-fg-subtle',
 			emptyTitle: 'text-sm font-medium text-fg-muted',
 			emptyText: 'mt-1 text-xs text-fg-subtle',
 			actionStack:
-				'mt-0.5 flex shrink-0 flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100',
-			actionButton: 'preset-icon-subtle btn-icon rounded-lg'
+				'mt-0.5 flex shrink-0 flex-col items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100',
+			actionButton: 'preset-icon-subtle p-1 btn-icon rounded-lg'
 		};
 	});
 
@@ -105,7 +105,7 @@
 		<p class={classes.emptyText}>Press play on an episode to auto-populate</p>
 	</div>
 {:else}
-	<ul class="py-2">
+	<ul class="py-2 px-0">
 		{#each queueItems as item, index (item.id)}
 			{#if index === manualQueueLength && hasAutoItems}
 				<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
