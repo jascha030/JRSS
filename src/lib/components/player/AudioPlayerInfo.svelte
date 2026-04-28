@@ -290,7 +290,7 @@
 		{/if}
 
 		<div class="min-w-0 flex-1">
-			<p class="text-[0.65rem] font-semibold tracking-[0.18em] text-fg-muted uppercase">
+			<p class="text-[0.65rem] font-semibold tracking-widest text-fg-muted uppercase">
 				Now playing
 			</p>
 
