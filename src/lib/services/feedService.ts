@@ -341,6 +341,10 @@ export async function audioQueueClear(): Promise<void> {
 	await invokeCommand('audio_queue_clear');
 }
 
+export async function audioQueueClearHistory(): Promise<void> {
+	await invokeCommand('audio_queue_clear_history');
+}
+
 export async function audioQueueGetState(): Promise<BackendQueueState> {
 	return invokeCommand<BackendQueueState>('audio_queue_get_state');
 }

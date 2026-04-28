@@ -34,6 +34,7 @@
 		getIsActiveInitialLoading,
 		getManualQueueLength,
 		getPlaybackContext,
+		getPlaybackHistory,
 		getReaderRequestItemId,
 		getReaderRequestSeq,
 		getSelectedFeed,
@@ -105,6 +106,7 @@
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 	const itemSortOrder = $derived(getEffectiveSortOrder());
+	const playbackHistory = $derived(getPlaybackHistory());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const manualQueueLength = $derived(getManualQueueLength());
@@ -312,6 +314,7 @@
 			playbackState={currentPlaybackState}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
+			historyItems={playbackHistory}
 			queueItems={upcomingQueue}
 			{manualQueueLength}
 			{feeds}
@@ -323,6 +326,7 @@
 	{:else}
 		<QueueDrawer
 			open={isQueueDrawerOpen}
+			historyItems={playbackHistory}
 			queueItems={upcomingQueue}
 			{manualQueueLength}
 			{feeds}

@@ -234,6 +234,7 @@ pub struct PlaybackSessionRecord {
     pub current_item_id: Option<String>,
     pub position_seconds: i64,
     pub duration_seconds: i64,
+    pub history_queue: Vec<String>,
     pub manual_queue: Vec<String>,
     pub auto_queue: Vec<String>,
     pub playback_context: Option<PlaybackContextRecord>,

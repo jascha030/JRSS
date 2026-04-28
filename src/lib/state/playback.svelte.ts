@@ -11,6 +11,7 @@ import {
 	audioGetState,
 	audioPlayWithQueue,
 	audioQueueClear,
+	audioQueueClearHistory,
 	audioQueueEnqueue,
 	audioQueueGetState,
 	audioQueueMoveDown,
@@ -87,6 +88,7 @@ const FALLBACK_COVER_THEME: CoverTheme = {
 export const playbackState = $state({
 	currentPlaybackState: null as PlaybackState | null,
 	isAudioLoading: false,
+	playbackHistory: [] as string[],
 	manualQueue: [] as string[],
 	autoQueue: [] as string[],
 	playbackContext: null as { contextType: 'feed' | 'station'; id: string } | null,
@@ -105,6 +107,7 @@ export const playbackState = $state({
 export function resetPlaybackState(): void {
 	playbackState.currentPlaybackState = null;
 	playbackState.isAudioLoading = false;
+	playbackState.playbackHistory = [];
 	playbackState.manualQueue = [];
 	playbackState.autoQueue = [];
 	playbackState.playbackContext = null;
@@ -305,6 +308,7 @@ export async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenQueueChanged = await listen<BackendQueueState>('queue-changed', (event) => {
 		const itemIds = [
+			...event.payload.history.map((item) => item.itemId),
 			...(event.payload.current ? [event.payload.current.itemId] : []),
 			...event.payload.manual.map((item) => item.itemId),
 			...event.payload.auto.map((item) => item.itemId)
@@ -408,6 +412,7 @@ async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
 }
 
 function applyBackendQueueState(queueState: BackendQueueState): void {
+	playbackState.playbackHistory = queueState.history.map((item) => item.itemId);
 	playbackState.manualQueue = queueState.manual.map((item) => item.itemId);
 	playbackState.autoQueue = queueState.auto.map((item) => item.itemId);
 
@@ -502,6 +507,7 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 	]);
 
 	const itemIds = [
+		...backendQueueState.history.map((item) => item.itemId),
 		...(backendQueueState.current ? [backendQueueState.current.itemId] : []),
 		...backendQueueState.manual.map((item) => item.itemId),
 		...backendQueueState.auto.map((item) => item.itemId),
@@ -637,7 +643,7 @@ export function stopPlayback(): Promise<void> {
 
 export function requestTogglePlayback(): void {
 	const currentPlaybackState = playbackState.currentPlaybackState;
-    console.log(playbackState);
+	console.log(playbackState);
 	if (!currentPlaybackState) {
 		return;
 	}
@@ -705,6 +711,19 @@ export function getUpcomingQueue(): MediaListItem[] {
 	return items;
 }
 
+export function getPlaybackHistory(): MediaListItem[] {
+	const items: MediaListItem[] = [];
+
+	for (const itemId of playbackState.playbackHistory) {
+		const item = resolveAudioItem(itemId);
+		if (item) {
+			items.push(item);
+		}
+	}
+
+	return items;
+}
+
 export function setPlaybackQueue(items: FeedListItem[]): void {
 	const seen = new Set<string>();
 	const queueItems: { itemId: string; url: string; title: string; durationSeconds: number }[] = [];
@@ -759,6 +778,10 @@ export function removeQueuedItem(itemId: string): void {
 
 export function clearQueue(): void {
 	void audioQueueClear().catch(console.error);
+}
+
+export function clearPlaybackHistory(): void {
+	void audioQueueClearHistory().catch(console.error);
 }
 
 export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {

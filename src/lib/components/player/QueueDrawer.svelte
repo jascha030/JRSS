@@ -5,6 +5,7 @@
 
 	type Props = {
 		open: boolean;
+		historyItems: MediaListItem[];
 		queueItems: MediaListItem[];
 		manualQueueLength: number;
 		feeds: Feed[];
@@ -12,11 +13,13 @@
 		onMoveItemUp: (itemId: string) => void;
 		onMoveItemDown: (itemId: string) => void;
 		onClearQueue: () => void;
+		onClearHistory?: () => void;
 		onClose: () => void;
 	};
 
 	let {
 		open,
+		historyItems,
 		queueItems,
 		manualQueueLength,
 		feeds,
@@ -51,8 +54,8 @@
 		<div class="min-w-0">
 			<h2 id="queue-title" class="text-sm font-semibold text-fg">Playing next</h2>
 			<p class="text-xs text-fg-muted">
-				{queueItems.length}
-				{queueItems.length === 1 ? 'episode' : 'episodes'}
+				{historyItems.length + queueItems.length}
+				{historyItems.length + queueItems.length === 1 ? 'episode' : 'episodes'}
 			</p>
 		</div>
 
@@ -69,6 +72,7 @@
 
 	<div class="flex-1 overflow-y-auto">
 		<QueueList
+			{historyItems}
 			{queueItems}
 			{manualQueueLength}
 			{feeds}

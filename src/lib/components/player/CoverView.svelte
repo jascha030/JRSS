@@ -20,6 +20,7 @@
 		onClose?: () => void;
 		controls?: Snippet;
 		class?: string;
+		historyItems?: MediaListItem[];
 		queueItems?: MediaListItem[];
 		manualQueueLength?: number;
 		feeds?: Feed[];
@@ -40,6 +41,7 @@
 		onClose,
 		controls,
 		class: className = '',
+		historyItems = [],
 		queueItems = [],
 		manualQueueLength = 0,
 		feeds = [],
@@ -242,12 +244,12 @@
 			</div>
 
 			<div class="cover-view-side-panel flex h-full min-h-100 min-w-0 flex-col rounded-2xl">
-				<div class="flex h-16 shrink-0 items-center justify-between border-b px-4">
+				<div class="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
 					<div>
 						<h2 class="text-sm font-semibold text-white">Playing next</h2>
 						<p class="text-xs text-white/60">
-							{queueItems.length}
-							{queueItems.length === 1 ? 'episode' : 'episodes'}
+							{historyItems.length + queueItems.length}
+							{historyItems.length + queueItems.length === 1 ? 'episode' : 'episodes'}
 						</p>
 					</div>
 
@@ -264,6 +266,7 @@
 
 				<div class="flex-1 overflow-y-auto">
 					<QueueList
+						{historyItems}
 						{queueItems}
 						{manualQueueLength}
 						{feeds}

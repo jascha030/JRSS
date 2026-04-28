@@ -224,6 +224,7 @@ enum AudioCommand {
         item_id: String,
     },
     QueueClear,
+    QueueClearHistory,
     QueueGetState {
         reply: mpsc::Sender<QueueState>,
     },
@@ -391,6 +392,10 @@ pub fn queue_move_down(app: &AppHandle, item_id: String) -> Result<(), String> {
 
 pub fn queue_clear(app: &AppHandle) -> Result<(), String> {
     app.state::<AudioState>().send(AudioCommand::QueueClear)
+}
+
+pub fn queue_clear_history(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueueClearHistory)
 }
 
 pub fn get_queue_state(app: &AppHandle) -> QueueState {
@@ -718,11 +723,12 @@ impl AudioThread {
             return;
         }
 
-        let (manual_queue, auto_queue) = self.queue.to_session_parts();
+        let (history_queue, manual_queue, auto_queue) = self.queue.to_session_parts();
         let session = PlaybackSessionRecord {
             current_item_id: self.queue.current_item().map(|item| item.item_id.clone()),
             position_seconds: self.stored_position_seconds.floor() as i64,
             duration_seconds: self.duration_seconds.floor() as i64,
+            history_queue,
             manual_queue,
             auto_queue,
             playback_context: None, // Frontend-managed, not stored in backend session
@@ -1097,6 +1103,11 @@ fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
+                AudioCommand::QueueClearHistory => {
+                    state.queue.clear_history();
+                    state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
                 AudioCommand::QueueGetState { reply } => {
                     let _ = reply.send(state.queue.clone());
                 }
@@ -1349,6 +1360,11 @@ fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
         return;
     };
 
+    let history = session
+        .history_queue
+        .into_iter()
+        .filter_map(|item_id| load_queued_item(&db_path, item_id))
+        .collect::<Vec<_>>();
     let current = session
         .current_item_id
         .and_then(|item_id| load_queued_item(&db_path, item_id));
@@ -1363,7 +1379,7 @@ fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
         .filter_map(|item_id| load_queued_item(&db_path, item_id))
         .collect::<Vec<_>>();
 
-    state.queue.replace(current.clone(), manual, auto);
+    state.queue.replace_with_history(history, current.clone(), manual, auto);
     state.current_item_id = current.as_ref().map(|item| item.item_id.clone());
     state.stored_position_seconds = session.position_seconds.max(0) as f64;
     state.duration_seconds = if session.duration_seconds > 0 {

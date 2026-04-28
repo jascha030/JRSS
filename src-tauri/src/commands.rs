@@ -439,6 +439,11 @@ pub fn audio_queue_clear(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn audio_queue_clear_history(app: tauri::AppHandle) -> Result<(), String> {
+    audio::queue_clear_history(&app)
+}
+
+#[tauri::command]
 pub fn audio_queue_get_state(app: tauri::AppHandle) -> QueueState {
     audio::get_queue_state(&app)
 }

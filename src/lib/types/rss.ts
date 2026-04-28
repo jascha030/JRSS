@@ -156,6 +156,7 @@ export interface PlaybackSession {
 	currentItemId?: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	historyQueue: string[];
 	manualQueue: string[];
 	autoQueue: string[];
 	playbackContext?: PlaybackContext;
@@ -191,6 +192,7 @@ export interface BackendQueuedItem {
 }
 
 export interface BackendQueueState {
+	history: BackendQueuedItem[];
 	manual: BackendQueuedItem[];
 	auto: BackendQueuedItem[];
 	current: BackendQueuedItem | null;

@@ -217,6 +217,7 @@ pub fn run() {
             commands::audio_queue_move_up,
             commands::audio_queue_move_down,
             commands::audio_queue_clear,
+            commands::audio_queue_clear_history,
             commands::audio_queue_get_state,
             commands::audio_queue_set,
             commands::save_playback_context,

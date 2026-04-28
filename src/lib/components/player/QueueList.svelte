@@ -6,6 +6,7 @@
 	type QueueListAppearance = 'default' | 'inverse';
 
 	type Props = {
+		historyItems?: MediaListItem[];
 		queueItems: MediaListItem[];
 		manualQueueLength?: number;
 		feeds?: Feed[];
@@ -18,6 +19,7 @@
 	};
 
 	let {
+		historyItems = [],
 		queueItems,
 		manualQueueLength = 0,
 		feeds = [],
@@ -30,6 +32,9 @@
 	}: Props = $props();
 
 	const hasAutoItems = $derived(queueItems.length > manualQueueLength);
+	const hasHistory = $derived(historyItems.length > 0);
+	const hasQueue = $derived(queueItems.length > 0);
+	const hasAnyItems = $derived(hasHistory || hasQueue);
 
 	let feedTitleById = $derived.by(() => {
 		const map: Record<string, string> = {};
@@ -45,6 +50,7 @@
 				divider: 'bg-white/20',
 				separatorLabel: 'text-[10px] font-medium tracking-widest text-white/50 uppercase',
 				itemHover: 'hover:bg-white/10',
+				historyItem: 'opacity-60',
 				index:
 					'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white/60 tabular-nums',
 				title: 'truncate text-sm font-medium text-white',
@@ -64,6 +70,7 @@
 			divider: 'bg-border',
 			separatorLabel: 'text-[10px] font-medium tracking-widest text-fg-subtle uppercase',
 			itemHover: 'hover:bg-surface-hover',
+			historyItem: 'opacity-60',
 			index:
 				'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-fg-subtle tabular-nums',
 			title: 'truncate text-base font-medium text-fg',
@@ -96,9 +103,13 @@
 
 		return formatDuration(duration);
 	}
+
+	function getQueueIndex(queueIndex: number): number {
+		return queueIndex + 1;
+	}
 </script>
 
-{#if queueItems.length === 0}
+{#if !hasAnyItems}
 	<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
 		<Icon icon="lucide:list-music" class={classes.emptyIcon} />
 		<p class={classes.emptyTitle}>Queue is empty</p>
@@ -106,6 +117,45 @@
 	</div>
 {:else}
 	<ul class="px-0 py-2">
+		<!-- History Items (scroll up to see) -->
+		{#if hasHistory}
+			{#each historyItems as item (item.id)}
+				<li
+					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
+				>
+					<span class={classes.index}>
+						<Icon icon="lucide:history" class="size-3" />
+					</span>
+
+					<div class="min-w-0 flex-1">
+						<p class={classes.title}>
+							{item.title}
+						</p>
+
+						{#if feedTitleForItem(item)}
+							<p class={classes.feedTitle}>
+								{feedTitleForItem(item)}
+							</p>
+						{/if}
+
+						{#if durationLabel(item)}
+							<p class={classes.duration}>
+								{durationLabel(item)}
+							</p>
+						{/if}
+					</div>
+				</li>
+			{/each}
+
+			<!-- Separator between history and queue -->
+			<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
+				<div class={`h-px flex-1 ${classes.divider}`}></div>
+				<span class={classes.separatorLabel}>Now Playing</span>
+				<div class={`h-px flex-1 ${classes.divider}`}></div>
+			</li>
+		{/if}
+
+		<!-- Queue Items -->
 		{#each queueItems as item, index (item.id)}
 			{#if index === manualQueueLength && hasAutoItems}
 				<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
@@ -119,7 +169,7 @@
 				class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
 			>
 				<span class={classes.index}>
-					{index + 1}
+					{getQueueIndex(index)}
 				</span>
 
 				<div class="min-w-0 flex-1">
