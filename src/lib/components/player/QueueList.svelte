@@ -9,7 +9,6 @@
 	type Props = {
 		historyItems?: MediaListItem[];
 		queueItems: MediaListItem[];
-		manualQueueLength?: number;
 		feeds?: Feed[];
 		appearance?: QueueListAppearance;
 		rowPaddingClass?: string;
@@ -22,7 +21,6 @@
 	let {
 		historyItems = [],
 		queueItems,
-		manualQueueLength = 0,
 		feeds = [],
 		appearance = 'default',
 		rowPaddingClass = 'px-5',
@@ -32,7 +30,6 @@
 		onMoveItemDown
 	}: Props = $props();
 
-	const hasAutoItems = $derived(queueItems.length > manualQueueLength);
 	const hasHistory = $derived(historyItems.length > 0);
 	const hasQueue = $derived(queueItems.length > 0);
 	const hasAnyItems = $derived(hasHistory || hasQueue);
@@ -128,7 +125,7 @@
 		{#if hasHistory}
 			{#each historyItems as item (item.id)}
 				<li
-				    oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+					oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
 				>
 					<span class={classes.index}>
@@ -170,6 +167,7 @@
 		<!-- Queue Items -->
 		{#each queueItems as item, index (item.id)}
 			<li
+				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 				class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
 			>
 				<span class={classes.index}>
