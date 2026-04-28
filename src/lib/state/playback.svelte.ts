@@ -643,7 +643,6 @@ export function stopPlayback(): Promise<void> {
 
 export function requestTogglePlayback(): void {
 	const currentPlaybackState = playbackState.currentPlaybackState;
-	console.log(playbackState);
 	if (!currentPlaybackState) {
 		return;
 	}

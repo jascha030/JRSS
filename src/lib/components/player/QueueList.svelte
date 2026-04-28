@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Feed, MediaListItem } from '$lib/types/rss';
 	import { formatDuration } from '$lib/utils/format';
+	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
 
 	type QueueListAppearance = 'default' | 'inverse';
@@ -107,6 +108,13 @@
 	function getQueueIndex(queueIndex: number): number {
 		return queueIndex + 1;
 	}
+
+	// Action to scroll element into view when mounted
+	function scrollIntoView(node: HTMLElement) {
+		queueMicrotask(() => {
+			node.scrollIntoView({ block: 'start', behavior: 'instant' });
+		});
+	}
 </script>
 
 {#if !hasAnyItems}
@@ -117,10 +125,10 @@
 	</div>
 {:else}
 	<ul class="px-0 py-2">
-		<!-- History Items (scroll up to see) -->
 		{#if hasHistory}
 			{#each historyItems as item (item.id)}
 				<li
+				    oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
 				>
 					<span class={classes.index}>
@@ -148,23 +156,19 @@
 			{/each}
 
 			<!-- Separator between history and queue -->
-			<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
+			<li
+				class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
+				aria-hidden="true"
+				use:scrollIntoView
+			>
 				<div class={`h-px flex-1 ${classes.divider}`}></div>
-				<span class={classes.separatorLabel}>Now Playing</span>
+				<span class={classes.separatorLabel}>Playing next</span>
 				<div class={`h-px flex-1 ${classes.divider}`}></div>
 			</li>
 		{/if}
 
 		<!-- Queue Items -->
 		{#each queueItems as item, index (item.id)}
-			{#if index === manualQueueLength && hasAutoItems}
-				<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
-					<div class={`h-px flex-1 ${classes.divider}`}></div>
-					<span class={classes.separatorLabel}>From this feed</span>
-					<div class={`h-px flex-1 ${classes.divider}`}></div>
-				</li>
-			{/if}
-
 			<li
 				class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
 			>
