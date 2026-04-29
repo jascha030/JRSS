@@ -1,0 +1,321 @@
+use super::AppResult;
+use super::connection::open_connection;
+use chrono::Utc;
+use rusqlite::{Connection, params};
+use std::path::Path;
+
+pub fn initialize_database(db_path: &Path) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+		.execute_batch(
+			"CREATE TABLE IF NOT EXISTS feeds (
+			 	id TEXT PRIMARY KEY,
+			 	url TEXT NOT NULL UNIQUE,
+			 	title TEXT NOT NULL,
+			 	description TEXT NOT NULL,
+			 	kind TEXT NOT NULL CHECK(kind IN ('article', 'media')),
+			 	site_url TEXT,
+			 	created_at TEXT NOT NULL,
+			 	last_fetched_at TEXT
+			 );
+
+			 CREATE TABLE IF NOT EXISTS items (
+			 	id TEXT PRIMARY KEY,
+			 	feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+			 	external_id TEXT NOT NULL,
+			 	title TEXT NOT NULL,
+			 	url TEXT NOT NULL,
+			 	summary TEXT NOT NULL,
+			 	preview_text TEXT NOT NULL DEFAULT '',
+			 	summary_text TEXT,
+			 	summary_html TEXT,
+			 	content_text TEXT,
+			 	content_html TEXT,
+			 	reader_status TEXT NOT NULL DEFAULT 'unfetched' CHECK(reader_status IN ('unfetched', 'ready', 'failed')),
+			 	reader_title TEXT,
+			 	reader_byline TEXT,
+			 	reader_excerpt TEXT,
+			 	reader_content_html TEXT,
+			 	reader_content_text TEXT,
+			 	reader_fetched_at TEXT,
+			 	published_at TEXT NOT NULL,
+			 	read INTEGER NOT NULL DEFAULT 0,
+			 	enclosure_url TEXT,
+			 	enclosure_mime_type TEXT,
+			 	enclosure_size_bytes INTEGER,
+			 	enclosure_duration_seconds INTEGER,
+			 	UNIQUE(feed_id, external_id)
+			 );
+
+			 CREATE TABLE IF NOT EXISTS playback_state (
+			 	item_id TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+			 	position_seconds INTEGER NOT NULL DEFAULT 0,
+			 	updated_at TEXT NOT NULL
+			 );
+
+			 CREATE TABLE IF NOT EXISTS playback_session (
+			 	id INTEGER PRIMARY KEY CHECK(id = 1),
+			 	data_json TEXT NOT NULL,
+			 	updated_at TEXT NOT NULL
+			 );
+
+			 CREATE TABLE IF NOT EXISTS playback_context (
+			 	id INTEGER PRIMARY KEY CHECK(id = 1),
+			 	data_json TEXT NOT NULL,
+			 	updated_at TEXT NOT NULL
+			 );
+
+			 CREATE TABLE IF NOT EXISTS app_settings (
+			 	id INTEGER PRIMARY KEY CHECK(id = 1),
+			 	max_audio_cache_size_bytes INTEGER NOT NULL,
+			 	updated_at TEXT NOT NULL
+			 );
+
+			 CREATE INDEX IF NOT EXISTS idx_items_feed_id_published_at_id
+			 	ON items(feed_id, published_at DESC, id DESC);
+			 CREATE INDEX IF NOT EXISTS idx_items_published_at_id
+			 	ON items(published_at DESC, id DESC);
+			 CREATE INDEX IF NOT EXISTS idx_items_unread_published_at_id
+			 	ON items(published_at DESC, id DESC)
+			 	WHERE read = 0;
+			 CREATE INDEX IF NOT EXISTS idx_items_podcast_published_at_id
+			 	ON items(published_at DESC, id DESC)
+			 	WHERE enclosure_url IS NOT NULL;",
+		)
+		.map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
+
+    ensure_item_content_columns(&connection)?;
+    ensure_feed_sort_order_column(&connection)?;
+    ensure_feed_image_url_column(&connection)?;
+    backfill_preview_text(&connection)?;
+    migrate_feed_kind_values(&connection)?;
+    ensure_stations_tables(&connection)?;
+    ensure_app_settings_row(&connection)?;
+
+    Ok(())
+}
+
+fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
+    use super::settings::DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES;
+
+    connection
+        .execute(
+            "INSERT INTO app_settings (id, max_audio_cache_size_bytes, updated_at)
+			 VALUES (1, ?1, ?2)
+			 ON CONFLICT(id) DO NOTHING",
+            params![DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to ensure app settings row: {error}"))?;
+
+    Ok(())
+}
+
+fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(items)")
+        .map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+    let columns_to_add = [
+        (
+            "preview_text",
+            "ALTER TABLE items ADD COLUMN preview_text TEXT NOT NULL DEFAULT ''",
+        ),
+        (
+            "summary_text",
+            "ALTER TABLE items ADD COLUMN summary_text TEXT",
+        ),
+        (
+            "summary_html",
+            "ALTER TABLE items ADD COLUMN summary_html TEXT",
+        ),
+        (
+            "content_text",
+            "ALTER TABLE items ADD COLUMN content_text TEXT",
+        ),
+        (
+            "content_html",
+            "ALTER TABLE items ADD COLUMN content_html TEXT",
+        ),
+        (
+            "reader_status",
+            "ALTER TABLE items ADD COLUMN reader_status TEXT NOT NULL DEFAULT 'unfetched' CHECK(reader_status IN ('unfetched', 'ready', 'failed'))",
+        ),
+        (
+            "reader_title",
+            "ALTER TABLE items ADD COLUMN reader_title TEXT",
+        ),
+        (
+            "reader_byline",
+            "ALTER TABLE items ADD COLUMN reader_byline TEXT",
+        ),
+        (
+            "reader_excerpt",
+            "ALTER TABLE items ADD COLUMN reader_excerpt TEXT",
+        ),
+        (
+            "reader_content_html",
+            "ALTER TABLE items ADD COLUMN reader_content_html TEXT",
+        ),
+        (
+            "reader_content_text",
+            "ALTER TABLE items ADD COLUMN reader_content_text TEXT",
+        ),
+        (
+            "reader_fetched_at",
+            "ALTER TABLE items ADD COLUMN reader_fetched_at TEXT",
+        ),
+    ];
+
+    for (column, sql) in columns_to_add {
+        if !existing_columns.iter().any(|c| c == column) {
+            connection
+                .execute(sql, [])
+                .map_err(|error| format!("Failed to add items.{column} column: {error}"))?;
+        }
+    }
+
+    connection
+		.execute(
+			"UPDATE items SET reader_status = ?1 WHERE reader_status IS NULL OR trim(reader_status) = ''",
+			["unfetched"],
+		)
+		.map_err(|error| format!("Failed to backfill items.reader_status values: {error}"))?;
+
+    Ok(())
+}
+
+fn ensure_feed_sort_order_column(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(feeds)")
+        .map_err(|error| format!("Failed to inspect SQLite feed columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite feed columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite feed columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "sort_order") {
+        connection
+            .execute("ALTER TABLE feeds ADD COLUMN sort_order TEXT", [])
+            .map_err(|error| format!("Failed to add feeds.sort_order column: {error}"))?;
+    }
+
+    Ok(())
+}
+
+fn ensure_feed_image_url_column(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(feeds)")
+        .map_err(|error| format!("Failed to inspect SQLite feed columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite feed columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite feed columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "image_url") {
+        connection
+            .execute("ALTER TABLE feeds ADD COLUMN image_url TEXT", [])
+            .map_err(|error| format!("Failed to add feeds.image_url column: {error}"))?;
+    }
+
+    Ok(())
+}
+
+fn backfill_preview_text(connection: &Connection) -> AppResult<()> {
+    const PREVIEW_TEXT_BACKFILL_QUERY: &str =
+		"UPDATE items
+		 SET preview_text = CASE
+			 WHEN content_text IS NOT NULL AND trim(content_text) <> '' THEN substr(trim(content_text), 1, 420)
+			 WHEN summary_text IS NOT NULL AND trim(summary_text) <> '' THEN substr(trim(summary_text), 1, 420)
+			 WHEN trim(summary) <> '' THEN substr(trim(summary), 1, 420)
+			 ELSE 'No summary or content available.'
+		 END
+		 WHERE preview_text IS NULL OR trim(preview_text) = ''";
+
+    connection
+        .execute(PREVIEW_TEXT_BACKFILL_QUERY, [])
+        .map_err(|error| format!("Failed to backfill items.preview_text values: {error}"))?;
+
+    Ok(())
+}
+
+/// Migrate legacy feed kind values: 'rss' → 'article', 'podcast' → 'media'.
+/// Rebuilds the feeds table to update the CHECK constraint.
+fn migrate_feed_kind_values(connection: &Connection) -> AppResult<()> {
+    let table_sql: String = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'feeds'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("Failed to read feeds table schema: {error}"))?;
+
+    if !table_sql.contains("'rss'") && !table_sql.contains("'podcast'") {
+        return Ok(());
+    }
+
+    connection
+		.execute_batch(
+			"PRAGMA foreign_keys = OFF;
+		     PRAGMA legacy_alter_table = ON;
+
+		     ALTER TABLE feeds RENAME TO feeds_old;
+
+		     CREATE TABLE feeds (
+		         id TEXT PRIMARY KEY,
+		         url TEXT NOT NULL UNIQUE,
+		         title TEXT NOT NULL,
+		         description TEXT NOT NULL,
+		         kind TEXT NOT NULL CHECK(kind IN ('article', 'media')),
+		         site_url TEXT,
+		         image_url TEXT,
+		         sort_order TEXT,
+		         created_at TEXT NOT NULL,
+		         last_fetched_at TEXT
+		     );
+
+		     INSERT INTO feeds (id, url, title, description, kind, site_url, image_url, sort_order, created_at, last_fetched_at)
+		     SELECT id, url, title, description,
+		            CASE kind WHEN 'rss' THEN 'article' WHEN 'podcast' THEN 'media' ELSE kind END,
+		            site_url, image_url, sort_order, created_at, last_fetched_at
+		     FROM feeds_old;
+
+		     DROP TABLE feeds_old;
+
+		     PRAGMA legacy_alter_table = OFF;
+		     PRAGMA foreign_keys = ON;",
+		)
+		.map_err(|error| format!("Failed to migrate feed kind values: {error}"))?;
+
+    Ok(())
+}
+
+fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
+    connection
+		.execute_batch(
+			"CREATE TABLE IF NOT EXISTS stations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                episode_filter TEXT NOT NULL DEFAULT 'all' CHECK(episode_filter IN ('all', 'unplayed')),
+                sort_order TEXT NOT NULL DEFAULT 'newest_first' CHECK(sort_order IN ('newest_first', 'oldest_first')),
+                sort_order_position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS station_feeds (
+                station_id TEXT NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+                feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                PRIMARY KEY (station_id, feed_id)
+            );",
+		)
+		.map_err(|error| format!("Failed to create stations tables: {error}"))?;
+
+    Ok(())
+}
