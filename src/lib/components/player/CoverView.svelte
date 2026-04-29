@@ -22,7 +22,6 @@
 		class?: string;
 		historyItems?: MediaListItem[];
 		queueItems?: MediaListItem[];
-		manualQueueLength?: number;
 		feeds?: Feed[];
 		onRemoveQueueItem?: (itemId: string) => void;
 		onMoveQueueItemUp?: (itemId: string) => void;
@@ -43,7 +42,6 @@
 		class: className = '',
 		historyItems = [],
 		queueItems = [],
-		manualQueueLength = 0,
 		feeds = [],
 		onRemoveQueueItem,
 		onMoveQueueItemUp,
@@ -149,6 +147,12 @@
 	});
 </script>
 
+<div
+	data-tauri-drag-region
+	class="fixed top-0 right-0 left-0 z-9999 h-12 cursor-default select-none"
+	aria-hidden="true"
+></div>
+
 {#if item && playbackState}
 	<div
 		class={`cover-view-theme fixed inset-0 min-h-150 overflow-hidden px-12 ${className}`}
@@ -181,7 +185,7 @@
 		{#if onClose}
 			<button
 				type="button"
-				class="cover-view-close absolute top-6 left-6 z-20 flex size-12 items-center justify-center rounded-full transition-colors"
+				class="cover-view-close absolute top-12 left-6 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
 				aria-label="Close cover view"
 				onclick={onClose}
 			>
@@ -268,7 +272,6 @@
 					<QueueList
 						{historyItems}
 						{queueItems}
-						{manualQueueLength}
 						{feeds}
 						appearance="inverse"
 						rowPaddingClass="px-4"
