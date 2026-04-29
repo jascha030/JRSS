@@ -31,6 +31,8 @@
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
+		stationSearchTerm: string;
+		onStationSearchChange: (term: string) => void;
 		itemSortOrder: ItemSortOrder;
 		onSortOrderChange: (order: ItemSortOrder) => void;
 		onPlayStation?: () => void;
@@ -57,6 +59,8 @@
 		totalCount,
 		searchTerm,
 		onSearchChange,
+		stationSearchTerm,
+		onStationSearchChange,
 		itemSortOrder,
 		onSortOrderChange,
 		onPlayStation,
@@ -67,6 +71,7 @@
 	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
+	let stationSearchInputRef = $state<HTMLInputElement | null>(null);
 
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
@@ -249,6 +254,8 @@
 			unlistenSearch = await listen('menu-search-feed', () => {
 				if (selectedFeed) {
 					searchInputRef?.focus();
+				} else if (selectedStation) {
+					stationSearchInputRef?.focus();
 				}
 			});
 			unlistenRefresh = await listen('menu-refresh-feed', () => {
@@ -373,42 +380,78 @@
 			{/if}
 		</div>
 
-		{#if selectedFeed}
+		{#if selectedFeed || selectedStation}
 			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
 				<div class="flex-1">
-					<label class="sr-only" for="feed-search">Search this feed</label>
+					{#if selectedFeed}
+						<label class="sr-only" for="feed-search">Search this feed</label>
 
-					<div class="input-group grid-cols-[auto_1fr_auto]">
-						<div class="ig-cell preset-tonal">
-							<Icon icon="lucide:search" class="size-4" />
+						<div class="input-group grid-cols-[auto_1fr_auto]">
+							<div class="ig-cell preset-tonal">
+								<Icon icon="lucide:search" class="size-4" />
+							</div>
+
+							<input
+								id="feed-search"
+								bind:this={searchInputRef}
+								class="ig-input"
+								placeholder="Search this feed"
+								type="search"
+								value={searchTerm}
+								oninput={(event) => {
+									const target = event.currentTarget;
+									if (target instanceof HTMLInputElement) {
+										onSearchChange(target.value);
+									}
+								}}
+								onkeydown={(event) => {
+									if (event.key === 'Escape') {
+										onSearchChange('');
+										searchInputRef?.blur();
+									}
+								}}
+							/>
+
+							<div class="ig-cell flex items-center gap-1 text-fg-muted">
+								<kbd class="kbd">⌘</kbd>
+								<kbd class="kbd">F</kbd>
+							</div>
 						</div>
+					{:else if selectedStation}
+						<label class="sr-only" for="station-search">Search this station</label>
 
-						<input
-							id="feed-search"
-							bind:this={searchInputRef}
-							class="ig-input"
-							placeholder="Search this feed"
-							type="search"
-							value={searchTerm}
-							oninput={(event) => {
-								const target = event.currentTarget;
-								if (target instanceof HTMLInputElement) {
-									onSearchChange(target.value);
-								}
-							}}
-							onkeydown={(event) => {
-								if (event.key === 'Escape') {
-									onSearchChange('');
-									searchInputRef?.blur();
-								}
-							}}
-						/>
+						<div class="input-group grid-cols-[auto_1fr_auto]">
+							<div class="ig-cell preset-tonal">
+								<Icon icon="lucide:search" class="size-4" />
+							</div>
 
-						<div class="ig-cell flex items-center gap-1 text-fg-muted">
-							<kbd class="kbd">⌘</kbd>
-							<kbd class="kbd">F</kbd>
+							<input
+								id="station-search"
+								bind:this={stationSearchInputRef}
+								class="ig-input"
+								placeholder="Search this station"
+								type="search"
+								value={stationSearchTerm}
+								oninput={(event) => {
+									const target = event.currentTarget;
+									if (target instanceof HTMLInputElement) {
+										onStationSearchChange(target.value);
+									}
+								}}
+								onkeydown={(event) => {
+									if (event.key === 'Escape') {
+										onStationSearchChange('');
+										stationSearchInputRef?.blur();
+									}
+								}}
+							/>
+
+							<div class="ig-cell flex items-center gap-1 text-fg-muted">
+								<kbd class="kbd">⌘</kbd>
+								<kbd class="kbd">F</kbd>
+							</div>
 						</div>
-					</div>
+					{/if}
 				</div>
 			</div>
 		{/if}

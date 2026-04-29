@@ -1377,6 +1377,7 @@ pub fn query_station_episodes(
     station_id: &str,
     offset: i64,
     limit: i64,
+    search: Option<&str>,
 ) -> AppResult<ItemPageRecord> {
     let connection = open_connection(db_path)?;
     let safe_limit = limit.clamp(1, 500);
@@ -1415,6 +1416,12 @@ pub fn query_station_episodes(
     // Only podcast episodes (items with enclosures)
     let enclosure_clause = " AND i.enclosure_url IS NOT NULL";
 
+    // Search clause
+    let search_pattern = search
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("%{s}%"));
+
     let order_by = if station.sort_order == "oldest_first" {
         "i.published_at ASC, i.id ASC"
     } else {
@@ -1422,12 +1429,20 @@ pub fn query_station_episodes(
     };
 
     // Count
-    let count_sql = format!(
-        "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{enclosure_clause}"
-    );
+    let search_param_idx = feed_ids.len() + 1;
+    let count_sql = if let Some(ref _pattern) = search_pattern {
+        format!(
+            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{enclosure_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE)"
+        )
+    } else {
+        format!("SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{enclosure_clause}")
+    };
     let mut count_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     for fid in &feed_ids {
         count_params.push(Box::new(fid.clone()));
+    }
+    if let Some(ref pattern) = search_pattern {
+        count_params.push(Box::new(pattern.clone()));
     }
     let count_refs: Vec<&dyn rusqlite::ToSql> = count_params.iter().map(|p| p.as_ref()).collect();
 
@@ -1436,15 +1451,29 @@ pub fn query_station_episodes(
         .map_err(|error| format!("Failed to count station episodes: {error}"))?;
 
     // Page query
-    let next_param = feed_ids.len() + 1;
-    let page_sql = format!(
-        "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{enclosure_clause} ORDER BY {order_by} LIMIT ?{next_param} OFFSET ?{}",
-        next_param + 1
-    );
+    let limit_idx = if search_pattern.is_some() {
+        feed_ids.len() + 2
+    } else {
+        feed_ids.len() + 1
+    };
+    let offset_idx = limit_idx + 1;
+
+    let page_sql = if search_pattern.is_some() {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{enclosure_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE) ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+        )
+    } else {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{enclosure_clause} ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+        )
+    };
 
     let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     for fid in &feed_ids {
         page_params.push(Box::new(fid.clone()));
+    }
+    if let Some(ref pattern) = search_pattern {
+        page_params.push(Box::new(pattern.clone()));
     }
     page_params.push(Box::new(safe_limit));
     page_params.push(Box::new(safe_offset));

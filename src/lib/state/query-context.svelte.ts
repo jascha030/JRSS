@@ -27,6 +27,7 @@ export type ItemsQuerySpec =
 			queryKey: string;
 			stationId: string;
 			sortOrder: ItemSortOrder;
+			search?: string;
 	  };
 
 /**
@@ -81,12 +82,16 @@ export function getActiveQuerySpec(): ItemsQuerySpec | null {
 	if (selection.selectedStationId) {
 		const station = stationsState.stations.find((s) => s.id === selection.selectedStationId);
 		const sortOrder = station?.sortOrder ?? DEFAULT_SORT_ORDER;
+		const search = normalizeSearchTerm(selection.stationSearchTerm);
 
 		return {
 			kind: 'station-items',
-			queryKey: `station::${selection.selectedStationId}::${sortOrder}`,
+			queryKey: search
+				? `station::${selection.selectedStationId}::${sortOrder}::search:${search}`
+				: `station::${selection.selectedStationId}::${sortOrder}`,
 			stationId: selection.selectedStationId,
-			sortOrder
+			sortOrder,
+			search: search || undefined
 		};
 	}
 

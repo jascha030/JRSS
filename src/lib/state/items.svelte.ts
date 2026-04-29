@@ -262,7 +262,7 @@ async function loadPage(spec: ItemsQuerySpec, offset: number): Promise<void> {
 			'items.loadPage',
 			async () => {
 				if (spec.kind === 'station-items') {
-					return await queryStationEpisodes(spec.stationId, safeOffset, PAGE_SIZE);
+					return await queryStationEpisodes(spec.stationId, safeOffset, PAGE_SIZE, spec.search);
 				} else {
 					return await queryItemsPage({
 						...spec.query,

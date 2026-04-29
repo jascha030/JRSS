@@ -41,7 +41,7 @@
 		getSelectedItem,
 		getSelectedStation,
 		getUpcomingQueue,
-	loadInitialItemsPage,
+		loadInitialItemsPage,
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
@@ -55,6 +55,7 @@
 		selectSection,
 		selectStation,
 		setFeedSearchTerm,
+		setStationSearchTerm,
 		setFeedSortOrder,
 		updateExistingStation
 	} from '$lib/stores/app.svelte';
@@ -91,6 +92,7 @@
 	const currentPlaybackState = $derived(playbackState.currentPlaybackState);
 	const itemSummariesById = $derived(itemsState.itemSummariesById);
 	const feedSearchTerm = $derived(selection.feedSearchTerm);
+	const stationSearchTerm = $derived(selection.stationSearchTerm);
 
 	// Computed selectors
 	const selectedFeed = $derived(getSelectedFeed(feeds));
@@ -389,10 +391,12 @@
 										onPlayStation={handlePlayStation}
 										onRefresh={handleRefreshFeed}
 										onSearchChange={setFeedSearchTerm}
+										onStationSearchChange={setStationSearchTerm}
 										onSelectItem={selectItem}
 										onSortOrderChange={setFeedSortOrder}
 										onVisibleRangeChange={ensureVisibleRangeLoaded}
 										searchTerm={feedSearchTerm}
+										{stationSearchTerm}
 										{isInitialLoading}
 										{itemSortOrder}
 										{selectedFeed}

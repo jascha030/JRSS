@@ -232,12 +232,14 @@ export async function deleteStation(id: string): Promise<void> {
 export async function queryStationEpisodes(
 	stationId: string,
 	offset: number,
-	limit: number
+	limit: number,
+	search?: string
 ): Promise<ItemPage<FeedListItem>> {
 	const raw = await invokeCommand<ItemPage<RawFeedListItem>>('query_station_episodes', {
 		stationId,
 		offset,
-		limit
+		limit,
+		search
 	});
 	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
 }

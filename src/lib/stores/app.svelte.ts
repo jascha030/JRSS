@@ -19,6 +19,7 @@ export {
 	selectSection,
 	selectItem,
 	setFeedSearchTerm,
+	setStationSearchTerm,
 	getSelectedFeed,
 	getSelectedStation,
 	type SidebarSection

@@ -303,12 +303,13 @@ pub async fn query_station_episodes(
     station_id: String,
     offset: i64,
     limit: i64,
+    search: Option<String>,
     state: State<'_, DatabaseState>,
 ) -> Result<ItemPageRecord, String> {
     let db_path = state.db_path();
 
     tauri::async_runtime::spawn_blocking(move || {
-        db::query_station_episodes(&db_path, &station_id, offset, limit)
+        db::query_station_episodes(&db_path, &station_id, offset, limit, search.as_deref())
     })
     .await
     .map_err(|error| format!("Native task failed: {error}"))?
