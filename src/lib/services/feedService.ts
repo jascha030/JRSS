@@ -244,6 +244,53 @@ export async function queryStationEpisodes(
 	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
 }
 
+// Unified query interface
+export interface ItemsQuery {
+	feedId?: string;
+	stationId?: string;
+	section: 'all' | 'unread' | 'media';
+	offset: number;
+	limit: number;
+	search?: string;
+	sortOrder: ItemSortOrder;
+}
+
+export async function queryItems(query: ItemsQuery): Promise<ItemPage<FeedListItem>> {
+	if (!isTauriRuntime()) {
+		return {
+			items: [],
+			totalCount: 0
+		};
+	}
+
+	const raw = await measurePerfAsync(
+		'tauri.query_items',
+		() =>
+			invokeCommand<ItemPage<RawFeedListItem>>('query_items', {
+				query: {
+					feedId: query.feedId ?? null,
+					stationId: query.stationId ?? null,
+					section: query.section,
+					offset: query.offset,
+					limit: query.limit,
+					search: query.search ?? null,
+					sortOrder: query.sortOrder ?? 'newest_first'
+				}
+			}),
+		{
+			feedId: query.feedId ?? null,
+			stationId: query.stationId ?? null,
+			section: query.section,
+			offset: query.offset
+		}
+	);
+
+	return {
+		items: raw.items.map(mapRawFeedListItem),
+		totalCount: raw.totalCount
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Audio playback — backend-owned via rodio
 // ---------------------------------------------------------------------------

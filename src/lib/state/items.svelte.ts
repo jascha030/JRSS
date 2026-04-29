@@ -4,8 +4,8 @@ import {
 	getItemDetails,
 	getItemsByIds,
 	markRead,
-	queryItemsPage,
-	queryStationEpisodes
+	queryItems,
+	type ItemsQuery
 } from '$lib/services/feedService';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 import { selection } from './selection.svelte';
@@ -258,21 +258,29 @@ async function loadPage(spec: ItemsQuerySpec, offset: number): Promise<void> {
 	itemsState.loadingPageOffsetsByQueryKey[spec.queryKey][safeOffset] = true;
 
 	try {
-		const page = await measurePerfAsync(
-			'items.loadPage',
-			async () => {
-				if (spec.kind === 'station-items') {
-					return await queryStationEpisodes(spec.stationId, safeOffset, PAGE_SIZE, spec.search);
-				} else {
-					return await queryItemsPage({
-						...spec.query,
+		const query: ItemsQuery =
+			spec.kind === 'station-items'
+				? {
+						stationId: spec.stationId,
+						section: 'all',
 						offset: safeOffset,
-						limit: PAGE_SIZE
-					});
-				}
-			},
-			{ queryKey: spec.queryKey, offset: safeOffset }
-		);
+						limit: PAGE_SIZE,
+						search: spec.search,
+						sortOrder: spec.sortOrder
+					}
+				: {
+						feedId: spec.query.feedId,
+						section: spec.query.section,
+						offset: safeOffset,
+						limit: PAGE_SIZE,
+						search: spec.query.search,
+						sortOrder: spec.query.sortOrder ?? 'newest_first'
+					};
+
+		const page = await measurePerfAsync('items.loadPage', async () => queryItems(query), {
+			queryKey: spec.queryKey,
+			offset: safeOffset
+		});
 
 		mergeItemsPage(spec.queryKey, safeOffset, page.items, page.totalCount);
 

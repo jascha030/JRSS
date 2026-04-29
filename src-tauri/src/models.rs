@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemListSection {
+    #[default]
     All,
     Unread,
     Media,
@@ -44,6 +45,28 @@ pub struct ItemPageQueryRecord {
     pub offset: i64,
     pub limit: i64,
     pub search: Option<String>,
+    #[serde(default)]
+    pub sort_order: ItemSortOrder,
+}
+
+/// Unified items query that handles all cases: feed, station, or section views.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemsQueryRecord {
+    /// If set, query items from this specific feed only
+    pub feed_id: Option<String>,
+    /// If set, query items from this station's feeds
+    pub station_id: Option<String>,
+    /// Section filter: all, unread, or media (only used when feed_id is None)
+    #[serde(default)]
+    pub section: ItemListSection,
+    /// Pagination offset
+    pub offset: i64,
+    /// Pagination limit
+    pub limit: i64,
+    /// Optional search term (filters title, preview_text, content_text)
+    pub search: Option<String>,
+    /// Sort order for results
     #[serde(default)]
     pub sort_order: ItemSortOrder,
 }

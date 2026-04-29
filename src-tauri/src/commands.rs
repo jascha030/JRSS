@@ -75,6 +75,18 @@ pub async fn query_items_page(
 }
 
 #[tauri::command]
+pub async fn query_items(
+    query: crate::models::ItemsQueryRecord,
+    state: State<'_, DatabaseState>,
+) -> Result<ItemPageRecord, String> {
+    let db_path = state.db_path();
+
+    tauri::async_runtime::spawn_blocking(move || db::query_items(&db_path, &query))
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
+#[tauri::command]
 pub async fn get_item_details(
     item_id: String,
     state: State<'_, DatabaseState>,

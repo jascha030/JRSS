@@ -1,8 +1,8 @@
 use crate::models::{
     AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
-    ItemPageQueryRecord, ItemPageRecord, MediaEnclosureRecord, ParsedFeed, PlaybackContextRecord,
-    PlaybackSessionRecord, ReaderContentRecord, StationRecord, StationWithFeedsRecord,
-    UpdateStationInput,
+    ItemListSection, ItemPageQueryRecord, ItemPageRecord, MediaEnclosureRecord, ParsedFeed,
+    PlaybackContextRecord, PlaybackSessionRecord, ReaderContentRecord, StationRecord,
+    StationWithFeedsRecord, UpdateStationInput,
 };
 use chrono::Utc;
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
@@ -1488,6 +1488,158 @@ pub fn query_station_episodes(
         .map_err(|error| format!("Failed to query station episodes: {error}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("Failed to read station episodes: {error}"))?;
+
+    Ok(ItemPageRecord { items, total_count })
+}
+
+/// Unified query for items that handles feed, station, and section views.
+pub fn query_items(
+    db_path: &Path,
+    query: &crate::models::ItemsQueryRecord,
+) -> AppResult<ItemPageRecord> {
+    let connection = open_connection(db_path)?;
+    let safe_limit = query.limit.clamp(1, 500);
+    let safe_offset = query.offset.max(0);
+
+    // Determine feed_ids and station metadata
+    let (feed_ids, episode_filter): (Vec<String>, Option<String>) =
+        if let Some(ref station_id) = query.station_id {
+            // Station view: get feeds and episode filter from station
+            let station = connection
+                .query_row(
+                    "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+                     FROM stations WHERE id = ?1",
+                    [station_id],
+                    map_station_row,
+                )
+                .optional()
+                .map_err(|error| format!("Failed to query station: {error}"))?
+                .ok_or_else(|| "Station not found.".to_string())?;
+
+            let feed_ids = get_station_feed_ids(&connection, station_id)?;
+            (feed_ids, Some(station.episode_filter))
+        } else {
+            // Feed or section view: use feed_id if set, otherwise all feeds
+            let feed_ids = if let Some(ref feed_id) = query.feed_id {
+                vec![feed_id.clone()]
+            } else {
+                // Get all feed IDs for section views
+                let mut stmt = connection
+                    .prepare("SELECT id FROM feeds")
+                    .map_err(|error| format!("Failed to prepare feed list: {error}"))?;
+                let ids: Result<Vec<String>, _> = stmt
+                    .query_map([], |row| row.get(0))
+                    .map_err(|error| format!("Failed to query feeds: {error}"))?
+                    .collect();
+                ids.map_err(|error| format!("Failed to read feeds: {error}"))?
+            };
+            (feed_ids, None)
+        };
+
+    if feed_ids.is_empty() {
+        return Ok(ItemPageRecord {
+            items: Vec::new(),
+            total_count: 0,
+        });
+    }
+
+    // Build query clauses
+    let placeholders: Vec<String> = (1..=feed_ids.len()).map(|i| format!("?{i}")).collect();
+    let feed_filter = format!("i.feed_id IN ({})", placeholders.join(", "));
+
+    // Episode filter: use station's filter, or derive from section
+    let episode_clause = match (episode_filter.as_deref(), query.section) {
+        (Some("unplayed"), _) | (None, ItemListSection::Unread) => " AND i.read = 0",
+        _ => "",
+    };
+
+    // Media filter for section
+    let media_clause = if query.section == ItemListSection::Media {
+        " AND i.enclosure_url IS NOT NULL"
+    } else {
+        ""
+    };
+
+    // Search clause
+    let search_pattern = query
+        .search
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("%{s}%"));
+
+    // Determine sort order
+    let order_by = query.sort_order.order_by_clause();
+
+    // Build and execute count query
+    let search_param_idx = feed_ids.len() + 1;
+    let total_count: i64 = if let Some(_pattern) = &search_pattern {
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{media_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE)"
+        );
+        let mut count_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        for fid in &feed_ids {
+            count_params.push(Box::new(fid.clone()));
+        }
+        count_params.push(Box::new(_pattern.clone()));
+        let count_refs: Vec<&dyn rusqlite::ToSql> = count_params.iter().map(|p| p.as_ref()).collect();
+
+        connection
+            .query_row(&count_sql, count_refs.as_slice(), |row| row.get(0))
+            .map_err(|error| format!("Failed to count items: {error}"))?
+    } else {
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{media_clause}"
+        );
+        let count_params: Vec<Box<dyn rusqlite::ToSql>> = feed_ids
+            .iter()
+            .map(|fid| Box::new(fid.clone()) as Box<dyn rusqlite::ToSql>)
+            .collect();
+        let count_refs: Vec<&dyn rusqlite::ToSql> = count_params.iter().map(|p| p.as_ref()).collect();
+
+        connection
+            .query_row(&count_sql, count_refs.as_slice(), |row| row.get(0))
+            .map_err(|error| format!("Failed to count items: {error}"))?
+    };
+
+    // Build and execute page query
+    let limit_idx = if search_pattern.is_some() {
+        feed_ids.len() + 2
+    } else {
+        feed_ids.len() + 1
+    };
+    let offset_idx = limit_idx + 1;
+
+    let page_sql = if let Some(_pattern) = &search_pattern {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{media_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE) ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+        )
+    } else {
+        format!(
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{media_clause} ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+        )
+    };
+
+    let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    for fid in &feed_ids {
+        page_params.push(Box::new(fid.clone()));
+    }
+    if let Some(ref pattern) = search_pattern {
+        page_params.push(Box::new(pattern.clone()));
+    }
+    page_params.push(Box::new(safe_limit));
+    page_params.push(Box::new(safe_offset));
+    let page_refs: Vec<&dyn rusqlite::ToSql> = page_params.iter().map(|p| p.as_ref()).collect();
+
+    let mut statement = connection
+        .prepare(&page_sql)
+        .map_err(|error| format!("Failed to prepare items query: {error}"))?;
+
+    let items = statement
+        .query_map(page_refs.as_slice(), map_item_list_row)
+        .map_err(|error| format!("Failed to query items: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read items: {error}"))?;
 
     Ok(ItemPageRecord { items, total_count })
 }

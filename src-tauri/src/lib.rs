@@ -198,6 +198,7 @@ pub fn run() {
             commands::update_station,
             commands::delete_station,
             commands::query_station_episodes,
+            commands::query_items,
             commands::audio_play,
             commands::audio_pause,
             commands::audio_resume,
