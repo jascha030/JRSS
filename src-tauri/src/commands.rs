@@ -4,27 +4,35 @@ use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
     AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
-    ItemPageQueryRecord, ItemPageRecord, PlaybackSessionRecord, StationWithFeedsRecord,
-    UpdateStationInput,
+    ItemPageQueryRecord, ItemPageRecord, PlaybackContextRecord, PlaybackSessionRecord,
+    StationWithFeedsRecord, UpdateStationInput,
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
 use tauri::State;
 
+/// Helper to run blocking tasks on a thread pool and convert errors.
+async fn blocking<T, F>(task: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(task)
+        .await
+        .map_err(|error| format!("Native task failed: {error}"))?
+}
+
 #[tauri::command]
 pub async fn list_feeds(state: State<'_, DatabaseState>) -> Result<Vec<FeedRecord>, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::list_feeds(&db_path))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::list_feeds(&db_path)).await
 }
 
 #[tauri::command]
 pub async fn add_feed(url: String, state: State<'_, DatabaseState>) -> Result<FeedRecord, String> {
     let db_path = state.db_path();
 
-    tauri::async_runtime::spawn_blocking(move || {
+    blocking(move || {
         let resolved_input = feed_ingest::resolve_feed_input(&url)?;
         let parsed_feed = feed_ingest::fetch_and_parse_feed(&resolved_input.feed_url)
             .map_err(|error| resolved_input.map_fetch_error(error))?;
@@ -32,7 +40,6 @@ pub async fn add_feed(url: String, state: State<'_, DatabaseState>) -> Result<Fe
         db::upsert_feed_snapshot(&db_path, &resolved_input.feed_url, parsed_feed)
     })
     .await
-    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -42,7 +49,7 @@ pub async fn refresh_feed(
 ) -> Result<FeedRecord, String> {
     let db_path = state.db_path();
 
-    tauri::async_runtime::spawn_blocking(move || {
+    blocking(move || {
         let existing_feed =
             db::get_feed_by_id(&db_path, &id)?.ok_or_else(|| "Feed not found.".to_string())?;
         let parsed_feed = feed_ingest::fetch_and_parse_feed(&existing_feed.url)?;
@@ -50,16 +57,12 @@ pub async fn refresh_feed(
         db::upsert_feed_snapshot(&db_path, &existing_feed.url, parsed_feed)
     })
     .await
-    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]
 pub async fn remove_feed(id: String, state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::remove_feed(&db_path, &id))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::remove_feed(&db_path, &id)).await
 }
 
 #[tauri::command]
@@ -68,10 +71,7 @@ pub async fn query_items_page(
     state: State<'_, DatabaseState>,
 ) -> Result<ItemPageRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::query_items_page(&db_path, &query))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::query_items_page(&db_path, &query)).await
 }
 
 #[tauri::command]
@@ -80,10 +80,7 @@ pub async fn query_items(
     state: State<'_, DatabaseState>,
 ) -> Result<ItemPageRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::query_items(&db_path, &query))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::query_items(&db_path, &query)).await
 }
 
 #[tauri::command]
@@ -93,11 +90,10 @@ pub async fn get_item_details(
 ) -> Result<FeedItemRecord, String> {
     let db_path = state.db_path();
 
-    tauri::async_runtime::spawn_blocking(move || {
+    blocking(move || {
         db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())
     })
     .await
-    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -107,10 +103,7 @@ pub async fn mark_read(
     state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::mark_read(&db_path, &item_id, read))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::mark_read(&db_path, &item_id, read)).await
 }
 
 #[tauri::command]
@@ -120,12 +113,7 @@ pub async fn save_playback(
     state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || {
-        db::save_playback(&db_path, &item_id, position_seconds)
-    })
-    .await
-    .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::save_playback(&db_path, &item_id, position_seconds)).await
 }
 
 #[tauri::command]
@@ -135,10 +123,11 @@ pub async fn load_reader_content(
 ) -> Result<FeedItemRecord, String> {
     let db_path = state.db_path();
 
-    tauri::async_runtime::spawn_blocking(move || {
+    blocking(move || {
         let item =
             db::get_item_by_id(&db_path, &item_id)?.ok_or_else(|| "Item not found.".to_string())?;
 
+        // Return cached content if available (either media enclosure or reader ready)
         if item.media_enclosure.is_some() || item.reader_status == "ready" {
             log::debug!(
                 "Reader Mode: using cached reader content for item {}",
@@ -177,7 +166,6 @@ pub async fn load_reader_content(
             .ok_or_else(|| "Item not found after reader update.".to_string())
     })
     .await
-    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -186,10 +174,7 @@ pub async fn get_items_by_ids(
     state: State<'_, DatabaseState>,
 ) -> Result<Vec<FeedListItemRecord>, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::get_items_by_ids(&db_path, &item_ids))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::get_items_by_ids(&db_path, &item_ids)).await
 }
 
 #[tauri::command]
@@ -198,10 +183,7 @@ pub async fn save_playback_session(
     state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::save_playback_session(&db_path, &session))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::save_playback_session(&db_path, &session)).await
 }
 
 #[tauri::command]
@@ -209,10 +191,7 @@ pub async fn load_playback_session(
     state: State<'_, DatabaseState>,
 ) -> Result<Option<PlaybackSessionRecord>, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::load_playback_session(&db_path))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::load_playback_session(&db_path)).await
 }
 
 #[tauri::command]
@@ -222,21 +201,13 @@ pub async fn set_feed_sort_order(
     state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || {
-        db::set_feed_sort_order(&db_path, &feed_id, sort_order.as_deref())
-    })
-    .await
-    .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::set_feed_sort_order(&db_path, &feed_id, sort_order.as_deref())).await
 }
 
 #[tauri::command]
 pub async fn clear_playback_session(state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::clear_playback_session(&db_path))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::clear_playback_session(&db_path)).await
 }
 
 #[tauri::command]
@@ -244,10 +215,7 @@ pub async fn load_app_settings(
     state: State<'_, DatabaseState>,
 ) -> Result<AppSettingsRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::load_app_settings(&db_path))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::load_app_settings(&db_path)).await
 }
 
 #[tauri::command]
@@ -256,10 +224,7 @@ pub async fn save_app_settings(
     state: State<'_, DatabaseState>,
 ) -> Result<AppSettingsRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::save_app_settings(&db_path, &settings))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::save_app_settings(&db_path, &settings)).await
 }
 
 // ---------------------------------------------------------------------------
@@ -271,10 +236,7 @@ pub async fn list_stations(
     state: State<'_, DatabaseState>,
 ) -> Result<Vec<StationWithFeedsRecord>, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::list_stations(&db_path))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::list_stations(&db_path)).await
 }
 
 #[tauri::command]
@@ -283,10 +245,7 @@ pub async fn create_station(
     state: State<'_, DatabaseState>,
 ) -> Result<StationWithFeedsRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::create_station(&db_path, &input))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::create_station(&db_path, &input)).await
 }
 
 #[tauri::command]
@@ -295,19 +254,13 @@ pub async fn update_station(
     state: State<'_, DatabaseState>,
 ) -> Result<StationWithFeedsRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::update_station(&db_path, &input))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::update_station(&db_path, &input)).await
 }
 
 #[tauri::command]
 pub async fn delete_station(id: String, state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || db::delete_station(&db_path, &id))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || db::delete_station(&db_path, &id)).await
 }
 
 #[tauri::command]
@@ -319,12 +272,10 @@ pub async fn query_station_episodes(
     state: State<'_, DatabaseState>,
 ) -> Result<ItemPageRecord, String> {
     let db_path = state.db_path();
-
-    tauri::async_runtime::spawn_blocking(move || {
+    blocking(move || {
         db::query_station_episodes(&db_path, &station_id, offset, limit, search.as_deref())
     })
     .await
-    .map_err(|error| format!("Native task failed: {error}"))?
 }
 
 // ---------------------------------------------------------------------------
@@ -470,19 +421,13 @@ pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<
 // Playback context — frontend-managed persistence for feed/station context
 // ---------------------------------------------------------------------------
 
-use crate::models::PlaybackContextRecord;
-
 #[tauri::command]
 pub async fn save_playback_context(
     state: tauri::State<'_, db::DatabaseState>,
     context: Option<PlaybackContextRecord>,
 ) -> Result<(), String> {
     let db_path = state.db_path();
-    tauri::async_runtime::spawn_blocking(move || {
-        db::save_playback_context(&db_path, context.as_ref())
-    })
-    .await
-    .map_err(|error| format!("Failed to save playback context: {error}"))?
+    blocking(move || db::save_playback_context(&db_path, context.as_ref())).await
 }
 
 #[tauri::command]
@@ -490,14 +435,10 @@ pub async fn load_playback_context(
     state: tauri::State<'_, db::DatabaseState>,
 ) -> Result<Option<PlaybackContextRecord>, String> {
     let db_path = state.db_path();
-    tauri::async_runtime::spawn_blocking(move || db::load_playback_context(&db_path))
-        .await
-        .map_err(|error| format!("Failed to load playback context: {error}"))?
+    blocking(move || db::load_playback_context(&db_path)).await
 }
 
 #[tauri::command]
 pub async fn extract_cover_palette(image_url: String) -> Result<Vec<String>, String> {
-    tauri::async_runtime::spawn_blocking(move || cover_art::extract_cover_palette(&image_url))
-        .await
-        .map_err(|error| format!("Native task failed: {error}"))?
+    blocking(move || cover_art::extract_cover_palette(&image_url)).await
 }
