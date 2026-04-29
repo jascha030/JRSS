@@ -41,8 +41,7 @@
 		getSelectedItem,
 		getSelectedStation,
 		getUpcomingQueue,
-		initializeApp,
-		loadInitialItemsPage,
+	loadInitialItemsPage,
 		loadItemDetails,
 		loadReaderView,
 		markItemRead,
@@ -60,7 +59,7 @@
 		updateExistingStation
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
-	import { onMount } from 'svelte';
+
 	import { toast } from 'svelte-sonner';
 
 	// ---------------------------------------------------------------------------
@@ -154,9 +153,6 @@
 			toast.error(error instanceof Error ? error.message : 'Unable to load article details.');
 		});
 	});
-
-	// Initialize app on mount
-	onMount(() => void initializeApp());
 
 	// Handle reader view requests from context menu
 	let lastConsumedReaderSeq = 0;
