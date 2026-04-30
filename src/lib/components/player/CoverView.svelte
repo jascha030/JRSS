@@ -185,7 +185,7 @@
 		{#if onClose}
 			<button
 				type="button"
-				class="cover-view-close absolute top-12 left-6 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
+				class="cover-view-close absolute top-18 left-12 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
 				aria-label="Close cover view"
 				onclick={onClose}
 			>
