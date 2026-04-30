@@ -1,4 +1,5 @@
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 /// Sets up the application menu with keyboard shortcuts.
 /// Called during app setup in lib.rs.
@@ -42,9 +43,10 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         let skip_forward_item = MenuItemBuilder::with_id("skip-forward", "Skip Forward")
             .accelerator("CmdOrCtrl+Shift+Right")
             .build(app)?;
-        let skip_backward_item = MenuItemBuilder::with_id("skip-backward", "Skip Backward")
-            .accelerator("CmdOrCtrl+Shift+Left")
-            .build(app)?;
+        let skip_backward_item =
+            MenuItemBuilder::with_id("skip-backward", "Skip Backward")
+                .accelerator("CmdOrCtrl+Shift+Left")
+                .build(app)?;
         let volume_up_item = MenuItemBuilder::with_id("volume-up", "Volume Up")
             .accelerator("CmdOrCtrl+Up")
             .build(app)?;
@@ -108,15 +110,81 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
         app.set_menu(menu)?;
 
-        // Handle menu events - forward to frontend
+        // Handle menu events - forward to frontend (emit globally so all windows receive it)
         app.on_menu_event(move |app_handle: &AppHandle, event| {
             let event_id = event.id().0.as_str();
-            if let Some(window) = app_handle.get_webview_window("main") {
-                // Menu events are emitted as "menu-{id}"
-                let event_name = format!("menu-{event_id}");
-                let _ = window.emit(&event_name, ());
-            }
+            let event_name = format!("menu-{event_id}");
+            let _ = app_handle.emit(&event_name, ());
         });
+
+        // Register global shortcuts for modifier-based shortcuts (work in mini-player too)
+        // Space is handled separately via JS since it has no modifier
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::ArrowRight,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-skip-forward", ());
+                }
+            },
+        )?;
+
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::ArrowLeft,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-skip-backward", ());
+                }
+            },
+        )?;
+
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(tauri_plugin_global_shortcut::Modifiers::META),
+                tauri_plugin_global_shortcut::Code::ArrowUp,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-volume-up", ());
+                }
+            },
+        )?;
+
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(tauri_plugin_global_shortcut::Modifiers::META),
+                tauri_plugin_global_shortcut::Code::ArrowDown,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-volume-down", ());
+                }
+            },
+        )?;
+
+        // Settings shortcut (works in mini-player too)
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(tauri_plugin_global_shortcut::Modifiers::META),
+                tauri_plugin_global_shortcut::Code::Comma,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-settings", ());
+                }
+            },
+        )?;
     }
 
     Ok(())

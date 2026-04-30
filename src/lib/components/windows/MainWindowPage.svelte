@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { AppBar } from '@skeletonlabs/skeleton-svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
@@ -287,6 +289,25 @@
 			toast.error(error instanceof Error ? error.message : 'Unable to open mini player.');
 		}
 	}
+
+	// Listen for settings shortcut - works in all modes including cover view
+	onMount(() => {
+		let unlistenSettings: UnlistenFn | undefined;
+
+		const setupListener = async () => {
+			unlistenSettings = await listen('menu-settings', () => {
+				// Exit cover mode if active, then navigate to settings
+				playerMode = 'default';
+				selectSection('settings');
+			});
+		};
+
+		void setupListener();
+
+		return () => {
+			if (unlistenSettings) unlistenSettings();
+		};
+	});
 </script>
 
 <FeedEditor

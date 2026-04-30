@@ -39,13 +39,9 @@
 	}: Props = $props();
 
 	onMount(() => {
-		let unlistenSettings: UnlistenFn | undefined;
 		let unlistenNewStation: UnlistenFn | undefined;
 
 		const setupListeners = async () => {
-			unlistenSettings = await listen('menu-settings', () => {
-				onSelectSection('settings');
-			});
 			unlistenNewStation = await listen('menu-new-station', () => {
 				onCreateStation();
 			});
@@ -54,9 +50,6 @@
 		void setupListeners();
 
 		return () => {
-			if (unlistenSettings) {
-				unlistenSettings();
-			}
 			if (unlistenNewStation) {
 				unlistenNewStation();
 			}
