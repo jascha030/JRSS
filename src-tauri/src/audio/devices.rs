@@ -67,19 +67,19 @@ pub fn open_output_sink(selected_device_id: Option<&str>) -> Result<MixerDeviceS
         .default_output_config()
         .map_err(|e| format!("Failed to query default output config: {e}"))?;
 
-    let channels = default_config
-        .channels()
-        .try_into()
-        .map_err(|_| "Invalid channel count for output sink".to_string())?;
-
+    // Use only the sample rate from the default config, but don't specify
+    // channel count. Using from_device() would set channels from the device's
+    // reported channel count, which breaks aggregate/multi-output devices
+    // that have custom channel routing configured in Audio MIDI Setup.
+    // By using with_device() + with_sample_rate() only, rodio will use a
+    // default stereo configuration that respects the system's routing.
     let sample_rate = default_config
         .sample_rate()
         .try_into()
         .map_err(|_| "Invalid sample rate for output sink".to_string())?;
 
-    let builder = DeviceSinkBuilder::from_device(device)
-        .map_err(|e| format!("Failed to create output sink builder: {e}"))?
-        .with_channels(channels)
+    let builder = DeviceSinkBuilder::default()
+        .with_device(device)
         .with_sample_rate(sample_rate);
 
     builder
