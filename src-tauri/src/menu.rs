@@ -99,6 +99,14 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&volume_down_item)
             .build()?;
 
+        // Create Window submenu with standard window controls
+        let window_submenu = SubmenuBuilder::new(app, "Window")
+            .minimize()
+            .fullscreen()
+            .separator()
+            .close_window()
+            .build()?;
+
         // Build the full menu
         let menu = MenuBuilder::new(app)
             .item(&app_submenu)
@@ -106,6 +114,7 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&edit_submenu)
             .item(&view_submenu)
             .item(&playback_submenu)
+            .item(&window_submenu)
             .build()?;
 
         app.set_menu(menu)?;
