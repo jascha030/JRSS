@@ -98,14 +98,12 @@
 	});
 </script>
 
-<div class="flex h-full w-full flex-col overflow-hidden bg-surface-shell">
+<div class="flex aspect-square h-full w-full flex-col overflow-hidden bg-surface-shell">
 	<!-- Main content with square album art -->
-	<div class="flex flex-1 flex-col items-center justify-center pb-4">
+	<div class="flex aspect-square h-full w-full flex-1 flex-col items-center justify-center">
 		{#if item && playbackState}
 			<!-- Square album art -->
-			<div
-				class="group relative inset-0 mb-4 aspect-square w-full overflow-hidden rounded-lg shadow-lg"
-			>
+			<div class="group relative inset-0 aspect-square w-full overflow-hidden rounded-lg shadow-lg">
 				{#if imageUrl}
 					<img
 						src={imageUrl}
@@ -124,7 +122,7 @@
 				{/if}
 
 				<div
-					class="absolute right-0 bottom-0 left-0 flex flex-col p-4 opacity-0 transition-opacity group-hover:opacity-100"
+					class="absolute right-0 bottom-0 left-0 flex flex-col bg-black/30 p-4 opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100"
 				>
 					<!-- Track info -->
 					<div class="mb-4 w-full text-center">

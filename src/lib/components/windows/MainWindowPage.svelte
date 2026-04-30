@@ -372,7 +372,7 @@
 			onClose={() => (isQueueDrawerOpen = false)}
 		/>
 
-		<div class="relative h-[calc(100%-48px)] overflow-hidden">
+		<div class="relative h-[calc(100%-54px)] overflow-hidden">
 			<SidebarContainer
 				{feeds}
 				{stations}
