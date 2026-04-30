@@ -18,6 +18,7 @@
 		playbackState: PlaybackState | null;
 		onNavigateToItem?: () => void;
 		onClose?: () => void;
+		onPopOut?: () => void;
 		controls?: Snippet;
 		class?: string;
 		historyItems?: MediaListItem[];
@@ -38,6 +39,7 @@
 		playbackState,
 		onNavigateToItem,
 		onClose,
+		onPopOut,
 		controls,
 		class: className = '',
 		historyItems = [],
@@ -185,11 +187,22 @@
 		{#if onClose}
 			<button
 				type="button"
-				class="cover-view-close absolute top-18 left-12 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
+				class="cover-view-close absolute top-18 left-18 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
 				aria-label="Close cover view"
 				onclick={onClose}
 			>
 				<Icon icon="lucide:x" class="size-6" />
+			</button>
+		{/if}
+
+		{#if onPopOut}
+			<button
+				type="button"
+				class="cover-view-popout absolute top-18 left-28 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
+				aria-label="Open mini player"
+				onclick={onPopOut}
+			>
+				<Icon icon="lucide:picture-in-picture-2" class="size-6" />
 			</button>
 		{/if}
 
@@ -340,6 +353,18 @@
 	}
 
 	.cover-view-close:hover {
+		color: var(--cover-fg);
+		background: var(--cover-button-bg-hover);
+	}
+
+	.cover-view-popout {
+		color: var(--cover-fg-muted);
+		background: var(--cover-button-bg);
+		border: 1px solid var(--cover-panel-border);
+		backdrop-filter: blur(18px);
+	}
+
+	.cover-view-popout:hover {
 		color: var(--cover-fg);
 		background: var(--cover-button-bg-hover);
 	}

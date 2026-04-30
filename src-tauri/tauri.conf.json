@@ -12,12 +12,13 @@
 	"app": {
 		"windows": [
 			{
+				"label": "main",
+				"url": "/",
 				"title": "JRSS",
 				"width": 1600,
 				"height": 900,
 				"minWidth": 960,
 				"minHeight": 640,
-				"resizable": true,
 				"fullscreen": false,
 				"decorations": true,
 				"hiddenTitle": true,
@@ -25,7 +26,8 @@
 				"trafficLightPosition": {
 					"x": 16,
 					"y": 28
-				}
+				},
+				"resizable": true
 			}
 		],
 		"security": {
