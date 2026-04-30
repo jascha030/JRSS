@@ -394,7 +394,7 @@
 							<input
 								id="feed-search"
 								bind:this={searchInputRef}
-								class="ig-input"
+								class="ig-input py-2"
 								placeholder="Search this feed"
 								type="search"
 								value={searchTerm}

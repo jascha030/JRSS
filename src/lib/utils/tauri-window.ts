@@ -15,20 +15,17 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			url: MINI_WINDOW_URL,
 			center: true,
 			decorations: true,
-			height: 420,
-			maxHeight: 520,
-			maxWidth: 400,
-			minHeight: 360,
+			height: 400,
+			maximizable: false,
+			// maxHeight: 520,
+			maxWidth: 800,
+			minHeight: 400,
 			minWidth: 280,
+			width: 400,
 			resizable: true,
 			title: 'JRSS Mini Player',
 			titleBarStyle: 'overlay',
-			// trafficLightPosition: {
-			//     x: 16,
-			//     y: 18
-			// },
-			visible: false,
-			width: 320
+			visible: false
 		});
 
 		const timeoutId = window.setTimeout(() => {
