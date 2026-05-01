@@ -5,6 +5,7 @@ export type ItemListSection = 'all' | 'unread' | 'media';
 export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
 export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
 
 export interface Feed {
 	id: string;
@@ -164,6 +165,7 @@ export interface PlaybackSession {
 
 export interface AppSettings {
 	maxAudioCacheSizeBytes: number;
+	miniPlayerAlwaysOnTop: boolean;
 }
 
 // ---------------------------------------------------------------------------

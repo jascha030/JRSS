@@ -3,7 +3,10 @@
 
 	import { loadAppSettings, saveAppSettings } from '$lib/services/feedService';
 	import { isTauriRuntime } from '$lib/services/tauriClient';
-	import { DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES } from '$lib/types/rss';
+	import {
+		DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+		DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP
+	} from '$lib/types/rss';
 
 	const BYTES_PER_GB = 1024 * 1024 * 1024;
 
@@ -11,6 +14,7 @@
 	let isLoading = $state(true);
 	let isSaving = $state(false);
 	let maxAudioCacheSizeGb = $state<number | undefined>(undefined);
+	let miniPlayerAlwaysOnTop = $state(DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP);
 	let errorMessage = $state('');
 	let successMessage = $state('');
 
@@ -41,6 +45,7 @@
 		if (!isTauriRuntime()) {
 			isDesktopOnly = true;
 			maxAudioCacheSizeGb = bytesToGb(DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES);
+			miniPlayerAlwaysOnTop = DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP;
 			isLoading = false;
 			return;
 		}
@@ -48,8 +53,10 @@
 		try {
 			const settings = await loadAppSettings();
 			maxAudioCacheSizeGb = bytesToGb(settings.maxAudioCacheSizeBytes);
+			miniPlayerAlwaysOnTop = settings.miniPlayerAlwaysOnTop;
 		} catch (error) {
 			maxAudioCacheSizeGb = bytesToGb(DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES);
+			miniPlayerAlwaysOnTop = DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP;
 			errorMessage = `Failed to load settings. ${getErrorMessage(error)}`;
 		} finally {
 			isLoading = false;
@@ -74,10 +81,12 @@
 
 		try {
 			const settings = await saveAppSettings({
-				maxAudioCacheSizeBytes: gbToBytes(maxAudioCacheSizeGb)
+				maxAudioCacheSizeBytes: gbToBytes(maxAudioCacheSizeGb),
+				miniPlayerAlwaysOnTop
 			});
 
 			maxAudioCacheSizeGb = bytesToGb(settings.maxAudioCacheSizeBytes);
+			miniPlayerAlwaysOnTop = settings.miniPlayerAlwaysOnTop;
 			successMessage = 'Settings saved.';
 		} catch (error) {
 			errorMessage = `Failed to save settings. ${getErrorMessage(error)}`;
@@ -91,44 +100,79 @@
 	<div class="max-w-4xl">
 		<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">Settings</p>
 
-		<h1 class="mt-3 text-2xl font-semibold tracking-tight text-fg">Audio cache</h1>
+		<h1 class="mt-3 text-2xl font-semibold tracking-tight text-fg">Settings</h1>
 		<p class="mt-2 text-sm text-fg-muted">
-			Configure how much downloaded audio JRSS can keep locally.
+			Configure desktop playback behavior and how much downloaded audio JRSS can keep locally.
 		</p>
 
 		<form class="mt-8" onsubmit={handleSave}>
 			<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-				<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-					<div class="max-w-2xl">
-						<h2 class="text-base font-semibold text-fg">Max audio cache size</h2>
-						<p class="mt-2 text-sm text-fg-muted">
-							Set the maximum amount of disk space used for cached audio files.
-						</p>
-
-						{#if isDesktopOnly}
-							<p
-								class="mt-4 rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-fg-muted"
-							>
-								Desktop only. Run JRSS through Tauri to load and save this setting.
+				<div class="flex flex-col gap-6">
+					<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+						<div class="max-w-2xl">
+							<h2 class="text-base font-semibold text-fg">Mini-player window</h2>
+							<p class="mt-2 text-sm text-fg-muted">
+								Choose whether the mini-player stays above other windows when it opens.
 							</p>
-						{/if}
+
+							{#if isDesktopOnly}
+								<p
+									class="mt-4 rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-fg-muted"
+								>
+									Desktop only. Run JRSS through Tauri to load and save these settings.
+								</p>
+							{/if}
+						</div>
+
+						<div class="w-full max-w-xs">
+							<label
+								for="mini-player-always-on-top"
+								class="flex items-start gap-3 rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-fg"
+							>
+								<input
+									id="mini-player-always-on-top"
+									type="checkbox"
+									bind:checked={miniPlayerAlwaysOnTop}
+									disabled={isLoading || isSaving || isDesktopOnly}
+									onchange={resetMessages}
+									class="mt-0.5 size-4 rounded border-border bg-surface disabled:cursor-not-allowed"
+								/>
+								<span>
+									<span class="block font-medium text-fg">Always on top</span>
+									<span class="mt-1 block text-xs text-fg-muted">
+										Applies the next time the mini-player window is opened.
+									</span>
+								</span>
+							</label>
+						</div>
 					</div>
 
-					<div class="w-full max-w-xs">
-						<label class="block text-sm font-medium text-fg" for="max-audio-cache-size">
-							Value in GB
-						</label>
-						<input
-							id="max-audio-cache-size"
-							type="number"
-							min="0.1"
-							step="0.1"
-							bind:value={maxAudioCacheSizeGb}
-							disabled={isLoading || isSaving || isDesktopOnly}
-							oninput={resetMessages}
-							class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-						/>
-						<p class="mt-2 text-xs text-fg-muted">Stored internally in bytes.</p>
+					<div class="border-t border-border pt-6">
+						<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+							<div class="max-w-2xl">
+								<h2 class="text-base font-semibold text-fg">Max audio cache size</h2>
+								<p class="mt-2 text-sm text-fg-muted">
+									Set the maximum amount of disk space used for cached audio files.
+								</p>
+							</div>
+
+							<div class="w-full max-w-xs">
+								<label class="block text-sm font-medium text-fg" for="max-audio-cache-size">
+									Value in GB
+								</label>
+								<input
+									id="max-audio-cache-size"
+									type="number"
+									min="0.1"
+									step="0.1"
+									bind:value={maxAudioCacheSizeGb}
+									disabled={isLoading || isSaving || isDesktopOnly}
+									oninput={resetMessages}
+									class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+								/>
+								<p class="mt-2 text-xs text-fg-muted">Stored internally in bytes.</p>
+							</div>
+						</div>
 					</div>
 				</div>
 

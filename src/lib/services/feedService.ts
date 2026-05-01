@@ -17,6 +17,7 @@ import type {
 	UpdateStationInput
 } from '$lib/types/rss';
 import {
+	DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 	DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 	mapRawFeedItem,
 	mapRawFeedListItem
@@ -127,7 +128,8 @@ export async function clearPlaybackSession(): Promise<void> {
 export async function loadAppSettings(): Promise<AppSettings> {
 	if (!isTauriRuntime()) {
 		return {
-			maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES
+			maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+			miniPlayerAlwaysOnTop: DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP
 		};
 	}
 

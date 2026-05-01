@@ -13,11 +13,7 @@ use tauri::{Manager, State};
 
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]
-use cocoa::{
-    appkit::NSWindow,
-    base::id,
-    foundation::NSSize,
-};
+use cocoa::{appkit::NSWindow, base::id, foundation::NSSize};
 
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]

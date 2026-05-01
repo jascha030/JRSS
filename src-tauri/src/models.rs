@@ -267,4 +267,5 @@ pub struct PlaybackSessionRecord {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettingsRecord {
     pub max_audio_cache_size_bytes: i64,
+    pub mini_player_always_on_top: bool,
 }

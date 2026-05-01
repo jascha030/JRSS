@@ -69,6 +69,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 CREATE TABLE IF NOT EXISTS app_settings (
 			 	id INTEGER PRIMARY KEY CHECK(id = 1),
 			 	max_audio_cache_size_bytes INTEGER NOT NULL,
+			 	mini_player_always_on_top INTEGER NOT NULL DEFAULT 0,
 			 	updated_at TEXT NOT NULL
 			 );
 
@@ -91,20 +92,57 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     backfill_preview_text(&connection)?;
     migrate_feed_kind_values(&connection)?;
     ensure_stations_tables(&connection)?;
+    ensure_app_settings_columns(&connection)?;
     ensure_app_settings_row(&connection)?;
 
     Ok(())
 }
 
+fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(app_settings)")
+        .map_err(|error| format!("Failed to inspect SQLite app settings columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite app settings columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite app settings columns: {error}"))?;
+
+    if existing_columns
+        .iter()
+        .all(|column| column != "mini_player_always_on_top")
+    {
+        connection
+			.execute(
+				"ALTER TABLE app_settings ADD COLUMN mini_player_always_on_top INTEGER NOT NULL DEFAULT 0",
+				[]
+			)
+			.map_err(|error| {
+				format!("Failed to add SQLite app settings mini player column: {error}")
+			})?;
+    }
+
+    Ok(())
+}
+
 fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
-    use super::settings::DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES;
+    use super::settings::{DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP};
 
     connection
         .execute(
-            "INSERT INTO app_settings (id, max_audio_cache_size_bytes, updated_at)
-			 VALUES (1, ?1, ?2)
+            "INSERT INTO app_settings (
+		        id,
+		        max_audio_cache_size_bytes,
+		        mini_player_always_on_top,
+		        updated_at
+		     )
+			 VALUES (1, ?1, ?2, ?3)
 			 ON CONFLICT(id) DO NOTHING",
-            params![DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, Utc::now().to_rfc3339()],
+            params![
+                DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+                DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
+                Utc::now().to_rfc3339()
+            ],
         )
         .map_err(|error| format!("Failed to ensure app settings row: {error}"))?;
 

@@ -43,10 +43,9 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         let skip_forward_item = MenuItemBuilder::with_id("skip-forward", "Skip Forward")
             .accelerator("CmdOrCtrl+Shift+Right")
             .build(app)?;
-        let skip_backward_item =
-            MenuItemBuilder::with_id("skip-backward", "Skip Backward")
-                .accelerator("CmdOrCtrl+Shift+Left")
-                .build(app)?;
+        let skip_backward_item = MenuItemBuilder::with_id("skip-backward", "Skip Backward")
+            .accelerator("CmdOrCtrl+Shift+Left")
+            .build(app)?;
         let volume_up_item = MenuItemBuilder::with_id("volume-up", "Volume Up")
             .accelerator("CmdOrCtrl+Up")
             .build(app)?;

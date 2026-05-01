@@ -1,13 +1,28 @@
 import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { loadAppSettings } from '$lib/services/feedService';
 import { invokeCommand } from '$lib/services/tauriClient';
+import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/rss';
 
 export const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';
 export const MINI_WINDOW_URL = '/?window=mini';
 
+async function loadMiniPlayerAlwaysOnTop(): Promise<boolean> {
+	try {
+		const settings = await loadAppSettings();
+		return settings.miniPlayerAlwaysOnTop;
+	} catch {
+		return DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP;
+	}
+}
+
 async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
+	const miniPlayerAlwaysOnTop = await loadMiniPlayerAlwaysOnTop();
 	const existing = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
-	if (existing) return existing;
+	if (existing) {
+		await existing.setAlwaysOnTop(miniPlayerAlwaysOnTop);
+		return existing;
+	}
 
 	return new Promise((resolve, reject) => {
 		let settled = false;
@@ -20,8 +35,9 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			maximizable: false,
 			maxHeight: 800,
 			maxWidth: 800,
-			minHeight: 280,
-			minWidth: 280,
+			minHeight: 340,
+			minWidth: 340,
+			alwaysOnTop: miniPlayerAlwaysOnTop,
 			width: 400,
 			resizable: true,
 			title: 'JRSS Mini Player',
