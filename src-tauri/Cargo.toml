@@ -23,7 +23,12 @@ atom_syndication = "0.12.7"
 chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 color-thief = "0.2"
 html-escape = "0.2.13"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+image = { version = "0.25", default-features = false, features = [
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+] }
 log = "0.4.29"
 readability-rs = "0.5"
 regex = "1.12.3"
@@ -50,6 +55,8 @@ tauri-plugin-shell = "2.3.5"
 tokio = { version = "1.52.1", features = ["sync", "time", "macros", "rt"] }
 url = "2.5.8"
 uuid = { version = "1.23.1", features = ["v4"] }
+rustls-webpki = "0.103.13" # or "0.104.0-alpha.7" or later
+time = "0.3.47" # or latest
 
 [dependencies.rodio]
 version = "0.22.2"
@@ -61,3 +68,6 @@ features = [
   "symphonia-wav",
   "symphonia-flac",
 ]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.26"

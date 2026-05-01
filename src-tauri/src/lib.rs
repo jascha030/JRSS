@@ -105,7 +105,8 @@ pub fn run() {
             commands::audio_queue_set,
             commands::save_playback_context,
             commands::load_playback_context,
-            commands::extract_cover_palette
+            commands::extract_cover_palette,
+            commands::set_window_content_aspect_ratio
         ]);
 
     let app = builder

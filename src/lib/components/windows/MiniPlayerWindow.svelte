@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import { listen, type UnlistenFn as EventUnlistenFn } from '@tauri-apps/api/event';
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import { requestSeekTo, requestTogglePlayback, requestSetVolume } from '$lib/stores/app.svelte';
@@ -43,11 +43,11 @@
 		});
 
 		// Listen for modifier-based shortcuts from global shortcuts (skip/volume/settings)
-		let unlistenSkipForward: UnlistenFn | undefined;
-		let unlistenSkipBackward: UnlistenFn | undefined;
-		let unlistenVolumeUp: UnlistenFn | undefined;
-		let unlistenVolumeDown: UnlistenFn | undefined;
-		let unlistenSettings: UnlistenFn | undefined;
+		let unlistenSkipForward: EventUnlistenFn | undefined;
+		let unlistenSkipBackward: EventUnlistenFn | undefined;
+		let unlistenVolumeUp: EventUnlistenFn | undefined;
+		let unlistenVolumeDown: EventUnlistenFn | undefined;
+		let unlistenSettings: EventUnlistenFn | undefined;
 
 		const setupListeners = async () => {
 			unlistenSkipForward = await listen('menu-skip-forward', () => {

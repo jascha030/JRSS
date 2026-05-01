@@ -1,4 +1,5 @@
 import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { invokeCommand } from '$lib/services/tauriClient';
 
 export const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';
@@ -56,6 +57,11 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 
 export async function openMiniPlayer(): Promise<void> {
 	const miniWindow = await ensureMiniPlayerWindow();
+	await invokeCommand('set_window_content_aspect_ratio', {
+		label: MINI_WINDOW_LABEL,
+		width: 1,
+		height: 1
+	});
 	await miniWindow.show();
 
 	const mainWindow = getCurrentWebviewWindow();

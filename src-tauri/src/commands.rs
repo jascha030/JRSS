@@ -9,7 +9,31 @@ use crate::models::{
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
-use tauri::State;
+use tauri::{Manager, State};
+
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+use cocoa::{
+    appkit::NSWindow,
+    base::id,
+    foundation::NSSize,
+};
+
+#[cfg(target_os = "macos")]
+#[allow(deprecated)]
+fn set_macos_window_content_aspect_ratio(
+    window: &tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as id;
+
+    unsafe {
+        ns_window.setContentAspectRatio_(NSSize::new(width, height));
+    }
+
+    Ok(())
+}
 
 /// Helper to run blocking tasks on a thread pool and convert errors.
 async fn blocking<T, F>(task: F) -> Result<T, String>
@@ -441,4 +465,28 @@ pub async fn load_playback_context(
 #[tauri::command]
 pub async fn extract_cover_palette(image_url: String) -> Result<Vec<String>, String> {
     blocking(move || cover_art::extract_cover_palette(&image_url)).await
+}
+
+#[tauri::command]
+pub fn set_window_content_aspect_ratio(
+    app: tauri::AppHandle,
+    label: String,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Window '{label}' not found."))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        set_macos_window_content_aspect_ratio(&window, width, height)?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, width, height);
+    }
+
+    Ok(())
 }
