@@ -12,6 +12,7 @@
    ────────────────────────────────────────────── */
 
 @theme {
+	--breakpoint-xs: 30rem;
 	--breakpoint-3xl: 120rem;
 	--breakpoint-4xl: 144rem;
 

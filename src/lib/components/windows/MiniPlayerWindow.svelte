@@ -8,6 +8,7 @@
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import AudioSeekBar from '../player/AudioSeekBar.svelte';
 	import AudioPlayerControls from '../player/AudioPlayerControls.svelte';
+	import AudioPlayerVolume from '../player/AudioPlayerVolume.svelte';
 
 	const SKIP_SECONDS = 15;
 	const VOLUME_STEP = 0.1;
@@ -140,16 +141,24 @@
 						/>
 					</div>
 
-					<!-- Controls -->
-					<AudioPlayerControls
-						durationSeconds={playbackState.durationSeconds ||
-							item.mediaEnclosure.durationSeconds ||
-							0}
-						isPlaying={playbackState.isPlaying}
-						skipSeconds={15}
-						onTogglePlayback={requestTogglePlayback}
-						onSkip={skip}
-					/>
+					<div class="grid grid-cols-2 xs:grid-cols-3">
+						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
+							<!-- Controls -->
+							<AudioPlayerControls
+								durationSeconds={playbackState.durationSeconds ||
+									item.mediaEnclosure.durationSeconds ||
+									0}
+								isPlaying={playbackState.isPlaying}
+								skipSeconds={15}
+								onTogglePlayback={requestTogglePlayback}
+								onSkip={skip}
+							/>
+						</div>
+
+						<div class="flex min-w-0 items-center justify-end gap-2 self-end">
+							<AudioPlayerVolume volume={playbackState.volume} />
+						</div>
+					</div>
 				</div>
 			</div>
 		{:else}
