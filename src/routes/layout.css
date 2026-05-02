@@ -496,6 +496,7 @@
 	input,
 	textarea,
 	select {
+        @apply outline-none;
 		font: inherit;
 	}
 }
