@@ -22,7 +22,7 @@
 
 <div class={`flex items-center justify-center gap-2 ${className}`}>
 	<button
-		class="preset-icon-subtle btn-icon rounded-xl"
+		class="text-fg-subtle hover:text-white"
 		type="button"
 		aria-label={`Back ${skipSeconds} seconds`}
 		onclick={() => onSkip(-skipSeconds)}
@@ -31,7 +31,7 @@
 	</button>
 
 	<button
-		class="preset-filled-accent btn-icon rounded-xl"
+		class="preset-filled-accent size-5 btn-icon rounded-xl"
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}
@@ -50,7 +50,7 @@
 	</button>
 
 	<button
-		class="preset-icon-subtle btn-icon rounded-xl"
+		class="text-fg-subtle hover:text-white"
 		type="button"
 		aria-label={`Forward ${skipSeconds} seconds`}
 		onclick={() => onSkip(skipSeconds)}

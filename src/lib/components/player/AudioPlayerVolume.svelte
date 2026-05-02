@@ -58,18 +58,18 @@
 
 <div class={`flex shrink-0 items-center gap-2 ${className}`}>
 	<button
-		class="preset-icon-subtle btn-icon rounded-xl"
+		class="size-5 preset-icon-subtle btn-icon rounded-xl"
 		type="button"
 		onclick={toggleMute}
 		aria-label={isMuted ? 'Unmute' : 'Mute'}
 		aria-pressed={isMuted}
 	>
 		{#if isMuted || effectiveVolume === 0}
-			<Icon icon="lucide:volume-x" class="size-4" />
+			<Icon icon="lucide:volume-x" class="size-5" />
 		{:else if effectiveVolume < 0.5}
-			<Icon icon="lucide:volume-1" class="size-4" />
+			<Icon icon="lucide:volume-1" class="size-5" />
 		{:else}
-			<Icon icon="lucide:volume-2" class="size-4" />
+			<Icon icon="lucide:volume-2" class="size-5" />
 		{/if}
 	</button>
 
