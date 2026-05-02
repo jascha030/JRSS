@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, MediaListItem, PlaybackState } from '$lib/types/rss';
-	import type { Snippet } from 'svelte';
 	import { requestSeekTo, requestSetVolume, requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import Icon from '@iconify/svelte';
@@ -19,7 +18,6 @@
 		onNavigateToItem?: () => void;
 		onClose?: () => void;
 		onPopOut?: () => void;
-		controls?: Snippet;
 		class?: string;
 		historyItems?: MediaListItem[];
 		queueItems?: MediaListItem[];
@@ -40,7 +38,6 @@
 		onNavigateToItem,
 		onClose,
 		onPopOut,
-		controls,
 		class: className = '',
 		historyItems = [],
 		queueItems = [],
@@ -207,19 +204,19 @@
 		{/if}
 
 		<div
-			class="relative z-10 grid h-full min-h-140 grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-center justify-center gap-16 px-8 py-16"
+			class="relative z-10 grid h-full min-h-140 grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-stretch justify-center gap-16 px-8 py-16"
 		>
-			<div class="flex min-h-0 flex-col justify-center gap-16 overflow-hidden">
-				<div class="mx-auto flex min-h-50 w-full max-w-6xl flex-1 flex-col justify-center p-4">
+			<div class="flex h-full min-h-100 min-w-0 flex-col justify-center gap-16 overflow-hidden">
+				<div class="mx-auto flex min-h-0 w-full max-w-6xl items-center justify-center p-4">
 					{#if imageUrl}
 						<img
 							src={imageUrl}
 							alt=""
-							class="mx-auto aspect-square max-h-[60vh] w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
+							class="cover-view-artwork mx-auto aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
 						/>
 					{:else}
 						<div
-							class="mx-auto grid aspect-square max-h-[60vh] w-auto max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
+							class="cover-view-artwork mx-auto grid aspect-square w-auto max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
 							style:background-color={coverTheme.panelBg}
 						>
 							<Icon icon="lucide:disc-3" class="size-16" />
@@ -227,36 +224,38 @@
 					{/if}
 				</div>
 
-				<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
+				<div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4">
 					<div
 						class="mx-auto grid w-full max-w-6xl min-w-150 grid-cols-[minmax(200px,1fr)_auto_minmax(150px,1fr)] items-center gap-4 4xl:max-w-400"
 					>
 						<div class="min-w-0">
 							<AudioPlayerInfo {item} showCover={false} onNavigate={onNavigateToItem} />
 						</div>
-
-						<AudioPlayerControls
-							durationSeconds={durationForPlayer()}
-							isPlaying={playbackState.isPlaying}
-							onTogglePlayback={togglePlayback}
-							onSkip={skip}
-							skipSeconds={SKIP_SECONDS}
-						/>
-
-						<div class="flex min-w-0 items-center justify-end gap-2">
-							<AudioPlayerVolume volume={playbackState.volume} />
-
-							{#if controls}
-								<div class="relative ml-1 shrink-0">
-									{@render controls()}
-								</div>
-							{/if}
-						</div>
 					</div>
 
 					<div class="flex min-w-0 flex-row gap-4">
 						<AudioSeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
 					</div>
+
+					<div class="grid grid-cols-2 xs:grid-cols-3">
+						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
+							<!-- Controls -->
+							<AudioPlayerControls
+								durationSeconds={playbackState.durationSeconds ||
+									item.mediaEnclosure.durationSeconds ||
+									0}
+								isPlaying={playbackState.isPlaying}
+								skipSeconds={15}
+								onTogglePlayback={requestTogglePlayback}
+								onSkip={skip}
+							/>
+						</div>
+
+						<div class="flex min-w-0 items-center justify-end gap-2 self-end">
+							<AudioPlayerVolume volume={playbackState.volume} />
+						</div>
+					</div>
+
 				</div>
 			</div>
 
@@ -373,6 +372,10 @@
 		background: rgba(0, 0, 0, 0.18);
 		border: 1px solid rgba(255, 255, 255, 0.12);
 		backdrop-filter: blur(22px);
+	}
+
+	.cover-view-artwork {
+		max-height: min(60vh, calc(100dvh - 22rem));
 	}
 
 	.cover-view-side-panel > :global(div:first-child) {
