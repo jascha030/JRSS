@@ -320,16 +320,18 @@
 {#snippet feedList()}
 	{#each feeds as feed (feed.id)}
 		{@const isRefreshing = refreshingFeedIds.includes(feed.id)}
-		<div class="group mb-2 flex items-center">
+		<div
+			class={`group mb-2 flex items-center rounded-xl transition-colors ${
+				selectedFeedId === feed.id
+					? 'bg-surface-active text-fg'
+					: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
+			}`}
+		>
 			<button
 				type="button"
 				onclick={() => onSelectFeed(feed.id)}
 				oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
-				class={`flex h-10 min-w-0 flex-1 items-center rounded-xl px-3 py-2 text-left transition-colors ${
-					selectedFeedId === feed.id
-						? 'bg-surface-active text-fg'
-						: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
-				}`}
+				class="flex h-10 min-w-0 flex-1 items-center px-3 py-2 text-left"
 			>
 				<span class="min-w-0 flex-1">
 					<span class="block truncate text-sm font-medium">{feed.title}</span>
@@ -349,22 +351,9 @@
 				title="Open feed context menu"
 				onclick={(e) => void openFeedContextMenu(e, feed)}
 				aria-label={`Open ${feed.title} context menu`}
-				class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 hover:bg-surface-hover hover:text-fg-secondary"
+				class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle transition-[opacity,background-color,color] duration-150 group-hover:text-fg-secondary"
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke-width="1.5"
-					stroke="currentColor"
-					class="size-4"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z"
-					/>
-				</svg>
+				<Icon icon="heroicons:ellipsis-vertical" class="size-4" />
 			</button>
 		</div>
 	{/each}
@@ -375,26 +364,14 @@
 		<button
 			type="button"
 			onclick={() => onSelectStation(station.id)}
-			class={`flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
+			class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
 				selectedStationId === station.id
 					? 'bg-surface-active text-fg'
 					: 'text-fg-muted hover:bg-surface-hover hover:text-fg'
 			}`}
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="1.5"
-				stroke="currentColor"
-				class="size-4 shrink-0 text-success-600"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-				/>
-			</svg>
+			<Icon icon="heroicons:microphone" class="size-4 shrink-0 text-success-600" />
+
 			<span class="min-w-0 flex-1">
 				<span class="block truncate text-sm font-medium">{station.name}</span>
 				<span class="block truncate text-xs text-fg-muted">
