@@ -131,7 +131,7 @@
 
 <div class="flex w-full items-center gap-4 px-2">
 	<!-- Center search -->
-	<div bind:this={containerRef} class="relative flex-1">
+	<div bind:this={containerRef} class="relative mr-12 flex-1">
 		<label class="sr-only" for="global-search">Search all feeds</label>
 		<div class="input-group grid-cols-[auto_1fr_auto]">
 			<div class="ig-cell preset-tonal">
