@@ -255,7 +255,6 @@
 							<AudioPlayerVolume volume={playbackState.volume} />
 						</div>
 					</div>
-
 				</div>
 			</div>
 

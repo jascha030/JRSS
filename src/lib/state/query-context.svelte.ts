@@ -100,7 +100,9 @@ export function getActiveQuerySpec(): ItemsQuerySpec | null {
 		return null;
 	}
 
-	const search = selection.selectedFeedId ? normalizeSearchTerm(selection.feedSearchTerm) : '';
+	const search = selection.selectedFeedId
+		? normalizeSearchTerm(selection.feedSearchTerm)
+		: normalizeSearchTerm(selection.sectionSearchTerm);
 	const sortOrder = getEffectiveSortOrder();
 
 	return {

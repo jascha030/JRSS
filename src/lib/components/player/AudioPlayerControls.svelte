@@ -31,7 +31,7 @@
 	</button>
 
 	<button
-		class="preset-filled-accent size-5 btn-icon rounded-xl"
+		class="preset-filled-accent btn-icon size-5 rounded-xl"
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}

@@ -194,22 +194,22 @@
 								<label for="auto-refresh-interval" class="label">
 									<span class="label-text text-sm font-medium text-fg"> Refresh interval</span>
 
-							<select
-									id="auto-refresh-interval"
-									value={autoRefreshIntervalMinutes}
-									onchange={(event) => {
-										autoRefreshIntervalMinutes = parseInt(event.currentTarget.value, 10);
-									}}
-									oninput={resetMessages}
-									disabled={isLoading || isSaving || isDesktopOnly}
-									class="mt-1.5 w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
-								>
-									<option value={0}>Off</option>
-									<option value={15}>Every 15 minutes</option>
-									<option value={30}>Every 30 minutes</option>
-									<option value={60}>Every hour</option>
-									<option value={120}>Every 2 hours</option>
-								</select>
+									<select
+										id="auto-refresh-interval"
+										value={autoRefreshIntervalMinutes}
+										onchange={(event) => {
+											autoRefreshIntervalMinutes = parseInt(event.currentTarget.value, 10);
+										}}
+										oninput={resetMessages}
+										disabled={isLoading || isSaving || isDesktopOnly}
+										class="mt-1.5 w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+									>
+										<option value={0}>Off</option>
+										<option value={15}>Every 15 minutes</option>
+										<option value={30}>Every 30 minutes</option>
+										<option value={60}>Every hour</option>
+										<option value={120}>Every 2 hours</option>
+									</select>
 								</label>
 								<p class="mt-2 text-xs text-fg-muted">Changes take effect immediately.</p>
 							</div>

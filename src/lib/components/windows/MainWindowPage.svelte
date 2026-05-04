@@ -58,6 +58,7 @@
 		selectStation,
 		setFeedSearchTerm,
 		setStationSearchTerm,
+		setSectionSearchTerm,
 		setFeedSortOrder,
 		updateExistingStation
 	} from '$lib/stores/app.svelte';
@@ -96,6 +97,7 @@
 	const itemSummariesById = $derived(itemsState.itemSummariesById);
 	const feedSearchTerm = $derived(selection.feedSearchTerm);
 	const stationSearchTerm = $derived(selection.stationSearchTerm);
+	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
 
 	// Computed selectors
 	const selectedFeed = $derived(getSelectedFeed(feeds));
@@ -420,11 +422,13 @@
 										onRefresh={handleRefreshFeed}
 										onSearchChange={setFeedSearchTerm}
 										onStationSearchChange={setStationSearchTerm}
+										onSectionSearchChange={setSectionSearchTerm}
 										onSelectItem={selectItem}
 										onSortOrderChange={setFeedSortOrder}
 										onVisibleRangeChange={ensureVisibleRangeLoaded}
 										searchTerm={feedSearchTerm}
 										{stationSearchTerm}
+										{sectionSearchTerm}
 										{isInitialLoading}
 										{itemSortOrder}
 										{selectedFeed}

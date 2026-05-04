@@ -33,6 +33,8 @@
 		onSearchChange: (term: string) => void;
 		stationSearchTerm: string;
 		onStationSearchChange: (term: string) => void;
+		sectionSearchTerm: string;
+		onSectionSearchChange: (term: string) => void;
 		itemSortOrder: ItemSortOrder;
 		onSortOrderChange: (order: ItemSortOrder) => void;
 		onPlayStation?: () => void;
@@ -61,6 +63,8 @@
 		onSearchChange,
 		stationSearchTerm,
 		onStationSearchChange,
+		sectionSearchTerm,
+		onSectionSearchChange,
 		itemSortOrder,
 		onSortOrderChange,
 		onPlayStation,
@@ -72,6 +76,7 @@
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let stationSearchInputRef = $state<HTMLInputElement | null>(null);
+	let sectionSearchInputRef = $state<HTMLInputElement | null>(null);
 
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
@@ -86,7 +91,10 @@
 
 	const { hasActiveSearch, pageHeading, feedTitleById, rowHeight, totalHeight } = $derived.by(
 		() => ({
-			hasActiveSearch: searchTerm.trim().length > 0,
+			hasActiveSearch:
+				searchTerm.trim().length > 0 ||
+				stationSearchTerm.trim().length > 0 ||
+				sectionSearchTerm.trim().length > 0,
 			pageHeading:
 				selectedStation?.name ??
 				selectedFeed?.title ??
@@ -256,6 +264,8 @@
 					searchInputRef?.focus();
 				} else if (selectedStation) {
 					stationSearchInputRef?.focus();
+				} else if (selectedSection) {
+					sectionSearchInputRef?.focus();
 				}
 			});
 			unlistenRefresh = await listen('menu-refresh-feed', () => {
@@ -380,7 +390,7 @@
 			{/if}
 		</div>
 
-		{#if selectedFeed || selectedStation}
+		{#if selectedFeed || selectedStation || selectedSection}
 			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
 				<div class="flex-1">
 					{#if selectedFeed}
@@ -442,6 +452,40 @@
 									if (event.key === 'Escape') {
 										onStationSearchChange('');
 										stationSearchInputRef?.blur();
+									}
+								}}
+							/>
+
+							<div class="ig-cell flex items-center gap-1 text-fg-muted">
+								<kbd class="kbd">⌘</kbd>
+								<kbd class="kbd">F</kbd>
+							</div>
+						</div>
+					{:else if selectedSection}
+						<label class="sr-only" for="section-search">Search items</label>
+
+						<div class="input-group grid-cols-[auto_1fr_auto]">
+							<div class="ig-cell preset-tonal">
+								<Icon icon="lucide:search" class="size-4" />
+							</div>
+
+							<input
+								id="section-search"
+								bind:this={sectionSearchInputRef}
+								class="ig-input"
+								placeholder="Search items"
+								type="search"
+								value={sectionSearchTerm}
+								oninput={(event) => {
+									const target = event.currentTarget;
+									if (target instanceof HTMLInputElement) {
+										onSectionSearchChange(target.value);
+									}
+								}}
+								onkeydown={(event) => {
+									if (event.key === 'Escape') {
+										onSectionSearchChange('');
+										sectionSearchInputRef?.blur();
 									}
 								}}
 							/>

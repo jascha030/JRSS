@@ -8,7 +8,8 @@ export const selection = $state({
 	selectedSection: 'all' as SidebarSection,
 	selectedItemId: null as string | null,
 	feedSearchTerm: '',
-	stationSearchTerm: ''
+	stationSearchTerm: '',
+	sectionSearchTerm: ''
 });
 
 export function resetSelectionState(): void {
@@ -18,6 +19,7 @@ export function resetSelectionState(): void {
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';
+	selection.sectionSearchTerm = '';
 }
 
 export function selectFeed(feedId: string | null): void {
@@ -26,6 +28,7 @@ export function selectFeed(feedId: string | null): void {
 	selection.selectedSection = feedId ? null : 'all';
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
+	selection.sectionSearchTerm = '';
 }
 
 export function selectStation(stationId: string): void {
@@ -35,6 +38,7 @@ export function selectStation(stationId: string): void {
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';
+	selection.sectionSearchTerm = '';
 }
 
 export function selectSection(section: SidebarSection): void {
@@ -43,6 +47,8 @@ export function selectSection(section: SidebarSection): void {
 	selection.selectedSection = section;
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
+	selection.stationSearchTerm = '';
+	selection.sectionSearchTerm = '';
 }
 
 export function selectItem(itemId: string | null): void {
@@ -55,6 +61,10 @@ export function setFeedSearchTerm(term: string): void {
 
 export function setStationSearchTerm(term: string): void {
 	selection.stationSearchTerm = term;
+}
+
+export function setSectionSearchTerm(term: string): void {
+	selection.sectionSearchTerm = term;
 }
 
 /**
