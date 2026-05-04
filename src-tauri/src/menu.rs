@@ -57,6 +57,8 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         let app_submenu = SubmenuBuilder::new(app, "JRSS")
             .item(&settings_item)
             .separator()
+            .hide()
+            .separator()
             .quit()
             .build()?;
 
