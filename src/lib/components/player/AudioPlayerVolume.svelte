@@ -79,7 +79,6 @@
 		max={1}
 		step={0.01}
 		ariaLabel="Volume"
-		fillColor="var(--color-fg-muted)"
 		oninput={handleVolumeInput}
 	/>
 </div>
