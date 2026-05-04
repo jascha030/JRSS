@@ -47,7 +47,6 @@ export function selectSection(section: SidebarSection): void {
 	selection.selectedSection = section;
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
-	selection.stationSearchTerm = '';
 	selection.sectionSearchTerm = '';
 }
 

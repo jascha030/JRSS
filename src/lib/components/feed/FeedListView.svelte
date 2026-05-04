@@ -264,7 +264,7 @@
 					searchInputRef?.focus();
 				} else if (selectedStation) {
 					stationSearchInputRef?.focus();
-				} else if (selectedSection) {
+				} else if (selectedSection === 'unread' || selectedSection === 'media') {
 					sectionSearchInputRef?.focus();
 				}
 			});
@@ -461,8 +461,10 @@
 								<kbd class="kbd">F</kbd>
 							</div>
 						</div>
-					{:else if selectedSection}
-						<label class="sr-only" for="section-search">Search items</label>
+					{:else if selectedSection === 'unread' || selectedSection === 'media'}
+						<label class="sr-only" for="section-search"
+							>Search {selectedSection === 'unread' ? 'unread' : 'media'}</label
+						>
 
 						<div class="input-group grid-cols-[auto_1fr_auto]">
 							<div class="ig-cell preset-tonal">
@@ -473,7 +475,7 @@
 								id="section-search"
 								bind:this={sectionSearchInputRef}
 								class="ig-input"
-								placeholder="Search items"
+								placeholder="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
 								type="search"
 								value={sectionSearchTerm}
 								oninput={(event) => {

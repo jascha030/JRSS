@@ -262,6 +262,16 @@
 		isStationEditorOpen = true;
 	}
 
+	function handleSelectSearchResult(item: import('$lib/types/rss').FeedListItem): void {
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
+		selectFeed(item.feedId);
+		selectItem(item.id);
+		scrollRequestSeq += 1;
+		scrollToItemRequest = { itemId: item.id, seq: scrollRequestSeq };
+	}
+
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
@@ -354,9 +364,13 @@
 			>
 				<div
 					data-tauri-drag-region
-					class="flex h-12 w-full items-center justify-end px-4 py-0 align-middle"
+					class="flex h-12 w-full items-center justify-end pl-[5.5rem] pr-4 py-0 align-middle"
 				>
-					<Header onOpenDialog={() => (isFeedEditorOpen = true)} />
+					<Header
+						onOpenDialog={() => (isFeedEditorOpen = true)}
+						{feeds}
+						onSelectResult={handleSelectSearchResult}
+					/>
 				</div>
 			</AppBar.Toolbar>
 		</AppBar>
