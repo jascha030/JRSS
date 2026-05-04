@@ -364,7 +364,7 @@
 			>
 				<div
 					data-tauri-drag-region
-					class="flex h-12 w-full items-center justify-end pl-[5.5rem] pr-4 py-0 align-middle"
+					class="flex h-12 w-full items-center justify-end pl-44 pr-4 py-0 align-middle"
 				>
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}

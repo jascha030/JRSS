@@ -9,6 +9,10 @@
 	import AudioSeekBar from '../player/AudioSeekBar.svelte';
 	import AudioPlayerControls from '../player/AudioPlayerControls.svelte';
 	import AudioPlayerVolume from '../player/AudioPlayerVolume.svelte';
+	import AudioPlayerInfo from '../player/AudioPlayerInfo.svelte';
+	import { getCoverTheme } from '$lib/state/playback.svelte';
+
+	let coverTheme = $derived(getCoverTheme());
 
 	const SKIP_SECONDS = 15;
 	const VOLUME_STEP = 0.1;
@@ -16,11 +20,10 @@
 	type Props = {
 		item: MediaListItem | null;
 		imageUrl?: string;
-		feedTitle?: string;
 		playbackState: PlaybackState | null;
 	};
 
-	let { item, imageUrl, feedTitle, playbackState }: Props = $props();
+	let { item, imageUrl, playbackState }: Props = $props();
 
 	function skip(deltaSeconds: number) {
 		const current = playbackState?.positionSeconds ?? 0;
@@ -123,13 +126,21 @@
 				{/if}
 
 				<div
-					class="absolute right-0 bottom-0 left-0 flex flex-col bg-black/30 p-4 opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100"
+					class="mini-player-theme absolute right-0 bottom-0 left-0 flex flex-col bg-black/30 p-4 opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100"
+					style:--cover-fg={coverTheme.fg}
+					style:--cover-fg-muted={coverTheme.fgMuted}
+					style:--cover-fg-subtle={coverTheme.fgSubtle}
+					style:--cover-accent={coverTheme.accent}
+					style:--cover-accent-contrast={coverTheme.accentContrast}
+					style:--cover-panel-bg={coverTheme.panelBg}
+					style:--cover-panel-border={coverTheme.panelBorder}
+					style:--cover-button-bg={coverTheme.buttonBg}
+					style:--cover-button-bg-hover={coverTheme.buttonBgHover}
+					style:--color-fg-muted={coverTheme.fgMuted}
+					style:--cover-seek-fill={coverTheme.accent}
 				>
 					<!-- Track info -->
-					<div class="mb-4 w-full text-center">
-						<h2 class="line-clamp-1 text-lg font-semibold text-fg">{item.title}</h2>
-						<p class="line-clamp-1 text-sm text-fg-muted">{feedTitle}</p>
-					</div>
+					<AudioPlayerInfo {item} {imageUrl} showCover={false} class="mb-4 w-full justify-center" />
 
 					<!-- Seek bar -->
 					<div class="mb-4 w-full">
@@ -169,3 +180,60 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.mini-player-theme {
+		color: var(--cover-fg);
+	}
+
+	.mini-player-theme :global(.text-fg) {
+		color: var(--cover-fg) !important;
+	}
+
+	.mini-player-theme :global(.text-fg-muted) {
+		color: var(--cover-fg-muted) !important;
+	}
+
+	.mini-player-theme :global(.text-fg-subtle) {
+		color: var(--cover-fg-subtle) !important;
+	}
+
+	.mini-player-theme :global(.text-accent),
+	.mini-player-theme :global(.hover\:text-accent:hover),
+	.mini-player-theme :global(.focus-visible\:text-accent:focus-visible) {
+		color: var(--cover-accent) !important;
+	}
+
+	.mini-player-theme :global(.preset-icon-subtle) {
+		color: var(--cover-fg) !important;
+		background: var(--cover-button-bg) !important;
+		border-color: var(--cover-panel-border) !important;
+		backdrop-filter: blur(18px);
+	}
+
+	.mini-player-theme :global(.preset-icon-subtle:hover) {
+		background: var(--cover-button-bg-hover) !important;
+	}
+
+	.mini-player-theme :global(.preset-filled-accent) {
+		color: var(--cover-accent-contrast) !important;
+		background: var(--cover-accent) !important;
+		border-color: transparent !important;
+	}
+
+	.mini-player-theme :global(.preset-filled-accent:hover) {
+		filter: brightness(1.04);
+	}
+
+	.mini-player-theme :global(.btn-icon) {
+		box-shadow: none;
+	}
+
+	.mini-player-theme :global(.player-range) {
+		--fill: var(--cover-seek-fill) !important;
+	}
+
+	.mini-player-theme :global(.player-range:focus-visible) {
+		outline-color: var(--cover-seek-fill) !important;
+	}
+</style>
