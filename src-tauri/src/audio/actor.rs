@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
-use rodio::{Decoder, Player};
+use rodio::{Decoder, Player, Source};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::db;
@@ -119,8 +119,28 @@ impl AudioThread {
         self.ensure_output_sink()?;
 
         self.current_item_id = Some(item_id.clone());
-        self.stored_position_seconds = start_position_seconds.max(0.0);
         self.duration_seconds = duration_hint_seconds.max(0.0);
+
+        // Clamp start position to valid bounds [0, duration - epsilon]
+        // The epsilon prevents seeking exactly to the end which can cause immediate playback end
+        // This handles cases where RSS metadata duration doesn't match actual audio
+        const END_EPSILON: f64 = 0.5; // Leave 0.5s buffer at the end
+        let clamped_start_position = if self.duration_seconds > END_EPSILON {
+            start_position_seconds.clamp(0.0, self.duration_seconds - END_EPSILON)
+        } else {
+            start_position_seconds.max(0.0)
+        };
+
+        if (clamped_start_position - start_position_seconds).abs() > 1.0 {
+            log::debug!(
+                "Start position clamped: requested={}s, duration={}s, clamped={}s",
+                start_position_seconds,
+                self.duration_seconds,
+                clamped_start_position
+            );
+        }
+
+        self.stored_position_seconds = clamped_start_position;
 
         let (meta, cache_path, is_adopted_prefetch) = if prefetch_match {
             let prefetch = self.prefetch.take().unwrap();
@@ -192,14 +212,43 @@ impl AudioThread {
         log::debug!("Open streaming file took {:?}", open_start.elapsed());
 
         let decode_start = Instant::now();
-        let decoder = match Decoder::new(streaming) {
-            Ok(d) => d,
-            Err(e) => {
-                cleanup_failed_playback_start(&meta, &cache_path);
-                return Err(format!("Failed to decode audio: {e}"));
-            }
-        };
+
+        // Get file size for accurate duration calculation (especially for VBR MP3s)
+        let file_size = std::fs::metadata(&cache_path).map(|m| m.len()).unwrap_or(0);
+
+        // Use Decoder builder with byte_len for accurate duration on formats that need it
+        let decoder = if file_size > 0 {
+            Decoder::builder()
+                .with_data(streaming)
+                .with_byte_len(file_size)
+                .build()
+        } else {
+            Decoder::new(streaming)
+        }
+        .map_err(|e| {
+            cleanup_failed_playback_start(&meta, &cache_path);
+            format!("Failed to decode audio: {e}")
+        })?;
+
         log::debug!("Decoder creation took {:?}", decode_start.elapsed());
+
+        // Use actual audio duration from decoder if available (more accurate than RSS metadata)
+        if let Some(actual_duration) = decoder.total_duration() {
+            let actual_seconds = actual_duration.as_secs_f64();
+            if actual_seconds > 0.0 && actual_seconds != self.duration_seconds {
+                log::info!(
+                    "Using actual audio duration: {}s (RSS hint was: {}s)",
+                    actual_seconds,
+                    self.duration_seconds
+                );
+                self.duration_seconds = actual_seconds;
+
+                // Update queue current item duration so frontend gets correct value
+                if let Some(ref mut current) = self.queue.current {
+                    current.duration_seconds = actual_seconds;
+                }
+            }
+        }
 
         let handle = self
             .sink_handle
@@ -212,29 +261,17 @@ impl AudioThread {
         player.append(decoder);
 
         let seek_start = Instant::now();
-        if start_position_seconds > 0.0 {
-            let seek_duration = Duration::from_secs_f64(start_position_seconds);
+        if self.stored_position_seconds > 0.0 {
+            let seek_duration = Duration::from_secs_f64(self.stored_position_seconds);
             if player.try_seek(seek_duration).is_err() {
-                log::warn!("try_seek failed (MP3 without seek table?), restarting at position");
-                // MP3 doesn't support seeking, restart at position by dropping and recreating
-                drop(player);
-
-                let streaming = StreamingFile::open(&cache_path, Arc::clone(&meta))
-                    .map_err(|e| format!("Failed to reopen streaming file: {e}"))?;
-                let decoder = Decoder::new(streaming)
-                    .map_err(|e| format!("Failed to recreate decoder: {e}"))?;
-                let player = Player::connect_new(handle.mixer());
-                player.set_volume(self.volume);
-                player.set_speed(self.speed);
-                player.append(decoder);
-
-                self.player = Some(player);
-            } else {
-                self.player = Some(player);
+                log::warn!("try_seek failed (MP3 without seek table?), starting from beginning");
+                // MP3 doesn't support seeking. We keep the player as-is (starting from beginning)
+                // The stored_position_seconds remains set so the UI shows the intended position,
+                // but actual playback starts from 0. This is the best we can do for unseekable formats.
+                // User can manually skip forward using skip controls if needed.
             }
-        } else {
-            self.player = Some(player);
         }
+        self.player = Some(player);
         log::debug!("Seek operation took {:?}", seek_start.elapsed());
 
         self.download_meta = Some(meta);
@@ -300,10 +337,17 @@ impl AudioThread {
             .map(|player| !player.is_paused() && !player.empty())
             .unwrap_or(false);
 
+        // Dynamically extend duration if position exceeds it (handles dynamic ad injection)
+        // Use the greater of: stored duration, current position, or stored position
+        let effective_duration = self
+            .duration_seconds
+            .max(position_seconds)
+            .max(self.stored_position_seconds);
+
         Some(PlaybackStateEvent {
             item_id: item_id.clone(),
             position_seconds,
-            duration_seconds: self.duration_seconds,
+            duration_seconds: effective_duration,
             is_playing,
             volume: self.volume as f64,
             speed: self.speed as f64,
@@ -327,6 +371,20 @@ impl AudioThread {
                 log::error!("Failed to clear playback session: {error}");
             }
             return;
+        }
+
+        // Update stored duration to effective duration if position has exceeded it
+        // This handles dynamic ad injection where actual audio is longer than RSS metadata
+        let effective_duration = self
+            .duration_seconds
+            .max(self.stored_position_seconds);
+        if effective_duration > self.duration_seconds {
+            log::debug!(
+                "Updating duration from {}s to {}s based on playback position",
+                self.duration_seconds,
+                effective_duration
+            );
+            self.duration_seconds = effective_duration;
         }
 
         let (history_queue, manual_queue, auto_queue) = self.queue.to_session_parts();
@@ -564,42 +622,50 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
                 AudioCommand::Seek { position_seconds } => {
                     let seek_start = Instant::now();
+
+                    // Clamp seek position to valid bounds [0, actual_duration - epsilon]
+                    // The epsilon prevents seeking exactly to the end which can cause immediate playback end
+                    // This handles cases where RSS metadata duration doesn't match actual audio
+                    const END_EPSILON: f64 = 0.5; // Leave 0.5s buffer at the end
+                    let clamped_position = if state.duration_seconds > END_EPSILON {
+                        position_seconds.clamp(0.0, state.duration_seconds - END_EPSILON)
+                    } else {
+                        position_seconds.max(0.0)
+                    };
+
+                    if (clamped_position - position_seconds).abs() > 1.0 {
+                        log::debug!(
+                            "Seek position clamped: requested={}s, actual_duration={}s, clamped={}s",
+                            position_seconds,
+                            state.duration_seconds,
+                            clamped_position
+                        );
+                    }
+
                     let seek_result = state.player.as_ref().map(|player| {
-                        let target = Duration::from_secs_f64(position_seconds.max(0.0));
+                        let target = Duration::from_secs_f64(clamped_position);
                         player.try_seek(target)
                     });
 
                     match seek_result {
                         Some(Ok(())) => {
-                            // Seek succeeded, nothing more to do
+                            // Seek succeeded, update stored position
+                            state.stored_position_seconds = clamped_position;
                         }
                         _ => {
-                            // Seek failed or no player - restart at position
+                            // Seek failed or no player - for MP3s without seek tables,
+                            // we can't easily seek. Just update the stored position for UI
+                            // and log the failure. Don't restart playback to avoid loops.
                             if seek_result.is_some() {
                                 log::warn!(
-                                    "Seek failed in decoder, will restart playback at position"
+                                    "Seek failed in decoder (MP3 without seek table?), position unchanged"
                                 );
                             }
-                            state.stored_position_seconds = position_seconds.max(0.0);
-                            let current = state.queue.current_item().cloned();
-                            if let Some(item) = current {
-                                // Take ownership of player before teardown
-                                let _ = state.player.take();
-                                state.teardown_output_only();
-                                if let Err(error) = state.handle_play(
-                                    item.item_id,
-                                    item.url,
-                                    state.stored_position_seconds,
-                                    if state.duration_seconds > 0.0 {
-                                        state.duration_seconds
-                                    } else {
-                                        item.duration_seconds
-                                    },
-                                ) {
-                                    log::error!("Seek-restart failed: {error}");
-                                }
-                            } else if state.current_item_id.is_some() {
-                                state.stored_position_seconds = position_seconds.max(0.0);
+                            // Only update stored position if we actually have a player
+                            // The UI will show the intended position but playback continues
+                            // from current position for unseekable formats
+                            if state.player.is_some() {
+                                state.stored_position_seconds = clamped_position;
                             }
                         }
                     }
