@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import MainWindowPage from '$lib/components/windows/MainWindowPage.svelte';
-	import MiniPlayerWindow from '$lib/components/windows/MiniPlayerWindow.svelte';
+	import App from '$lib/components/App.svelte';
+	import MiniPlayer from '$lib/components/MiniPlayer.svelte';
 	import {
 		playbackState,
 		getCurrentAudioItem,
@@ -21,12 +21,11 @@
 </svelte:head>
 
 {#if isMiniWindow}
-	<MiniPlayerWindow
+	<MiniPlayer
 		item={currentAudioItem}
 		imageUrl={currentAudioItemFeed?.imageUrl}
-		feedTitle={currentAudioItemFeed?.title}
 		playbackState={currentPlaybackState}
 	/>
 {:else}
-	<MainWindowPage />
+	<App />
 {/if}

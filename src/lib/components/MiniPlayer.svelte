@@ -6,10 +6,10 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import { requestSeekTo, requestTogglePlayback, requestSetVolume } from '$lib/stores/app.svelte';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
-	import AudioSeekBar from '../player/AudioSeekBar.svelte';
-	import AudioPlayerControls from '../player/AudioPlayerControls.svelte';
-	import AudioPlayerVolume from '../player/AudioPlayerVolume.svelte';
-	import AudioPlayerInfo from '../player/AudioPlayerInfo.svelte';
+	import AudioSeekBar from './player/AudioSeekBar.svelte';
+	import AudioPlayerControls from './player/AudioPlayerControls.svelte';
+	import AudioPlayerVolume from './player/AudioPlayerVolume.svelte';
+	import AudioPlayerInfo from './player/AudioPlayerInfo.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 
 	let coverTheme = $derived(getCoverTheme());
