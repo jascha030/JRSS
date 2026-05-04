@@ -280,7 +280,7 @@
 			>
 				<Avatar class="size-12 rounded-xl shadow-sm">
 					{#if imageUrl}
-						<Avatar.Image src={imageUrl} alt="" class="object-cover" />
+						<Avatar.Image src={imageUrl} alt="" class="hover: object-cover" />
 					{/if}
 					<Avatar.Fallback class="grid h-full w-full place-items-center text-xs font-semibold">
 						♪

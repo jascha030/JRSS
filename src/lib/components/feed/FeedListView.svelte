@@ -342,7 +342,7 @@
 					<label class="sr-only" for="feed-sort-order">Sort order</label>
 					<select
 						id="feed-sort-order"
-						class="select min-w-36 rounded-xl text-sm"
+						class="min-w-36"
 						aria-label="Sort order"
 						value={itemSortOrder}
 						onchange={(event) => {
