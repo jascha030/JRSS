@@ -1,4 +1,5 @@
 use crate::audio::{self, OutputDeviceInfo, PlaybackStateEvent};
+use crate::auto_refresh::AutoRefreshState;
 use crate::cover_art;
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
@@ -242,9 +243,12 @@ pub async fn load_app_settings(
 pub async fn save_app_settings(
     settings: AppSettingsRecord,
     state: State<'_, DatabaseState>,
+    auto_refresh_state: State<'_, AutoRefreshState>,
 ) -> Result<AppSettingsRecord, String> {
     let db_path = state.db_path();
-    blocking(move || db::save_app_settings(&db_path, &settings)).await
+    let saved = blocking(move || db::save_app_settings(&db_path, &settings)).await?;
+    auto_refresh_state.set_interval(saved.auto_refresh_interval_minutes);
+    Ok(saved)
 }
 
 // ---------------------------------------------------------------------------

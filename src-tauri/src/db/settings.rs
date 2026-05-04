@@ -7,10 +7,19 @@ use std::path::Path;
 
 pub const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES: i64 = 5 * 1024 * 1024 * 1024;
 pub const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP: bool = false;
+/// Default auto-refresh interval in minutes (1 hour). `0` means disabled.
+pub const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES: i64 = 60;
 
 fn normalize_max_audio_cache_size_bytes(value: i64) -> AppResult<i64> {
     if value <= 0 {
         return Err("Audio cache size must be greater than 0 bytes.".to_string());
+    }
+    Ok(value)
+}
+
+fn normalize_auto_refresh_interval_minutes(value: i64) -> AppResult<i64> {
+    if value < 0 {
+        return Err("Auto-refresh interval cannot be negative.".to_string());
     }
     Ok(value)
 }
@@ -41,21 +50,31 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
     let connection = open_connection(db_path)?;
     ensure_app_settings_row(&connection)?;
 
-    let (max_audio_cache_size_bytes, mini_player_always_on_top) = connection
-        .query_row(
-            "SELECT max_audio_cache_size_bytes, mini_player_always_on_top
-		     FROM app_settings
-		     WHERE id = 1",
-            [],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, bool>(1)?)),
-        )
-        .map_err(|error| format!("Failed to load app settings: {error}"))?;
+    let (max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes) =
+        connection
+            .query_row(
+                "SELECT max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes
+		         FROM app_settings
+		         WHERE id = 1",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, bool>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                },
+            )
+            .map_err(|error| format!("Failed to load app settings: {error}"))?;
 
     Ok(AppSettingsRecord {
         max_audio_cache_size_bytes: normalize_max_audio_cache_size_bytes(
             max_audio_cache_size_bytes,
         )?,
         mini_player_always_on_top,
+        auto_refresh_interval_minutes: normalize_auto_refresh_interval_minutes(
+            auto_refresh_interval_minutes,
+        )?,
     })
 }
 
@@ -69,6 +88,8 @@ pub fn save_app_settings(
     let max_audio_cache_size_bytes =
         normalize_max_audio_cache_size_bytes(settings.max_audio_cache_size_bytes)?;
     let mini_player_always_on_top = settings.mini_player_always_on_top;
+    let auto_refresh_interval_minutes =
+        normalize_auto_refresh_interval_minutes(settings.auto_refresh_interval_minutes)?;
 
     connection
         .execute(
@@ -76,16 +97,19 @@ pub fn save_app_settings(
 		        id,
 		        max_audio_cache_size_bytes,
 		        mini_player_always_on_top,
+		        auto_refresh_interval_minutes,
 		        updated_at
 		     )
-		     VALUES (1, ?1, ?2, ?3)
+		     VALUES (1, ?1, ?2, ?3, ?4)
 		     ON CONFLICT(id) DO UPDATE SET
 		        max_audio_cache_size_bytes = excluded.max_audio_cache_size_bytes,
 		        mini_player_always_on_top = excluded.mini_player_always_on_top,
+		        auto_refresh_interval_minutes = excluded.auto_refresh_interval_minutes,
 		        updated_at = excluded.updated_at",
             params![
                 max_audio_cache_size_bytes,
                 mini_player_always_on_top,
+                auto_refresh_interval_minutes,
                 Utc::now().to_rfc3339()
             ],
         )
@@ -94,5 +118,6 @@ pub fn save_app_settings(
     Ok(AppSettingsRecord {
         max_audio_cache_size_bytes,
         mini_player_always_on_top,
+        auto_refresh_interval_minutes,
     })
 }

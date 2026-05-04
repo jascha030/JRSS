@@ -146,10 +146,12 @@ export {
 // ---------------------------------------------------------------------------
 // App Initialization
 // ---------------------------------------------------------------------------
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { isTauriRuntime } from '../services/tauriClient';
 import { resetSelectionState } from '../state/selection.svelte';
 import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
 import { resetStationsState, loadStations } from '../state/stations.svelte';
-import { resetItemsState, loadInitialItemsPage } from '../state/items.svelte';
+import { resetItemsState, invalidateAllQueries, loadInitialItemsPage } from '../state/items.svelte';
 import { resetReaderState } from '../state/reader.svelte';
 import {
 	resetPlaybackState,
@@ -174,4 +176,19 @@ export async function initializeApp(): Promise<void> {
 	await loadInitialItemsPage();
 	await syncAudioSessionFromBackend();
 	await restorePlaybackContext();
+
+	// Wire up the background auto-refresh event from the Rust task.
+	// We keep a module-level reference so re-initialisation cleans up first.
+	if (isTauriRuntime()) {
+		if (_unlistenAutoRefresh) {
+			_unlistenAutoRefresh();
+		}
+		_unlistenAutoRefresh = await listen('auto-refresh-complete', () => {
+			void loadFeeds()
+				.then(() => invalidateAllQueries())
+				.then(() => loadInitialItemsPage());
+		});
+	}
 }
+
+let _unlistenAutoRefresh: UnlistenFn | undefined;

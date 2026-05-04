@@ -1,4 +1,5 @@
 mod audio;
+mod auto_refresh;
 mod commands;
 mod cover_art;
 mod db;
@@ -47,7 +48,14 @@ pub fn run() {
             }
 
             let database_state = DatabaseState::new(app.handle())?;
+            let initial_interval = db::load_app_settings(&database_state.db_path())
+                .map(|s| s.auto_refresh_interval_minutes)
+                .unwrap_or(db::DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES);
             app.manage(database_state);
+
+            let auto_refresh_state =
+                auto_refresh::spawn(app.handle().clone(), initial_interval);
+            app.manage(auto_refresh_state);
 
             let audio_state = AudioState::new(app.handle().clone())
                 .map_err(Box::<dyn std::error::Error>::from)?;

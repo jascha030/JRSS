@@ -268,4 +268,7 @@ pub struct PlaybackSessionRecord {
 pub struct AppSettingsRecord {
     pub max_audio_cache_size_bytes: i64,
     pub mini_player_always_on_top: bool,
+    /// Interval between automatic background feed refreshes, in minutes.
+    /// `0` disables auto-refresh.
+    pub auto_refresh_interval_minutes: i64,
 }

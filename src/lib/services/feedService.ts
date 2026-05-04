@@ -19,6 +19,7 @@ import type {
 import {
 	DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 	DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+	DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 	mapRawFeedItem,
 	mapRawFeedListItem
 } from '$lib/types/rss';
@@ -129,7 +130,8 @@ export async function loadAppSettings(): Promise<AppSettings> {
 	if (!isTauriRuntime()) {
 		return {
 			maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
-			miniPlayerAlwaysOnTop: DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP
+			miniPlayerAlwaysOnTop: DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
+			autoRefreshIntervalMinutes: DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES
 		};
 	}
 

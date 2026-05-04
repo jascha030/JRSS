@@ -6,6 +6,8 @@ export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
 export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
 export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
+/** Default auto-refresh interval in minutes. `0` means disabled. */
+export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
 
 export interface Feed {
 	id: string;
@@ -166,6 +168,8 @@ export interface PlaybackSession {
 export interface AppSettings {
 	maxAudioCacheSizeBytes: number;
 	miniPlayerAlwaysOnTop: boolean;
+	/** Interval between automatic background feed refreshes, in minutes. `0` disables. */
+	autoRefreshIntervalMinutes: number;
 }
 
 // ---------------------------------------------------------------------------

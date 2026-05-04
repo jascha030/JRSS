@@ -4,6 +4,7 @@
 	import { loadAppSettings, saveAppSettings } from '$lib/services/feedService';
 	import { isTauriRuntime } from '$lib/services/tauriClient';
 	import {
+		DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 		DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP
 	} from '$lib/types/rss';
@@ -13,6 +14,7 @@
 	let isDesktopOnly = $state(false);
 	let isLoading = $state(true);
 	let isSaving = $state(false);
+	let autoRefreshIntervalMinutes = $state(DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES);
 	let maxAudioCacheSizeGb = $state<number | undefined>(undefined);
 	let miniPlayerAlwaysOnTop = $state(DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP);
 	let errorMessage = $state('');
@@ -46,6 +48,7 @@
 			isDesktopOnly = true;
 			maxAudioCacheSizeGb = bytesToGb(DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES);
 			miniPlayerAlwaysOnTop = DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP;
+			autoRefreshIntervalMinutes = DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES;
 			isLoading = false;
 			return;
 		}
@@ -54,9 +57,11 @@
 			const settings = await loadAppSettings();
 			maxAudioCacheSizeGb = bytesToGb(settings.maxAudioCacheSizeBytes);
 			miniPlayerAlwaysOnTop = settings.miniPlayerAlwaysOnTop;
+			autoRefreshIntervalMinutes = settings.autoRefreshIntervalMinutes;
 		} catch (error) {
 			maxAudioCacheSizeGb = bytesToGb(DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES);
 			miniPlayerAlwaysOnTop = DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP;
+			autoRefreshIntervalMinutes = DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES;
 			errorMessage = `Failed to load settings. ${getErrorMessage(error)}`;
 		} finally {
 			isLoading = false;
@@ -78,15 +83,16 @@
 		}
 
 		isSaving = true;
-
 		try {
 			const settings = await saveAppSettings({
 				maxAudioCacheSizeBytes: gbToBytes(maxAudioCacheSizeGb),
-				miniPlayerAlwaysOnTop
+				miniPlayerAlwaysOnTop,
+				autoRefreshIntervalMinutes
 			});
 
 			maxAudioCacheSizeGb = bytesToGb(settings.maxAudioCacheSizeBytes);
 			miniPlayerAlwaysOnTop = settings.miniPlayerAlwaysOnTop;
+			autoRefreshIntervalMinutes = settings.autoRefreshIntervalMinutes;
 			successMessage = 'Settings saved.';
 		} catch (error) {
 			errorMessage = `Failed to save settings. ${getErrorMessage(error)}`;
@@ -171,6 +177,41 @@
 									class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
 								/>
 								<p class="mt-2 text-xs text-fg-muted">Stored internally in bytes.</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="border-t border-border pt-6">
+						<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+							<div class="max-w-2xl">
+								<h2 class="text-base font-semibold text-fg">Auto-refresh</h2>
+								<p class="mt-2 text-sm text-fg-muted">
+									Automatically check for new episodes and articles in the background.
+								</p>
+							</div>
+
+							<div class="w-full max-w-xs">
+								<label for="auto-refresh-interval" class="label">
+									<span class="label-text text-sm font-medium text-fg"> Refresh interval</span>
+
+							<select
+									id="auto-refresh-interval"
+									value={autoRefreshIntervalMinutes}
+									onchange={(event) => {
+										autoRefreshIntervalMinutes = parseInt(event.currentTarget.value, 10);
+									}}
+									oninput={resetMessages}
+									disabled={isLoading || isSaving || isDesktopOnly}
+									class="mt-1.5 w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+								>
+									<option value={0}>Off</option>
+									<option value={15}>Every 15 minutes</option>
+									<option value={30}>Every 30 minutes</option>
+									<option value={60}>Every hour</option>
+									<option value={120}>Every 2 hours</option>
+								</select>
+								</label>
+								<p class="mt-2 text-xs text-fg-muted">Changes take effect immediately.</p>
 							</div>
 						</div>
 					</div>

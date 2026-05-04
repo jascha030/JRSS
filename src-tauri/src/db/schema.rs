@@ -70,6 +70,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 	id INTEGER PRIMARY KEY CHECK(id = 1),
 			 	max_audio_cache_size_bytes INTEGER NOT NULL,
 			 	mini_player_always_on_top INTEGER NOT NULL DEFAULT 0,
+			 	auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 60,
 			 	updated_at TEXT NOT NULL
 			 );
 
@@ -119,6 +120,20 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
 			)
 			.map_err(|error| {
 				format!("Failed to add SQLite app settings mini player column: {error}")
+			})?;
+    }
+
+    if existing_columns
+        .iter()
+        .all(|column| column != "auto_refresh_interval_minutes")
+    {
+        connection
+			.execute(
+				"ALTER TABLE app_settings ADD COLUMN auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 60",
+				[]
+			)
+			.map_err(|error| {
+				format!("Failed to add SQLite app settings auto refresh column: {error}")
 			})?;
     }
 
