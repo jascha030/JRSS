@@ -358,9 +358,9 @@
 			onClearQueue={clearQueue}
 		/>
 	{:else}
-		<AppBar class="top-0 z-9999 h-12 p-0">
+		<AppBar class="top-0 z-9999 h-12 p-0 bg-transparent!">
 			<AppBar.Toolbar
-				class="flex h-12 w-full content-center border-b border-border bg-surface-shell p-0"
+				class="flex h-12 w-full content-center border-b border-border bg-surface-sidebar p-0"
 			>
 				<div
 					data-tauri-drag-region
@@ -413,7 +413,7 @@
 				}`}
 			>
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-					<main class="flex min-h-0 flex-1 flex-col bg-surface-shell">
+					<main class="flex min-h-0 flex-1 flex-col">
 						{#if feeds.length === 0 && !isInitialLoading}
 							<EmptyFeedView />
 						{:else if selectedSection === 'settings'}
@@ -421,7 +421,7 @@
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
-									class="min-h-0 min-w-0 grow xl:flex-1 xl:border-r xl:border-border 2xl:basis-1/3"
+									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
 								>
 									<FeedListView
 										{feeds}

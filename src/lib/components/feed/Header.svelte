@@ -133,18 +133,18 @@
 	<!-- Center search -->
 	<div bind:this={containerRef} class="relative mr-12 flex-1">
 		<label class="sr-only" for="global-search">Search all feeds</label>
-		<div class="input-group grid-cols-[auto_1fr_auto]">
-			<div class="ig-cell preset-tonal">
-				{#if isLoading}
-					<Icon icon="lucide:loader-circle" class="size-4 animate-spin" />
-				{:else}
-					<Icon icon="lucide:search" class="size-4" />
-				{/if}
-			</div>
+		<div
+			class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-shell px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
+		>
+			{#if isLoading}
+				<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
+			{:else}
+				<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
+			{/if}
 			<input
 				id="global-search"
 				bind:this={searchInputRef}
-				class="ig-input py-2"
+				class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
 				placeholder="Search all feeds"
 				type="search"
 				autocomplete="off"
@@ -160,14 +160,15 @@
 					if (results.length > 0) isOpen = true;
 				}}
 			/>
-			<div class="ig-cell flex items-center gap-1 text-fg-muted">
-				<kbd class="kbd">/</kbd>
-			</div>
+			<kbd
+				class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+				>/</kbd
+			>
 		</div>
 
 		{#if isOpen && results.length > 0}
 			<div
-				class="absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
+				class="absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-xl border border-border bg-surface-glass shadow-xl backdrop-blur-xl"
 				role="listbox"
 				aria-label="Search results"
 			>
@@ -175,7 +176,7 @@
 					<div
 						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${
 							i > 0 ? 'border-t border-border' : ''
-						} ${i === highlightedIndex ? 'bg-surface-active' : 'hover:bg-surface-hover'}`}
+						} ${i === highlightedIndex ? 'bg-surface-sidebar-active' : 'hover:bg-surface-sidebar-hover'}`}
 						role="option"
 						tabindex="-1"
 						aria-selected={i === highlightedIndex}
@@ -205,7 +206,7 @@
 			</div>
 		{:else if isOpen && !isLoading && inputValue.trim()}
 			<div
-				class="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-border bg-surface px-4 py-6 text-center shadow-lg"
+				class="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-border bg-surface-glass px-4 py-6 text-center shadow-xl backdrop-blur-xl"
 			>
 				<p class="text-sm text-fg-muted">No results for "{inputValue.trim()}"</p>
 			</div>

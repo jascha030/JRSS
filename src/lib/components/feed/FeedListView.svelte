@@ -293,7 +293,7 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
+<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md">
 	<div class="shrink-0 border-b border-border px-6 py-8 pb-7.75 lg:px-8">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
@@ -396,15 +396,14 @@
 					{#if selectedFeed}
 						<label class="sr-only" for="feed-search">Search this feed</label>
 
-						<div class="input-group grid-cols-[auto_1fr_auto]">
-							<div class="ig-cell preset-tonal">
-								<Icon icon="lucide:search" class="size-4" />
-							</div>
-
+						<div
+							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
+						>
+							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
 							<input
 								id="feed-search"
 								bind:this={searchInputRef}
-								class="ig-input py-2"
+								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
 								placeholder="Search this feed"
 								type="search"
 								value={searchTerm}
@@ -421,24 +420,28 @@
 									}
 								}}
 							/>
-
-							<div class="ig-cell flex items-center gap-1 text-fg-muted">
-								<kbd class="kbd">⌘</kbd>
-								<kbd class="kbd">F</kbd>
+							<div class="flex items-center gap-1">
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>⌘</kbd
+								>
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>F</kbd
+								>
 							</div>
 						</div>
 					{:else if selectedStation}
 						<label class="sr-only" for="station-search">Search this station</label>
 
-						<div class="input-group grid-cols-[auto_1fr_auto]">
-							<div class="ig-cell preset-tonal">
-								<Icon icon="lucide:search" class="size-4" />
-							</div>
-
+						<div
+							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
+						>
+							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
 							<input
 								id="station-search"
 								bind:this={stationSearchInputRef}
-								class="ig-input"
+								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
 								placeholder="Search this station"
 								type="search"
 								value={stationSearchTerm}
@@ -455,10 +458,15 @@
 									}
 								}}
 							/>
-
-							<div class="ig-cell flex items-center gap-1 text-fg-muted">
-								<kbd class="kbd">⌘</kbd>
-								<kbd class="kbd">F</kbd>
+							<div class="flex items-center gap-1">
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>⌘</kbd
+								>
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>F</kbd
+								>
 							</div>
 						</div>
 					{:else if selectedSection === 'unread' || selectedSection === 'media'}
@@ -466,15 +474,14 @@
 							>Search {selectedSection === 'unread' ? 'unread' : 'media'}</label
 						>
 
-						<div class="input-group grid-cols-[auto_1fr_auto]">
-							<div class="ig-cell preset-tonal">
-								<Icon icon="lucide:search" class="size-4" />
-							</div>
-
+						<div
+							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
+						>
+							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
 							<input
 								id="section-search"
 								bind:this={sectionSearchInputRef}
-								class="ig-input"
+								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
 								placeholder="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
 								type="search"
 								value={sectionSearchTerm}
@@ -491,10 +498,15 @@
 									}
 								}}
 							/>
-
-							<div class="ig-cell flex items-center gap-1 text-fg-muted">
-								<kbd class="kbd">⌘</kbd>
-								<kbd class="kbd">F</kbd>
+							<div class="flex items-center gap-1">
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>⌘</kbd
+								>
+								<kbd
+									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									>F</kbd
+								>
 							</div>
 						</div>
 					{/if}
