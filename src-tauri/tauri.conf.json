@@ -10,6 +10,7 @@
 		"beforeBuildCommand": "bun run build"
 	},
 	"app": {
+		"macOSPrivateApi": true,
 		"windows": [
 			{
 				"label": "main",
@@ -17,7 +18,7 @@
 				"title": "JRSS",
 				"width": 1600,
 				"height": 900,
-				"minWidth": 960,
+				"minWidth": 1024,
 				"minHeight": 640,
 				"fullscreen": false,
 				"decorations": true,
@@ -27,7 +28,12 @@
 					"x": 16,
 					"y": 28
 				},
-				"resizable": true
+				"resizable": true,
+				"transparent": true,
+				"windowEffects": {
+					"effects": ["sidebar"],
+					"state": "followsWindowActiveState"
+				}
 			}
 		],
 		"security": {
