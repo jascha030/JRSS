@@ -395,7 +395,119 @@ pub fn query_items(
         .query_map(page_refs.as_slice(), map_item_list_row)
         .map_err(|error| format!("Failed to query items: {error}"))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("Failed to read items: {error}"))?;
+         .map_err(|error| format!("Failed to read items: {error}"))?;
 
     Ok(ItemPageRecord { items, total_count })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use crate::db::schema::initialize_database;
+    use crate::db::feeds::upsert_feed_snapshot;
+    use crate::models::{ParsedFeed, ParsedFeedItem};
+
+    fn tmpdb() -> (TempDir, std::path::PathBuf) {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("test.db");
+        initialize_database(&db_path).expect("init");
+        (dir, db_path)
+    }
+
+    /// Insert a feed with one article item; return the derived item ID.
+    fn insert_item(db_path: &Path) -> String {
+        let feed = upsert_feed_snapshot(
+            db_path,
+            "https://example.com/rss",
+            ParsedFeed {
+                title: "Feed".to_string(),
+                description: String::new(),
+                site_url: None,
+                image_url: None,
+                kind: "article".to_string(),
+                items: vec![ParsedFeedItem {
+                    external_id: "ext-1".to_string(),
+                    title: "Article 1".to_string(),
+                    url: "https://example.com/1".to_string(),
+                    summary: String::new(),
+                    preview_text: String::new(),
+                    summary_text: None,
+                    summary_html: None,
+                    content_text: None,
+                    content_html: None,
+                    published_at: "2024-01-01T00:00:00Z".to_string(),
+                    media_enclosure: None,
+                }],
+            },
+        ).unwrap();
+        // Mirror the stable_hash + build_item_id logic from feeds.rs.
+        format!(
+            "item-{}",
+            sha1_smol::Sha1::from(format!("{}:{}", feed.id, "ext-1")).digest().to_string()
+        )
+    }
+
+    #[test]
+    fn get_item_by_id_returns_item() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert_eq!(item.title, "Article 1");
+        assert!(!item.read);
+        assert_eq!(item.playback_position_seconds, 0);
+    }
+
+    #[test]
+    fn get_item_by_id_returns_none_for_unknown() {
+        let (_dir, db_path) = tmpdb();
+        assert!(get_item_by_id(&db_path, "nonexistent").unwrap().is_none());
+    }
+
+    #[test]
+    fn mark_read_true_sets_flag() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        mark_read(&db_path, &item_id, true).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert!(item.read);
+    }
+
+    #[test]
+    fn mark_read_false_clears_flag() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        mark_read(&db_path, &item_id, true).unwrap();
+        mark_read(&db_path, &item_id, false).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert!(!item.read);
+    }
+
+    #[test]
+    fn save_playback_persists_position() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        save_playback(&db_path, &item_id, 42).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert_eq!(item.playback_position_seconds, 42);
+    }
+
+    #[test]
+    fn save_playback_negative_clamped_to_zero() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        save_playback(&db_path, &item_id, -5).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert_eq!(item.playback_position_seconds, 0);
+    }
+
+    #[test]
+    fn save_playback_upserts_on_second_call() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        save_playback(&db_path, &item_id, 10).unwrap();
+        save_playback(&db_path, &item_id, 77).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert_eq!(item.playback_position_seconds, 77);
+    }
 }

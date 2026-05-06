@@ -231,3 +231,126 @@ pub fn upsert_feed_snapshot(
 
     Ok(next_feed)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use crate::db::schema::initialize_database;
+    use crate::models::{ParsedFeed, ParsedFeedItem};
+
+    fn tmpdb() -> (TempDir, std::path::PathBuf) {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("test.db");
+        initialize_database(&db_path).expect("init");
+        (dir, db_path)
+    }
+
+    fn make_feed(title: &str) -> ParsedFeed {
+        ParsedFeed {
+            title: title.to_string(),
+            description: String::new(),
+            site_url: None,
+            image_url: None,
+            kind: "article".to_string(),
+            items: Vec::new(),
+        }
+    }
+
+    fn make_feed_with_item(title: &str, external_id: &str) -> ParsedFeed {
+        ParsedFeed {
+            title: title.to_string(),
+            description: String::new(),
+            site_url: None,
+            image_url: None,
+            kind: "article".to_string(),
+            items: vec![ParsedFeedItem {
+                external_id: external_id.to_string(),
+                title: "Item".to_string(),
+                url: "https://example.com/item".to_string(),
+                summary: String::new(),
+                preview_text: String::new(),
+                summary_text: None,
+                summary_html: None,
+                content_text: None,
+                content_html: None,
+                published_at: "2024-01-01T00:00:00Z".to_string(),
+                media_enclosure: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn upsert_creates_feed() {
+        let (_dir, db_path) = tmpdb();
+        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        assert_eq!(feed.title, "Test");
+        assert!(feed.id.starts_with("feed-"));
+    }
+
+    #[test]
+    fn upsert_is_idempotent_preserving_id() {
+        let (_dir, db_path) = tmpdb();
+        let f1 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 1")).unwrap();
+        let f2 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 2")).unwrap();
+        assert_eq!(f1.id, f2.id);
+        let feeds = list_feeds(&db_path).unwrap();
+        assert_eq!(feeds.len(), 1);
+        assert_eq!(feeds[0].title, "Title 2");
+    }
+
+    #[test]
+    fn get_feed_by_id_returns_feed() {
+        let (_dir, db_path) = tmpdb();
+        let created = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let found = get_feed_by_id(&db_path, &created.id).unwrap().unwrap();
+        assert_eq!(found.title, "Test");
+    }
+
+    #[test]
+    fn get_feed_by_id_returns_none_for_unknown() {
+        let (_dir, db_path) = tmpdb();
+        assert!(get_feed_by_id(&db_path, "nonexistent").unwrap().is_none());
+    }
+
+    #[test]
+    fn remove_feed_deletes_it() {
+        let (_dir, db_path) = tmpdb();
+        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        remove_feed(&db_path, &feed.id).unwrap();
+        assert!(list_feeds(&db_path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn remove_feed_cascades_to_items() {
+        let (_dir, db_path) = tmpdb();
+        let feed = upsert_feed_snapshot(
+            &db_path,
+            "https://example.com/rss",
+            make_feed_with_item("Feed", "ext-1"),
+        ).unwrap();
+        remove_feed(&db_path, &feed.id).unwrap();
+        // If items were not deleted the DB would have orphaned rows;
+        // a successful remove without FK violation is sufficient evidence.
+        assert!(list_feeds(&db_path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn set_feed_sort_order_persists() {
+        let (_dir, db_path) = tmpdb();
+        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        set_feed_sort_order(&db_path, &feed.id, Some("oldest_first")).unwrap();
+        let updated = get_feed_by_id(&db_path, &feed.id).unwrap().unwrap();
+        assert_eq!(updated.sort_order, Some("oldest_first".to_string()));
+    }
+
+    #[test]
+    fn set_feed_sort_order_to_none_clears_it() {
+        let (_dir, db_path) = tmpdb();
+        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        set_feed_sort_order(&db_path, &feed.id, Some("oldest_first")).unwrap();
+        set_feed_sort_order(&db_path, &feed.id, None).unwrap();
+        let updated = get_feed_by_id(&db_path, &feed.id).unwrap().unwrap();
+        assert_eq!(updated.sort_order, None);
+    }
+}

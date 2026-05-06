@@ -339,3 +339,83 @@ pub fn query_station_episodes(
 
     Ok(ItemPageRecord { items, total_count })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use crate::db::schema::initialize_database;
+    use crate::models::{CreateStationInput, ItemSortOrder, StationEpisodeFilter, UpdateStationInput};
+
+    fn tmpdb() -> (TempDir, std::path::PathBuf) {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("test.db");
+        initialize_database(&db_path).expect("init");
+        (dir, db_path)
+    }
+
+    fn make_input(name: &str) -> CreateStationInput {
+        CreateStationInput {
+            name: name.to_string(),
+            episode_filter: StationEpisodeFilter::All,
+            sort_order: ItemSortOrder::NewestFirst,
+            feed_ids: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn create_station_succeeds() {
+        let (_dir, db_path) = tmpdb();
+        let station = create_station(&db_path, &make_input("My Station")).unwrap();
+        assert_eq!(station.station.name, "My Station");
+        assert!(station.station.id.starts_with("station-"));
+    }
+
+    #[test]
+    fn list_stations_returns_all_created() {
+        let (_dir, db_path) = tmpdb();
+        create_station(&db_path, &make_input("Station A")).unwrap();
+        create_station(&db_path, &make_input("Station B")).unwrap();
+        assert_eq!(list_stations(&db_path).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn list_stations_empty_on_fresh_db() {
+        let (_dir, db_path) = tmpdb();
+        assert!(list_stations(&db_path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn delete_station_removes_it() {
+        let (_dir, db_path) = tmpdb();
+        let station = create_station(&db_path, &make_input("My Station")).unwrap();
+        delete_station(&db_path, &station.station.id).unwrap();
+        assert!(list_stations(&db_path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn update_station_changes_name() {
+        let (_dir, db_path) = tmpdb();
+        let station = create_station(&db_path, &make_input("Original")).unwrap();
+        update_station(
+            &db_path,
+            &UpdateStationInput {
+                id: station.station.id.clone(),
+                name: Some("Updated".to_string()),
+                episode_filter: None,
+                sort_order: None,
+                feed_ids: None,
+            },
+        ).unwrap();
+        let stations = list_stations(&db_path).unwrap();
+        assert_eq!(stations[0].station.name, "Updated");
+    }
+
+    #[test]
+    fn station_sort_order_position_increments() {
+        let (_dir, db_path) = tmpdb();
+        let s1 = create_station(&db_path, &make_input("First")).unwrap();
+        let s2 = create_station(&db_path, &make_input("Second")).unwrap();
+        assert!(s2.station.sort_order_position > s1.station.sort_order_position);
+    }
+}

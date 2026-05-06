@@ -372,3 +372,45 @@ fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn tmpdb() -> (TempDir, std::path::PathBuf) {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("test.db");
+        (dir, db_path)
+    }
+
+    #[test]
+    fn initialize_is_idempotent() {
+        let (_dir, db_path) = tmpdb();
+        initialize_database(&db_path).expect("first init");
+        initialize_database(&db_path).expect("second init must not fail");
+    }
+
+    #[test]
+    fn core_tables_exist_after_init() {
+        let (_dir, db_path) = tmpdb();
+        initialize_database(&db_path).expect("init");
+        let conn = open_connection(&db_path).expect("open");
+
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+            .unwrap();
+        let table_names: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+
+        for table in ["feeds", "items", "playback_state", "stations", "station_feeds"] {
+            assert!(
+                table_names.iter().any(|t| t == table),
+                "expected table '{table}' to exist; got: {table_names:?}"
+            );
+        }
+    }
+}
