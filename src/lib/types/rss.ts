@@ -3,11 +3,15 @@ export type ItemType = 'article' | 'media';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
 export type ItemListSection = 'all' | 'unread' | 'media';
 export type ItemSortOrder = 'newest_first' | 'oldest_first';
+/** UI color scheme preference. `'system'` follows the OS preference. */
+export type ColorScheme = 'system' | 'light' | 'dark';
 
 export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
 export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
 /** Default auto-refresh interval in minutes. `0` means disabled. */
 export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
+export const DEFAULT_COLOR_SCHEME: ColorScheme = 'system';
+export const DEFAULT_ACCENT_COLOR: string | null = null;
 
 export interface Feed {
 	id: string;
@@ -170,6 +174,10 @@ export interface AppSettings {
 	miniPlayerAlwaysOnTop: boolean;
 	/** Interval between automatic background feed refreshes, in minutes. `0` disables. */
 	autoRefreshIntervalMinutes: number;
+	/** UI color scheme preference. */
+	colorScheme: ColorScheme;
+	/** Custom accent color as a CSS hex string (e.g. `'#4f46e5'`), or `null` for the theme default. */
+	accentColor: string | null;
 }
 
 // ---------------------------------------------------------------------------

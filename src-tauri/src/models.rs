@@ -1,3 +1,4 @@
+use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, PartialEq)]
@@ -241,6 +242,61 @@ pub struct UpdateStationInput {
     pub feed_ids: Option<Vec<String>>,
 }
 
+// ---------------------------------------------------------------------------
+// Settings domain types
+// ---------------------------------------------------------------------------
+
+/// UI color scheme preference. Serialises as lowercase (`"system"`, `"light"`, `"dark"`)
+/// to match the frontend `ColorScheme` type.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ColorScheme {
+    /// Follow the OS `prefers-color-scheme` setting.
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl ColorScheme {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+}
+
+impl std::str::FromStr for ColorScheme {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "system" => Ok(Self::System),
+            "light" => Ok(Self::Light),
+            "dark" => Ok(Self::Dark),
+            // Unrecognised values (e.g. from a future version being downgraded) fall back to
+            // the default rather than hard-failing, keeping old databases openable.
+            _ => Err(()),
+        }
+    }
+}
+
+impl ToSql for ColorScheme {
+    fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(self.as_str()))
+    }
+}
+
+impl FromSql for ColorScheme {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        value
+            .as_str()
+            .map(|s| s.parse().unwrap_or_default())
+    }
+}
+
 /// Frontend-managed playback context for feed/station tracking.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -271,4 +327,9 @@ pub struct AppSettingsRecord {
     /// Interval between automatic background feed refreshes, in minutes.
     /// `0` disables auto-refresh.
     pub auto_refresh_interval_minutes: i64,
+    /// UI color scheme preference.
+    pub color_scheme: ColorScheme,
+    /// Custom accent color override as a CSS hex string (e.g. `"#4f46e5"`), or `null` to use the
+    /// theme default.
+    pub accent_color: Option<String>,
 }

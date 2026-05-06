@@ -188,14 +188,14 @@
 	--color-surface: rgb(255 255 255 / 0.55);
 	--color-surface-alt: rgb(241 245 249 / 0.55);
 	--color-surface-card: rgb(255 255 255 / 0.55);
-	--color-surface-active: rgb(241 245 249 / 0.60);
+	--color-surface-active: rgb(241 245 249 / 0.6);
 	--color-surface-hover: rgb(248 250 252 / 0.55);
 	--color-surface-inset: rgb(248 250 252 / 0.8);
 
 	/* Surfaces — semi-transparent (backdrop-blur contexts) */
-	--color-surface-glass: rgb(255 255 255 / 0.50);
+	--color-surface-glass: rgb(255 255 255 / 0.5);
 	--color-surface-glass-heavy: rgb(255 255 255 / 0.82);
-	--color-surface-shell: rgb(241 245 249 / 0.60);
+	--color-surface-shell: rgb(241 245 249 / 0.6);
 	--color-surface-shell-opaque: rgb(241 245 249);
 
 	/* Surfaces — sidebar vibrancy (Tahoe: transparent to expose NSVisualEffectView) */
@@ -243,61 +243,72 @@
 	--color-article-table-border: #e2e8f0;
 }
 
-/* ── Dark overrides ───────────────────────────
-   Unlayered rules override @layer theme values
-   when the media query matches.
+/* ── Derived accent vars ──────────────────────
+   accent-hover and accent-dot are derived from --color-accent so that a
+   custom accent set via JS automatically propagates to both.
+   The @theme values above act as Tailwind token registration; these
+   unlayered rules win the cascade and apply at runtime.
    ───────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--color-surface: rgb(2 6 23 / 0.55);
-		--color-surface-alt: rgb(15 23 42 / 0.55);
-		--color-surface-card: rgb(15 23 42 / 0.55);
-		--color-surface-active: rgb(30 41 59 / 0.60);
-		--color-surface-hover: rgb(15 23 42 / 0.55);
-		--color-surface-inset: rgb(15 23 42 / 0.6);
-		--color-surface-glass: rgb(2 6 23 / 0.50);
-		--color-surface-glass-heavy: rgb(2 6 23 / 0.82);
-		--color-surface-shell: rgb(2 6 23 / 0.60);
-		--color-surface-shell-opaque: rgb(2 6 23);
+:root {
+	--color-accent-hover: color-mix(in oklch, var(--color-accent), white 20%);
+	--color-accent-dot: var(--color-accent);
+}
 
-		/* sidebar vibrancy dark overrides */
-		--color-surface-sidebar: rgb(2 6 23 / 0.50);
-		--color-surface-sidebar-hover: rgb(255 255 255 / 0.08);
-		--color-surface-sidebar-active: rgb(255 255 255 / 0.14);
+/* ── Dark overrides ───────────────────────────
+   Toggled by the `.dark` class on <html>, which is managed by
+   src/lib/state/theme.svelte.ts based on the stored color scheme setting.
+   Unlayered rules override @layer theme values.
+   ───────────────────────────────────────────── */
 
-		--color-fg: #ffffff;
-		--color-fg-secondary: #e2e8f0;
-		--color-fg-muted: #94a3b8;
-		--color-fg-subtle: #64748b;
-		--color-fg-inverse: #020617;
-		--color-fg-link: #60a5fa;
+:root.dark {
+	--color-surface: rgb(2 6 23 / 0.55);
+	--color-surface-alt: rgb(15 23 42 / 0.55);
+	--color-surface-card: rgb(15 23 42 / 0.55);
+	--color-surface-active: rgb(30 41 59 / 0.6);
+	--color-surface-hover: rgb(15 23 42 / 0.55);
+	--color-surface-inset: rgb(15 23 42 / 0.6);
+	--color-surface-glass: rgb(2 6 23 / 0.5);
+	--color-surface-glass-heavy: rgb(2 6 23 / 0.82);
+	--color-surface-shell: rgb(2 6 23 / 0.6);
+	--color-surface-shell-opaque: rgb(2 6 23);
 
-		--color-border: #1e293b;
-		--color-border-strong: #334155;
-		--color-border-hover: #64748b;
+	/* sidebar vibrancy dark overrides */
+	--color-surface-sidebar: rgb(2 6 23 / 0.5);
+	--color-surface-sidebar-hover: rgb(255 255 255 / 0.08);
+	--color-surface-sidebar-active: rgb(255 255 255 / 0.14);
 
-		--color-accent: #6366f1;
-		--color-accent-hover: #818cf8;
-		--color-accent-dot: #6366f1;
+	--color-fg: #ffffff;
+	--color-fg-secondary: #e2e8f0;
+	--color-fg-muted: #94a3b8;
+	--color-fg-subtle: #64748b;
+	--color-fg-inverse: #020617;
+	--color-fg-link: #60a5fa;
 
-		--color-interactive: #e9edf2;
-		--color-interactive-hover: #ffffff;
-		--color-interactive-text: #020617;
+	--color-border: #1e293b;
+	--color-border-strong: #334155;
+	--color-border-hover: #64748b;
 
-		--color-ring: #334155;
+	/* In dark mode the default accent shifts to a lighter indigo.
+	   accent-hover and accent-dot auto-derive from this via color-mix above. */
+	--color-accent: #6366f1;
 
-		--color-skeleton: #1e293b;
+	--color-interactive: #e9edf2;
+	--color-interactive-hover: #ffffff;
+	--color-interactive-text: #020617;
 
-		--color-article-body: #e2e8f0;
-		--color-article-heading: #f8fafc;
-		--color-article-link: #60a5fa;
-		--color-article-blockquote-border: #475569;
-		--color-article-blockquote-text: #cbd5e1;
-		--color-article-caption: #94a3b8;
-		--color-article-code-bg: #0f172a;
-		--color-article-table-border: #334155;
-	}
+	--color-ring: #334155;
+
+	--color-skeleton: #1e293b;
+
+	--color-article-body: #e2e8f0;
+	--color-article-heading: #f8fafc;
+	--color-article-link: #60a5fa;
+	--color-article-blockquote-border: #475569;
+	--color-article-blockquote-text: #cbd5e1;
+	--color-article-caption: #94a3b8;
+	--color-article-code-bg: #0f172a;
+	--color-article-table-border: #334155;
 }
 
 :root {
@@ -532,10 +543,11 @@
 			cursor: not-allowed;
 			opacity: 0.6;
 		}
+	}
 
-		@media (prefers-color-scheme: dark) {
-			background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
-		}
+	/* Select dark-mode chevron — class-based to match the JS-driven theme system */
+	:root.dark select {
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
 	}
 
 	button,
@@ -766,4 +778,18 @@
 
 .toast-info {
 	border-left-color: var(--color-accent);
+}
+
+/* ── Scrollbar utilities ──────────────────────
+   Hide scrollbars while keeping scroll functionality
+   Uses Tailwind v4 @utility directive
+   ───────────────────────────────────────────── */
+
+@utility scrollbar-none {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
 }

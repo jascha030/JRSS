@@ -137,11 +137,41 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
 			})?;
     }
 
+    if existing_columns
+        .iter()
+        .all(|column| column != "color_scheme")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN color_scheme TEXT NOT NULL DEFAULT 'system'",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings color_scheme column: {error}")
+            })?;
+    }
+
+    if existing_columns
+        .iter()
+        .all(|column| column != "accent_color")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN accent_color TEXT",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings accent_color column: {error}")
+            })?;
+    }
+
     Ok(())
 }
 
 fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
-    use super::settings::{DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP};
+    use super::settings::{
+        DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
+    };
 
     connection
         .execute(
@@ -149,13 +179,15 @@ fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
 		        id,
 		        max_audio_cache_size_bytes,
 		        mini_player_always_on_top,
+		        color_scheme,
 		        updated_at
 		     )
-			 VALUES (1, ?1, ?2, ?3)
+			 VALUES (1, ?1, ?2, ?3, ?4)
 			 ON CONFLICT(id) DO NOTHING",
             params![
                 DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
                 DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
+                DEFAULT_COLOR_SCHEME,
                 Utc::now().to_rfc3339()
             ],
         )

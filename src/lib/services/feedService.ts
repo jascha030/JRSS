@@ -20,6 +20,8 @@ import {
 	DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 	DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 	DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
+	DEFAULT_COLOR_SCHEME,
+	DEFAULT_ACCENT_COLOR,
 	mapRawFeedItem,
 	mapRawFeedListItem
 } from '$lib/types/rss';
@@ -131,7 +133,9 @@ export async function loadAppSettings(): Promise<AppSettings> {
 		return {
 			maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 			miniPlayerAlwaysOnTop: DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
-			autoRefreshIntervalMinutes: DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES
+			autoRefreshIntervalMinutes: DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
+			colorScheme: DEFAULT_COLOR_SCHEME,
+			accentColor: DEFAULT_ACCENT_COLOR
 		};
 	}
 
