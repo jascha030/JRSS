@@ -11,6 +11,7 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
+		"types": ["vitest/globals"],
 		"plugins": [
 			{
 				"name": "typescript-svelte-plugin"
