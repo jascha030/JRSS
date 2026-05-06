@@ -24,7 +24,10 @@ function makeFeed(id: string, sortOrder?: 'newest_first' | 'oldest_first'): Feed
 	return { id, title: '', url: '', description: '', kind: 'article', createdAt: '', sortOrder };
 }
 
-function makeStation(id: string, sortOrder: 'newest_first' | 'oldest_first' = 'newest_first'): Station {
+function makeStation(
+	id: string,
+	sortOrder: 'newest_first' | 'oldest_first' = 'newest_first'
+): Station {
 	return {
 		id,
 		name: '',

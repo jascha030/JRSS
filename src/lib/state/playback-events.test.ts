@@ -62,10 +62,13 @@ beforeEach(async () => {
 	// Set up mock IPC bridge with event support enabled, then register listeners.
 	// `get_items_by_ids` and `extract_cover_palette` may be called by async
 	// handlers; return safe defaults so they don't error.
-	mockIPC((cmd) => {
-		if (cmd === 'get_items_by_ids') return [];
-		if (cmd === 'extract_cover_palette') return [];
-	}, { shouldMockEvents: true });
+	mockIPC(
+		(cmd) => {
+			if (cmd === 'get_items_by_ids') return [];
+			if (cmd === 'extract_cover_palette') return [];
+		},
+		{ shouldMockEvents: true }
+	);
 	await initAudioEventListeners();
 });
 
@@ -142,7 +145,10 @@ describe('playback-state-changed event', () => {
 	it('syncs position back to item cache when playback stops', async () => {
 		registerItem(mapRawFeedListItem(makeMediaItem('item-1', 0)));
 
-		await emit('playback-state-changed', makeBackendState({ isPlaying: false, positionSeconds: 38 }));
+		await emit(
+			'playback-state-changed',
+			makeBackendState({ isPlaying: false, positionSeconds: 38 })
+		);
 
 		await vi.waitFor(() => {
 			expect(itemsState.itemSummariesById['item-1']?.playbackPositionSeconds).toBe(38);

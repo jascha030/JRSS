@@ -1,14 +1,18 @@
-//! Backend audio engine — owns playback lifecycle, survives UI destruction.
+//! Backend media playback module — owns the playback lifecycle and survives UI
+//! destruction.
 //!
 //! ## Architecture
 //!
-//! A dedicated audio thread owns the rodio device sink handle, player, device
-//! selection state, and all playback/queue state. The rest of the app
-//! communicates with it via [`AudioCommand`] messages.
+//! A dedicated audio thread ([`actor`]) owns all playback and queue state and
+//! communicates with the rest of the app via [`AudioCommand`] messages.
+//!
+//! The thread delegates all media rendering to a [`PlaybackEngine`]
+//! ([`engine`] trait, [`rodio_engine`] concrete implementation). Swapping the
+//! engine is the only change needed to support a new media type (e.g. video).
 //!
 //! Audio data is streamed from an HTTP URL into a cache file on disk.
 //! A [`StreamingFile`] wrapper presents this growing file as a blocking
-//! `Read + Seek` source suitable for rodio's `Decoder`.
+//! `Read + Seek` source suitable for the decoder.
 
 use std::sync::mpsc;
 use std::time::Duration;
@@ -21,7 +25,9 @@ pub mod cache;
 pub mod commands;
 pub mod devices;
 pub mod download;
+pub mod engine;
 pub mod events;
+pub mod rodio_engine;
 pub mod streaming_file;
 
 use commands::AudioCommand;
