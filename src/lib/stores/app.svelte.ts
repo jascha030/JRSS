@@ -105,6 +105,17 @@ export {
 } from '../state/reader.svelte';
 
 // ---------------------------------------------------------------------------
+// Theme (color scheme + accent color)
+// ---------------------------------------------------------------------------
+export {
+	themeState,
+	applyColorScheme,
+	applyAccentColor,
+	initTheme,
+	resetThemeState
+} from '../state/theme.svelte';
+
+// ---------------------------------------------------------------------------
 // Playback (audio state, queue, playback controls)
 // ---------------------------------------------------------------------------
 export {
@@ -149,6 +160,7 @@ export {
 // ---------------------------------------------------------------------------
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauriClient';
+import { loadAppSettings } from '../services/feedService';
 import { resetSelectionState } from '../state/selection.svelte';
 import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
 import { resetStationsState, loadStations } from '../state/stations.svelte';
@@ -160,6 +172,7 @@ import {
 	syncAudioSessionFromBackend,
 	restorePlaybackContext
 } from '../state/playback.svelte';
+import { initTheme, resetThemeState } from '../state/theme.svelte';
 
 export async function initializeApp(): Promise<void> {
 	// Reset all state slices
@@ -169,6 +182,15 @@ export async function initializeApp(): Promise<void> {
 	resetStationsState();
 	resetItemsState();
 	resetReaderState();
+	resetThemeState();
+
+	// Apply persisted theme before first render to prevent FOUC.
+	try {
+		const settings = await loadAppSettings();
+		initTheme(settings);
+	} catch {
+		initTheme({ colorScheme: 'system', accentColor: null });
+	}
 
 	// Initialize
 	await initAudioEventListeners();
