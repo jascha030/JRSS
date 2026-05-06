@@ -62,7 +62,7 @@
 		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface-sidebar md:block"
 	>
 		<!-- single scroll container for both rail and panel -->
-		<div class="flex h-full overflow-y-auto">
+		<div class="scrollbar-none flex h-full overflow-y-auto">
 			<!-- rail -->
 			<div class="flex w-16 shrink-0 flex-col bg-surface-sidebar">
 				<div
@@ -216,11 +216,11 @@
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
 			title={section.label}
-		class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
-			isActive
-				? 'bg-surface-sidebar-active text-fg'
-				: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
-		}`}
+			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
+				isActive
+					? 'bg-surface-sidebar-active text-fg'
+					: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
+			}`}
 		>
 			<Icon icon={section.icon} class="size-4" />
 		</button>
@@ -234,9 +234,9 @@
 			onclick={() => onSelectFeed(feed.id)}
 			oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 			title={feed.title}
-		class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
-			selectedFeedId === feed.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent' : ''
-		}`}
+			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
+				selectedFeedId === feed.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent' : ''
+			}`}
 		>
 			{#if feed.imageUrl}
 				<img src={feed.imageUrl} alt={feed.title} class="size-full object-cover" />
@@ -261,11 +261,11 @@
 			type="button"
 			onclick={() => onSelectStation(station.id)}
 			title={station.name}
-		class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
-			selectedStationId === station.id
-				? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent'
-				: ''
-		}`}
+			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
+				selectedStationId === station.id
+					? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent'
+					: ''
+			}`}
 		>
 			<span
 				class={`flex size-full items-center justify-center text-fg-inverse ${
@@ -306,11 +306,11 @@
 		<button
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
-		class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
-			isActive
-				? 'bg-surface-sidebar-active text-fg'
-				: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
-		}`}
+			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
+				isActive
+					? 'bg-surface-sidebar-active text-fg'
+					: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
+			}`}
 		>
 			{section.label}
 		</button>
@@ -321,11 +321,11 @@
 	{#each feeds as feed (feed.id)}
 		{@const isRefreshing = refreshingFeedIds.includes(feed.id)}
 		<div
-		class={`group mb-2 flex items-center rounded-xl transition-colors ${
-			selectedFeedId === feed.id
-				? 'bg-surface-sidebar-active text-fg'
-				: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
-		}`}
+			class={`group mb-2 flex items-center rounded-xl transition-colors ${
+				selectedFeedId === feed.id
+					? 'bg-surface-sidebar-active text-fg'
+					: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
+			}`}
 		>
 			<button
 				type="button"
@@ -364,11 +364,11 @@
 		<button
 			type="button"
 			onclick={() => onSelectStation(station.id)}
-		class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
-			selectedStationId === station.id
-				? 'bg-surface-sidebar-active text-fg'
-				: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
-		}`}
+			class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
+				selectedStationId === station.id
+					? 'bg-surface-sidebar-active text-fg'
+					: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
+			}`}
 		>
 			<Icon icon="heroicons:microphone" class="size-4 shrink-0 text-success-600" />
 

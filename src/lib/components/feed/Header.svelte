@@ -161,7 +161,7 @@
 				}}
 			/>
 			<kbd
-				class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+				class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 				>/</kbd
 			>
 		</div>

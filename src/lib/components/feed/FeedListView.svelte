@@ -422,11 +422,11 @@
 							/>
 							<div class="flex items-center gap-1">
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>⌘</kbd
 								>
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>F</kbd
 								>
 							</div>
@@ -460,11 +460,11 @@
 							/>
 							<div class="flex items-center gap-1">
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>⌘</kbd
 								>
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>F</kbd
 								>
 							</div>
@@ -500,11 +500,11 @@
 							/>
 							<div class="flex items-center gap-1">
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>⌘</kbd
 								>
 								<kbd
-									class="select-none rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted"
+									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
 									>F</kbd
 								>
 							</div>

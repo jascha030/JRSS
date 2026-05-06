@@ -358,13 +358,13 @@
 			onClearQueue={clearQueue}
 		/>
 	{:else}
-		<AppBar class="top-0 z-9999 h-12 p-0 bg-transparent!">
+		<AppBar class="top-0 z-9999 h-12 bg-transparent! p-0">
 			<AppBar.Toolbar
 				class="flex h-12 w-full content-center border-b border-border bg-surface-sidebar p-0"
 			>
 				<div
 					data-tauri-drag-region
-					class="flex h-12 w-full items-center justify-end pl-44 pr-4 py-0 align-middle"
+					class="flex h-12 w-full items-center justify-end py-0 pr-4 pl-44 align-middle"
 				>
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}
