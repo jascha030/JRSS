@@ -102,7 +102,7 @@
 	}
 </script>
 
-<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8">
+<section class="flex-2 overflow-y-auto px-6 py-8 lg:px-8 bg-surface-shell-opaque">
 	<div class="max-w-4xl">
 		<p class="text-sm font-medium tracking-[0.18em] text-fg-muted uppercase">Settings</p>
 
