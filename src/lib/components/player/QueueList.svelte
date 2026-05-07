@@ -3,6 +3,7 @@
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
 	type QueueListAppearance = 'default' | 'inverse';
 
@@ -114,11 +115,15 @@
 </script>
 
 {#if !hasAnyItems}
-	<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-		<Icon icon="lucide:list-music" class={classes.emptyIcon} />
-		<p class={classes.emptyTitle}>Queue is empty</p>
-		<p class={classes.emptyText}>Press play on an episode to auto-populate</p>
-	</div>
+	<EmptyState
+		icon="lucide:list-music"
+		title="Queue is empty"
+		description="Press play on an episode to auto-populate"
+		iconClass={classes.emptyIcon}
+		titleClass={classes.emptyTitle}
+		descriptionClass={classes.emptyText}
+		class="py-16"
+	/>
 {:else}
 	<ul class="px-0 py-2">
 		{#if hasHistory}

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { Feed, MediaListItem } from '$lib/types/rss';
-	import Icon from '@iconify/svelte';
+
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import QueueList from './QueueList.svelte';
 
 	type Props = {
 		open: boolean;
 		historyItems: MediaListItem[];
 		queueItems: MediaListItem[];
-		manualQueueLength: number;
 		feeds: Feed[];
 		onRemoveItem: (itemId: string) => void;
 		onMoveItemUp: (itemId: string) => void;
@@ -21,7 +21,6 @@
 		open,
 		historyItems,
 		queueItems,
-		manualQueueLength,
 		feeds,
 		onRemoveItem,
 		onMoveItemUp,
@@ -59,27 +58,17 @@
 			</p>
 		</div>
 
-		<button
-			type="button"
-			class="preset-icon-subtle btn-icon rounded-xl"
-			aria-label="Close queue"
+		<IconButton
+			icon="lucide:x"
+			label="Close queue"
 			title="Close queue"
+			variant="icon-subtle"
 			onclick={onClose}
-		>
-			<Icon icon="lucide:x" class="size-4" />
-		</button>
+		/>
 	</div>
 
 	<div class="flex-1 overflow-y-auto">
-		<QueueList
-			{historyItems}
-			{queueItems}
-			{manualQueueLength}
-			{feeds}
-			{onRemoveItem}
-			{onMoveItemUp}
-			{onMoveItemDown}
-		/>
+		<QueueList {historyItems} {queueItems} {feeds} {onRemoveItem} {onMoveItemUp} {onMoveItemDown} />
 	</div>
 
 	{#if queueItems.length > 0}
