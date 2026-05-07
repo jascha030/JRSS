@@ -19,7 +19,7 @@ use super::cache::{
 use super::commands::AudioCommand;
 use super::download::download_to_file;
 use super::engine::{PlayConfig, PlaybackEngine};
-use super::events::{PlaybackEndedEvent, PlaybackStateEvent};
+use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
 use super::rodio_engine::RodioEngine;
 use super::streaming_file::StreamingFile;
 
@@ -505,12 +505,19 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     });
 
                     if let Err(error) = state.handle_play(
-                        item_id,
+                        item_id.clone(),
                         url,
                         start_position_seconds,
                         duration_hint_seconds,
                     ) {
                         log::error!("Play failed: {error}");
+                        let _ = app.emit(
+                            "playback-error",
+                            PlaybackErrorEvent {
+                                item_id: item_id.clone(),
+                                error: error.clone(),
+                            },
+                        );
                     }
 
                     state.persist_session();
@@ -624,6 +631,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         .replace(Some(item.clone()), manual_queue, auto_queue);
 
                     if let Some(current) = state.queue.current_item().cloned() {
+                        let current_item_id = current.item_id.clone();
                         if let Err(error) = state.handle_play(
                             current.item_id,
                             current.url,
@@ -631,6 +639,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                             current.duration_seconds,
                         ) {
                             log::error!("PlayWithQueue failed: {error}");
+                            let _ = app.emit(
+                                "playback-error",
+                                PlaybackErrorEvent {
+                                    item_id: current_item_id,
+                                    error: error.clone(),
+                                },
+                            );
                         }
                     }
 
@@ -766,9 +781,10 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 );
 
                 if let Some(next_item) = state.queue.shift_next() {
+                    let next_item_id = next_item.item_id.clone();
                     match state.handle_play(
-                        next_item.item_id.clone(),
-                        next_item.url.clone(),
+                        next_item.item_id,
+                        next_item.url,
                         0.0,
                         next_item.duration_seconds,
                     ) {
@@ -782,6 +798,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         }
                         Err(error) => {
                             log::error!("Auto-advance failed: {error}");
+                            let _ = app.emit(
+                                "playback-error",
+                                PlaybackErrorEvent {
+                                    item_id: next_item_id,
+                                    error: error.clone(),
+                                },
+                            );
                         }
                     }
                 } else {
