@@ -127,7 +127,7 @@
 {:else}
 	<ul class="px-0 py-2">
 		{#if hasHistory}
-			{#each historyItems as item (item.id)}
+			{#each [...historyItems].reverse() as item (item.id)}
 				<li
 					oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
