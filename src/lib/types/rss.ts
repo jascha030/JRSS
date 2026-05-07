@@ -1,3 +1,11 @@
+/**
+ * Domain types for RSS feeds, items, playback, and stations.
+ *
+ * Feed items are modeled as discriminated unions (ArticleListItem | MediaListItem)
+ * narrowed via `itemType`. Raw IPC shapes from Rust are mapped into these unions
+ * at the service boundary using `mapRawFeedListItem` and `mapRawFeedItem`.
+ */
+
 export type FeedKind = 'article' | 'media';
 export type ItemType = 'article' | 'media';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
@@ -33,10 +41,7 @@ export interface MediaEnclosure {
 	durationSeconds?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Feed item base — shared fields across all item types
-// ---------------------------------------------------------------------------
-
+/** Shared base fields for all feed item types. */
 interface FeedListItemBase {
 	id: string;
 	feedId: string;
@@ -54,9 +59,7 @@ interface FeedListItemBase {
 	playbackPositionSeconds: number;
 }
 
-// ---------------------------------------------------------------------------
-// Discriminated item unions — itemType narrows the shape
-// ---------------------------------------------------------------------------
+/** Discriminated item unions — itemType narrows the shape. */
 
 export interface ArticleListItem extends FeedListItemBase {
 	readonly itemType: 'article';
@@ -97,11 +100,12 @@ export function isFeed(item: Feed | FeedItem): item is Feed {
 	return !('feedId' in item);
 }
 
-// ---------------------------------------------------------------------------
-// Raw IPC shapes — flat types matching the Rust serialization format.
-// Mapped into discriminated unions at the service boundary.
-// ---------------------------------------------------------------------------
+/**
+ * Raw IPC shapes matching the Rust serialization format.
+ * Mapped into discriminated unions at the service boundary.
+ */
 
+/** Flat IPC shape for list items — may have optional mediaEnclosure. */
 export interface RawFeedListItem extends FeedListItemBase {
 	mediaEnclosure?: MediaEnclosure;
 }
@@ -124,10 +128,7 @@ export function mapRawFeedItem(raw: RawFeedItem): FeedItem {
 	return { ...raw, itemType: 'article' };
 }
 
-// ---------------------------------------------------------------------------
-// Other shared types
-// ---------------------------------------------------------------------------
-
+/** Playback position and state for the currently playing item. */
 export interface PlaybackState {
 	itemId: string;
 	positionSeconds: number;
@@ -180,10 +181,6 @@ export interface AppSettings {
 	accentColor: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Backend audio engine — event payloads from Rust
-// ---------------------------------------------------------------------------
-
 /** Mirrors Rust `PlaybackStateEvent` emitted by the audio thread. */
 export interface BackendPlaybackState {
 	itemId: string;
@@ -212,9 +209,7 @@ export interface BackendQueueState {
 	current: BackendQueuedItem | null;
 }
 
-// ---------------------------------------------------------------------------
-// Stations — podcast playlist grouping
-// ---------------------------------------------------------------------------
+/** Podcast station (playlist) grouping types. */
 
 export type StationEpisodeFilter = 'all' | 'unplayed';
 

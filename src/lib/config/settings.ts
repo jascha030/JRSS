@@ -1,12 +1,9 @@
 /**
  * Canonical settings definition — the single source of truth for the settings UI.
  *
- * To add a new setting:
- *   1. Add the field to `AppSettings` in `rss.ts` and `AppSettingsRecord` in
- *      `src-tauri/src/models.rs`, with a migration in `schema.rs`.
- *   2. Add an entry here. TypeScript will enforce key ↔ kind alignment.
- *
  * The order of entries controls the render order in the settings page.
+ *
+ * @see {@link https://github.com/jascha030/JRSS/blob/main/AGENTS.md#adding-a-new-setting|Adding a new setting}
  */
 
 import type { SettingsDefinition } from '$lib/types/settings';

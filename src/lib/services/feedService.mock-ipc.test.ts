@@ -25,10 +25,6 @@ afterEach(() => {
 	clearMocks();
 });
 
-// ---------------------------------------------------------------------------
-// listFeeds
-// ---------------------------------------------------------------------------
-
 describe('listFeeds — mockIPC', () => {
 	it('returns mapped Feed[] from IPC response', async () => {
 		const raw: Feed = {
@@ -54,10 +50,6 @@ describe('listFeeds — mockIPC', () => {
 		expect(await listFeeds()).toEqual([]);
 	});
 });
-
-// ---------------------------------------------------------------------------
-// getItemsByIds — mapping (article vs media discrimination)
-// ---------------------------------------------------------------------------
 
 describe('getItemsByIds — mockIPC mapping', () => {
 	const base: Omit<RawFeedListItem, 'mediaEnclosure'> = {
@@ -98,10 +90,6 @@ describe('getItemsByIds — mockIPC mapping', () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// getItemDetails — full item mapping
-// ---------------------------------------------------------------------------
-
 describe('getItemDetails — mockIPC', () => {
 	it('maps raw full item including FeedItemDetails fields', async () => {
 		mockIPC((cmd) => {
@@ -130,10 +118,6 @@ describe('getItemDetails — mockIPC', () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// markRead — IPC call shape
-// ---------------------------------------------------------------------------
-
 describe('markRead — mockIPC', () => {
 	it('sends mark_read command with correct args', async () => {
 		const handler = vi.fn().mockReturnValue(undefined);
@@ -149,10 +133,6 @@ describe('markRead — mockIPC', () => {
 		expect(handler).toHaveBeenCalledWith('mark_read', { itemId: 'item-42', read: false });
 	});
 });
-
-// ---------------------------------------------------------------------------
-// savePlayback — clamping: Math.max(0, Math.floor(positionSeconds))
-// ---------------------------------------------------------------------------
 
 describe('savePlayback — clamping', () => {
 	it('floors a positive float before sending', async () => {
@@ -185,10 +165,6 @@ describe('savePlayback — clamping', () => {
 		});
 	});
 });
-
-// ---------------------------------------------------------------------------
-// createStation — mapRawStation
-// ---------------------------------------------------------------------------
 
 describe('createStation — mockIPC mapping', () => {
 	it('maps raw station fields to Station type', async () => {

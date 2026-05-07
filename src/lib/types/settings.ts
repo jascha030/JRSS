@@ -23,8 +23,6 @@
 
 import type { AppSettings } from './rss';
 
-// ─── Utility: filter AppSettings keys by value type ──────────────────────────
-
 /** Keys of `Obj` whose values extend `T`. */
 type KeysOfType<Obj, T> = { [K in keyof Obj]: Obj[K] extends T ? K : never }[keyof Obj];
 
@@ -58,8 +56,6 @@ type NullableStringKeys = {
 		: never;
 }[keyof AppSettings];
 
-// ─── Shared metadata ──────────────────────────────────────────────────────────
-
 /** Display metadata common to every setting kind. */
 interface SettingMeta {
 	/** Short title shown as the setting heading. */
@@ -74,8 +70,6 @@ interface SettingMeta {
 	 */
 	readonly desktopOnly?: boolean;
 }
-
-// ─── Kind-specific definition interfaces ─────────────────────────────────────
 
 /** A boolean toggle — rendered as a styled checkbox row. */
 export interface ToggleDef extends SettingMeta {
@@ -147,8 +141,6 @@ export interface ColorDef extends SettingMeta {
 	/** Hex value shown in the picker while no override is set (value is `null`). */
 	readonly fallbackHex: string;
 }
-
-// ─── Keyed entries — TypeScript enforces key ↔ kind alignment ────────────────
 
 /** A boolean setting. `key` must be a `boolean` field in AppSettings. */
 type BooleanEntry = { readonly key: BooleanKeys } & ToggleDef;

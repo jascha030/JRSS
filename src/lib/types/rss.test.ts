@@ -9,10 +9,6 @@ import {
 	type Feed
 } from '$lib/types/rss';
 
-// ---------------------------------------------------------------------------
-// Shared fixtures
-// ---------------------------------------------------------------------------
-
 const baseRaw: Omit<RawFeedListItem, 'mediaEnclosure'> = {
 	id: 'item-1',
 	feedId: 'feed-1',
@@ -31,10 +27,6 @@ const enclosure = {
 	mimeType: 'audio/mpeg',
 	durationSeconds: 3600
 };
-
-// ---------------------------------------------------------------------------
-// mapRawFeedListItem
-// ---------------------------------------------------------------------------
 
 describe('mapRawFeedListItem', () => {
 	it('produces an ArticleListItem when mediaEnclosure is absent', () => {
@@ -67,10 +59,6 @@ describe('mapRawFeedListItem', () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// mapRawFeedItem
-// ---------------------------------------------------------------------------
-
 describe('mapRawFeedItem', () => {
 	const baseRawFull: RawFeedItem = {
 		...baseRaw,
@@ -96,10 +84,6 @@ describe('mapRawFeedItem', () => {
 		expect(result.contentHtml).toBe('<p>content</p>');
 	});
 });
-
-// ---------------------------------------------------------------------------
-// Type guards
-// ---------------------------------------------------------------------------
 
 describe('isMediaItem', () => {
 	it('returns false for an article item', () => {

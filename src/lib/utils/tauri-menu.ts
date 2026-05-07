@@ -18,10 +18,6 @@ import {
 } from '$lib/stores/app.svelte';
 import type { ArticleListItem, Feed, MediaListItem } from '$lib/types/rss';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 /**
  * Whether the user is browsing a section (all/unread/media) rather than
  * a specific feed. When true, "Open feed" is a meaningful navigation action.
@@ -29,10 +25,6 @@ import type { ArticleListItem, Feed, MediaListItem } from '$lib/types/rss';
 function isInSectionView(): boolean {
 	return selection.selectedFeedId === null;
 }
-
-// ---------------------------------------------------------------------------
-// Article (non-media) context menu
-// ---------------------------------------------------------------------------
 
 /**
  * Native context menu for article items with reader, feed, and read-state actions.
@@ -88,10 +80,6 @@ export async function openArticleContextMenu(
 	const menu = await Menu.new({ items });
 	await menu.popup();
 }
-
-// ---------------------------------------------------------------------------
-// Audio (media) context menu
-// ---------------------------------------------------------------------------
 
 /**
  * Native context menu for audio items with playback, queue, and clipboard actions.
@@ -215,10 +203,6 @@ export async function openAudioContextMenu(event: MouseEvent, item: MediaListIte
 	const menu = await Menu.new({ items });
 	await menu.popup();
 }
-
-// ---------------------------------------------------------------------------
-// Feed context menu
-// ---------------------------------------------------------------------------
 
 /**
  * Native context menu for feeds with clipboard and deletion actions.

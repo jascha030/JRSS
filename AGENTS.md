@@ -48,3 +48,22 @@
 - `src-tauri/src/db/items.rs`, `feeds.rs`, `stations.rs`: high-volume SQLite queries.
 - `src/lib/types/rss.ts` + `src-tauri/src/models.rs`: cross-IPC contract.
 - `src/lib/state/playback.svelte.ts` + `src-tauri/src/audio/` + `src-tauri/src/queue.rs`: playback lifecycle, Tauri events, queue persistence.
+
+## Adding a New Setting
+
+Adding a setting requires changes across the frontend type system, Rust backend, and UI configuration.
+
+1. Add the field to `AppSettings` in `src/lib/types/rss.ts`
+2. Add the field to `AppSettingsRecord` in `src-tauri/src/models.rs`
+3. Add a migration in `src-tauri/src/db/schema.rs`
+4. Add a `SettingEntry` to `APP_SETTINGS` in `src/lib/config/settings.ts` (TypeScript enforces key ↔ kind alignment)
+
+### Adding a New Setting Kind
+
+To add a new input type (e.g., a new control beyond toggle/number/select/segmented/color):
+
+1. Define a new `*Def` interface in `src/lib/types/settings.ts` (must include `kind: '<name>'`)
+2. Add the corresponding `*Entry` type
+3. Add it to the `SettingEntry` union
+4. Create the matching input component in `src/lib/components/settings/inputs/`
+5. Add the dispatch branch in `src/lib/components/settings/SettingRow.svelte`

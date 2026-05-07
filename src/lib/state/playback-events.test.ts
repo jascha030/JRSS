@@ -19,10 +19,6 @@ import { itemsState, resetItemsState, registerItem } from '$lib/state/items.svel
 import { mapRawFeedListItem } from '$lib/types/rss';
 import type { RawFeedListItem, BackendPlaybackState, BackendQueueState } from '$lib/types/rss';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 /** A minimal media item fixture for use in playback tests. */
 function makeMediaItem(id = 'item-1', positionSeconds = 0): RawFeedListItem {
 	return {
@@ -52,10 +48,6 @@ function makeBackendState(overrides: Partial<BackendPlaybackState> = {}): Backen
 	};
 }
 
-// ---------------------------------------------------------------------------
-// Setup / teardown
-// ---------------------------------------------------------------------------
-
 beforeEach(async () => {
 	resetPlaybackState();
 	resetItemsState();
@@ -75,10 +67,6 @@ beforeEach(async () => {
 afterEach(() => {
 	clearMocks();
 });
-
-// ---------------------------------------------------------------------------
-// playback-stopped
-// ---------------------------------------------------------------------------
 
 describe('playback-stopped event', () => {
 	it('sets currentPlaybackState to null', async () => {
@@ -102,10 +90,6 @@ describe('playback-stopped event', () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// playback-ended
-// ---------------------------------------------------------------------------
-
 describe('playback-ended event', () => {
 	it('resets playbackPositionSeconds to 0 in item cache', async () => {
 		// Pre-register an item with a non-zero playback position.
@@ -116,10 +100,6 @@ describe('playback-ended event', () => {
 		expect(itemsState.itemSummariesById['item-1']?.playbackPositionSeconds).toBe(0);
 	});
 });
-
-// ---------------------------------------------------------------------------
-// playback-state-changed
-// ---------------------------------------------------------------------------
 
 describe('playback-state-changed event', () => {
 	it('updates currentPlaybackState from backend payload', async () => {
@@ -155,10 +135,6 @@ describe('playback-state-changed event', () => {
 		});
 	});
 });
-
-// ---------------------------------------------------------------------------
-// queue-changed
-// ---------------------------------------------------------------------------
 
 describe('queue-changed event', () => {
 	it('updates queue arrays from backend payload', async () => {

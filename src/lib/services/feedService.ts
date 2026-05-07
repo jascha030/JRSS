@@ -187,10 +187,6 @@ export async function setFeedSortOrder(
 	});
 }
 
-// ---------------------------------------------------------------------------
-// Stations
-// ---------------------------------------------------------------------------
-
 /** Raw IPC shape — station fields are flat, feedIds is a sibling. */
 interface RawStationWithFeeds {
 	id: string;
@@ -252,7 +248,7 @@ export async function queryStationEpisodes(
 	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
 }
 
-// Unified query interface
+/** Unified query interface for items across feeds and stations. */
 export interface ItemsQuery {
 	feedId?: string;
 	stationId?: string;
@@ -299,9 +295,7 @@ export async function queryItems(query: ItemsQuery): Promise<ItemPage<FeedListIt
 	};
 }
 
-// ---------------------------------------------------------------------------
-// Audio playback — backend-owned via rodio
-// ---------------------------------------------------------------------------
+/** Audio playback commands — backend-owned via rodio. */
 
 export async function audioPlay(
 	itemId: string,
@@ -349,10 +343,9 @@ export async function audioGetState(): Promise<BackendPlaybackState | null> {
 	return invokeCommand<BackendPlaybackState | null>('audio_get_state');
 }
 
-// ---------------------------------------------------------------------------
-// Queue management — backend-owned for headless playback
-// ---------------------------------------------------------------------------
+/** Queue management — backend-owned for headless playback. */
 
+/** An item in the playback queue with metadata required for playback. */
 export interface QueuedItem {
 	itemId: string;
 	url: string;
@@ -410,10 +403,7 @@ export async function audioQueueSet(items: QueuedItem[]): Promise<void> {
 	await invokeCommand('audio_queue_set', { items });
 }
 
-// ---------------------------------------------------------------------------
-// Cover art palette extraction
-// ---------------------------------------------------------------------------
-
+/** Extract dominant colors from cover art for theming. */
 export async function extractCoverPalette(imageUrl: string): Promise<string[]> {
 	if (!isTauriRuntime()) {
 		return [];

@@ -88,6 +88,17 @@ bun run check && bun run lint && bun run build
 - `img/`: screenshots and project imagery
 - `.github/CODEOWNERS`: repository ownership
 
+### Adding Settings
+
+Adding a new user setting requires coordination across TypeScript types, Rust models, and the database schema:
+
+1. Add the field to `AppSettings` in `src/lib/types/rss.ts`
+2. Add the field to `AppSettingsRecord` in `src-tauri/src/models.rs`
+3. Add a migration in `src-tauri/src/db/schema.rs`
+4. Add a `SettingEntry` to `APP_SETTINGS` in `src/lib/config/settings.ts`
+
+See [AGENTS.md](AGENTS.md#adding-a-new-setting) for detailed instructions on adding new setting kinds (custom input types).
+
 High-level data flow:
 
 ```text
