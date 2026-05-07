@@ -201,7 +201,8 @@
 
 {#snippet sidebarRailSections()}
 	{@const sections = [
-		{ id: 'all', label: 'All feeds', icon: 'heroicons:home' },
+		{ id: 'home', label: 'Home', icon: 'heroicons:home' },
+		{ id: 'all', label: 'All feeds', icon: 'heroicons:squares-2x2' },
 		{ id: 'unread', label: 'Unread', icon: 'heroicons:inbox' },
 		{ id: 'media', label: 'Media', icon: 'heroicons:microphone' },
 		{ id: 'settings', label: 'Settings', icon: 'heroicons:cog-6-tooth' }
@@ -292,6 +293,7 @@
 
 {#snippet sidebarPanelSections()}
 	{@const sections = [
+		{ id: 'home', label: 'Home' },
 		{ id: 'all', label: 'All feeds' },
 		{ id: 'unread', label: 'Unread' },
 		{ id: 'media', label: 'Media' },
