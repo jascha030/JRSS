@@ -30,7 +30,6 @@
 </script>
 
 <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-	<!-- Left: label + description -->
 	<div class="max-w-2xl">
 		<h2 class="text-base font-semibold text-fg">{entry.label}</h2>
 		<p class="mt-2 text-sm text-fg-muted">{entry.description}</p>
@@ -43,7 +42,6 @@
 		{/if}
 	</div>
 
-	<!-- Right: input -->
 	<div class="flex w-full max-w-xs flex-col gap-2">
 		{#if entry.kind === 'toggle'}
 			<ToggleSetting

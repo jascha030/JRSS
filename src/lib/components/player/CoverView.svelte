@@ -48,7 +48,6 @@
 		onClearQueue
 	}: Props = $props();
 
-	// Use pre-calculated theme from playback state (extracted when track loaded)
 	let coverTheme = $derived(getCoverTheme());
 
 	function durationForPlayer(): number {
@@ -239,7 +238,6 @@
 
 					<div class="grid grid-cols-2 xs:grid-cols-3">
 						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
-							<!-- Controls -->
 							<AudioPlayerControls
 								durationSeconds={playbackState.durationSeconds ||
 									item.mediaEnclosure.durationSeconds ||

@@ -25,7 +25,6 @@
 
 	const feedTitleById = $derived(new Map(feeds.map((f) => [f.id, f.title])));
 
-	// Debounced search — effect re-runs whenever inputValue changes
 	$effect(() => {
 		const term = inputValue.trim();
 
@@ -130,7 +129,6 @@
 <svelte:window onkeydown={handleGlobalKeydown} onclick={handleWindowClick} />
 
 <div class="flex w-full items-center gap-4 px-2">
-	<!-- Center search -->
 	<div bind:this={containerRef} class="relative mr-12 flex-1">
 		<label class="sr-only" for="global-search">Search all feeds</label>
 		<div
@@ -213,7 +211,6 @@
 		{/if}
 	</div>
 
-	<!-- Add feed button -->
 	<button
 		type="button"
 		class="preset-filled-accent btn-icon shrink-0 rounded-xl"

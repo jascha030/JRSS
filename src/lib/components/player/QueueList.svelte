@@ -106,7 +106,6 @@
 		return queueIndex + 1;
 	}
 
-	// Action to scroll element into view when mounted
 	function scrollIntoView(node: HTMLElement) {
 		queueMicrotask(() => {
 			node.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -152,7 +151,6 @@
 				</li>
 			{/each}
 
-			<!-- Separator between history and queue -->
 			<li
 				class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
 				aria-hidden="true"
@@ -164,7 +162,6 @@
 			</li>
 		{/if}
 
-		<!-- Queue Items -->
 		{#each queueItems as item, index (item.id)}
 			<li
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}

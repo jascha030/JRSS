@@ -61,9 +61,7 @@
 	<aside
 		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface-sidebar md:block"
 	>
-		<!-- single scroll container for both rail and panel -->
 		<div class="scrollbar-none flex h-full overflow-y-auto">
-			<!-- rail -->
 			<div class="flex w-16 shrink-0 flex-col bg-surface-sidebar">
 				<div
 					class="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface-sidebar"
@@ -113,7 +111,6 @@
 				</div>
 			</div>
 
-			<!-- sliding panel -->
 			<div
 				class={`w-44 flex-1 shrink-0 transform-gpu bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 					isCollapsed

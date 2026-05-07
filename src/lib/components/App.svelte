@@ -67,9 +67,6 @@
 
 	import { toast } from 'svelte-sonner';
 
-	// ---------------------------------------------------------------------------
-	// Local UI state
-	// ---------------------------------------------------------------------------
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
@@ -81,9 +78,6 @@
 	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
 
-	// ---------------------------------------------------------------------------
-	// Derived state from stores
-	// ---------------------------------------------------------------------------
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
 	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
@@ -130,9 +124,6 @@
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
-	// ---------------------------------------------------------------------------
-	// Effects
-	// ---------------------------------------------------------------------------
 
 	// Load items when the active query changes
 	$effect(() => {
@@ -170,10 +161,6 @@
 			if (itemId) void handleLoadReaderView(itemId);
 		}
 	});
-
-	// ---------------------------------------------------------------------------
-	// Event handlers
-	// ---------------------------------------------------------------------------
 
 	async function handleAddFeed(url: string) {
 		try {

@@ -59,14 +59,12 @@ export async function createFeed(url: string): Promise<Feed> {
 		const createdFeed = await addFeed(url);
 		await loadFeeds();
 
-		// Select the new feed
 		selection.selectedFeedId = createdFeed.id;
 		selection.selectedStationId = null;
 		selection.selectedSection = null;
 		selection.selectedItemId = null;
 		selection.feedSearchTerm = '';
 
-		// Invalidate and reload for the new selection
 		invalidateAllQueries();
 		await loadInitialItemsPage();
 
@@ -84,7 +82,6 @@ export async function refreshExistingFeed(feedId: string): Promise<Feed> {
 		await loadFeeds();
 		invalidateAllQueries();
 
-		// Reload the current view if we're looking at this feed
 		await loadInitialItemsPage();
 
 		return refreshedFeed;
@@ -97,7 +94,6 @@ export async function deleteExistingFeed(feedId: string): Promise<void> {
 	const feed = getFeedById(feedId);
 	if (!feed) return;
 
-	// Stop playback and remove from queues if needed
 	const currentAudioItem = getCurrentAudioItem();
 
 	if (currentAudioItem?.feedId === feedId) {
@@ -132,7 +128,6 @@ export async function setFeedSortOrder(order: ItemSortOrder): Promise<void> {
 		return;
 	}
 
-	// Update the local feed object immediately for reactive UI
 	const feedIndex = feedsState.feeds.findIndex((f) => f.id === feedId);
 	if (feedIndex >= 0) {
 		feedsState.feeds[feedIndex] = { ...feedsState.feeds[feedIndex], sortOrder: order };
@@ -143,7 +138,6 @@ export async function setFeedSortOrder(order: ItemSortOrder): Promise<void> {
 		console.error('Failed to persist feed sort order.', error);
 	});
 
-	// Invalidate and reload with new sort order
 	invalidateAllQueries();
 	await loadInitialItemsPage();
 }
