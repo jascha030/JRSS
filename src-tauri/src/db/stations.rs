@@ -56,7 +56,7 @@ pub fn list_stations(db_path: &Path) -> AppResult<Vec<StationWithFeedsRecord>> {
 
     let mut statement = connection
         .prepare(
-            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 		     FROM stations
 		     ORDER BY sort_order_position ASC, lower(name), name",
         )
@@ -109,19 +109,21 @@ pub fn create_station(
         },
         sort_order_position: max_position + 1,
         created_at: now,
+        gradient: input.gradient.clone(),
     };
 
     transaction
 		.execute(
-			"INSERT INTO stations (id, name, episode_filter, sort_order, sort_order_position, created_at)
-		     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+			"INSERT INTO stations (id, name, episode_filter, sort_order, sort_order_position, created_at, gradient)
+		     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
 			params![
 				station.id,
 				station.name,
 				station.episode_filter,
 				station.sort_order,
 				station.sort_order_position,
-				station.created_at
+				station.created_at,
+				station.gradient
 			],
 		)
 		.map_err(|error| format!("Failed to insert station: {error}"))?;
@@ -150,7 +152,7 @@ pub fn update_station(
     // Fetch existing station
     let existing = transaction
         .query_row(
-            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 		     FROM stations WHERE id = ?1",
             [&input.id],
             map_station_row,
@@ -171,11 +173,12 @@ pub fn update_station(
             ItemSortOrder::OldestFirst => "oldest_first".to_string(),
         })
         .unwrap_or(existing.sort_order);
+    let gradient = input.gradient.as_deref().unwrap_or(&existing.gradient);
 
     transaction
         .execute(
-            "UPDATE stations SET name = ?2, episode_filter = ?3, sort_order = ?4 WHERE id = ?1",
-            params![input.id, name, episode_filter, sort_order],
+            "UPDATE stations SET name = ?2, episode_filter = ?3, sort_order = ?4, gradient = ?5 WHERE id = ?1",
+            params![input.id, name, episode_filter, sort_order, gradient],
         )
         .map_err(|error| format!("Failed to update station: {error}"))?;
 
@@ -190,7 +193,7 @@ pub fn update_station(
     // Re-read the updated station
     let updated = connection
         .query_row(
-            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 		     FROM stations WHERE id = ?1",
             [&input.id],
             map_station_row,
@@ -232,7 +235,7 @@ pub fn query_station_episodes(
     // Load station metadata
     let station = connection
         .query_row(
-            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+			"SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 		     FROM stations WHERE id = ?1",
             [station_id],
             map_station_row,

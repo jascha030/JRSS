@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Feed, Station } from '$lib/types/rss';
+	import { STATION_GRADIENTS } from '$lib/config/station-gradients';
 	import { itemsState } from '$lib/state/items.svelte';
 	import { selectFeed, selectStation } from '$lib/stores/app.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -136,7 +137,7 @@
 							onclick={() => handleStationClick(station.id)}
 						>
 							<div
-								class="relative aspect-square w-full overflow-hidden rounded-xl bg-linear-to-br from-success-400 to-success-600 shadow-sm"
+								class={`relative aspect-square w-full overflow-hidden rounded-xl bg-linear-to-br ${STATION_GRADIENTS[station.gradient].from} ${STATION_GRADIENTS[station.gradient].to} shadow-sm`}
 							>
 								<span
 									class="flex size-full items-center justify-center text-2xl font-bold text-fg-inverse"

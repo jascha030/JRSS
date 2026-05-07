@@ -200,6 +200,7 @@ interface RawStationWithFeeds {
 	sortOrderPosition: number;
 	createdAt: string;
 	feedIds: string[];
+	gradient: string;
 }
 
 function mapRawStation(raw: RawStationWithFeeds): Station {
@@ -210,7 +211,8 @@ function mapRawStation(raw: RawStationWithFeeds): Station {
 		sortOrder: raw.sortOrder as Station['sortOrder'],
 		sortOrderPosition: raw.sortOrderPosition,
 		createdAt: raw.createdAt,
-		feedIds: raw.feedIds
+		feedIds: raw.feedIds,
+		gradient: raw.gradient as Station['gradient']
 	};
 }
 

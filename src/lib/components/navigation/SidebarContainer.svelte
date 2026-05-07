@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, Station } from '$lib/types/rss';
+	import { STATION_GRADIENTS } from '$lib/config/station-gradients';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
@@ -266,11 +267,7 @@
 			}`}
 		>
 			<span
-				class={`flex size-full items-center justify-center text-fg-inverse ${
-					selectedStationId === station.id
-						? 'bg-linear-to-br from-success-500 to-success-700'
-						: 'bg-linear-to-br from-success-400 to-success-600'
-				}`}
+				class={`flex size-full items-center justify-center bg-linear-to-br text-fg-inverse ${selectedStationId === station.id ? `${STATION_GRADIENTS[station.gradient].activeFrom} ${STATION_GRADIENTS[station.gradient].activeTo}` : `${STATION_GRADIENTS[station.gradient].from} ${STATION_GRADIENTS[station.gradient].to}`}`}
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"

@@ -177,14 +177,16 @@ describe('createStation — mockIPC mapping', () => {
 					sortOrder: 'newest_first',
 					sortOrderPosition: 1000,
 					createdAt: '2024-01-01T00:00:00Z',
-					feedIds: ['feed-1', 'feed-2']
+					feedIds: ['feed-1', 'feed-2'],
+					gradient: 'emerald'
 				};
 		});
 		const station = await createStation({
 			name: 'My Station',
 			episodeFilter: 'all',
 			sortOrder: 'newest_first',
-			feedIds: ['feed-1', 'feed-2']
+			feedIds: ['feed-1', 'feed-2'],
+			gradient: 'emerald'
 		});
 		expect(station.id).toBe('station-abc');
 		expect(station.name).toBe('My Station');

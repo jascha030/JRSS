@@ -35,7 +35,8 @@ function makeStation(
 		sortOrder,
 		sortOrderPosition: 0,
 		createdAt: '',
-		feedIds: []
+		feedIds: [],
+		gradient: 'emerald'
 	};
 }
 

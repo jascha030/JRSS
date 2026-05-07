@@ -275,7 +275,7 @@ pub fn query_items(
 
             let station = connection
                 .query_row(
-                    "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at
+                    "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 				     FROM stations WHERE id = ?1",
                     [station_id],
                     map_station_row,

@@ -213,6 +213,7 @@ pub struct StationRecord {
     pub sort_order: String,
     pub sort_order_position: i64,
     pub created_at: String,
+    pub gradient: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -230,6 +231,7 @@ pub struct CreateStationInput {
     pub episode_filter: StationEpisodeFilter,
     pub sort_order: ItemSortOrder,
     pub feed_ids: Vec<String>,
+    pub gradient: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -240,6 +242,7 @@ pub struct UpdateStationInput {
     pub episode_filter: Option<StationEpisodeFilter>,
     pub sort_order: Option<ItemSortOrder>,
     pub feed_ids: Option<Vec<String>>,
+    pub gradient: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

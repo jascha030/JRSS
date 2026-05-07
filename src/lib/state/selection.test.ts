@@ -26,7 +26,8 @@ function makeStation(id: string): Station {
 		sortOrder: 'newest_first',
 		sortOrderPosition: 0,
 		createdAt: '',
-		feedIds: []
+		feedIds: [],
+		gradient: 'emerald'
 	};
 }
 

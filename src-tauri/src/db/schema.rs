@@ -426,7 +426,8 @@ fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
                 episode_filter TEXT NOT NULL DEFAULT 'all' CHECK(episode_filter IN ('all', 'unplayed')),
                 sort_order TEXT NOT NULL DEFAULT 'newest_first' CHECK(sort_order IN ('newest_first', 'oldest_first')),
                 sort_order_position INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                gradient TEXT NOT NULL DEFAULT 'emerald'
             );
 
             CREATE TABLE IF NOT EXISTS station_feeds (
@@ -436,6 +437,30 @@ fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
             );",
 		)
 		.map_err(|error| format!("Failed to create stations tables: {error}"))?;
+
+    ensure_stations_columns(connection)?;
+
+    Ok(())
+}
+
+fn ensure_stations_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(stations)")
+        .map_err(|error| format!("Failed to inspect SQLite stations columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite stations columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite stations columns: {error}"))?;
+
+    if existing_columns.iter().all(|c| c != "gradient") {
+        connection
+            .execute(
+                "ALTER TABLE stations ADD COLUMN gradient TEXT NOT NULL DEFAULT 'emerald'",
+                [],
+            )
+            .map_err(|error| format!("Failed to add stations.gradient column: {error}"))?;
+    }
 
     Ok(())
 }

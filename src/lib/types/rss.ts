@@ -225,6 +225,16 @@ export interface BackendQueueState {
 
 export type StationEpisodeFilter = 'all' | 'unplayed';
 
+export type StationGradient =
+	| 'emerald'
+	| 'violet'
+	| 'rose'
+	| 'amber'
+	| 'cyan'
+	| 'fuchsia'
+	| 'slate'
+	| 'orange';
+
 export interface Station {
 	id: string;
 	name: string;
@@ -233,6 +243,7 @@ export interface Station {
 	sortOrderPosition: number;
 	createdAt: string;
 	feedIds: string[];
+	gradient: StationGradient;
 }
 
 export interface CreateStationInput {
@@ -240,6 +251,7 @@ export interface CreateStationInput {
 	episodeFilter: StationEpisodeFilter;
 	sortOrder: ItemSortOrder;
 	feedIds: string[];
+	gradient: StationGradient;
 }
 
 export interface UpdateStationInput {
@@ -248,4 +260,5 @@ export interface UpdateStationInput {
 	episodeFilter?: StationEpisodeFilter;
 	sortOrder?: ItemSortOrder;
 	feedIds?: string[];
+	gradient?: StationGradient;
 }

@@ -199,7 +199,8 @@
 					name: input.name,
 					feedIds: input.feedIds,
 					episodeFilter: input.episodeFilter,
-					sortOrder: input.sortOrder
+					sortOrder: input.sortOrder,
+					gradient: input.gradient
 				});
 				toast.success('Station updated.');
 			} else {
