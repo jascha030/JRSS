@@ -9,11 +9,12 @@ permission:
   glob: deny
   grep: deny
   bash:
-    "bun run check": allow
-    "bun run lint": allow
-    "cargo check --manifest-path src-tauri/Cargo.toml": allow
-    "cargo test --manifest-path src-tauri/Cargo.toml": allow
-    "*": deny
+    'bun run check': allow
+    'bun run lint': allow
+    'cargo check --manifest-path src-tauri/Cargo.toml': allow
+    'cargo test --manifest-path src-tauri/Cargo.toml': allow
+    '*': deny
   task: deny
 ---
+
 Run the requested validation commands. Report all errors verbatim with file:line references. Do not fix anything.

@@ -3,9 +3,9 @@
 	"instructions": [".opencode/instructions/*.md"],
 	"plugin": ["@sveltejs/opencode"],
 	"agent": {
-		"build": {
+		"orchestrate": {
 			"model": "opencode-go/deepseek-v4-pro",
-			"prompt": "{file:.opencode/prompts/orchestrator.md}"
+			"prompt": "{file:prompts/orchestrator.md}"
 		},
 		"general": {
 			"model": "opencode-go/kimi-k2.6"

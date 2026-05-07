@@ -9,4 +9,5 @@ permission:
   bash: allow
   skill: allow
 ---
+
 Solve the hard problem. Think carefully before acting. Return a clear, actionable result.
