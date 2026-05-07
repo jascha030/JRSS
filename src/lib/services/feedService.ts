@@ -421,6 +421,13 @@ export async function clearAudioCache(): Promise<void> {
 	await invokeCommand('clear_audio_cache');
 }
 
+export async function fetchFeedRawXml(feedId: string): Promise<string> {
+	if (!isTauriRuntime()) {
+		throw new Error('Feed inspector requires the Tauri runtime.');
+	}
+	return invokeCommand<string>('fetch_feed_raw', { feedId });
+}
+
 /** Extract dominant colors from cover art for theming. */
 export async function extractCoverPalette(imageUrl: string): Promise<string[]> {
 	if (!isTauriRuntime()) {

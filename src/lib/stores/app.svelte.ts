@@ -87,6 +87,13 @@ export {
 } from '../state/reader.svelte';
 
 export {
+	inspectorState,
+	resetInspectorState,
+	openInspector,
+	closeInspector
+} from '../state/inspector.svelte';
+
+export {
 	themeState,
 	applyColorScheme,
 	applyAccentColor,
@@ -140,6 +147,7 @@ import { resetSelectionState } from '../state/selection.svelte';
 import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
 import { resetStationsState, loadStations } from '../state/stations.svelte';
 import { resetItemsState, invalidateAllQueries, loadInitialItemsPage } from '../state/items.svelte';
+import { resetInspectorState } from '../state/inspector.svelte';
 import { resetReaderState } from '../state/reader.svelte';
 import {
 	resetPlaybackState,
@@ -158,6 +166,7 @@ export async function initializeApp(): Promise<void> {
 	resetStationsState();
 	resetItemsState();
 	resetReaderState();
+	resetInspectorState();
 	resetThemeState();
 
 	// Apply persisted theme before first render to prevent FOUC.

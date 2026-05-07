@@ -13,6 +13,7 @@
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
 	import SidebarContainer from '$lib/components/navigation/SidebarContainer.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
+	import FeedInspector from '$lib/components/feed/FeedInspector.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
@@ -41,6 +42,8 @@
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedStation,
+		inspectorState,
+		openInspector,
 		getUpcomingQueue,
 		loadInitialItemsPage,
 		loadItemDetails,
@@ -115,6 +118,8 @@
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
 	);
+
+	const isInspectorActive = $derived(inspectorState.activeFeedId !== null);
 
 	const isSelectedItemReaderLoading = $derived(
 		selectedItem ? readerLoadingItemIds.includes(selectedItem.id) : false
@@ -238,6 +243,10 @@
 	function handleEditStation() {
 		editingStation = selectedStation;
 		isStationEditorOpen = true;
+	}
+
+	async function handleOpenInspector(feedId: string) {
+		await openInspector(feedId);
 	}
 
 	function handleCreateStation() {
@@ -486,6 +495,8 @@
 							<SettingsView />
 						{:else if selectedSection === 'home'}
 							<HomeView {feeds} {stations} />
+						{:else if isInspectorActive}
+							<FeedInspector />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
@@ -499,6 +510,7 @@
 										onDeleteStation={handleStationDelete}
 										onEditStation={handleEditStation}
 										onEnsureItemLoaded={ensureItemLoaded}
+										onInspect={handleOpenInspector}
 										onMarkRead={markItemRead}
 										onPlayStation={handlePlayStation}
 										onRefresh={handleRefreshFeed}

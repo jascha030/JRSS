@@ -145,6 +145,7 @@ pub fn run() {
             commands::add_feed,
             commands::refresh_feed,
             commands::remove_feed,
+            commands::fetch_feed_raw,
             commands::query_items_page,
             commands::get_item_details,
             commands::mark_read,

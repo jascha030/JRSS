@@ -32,6 +32,7 @@
 		selectedItemId: string | null;
 		selectedSection: SidebarSection;
 		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
+		onInspect?: (feedId: string) => void;
 		totalCount: number;
 		searchTerm: string;
 		onSearchChange: (term: string) => void;
@@ -62,6 +63,7 @@
 		selectedItemId,
 		selectedSection,
 		onMarkRead,
+		onInspect,
 		totalCount,
 		searchTerm,
 		onSearchChange,
@@ -373,6 +375,15 @@
 							onclick={() => void onRefresh(selectedFeed.id)}
 						/>
 					{/key}
+
+					{#if onInspect}
+						<IconButton
+							icon="lucide:scan-search"
+							title="Inspect feed XML"
+							label="Inspect feed XML"
+							onclick={() => onInspect(selectedFeed.id)}
+						/>
+					{/if}
 				</div>
 			{/if}
 		</div>

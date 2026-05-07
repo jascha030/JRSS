@@ -132,12 +132,34 @@ pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
     parse_feed(&bytes, feed_url)
 }
 
-fn build_http_client() -> AppResult<Client> {
+pub(crate) fn build_http_client() -> AppResult<Client> {
     Client::builder()
         .timeout(Duration::from_secs(20))
         .user_agent("JRSS/0.0.1")
         .build()
         .map_err(|error| format!("Failed to create HTTP client: {error}"))
+}
+
+pub fn fetch_raw_feed_xml(feed_url: &str) -> AppResult<String> {
+    crate::rate_limit::throttle_request(feed_url);
+
+    let client = build_http_client()?;
+
+    let response = client
+        .get(feed_url)
+        .header(reqwest::header::ACCEPT, FEED_ACCEPT_HEADER)
+        .send()
+        .map_err(|error| format!("Failed to fetch feed: {error}"))?;
+
+    let status = response.status();
+
+    if !status.is_success() {
+        return Err(format!("Feed request failed with status {status}."));
+    }
+
+    response
+        .text()
+        .map_err(|error| format!("Failed to read feed response body: {error}"))
 }
 
 fn extract_raw_apple_podcast_id(input: &str) -> Option<String> {
