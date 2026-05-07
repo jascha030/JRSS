@@ -5,6 +5,7 @@
 	import CoverView from '$lib/components/player/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
 	import FeedListView from '$lib/components/feed/FeedListView.svelte';
+	import HomeView from '$lib/components/feed/HomeView.svelte';
 	import Header from '$lib/components/feed/Header.svelte';
 	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
 	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
@@ -446,6 +447,8 @@
 							<EmptyFeedView />
 						{:else if selectedSection === 'settings'}
 							<SettingsView />
+						{:else if selectedSection === 'home'}
+							<HomeView {feeds} {stations} />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
