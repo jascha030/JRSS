@@ -16,13 +16,13 @@ Single-line explanatory comments are a code smell. Test files are exempt.
 
 ## Allowed Comments
 
-| Kind | When |
-|------|------|
+| Kind            | When                                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Public API docs | Exported TS/Rust APIs, `#[tauri::command]`, Svelte components consumed externally, modules defining subsystems. Use `/** … */`, `///`, or `//!`. |
-| Tooling | `@ts-expect-error`, ESLint suppressions, Rust `SAFETY:` — always explain **why**. |
-| Constraints | Protocol quirks, platform behavior, security boundaries, performance tradeoffs, cross-layer invariants. Keep them short. |
-| Algorithms | Only when genuinely non-obvious and naming/decomposition is insufficient. Prefer doc comments above the function. |
-| Boundaries | IPC commands, serialization formats, config structures, frontend-backend type mappings. |
+| Tooling         | `@ts-expect-error`, ESLint suppressions, Rust `SAFETY:` — always explain **why**.                                                                |
+| Constraints     | Protocol quirks, platform behavior, security boundaries, performance tradeoffs, cross-layer invariants. Keep them short.                         |
+| Algorithms      | Only when genuinely non-obvious and naming/decomposition is insufficient. Prefer doc comments above the function.                                |
+| Boundaries      | IPC commands, serialization formats, config structures, frontend-backend type mappings.                                                          |
 
 ## Prohibited Comments
 
