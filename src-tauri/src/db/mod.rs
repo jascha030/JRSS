@@ -27,7 +27,7 @@ pub use feeds::{
 };
 pub use items::{
     get_item_by_id, get_items_by_ids, mark_read, query_items, query_items_page, save_playback,
-    save_reader_content, save_reader_failure,
+    save_reader_content, save_reader_failure, update_item_duration,
 };
 pub use playback::{
     clear_playback_session, load_playback_context, load_playback_session, save_playback_context,

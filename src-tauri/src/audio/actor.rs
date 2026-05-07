@@ -238,6 +238,16 @@ impl AudioThread {
                 if let Some(ref mut current) = self.queue.current {
                     current.duration_seconds = actual_seconds;
                 }
+
+                // Persist detected duration to the database for future reference
+                if let Some(ref item_id) = self.current_item_id {
+                    let db_state = self.app.state::<db::DatabaseState>();
+                    let db_path = db_state.db_path();
+                    let duration_i64 = actual_seconds.floor() as i64;
+                    if let Err(error) = db::update_item_duration(&db_path, item_id, duration_i64) {
+                        log::warn!("Failed to persist detected duration: {error}");
+                    }
+                }
             }
         }
 
