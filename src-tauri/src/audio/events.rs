@@ -1,11 +1,13 @@
 //! Event payloads emitted to the frontend.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackStateEvent {
     pub item_id: String,
+    pub title: String,
+    pub artist: String,
     pub position_seconds: f64,
     pub duration_seconds: f64,
     pub is_playing: bool,

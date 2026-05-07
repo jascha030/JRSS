@@ -50,7 +50,7 @@ impl AudioState {
         Ok(Self { tx })
     }
 
-    fn send(&self, cmd: AudioCommand) -> Result<(), String> {
+    pub fn send(&self, cmd: AudioCommand) -> Result<(), String> {
         self.tx
             .send(cmd)
             .map_err(|_| "Audio thread is not running".to_string())
