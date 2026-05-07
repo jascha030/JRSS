@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { loadAppSettings, saveAppSettings } from '$lib/services/feedService';
+	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/feedService';
 	import { isTauriRuntime } from '$lib/services/tauriClient';
 	import { applyAccentColor, applyColorScheme } from '$lib/stores/app.svelte';
 	import {
@@ -110,6 +110,19 @@
 		}
 	}
 
+	async function handleClearCache(): Promise<void> {
+		cacheMessage = '';
+		isClearingCache = true;
+		try {
+			await clearAudioCache();
+			cacheMessage = 'Cache cleared.';
+		} catch (error) {
+			cacheMessage = `Failed to clear cache. ${getErrorMessage(error)}`;
+		} finally {
+			isClearingCache = false;
+		}
+	}
+
 	function getErrorMessage(error: unknown): string {
 		return error instanceof Error ? error.message : 'Something went wrong.';
 	}
@@ -131,6 +144,29 @@
 							<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
 						</div>
 					{/each}
+					<div class="py-6 first:pt-0 last:pb-0">
+						<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+							<div class="max-w-2xl">
+								<h2 class="text-base font-semibold text-fg">Clear audio cache</h2>
+								<p class="mt-2 text-sm text-fg-muted">
+									Remove all downloaded audio files from the local cache directory.
+								</p>
+							</div>
+							<div class="flex w-full max-w-xs flex-col gap-2">
+								<button
+									type="button"
+									class="btn rounded-xl preset-tonal"
+									disabled={isClearingCache || !isDesktop}
+									onclick={handleClearCache}
+								>
+									{isClearingCache ? 'Clearing…' : 'Clear cache'}
+								</button>
+								{#if cacheMessage}
+									<p class="text-sm text-fg-muted">{cacheMessage}</p>
+								{/if}
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div class="mt-6 flex flex-wrap items-center gap-3">

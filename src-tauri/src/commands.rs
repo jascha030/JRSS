@@ -451,6 +451,11 @@ pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<
     audio::queue_set(&app, items)
 }
 
+#[tauri::command]
+pub fn clear_audio_cache(app: tauri::AppHandle) -> Result<(), String> {
+	audio::cache::clear_audio_cache(&app)
+}
+
 // ---------------------------------------------------------------------------
 // Playback context — frontend-managed persistence for feed/station context
 // ---------------------------------------------------------------------------

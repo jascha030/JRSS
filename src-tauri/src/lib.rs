@@ -190,6 +190,7 @@ pub fn run() {
             commands::save_playback_context,
             commands::load_playback_context,
             commands::extract_cover_palette,
+            commands::clear_audio_cache,
             commands::set_window_content_aspect_ratio
         ]);
 
