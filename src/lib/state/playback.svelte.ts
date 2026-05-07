@@ -1,6 +1,7 @@
 /* eslint-disable svelte/prefer-svelte-reactivity */
 import type {
 	BackendPlaybackEndedEvent,
+	BackendPlaybackErrorEvent,
 	BackendPlaybackState,
 	BackendQueueState,
 	FeedListItem,
@@ -29,6 +30,7 @@ import {
 	extractCoverPalette
 } from '$lib/services/feedService';
 import { tick } from 'svelte';
+import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
 	itemsState,
@@ -310,7 +312,25 @@ export async function initAudioEventListeners(): Promise<void> {
 		});
 	});
 
-	audioEventUnlisteners = [unlistenState, unlistenEnded, unlistenStopped, unlistenQueueChanged];
+	const unlistenError = await listen<BackendPlaybackErrorEvent>('playback-error', (event) => {
+		playbackState.isAudioLoading = false;
+		const message = event.payload.error;
+		if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+			toast.error('This feed requires authentication. Check your subscription or feed URL.');
+		} else if (message.includes('429') || message.toLowerCase().includes('too many requests')) {
+			toast.error('Too many requests. Please wait a moment and try again.');
+		} else {
+			toast.error(message);
+		}
+	});
+
+	audioEventUnlisteners = [
+		unlistenState,
+		unlistenEnded,
+		unlistenStopped,
+		unlistenQueueChanged,
+		unlistenError
+	];
 }
 
 /**
