@@ -446,6 +446,26 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 	}
 }
 
+function patchItemDuration(itemId: string, durationSeconds: number): void {
+	const item = resolveItem(itemId);
+	if (!item || !isMediaItem(item)) return;
+	if (item.mediaEnclosure.durationSeconds === durationSeconds) return;
+
+	const patched = {
+		...item,
+		mediaEnclosure: { ...item.mediaEnclosure, durationSeconds }
+	};
+
+	itemsState.itemSummariesById[itemId] = patched as FeedListItem;
+	const audioItem = playbackState.audioItemsById[itemId];
+	if (audioItem) {
+		playbackState.audioItemsById[itemId] = {
+			...audioItem,
+			mediaEnclosure: { ...(audioItem as MediaListItem).mediaEnclosure, durationSeconds }
+		} as FeedListItem;
+	}
+}
+
 function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boolean = false): void {
 	const positionSeconds = Math.floor(event.positionSeconds);
 	const durationSeconds = Math.floor(event.durationSeconds);
@@ -484,6 +504,10 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		isPlaying: event.isPlaying,
 		volume: event.volume
 	};
+
+	if (durationSeconds > 0) {
+		patchItemDuration(event.itemId, durationSeconds);
+	}
 
 	if (!event.isPlaying) {
 		patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
