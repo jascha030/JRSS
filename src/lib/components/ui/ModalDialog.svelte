@@ -29,7 +29,7 @@
 		></button>
 
 		<div
-			class="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl"
+			class="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface-shell-opaque p-6 shadow-xl"
 		>
 			<div class="flex items-center justify-between">
 				<h2 class="text-lg font-semibold text-fg">{title}</h2>
