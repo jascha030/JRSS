@@ -33,6 +33,22 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         let go_to_feed_item = MenuItemBuilder::with_id("go-to-feed", "Go to Feed")
             .accelerator("CmdOrCtrl+L")
             .build(app)?;
+        let toggle_sidebar_item = MenuItemBuilder::with_id("toggle-sidebar", "Toggle Sidebar")
+            .accelerator("CmdOrCtrl+B")
+            .build(app)?;
+        let prev_source_item = MenuItemBuilder::with_id("prev-source", "Previous Source")
+            .accelerator("CmdOrCtrl+Shift+[")
+            .build(app)?;
+        let next_source_item = MenuItemBuilder::with_id("next-source", "Next Source")
+            .accelerator("CmdOrCtrl+Shift+]")
+            .build(app)?;
+        let toggle_cover_item = MenuItemBuilder::with_id("toggle-cover", "Toggle Cover View")
+            .accelerator("CmdOrCtrl+Shift+C")
+            .build(app)?;
+        let toggle_mini_player_item =
+            MenuItemBuilder::with_id("toggle-mini-player", "Toggle Mini Player")
+                .accelerator("CmdOrCtrl+Shift+M")
+                .build(app)?;
 
         // Playback menu items
         // Note: Space as accelerator can interfere with text input.
@@ -87,6 +103,13 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         // Create View submenu
         let view_submenu = SubmenuBuilder::new(app, "View")
             .item(&go_to_feed_item)
+            .item(&toggle_sidebar_item)
+            .separator()
+            .item(&prev_source_item)
+            .item(&next_source_item)
+            .separator()
+            .item(&toggle_cover_item)
+            .item(&toggle_mini_player_item)
             .build()?;
 
         // Create Playback submenu
@@ -192,6 +215,83 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             |_app, _shortcut, event| {
                 if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                     let _ = _app.emit("menu-settings", ());
+                }
+            },
+        )?;
+
+        // Sidebar shortcut
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(tauri_plugin_global_shortcut::Modifiers::META),
+                tauri_plugin_global_shortcut::Code::KeyB,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-sidebar", ());
+                }
+            },
+        )?;
+
+        // Previous source shortcut
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::BracketLeft,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-prev-source", ());
+                }
+            },
+        )?;
+
+        // Next source shortcut
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::BracketRight,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-next-source", ());
+                }
+            },
+        )?;
+
+        // Toggle cover view shortcut
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::KeyC,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-cover", ());
+                }
+            },
+        )?;
+
+        // Toggle mini player shortcut
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::SHIFT,
+                ),
+                tauri_plugin_global_shortcut::Code::KeyM,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-mini-player", ());
                 }
             },
         )?;

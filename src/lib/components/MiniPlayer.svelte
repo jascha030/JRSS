@@ -46,6 +46,7 @@
 		let unlistenVolumeUp: EventUnlistenFn | undefined;
 		let unlistenVolumeDown: EventUnlistenFn | undefined;
 		let unlistenSettings: EventUnlistenFn | undefined;
+		let unlistenToggleMiniPlayer: EventUnlistenFn | undefined;
 
 		const setupListeners = async () => {
 			unlistenSkipForward = await listen('menu-skip-forward', () => {
@@ -61,6 +62,10 @@
 				handleAdjustVolume(-VOLUME_STEP);
 			});
 			unlistenSettings = await listen('menu-settings', async () => {
+				await restoreMainWindow();
+				await miniWindow.destroy();
+			});
+			unlistenToggleMiniPlayer = await listen('menu-toggle-mini-player', async () => {
 				await restoreMainWindow();
 				await miniWindow.destroy();
 			});
@@ -89,6 +94,7 @@
 			if (unlistenVolumeUp) unlistenVolumeUp();
 			if (unlistenVolumeDown) unlistenVolumeDown();
 			if (unlistenSettings) unlistenSettings();
+			if (unlistenToggleMiniPlayer) unlistenToggleMiniPlayer();
 		};
 	});
 

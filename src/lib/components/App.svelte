@@ -280,12 +280,72 @@
 		}
 	}
 
+	function handleCycleSource(direction: 1 | -1) {
+		const sources = [
+			...feeds.map((f) => ({ type: 'feed' as const, id: f.id })),
+			...stations.map((s) => ({ type: 'station' as const, id: s.id }))
+		];
+		if (sources.length === 0) return;
+
+		let currentIndex = -1;
+		if (selectedFeedId) {
+			currentIndex = sources.findIndex((s) => s.type === 'feed' && s.id === selectedFeedId);
+		} else if (selectedStationId) {
+			currentIndex = sources.findIndex((s) => s.type === 'station' && s.id === selectedStationId);
+		}
+
+		if (currentIndex === -1) {
+			currentIndex = direction === 1 ? 0 : sources.length - 1;
+		} else {
+			currentIndex = (currentIndex + direction + sources.length) % sources.length;
+		}
+
+		const next = sources[currentIndex];
+		if (next.type === 'feed') {
+			selectFeed(next.id);
+		} else {
+			selectStation(next.id);
+		}
+	}
+
 	useMenuShortcuts([
 		{
 			event: 'menu-settings',
 			handler: () => {
 				playerMode = 'default';
 				selectSection('settings');
+			}
+		},
+		{
+			event: 'menu-toggle-sidebar',
+			handler: () => {
+				isSidebarCollapsed = !isSidebarCollapsed;
+			}
+		},
+		{
+			event: 'menu-next-source',
+			handler: () => {
+				if (playerMode === 'cover') return;
+				handleCycleSource(1);
+			}
+		},
+		{
+			event: 'menu-prev-source',
+			handler: () => {
+				if (playerMode === 'cover') return;
+				handleCycleSource(-1);
+			}
+		},
+		{
+			event: 'menu-toggle-cover',
+			handler: () => {
+				playerMode = playerMode === 'cover' ? 'default' : 'cover';
+			}
+		},
+		{
+			event: 'menu-toggle-mini-player',
+			handler: async () => {
+				await handlePopOutMiniPlayer();
 			}
 		}
 	]);
