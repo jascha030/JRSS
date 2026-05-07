@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-	import Icon from '@iconify/svelte';
+
 	import { queryItems } from '$lib/services/feedService';
 	import type { Feed, FeedListItem } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
+	import SearchInput from '$lib/components/ui/SearchInput.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 
 	type Props = {
 		onOpenDialog: () => void;
@@ -25,7 +26,6 @@
 
 	const feedTitleById = $derived(new Map(feeds.map((f) => [f.id, f.title])));
 
-	// Debounced search — effect re-runs whenever inputValue changes
 	$effect(() => {
 		const term = inputValue.trim();
 
@@ -108,20 +108,20 @@
 		}
 	}
 
-	onMount(() => {
-		let unlisten: UnlistenFn | undefined;
+	let unlistenAddFeed: UnlistenFn | undefined;
 
-		const setupListener = async () => {
-			unlisten = await listen('menu-add-feed', () => {
-				onOpenDialog();
-			});
-		};
+	const setupListener = async () => {
+		unlistenAddFeed = await listen('menu-add-feed', () => {
+			onOpenDialog();
+		});
+	};
 
-		void setupListener();
+	void setupListener();
 
+	$effect(() => {
 		return () => {
-			if (unlisten) {
-				unlisten();
+			if (unlistenAddFeed) {
+				unlistenAddFeed();
 			}
 		};
 	});
@@ -130,41 +130,21 @@
 <svelte:window onkeydown={handleGlobalKeydown} onclick={handleWindowClick} />
 
 <div class="flex w-full items-center gap-4 px-2">
-	<!-- Center search -->
 	<div bind:this={containerRef} class="relative mr-12 flex-1">
-		<label class="sr-only" for="global-search">Search all feeds</label>
-		<div
-			class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-shell px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
-		>
-			{#if isLoading}
-				<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
-			{:else}
-				<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
-			{/if}
-			<input
-				id="global-search"
-				bind:this={searchInputRef}
-				class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
-				placeholder="Search all feeds"
-				type="search"
-				autocomplete="off"
-				value={inputValue}
-				oninput={(event) => {
-					const target = event.currentTarget;
-					if (target instanceof HTMLInputElement) {
-						inputValue = target.value;
-					}
-				}}
-				onkeydown={handleInputKeydown}
-				onfocus={() => {
-					if (results.length > 0) isOpen = true;
-				}}
-			/>
-			<kbd
-				class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-				>/</kbd
-			>
-		</div>
+		<SearchInput
+			id="global-search"
+			label="Search all feeds"
+			placeholder="Search all feeds"
+			bind:value={inputValue}
+			bind:inputRef={searchInputRef}
+			kbdShortcuts={['/']}
+			{isLoading}
+			bgClass="bg-surface-shell"
+			onkeydown={handleInputKeydown}
+			onfocus={() => {
+				if (results.length > 0) isOpen = true;
+			}}
+		/>
 
 		{#if isOpen && results.length > 0}
 			<div
@@ -213,12 +193,5 @@
 		{/if}
 	</div>
 
-	<!-- Add feed button -->
-	<button
-		type="button"
-		class="preset-filled-accent btn-icon shrink-0 rounded-xl"
-		onclick={onOpenDialog}
-	>
-		<Icon icon="lucide:plus" class="size-4" />
-	</button>
+	<IconButton icon="lucide:plus" title="Add feed" variant="accent" onclick={onOpenDialog} />
 </div>

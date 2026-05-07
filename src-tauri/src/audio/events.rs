@@ -1,11 +1,13 @@
 //! Event payloads emitted to the frontend.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackStateEvent {
     pub item_id: String,
+    pub title: String,
+    pub artist: String,
     pub position_seconds: f64,
     pub duration_seconds: f64,
     pub is_playing: bool,
@@ -17,6 +19,13 @@ pub struct PlaybackStateEvent {
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackEndedEvent {
     pub item_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaybackErrorEvent {
+	pub item_id: String,
+	pub error: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

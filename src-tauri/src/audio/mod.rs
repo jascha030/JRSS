@@ -50,7 +50,7 @@ impl AudioState {
         Ok(Self { tx })
     }
 
-    fn send(&self, cmd: AudioCommand) -> Result<(), String> {
+    pub fn send(&self, cmd: AudioCommand) -> Result<(), String> {
         self.tx
             .send(cmd)
             .map_err(|_| "Audio thread is not running".to_string())
@@ -160,6 +160,14 @@ pub fn queue_move_up(app: &AppHandle, item_id: String) -> Result<(), String> {
 pub fn queue_move_down(app: &AppHandle, item_id: String) -> Result<(), String> {
     app.state::<AudioState>()
         .send(AudioCommand::QueueMoveDown { item_id })
+}
+
+pub fn queue_next(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueueNext)
+}
+
+pub fn queue_prev(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueuePrev)
 }
 
 pub fn queue_clear(app: &AppHandle) -> Result<(), String> {

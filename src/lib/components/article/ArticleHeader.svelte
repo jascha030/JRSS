@@ -3,7 +3,7 @@
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
-	import Icon from '@iconify/svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
@@ -70,14 +70,12 @@
 				<div class="mt-2 flex flex-wrap items-center gap-2">
 					<DynamicPlayButton {item} size="sm" />
 
-					<button
-						class="preset-outlined-subtle btn-icon rounded-full"
-						type="button"
-						aria-label="More audio actions"
+					<IconButton
+						icon="lucide:ellipsis"
+						label="More audio actions"
+						class="rounded-full"
 						onclick={(e) => void openAudioContextMenu(e, item)}
-					>
-						<Icon icon="lucide:ellipsis" class="size-4" />
-					</button>
+					/>
 				</div>
 			{/if}
 		</div>

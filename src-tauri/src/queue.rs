@@ -191,24 +191,34 @@ impl QueueState {
     /// Moves the current item to history before advancing.
     /// Returns the item and sets it as current.
     pub fn shift_next(&mut self) -> Option<QueuedItem> {
-        // Move current item to history before advancing
         if let Some(current) = self.current.take() {
             self.push_history(current);
         }
 
-        // Try manual first.
         if let Some(item) = self.manual.pop_front() {
             self.current = Some(item.clone());
             return Some(item);
         }
 
-        // Then auto.
         if let Some(item) = self.auto.pop_front() {
             self.current = Some(item.clone());
             return Some(item);
         }
 
         None
+    }
+
+    /// Go back to the previous item from history.
+    /// Moves the current item to the front of the manual queue, then
+    /// restores the most recent history item as current.
+    pub fn shift_prev(&mut self) -> Option<QueuedItem> {
+        if let Some(current) = self.current.take() {
+            self.manual.push_front(current);
+        }
+
+        let item = self.history.pop_front()?;
+        self.current = Some(item.clone());
+        Some(item)
     }
 
     /// Get current item.

@@ -23,6 +23,7 @@
 
 	const isSmall = $derived(size === 'sm');
 	const total = $derived(item.mediaEnclosure.durationSeconds ?? 0);
+	const hasDuration = $derived(total > 0);
 	const isCurrentItem = $derived(isItemCurrentAudio(item.id));
 	const isStoreLoading = $derived(isCurrentItem && isAudioLoading());
 	const isPlaying = $derived(isCurrentItem && isAudioPlaying());
@@ -33,11 +34,13 @@
 	const isLoading = $derived(isStoreLoading);
 
 	const progress = $derived(
-		compact
-			? formatDuration(total - playbackPosition)
-			: hasProgress
-				? `${formatDuration(playbackPosition)} / ${formatDuration(total)}`
-				: formatDuration(total)
+		!hasDuration
+			? null
+			: compact
+				? formatDuration(total - playbackPosition)
+				: hasProgress
+					? `${formatDuration(playbackPosition)} / ${formatDuration(total)}`
+					: formatDuration(total)
 	);
 
 	function handleAction() {

@@ -1,6 +1,7 @@
 /* eslint-disable svelte/prefer-svelte-reactivity */
 import type {
 	BackendPlaybackEndedEvent,
+	BackendPlaybackErrorEvent,
 	BackendPlaybackState,
 	BackendQueueState,
 	FeedListItem,
@@ -16,7 +17,9 @@ import {
 	audioQueueGetState,
 	audioQueueMoveDown,
 	audioQueueMoveUp,
+	audioQueueNext,
 	audioQueuePlayNext,
+	audioQueuePrev,
 	audioQueueRemove,
 	audioQueueSet,
 	audioSeek,
@@ -29,6 +32,7 @@ import {
 	extractCoverPalette
 } from '$lib/services/feedService';
 import { tick } from 'svelte';
+import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
 	itemsState,
@@ -114,10 +118,6 @@ export function resetPlaybackState(): void {
 	playbackState.audioItemsById = {};
 	playbackState.coverTheme = FALLBACK_COVER_THEME;
 }
-
-// ---------------------------------------------------------------------------
-// Cover theme extraction
-// ---------------------------------------------------------------------------
 
 type Rgb = {
 	r: number;
@@ -278,14 +278,9 @@ export async function precalculateCoverTheme(imageUrl: string | undefined): Prom
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Audio event listeners
-// ---------------------------------------------------------------------------
-
 let audioEventUnlisteners: UnlistenFn[] = [];
 
 export async function initAudioEventListeners(): Promise<void> {
-	// Clean up any previous listeners
 	for (const unlisten of audioEventUnlisteners) {
 		unlisten();
 	}
@@ -319,12 +314,26 @@ export async function initAudioEventListeners(): Promise<void> {
 		});
 	});
 
-	audioEventUnlisteners = [unlistenState, unlistenEnded, unlistenStopped, unlistenQueueChanged];
-}
+	const unlistenError = await listen<BackendPlaybackErrorEvent>('playback-error', (event) => {
+		playbackState.isAudioLoading = false;
+		const message = event.payload.error;
+		if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+			toast.error('This feed requires authentication. Check your subscription or feed URL.');
+		} else if (message.includes('429') || message.toLowerCase().includes('too many requests')) {
+			toast.error('Too many requests. Please wait a moment and try again.');
+		} else {
+			toast.error(message);
+		}
+	});
 
-// ---------------------------------------------------------------------------
-// Item cache helpers - keep both caches in sync
-// ---------------------------------------------------------------------------
+	audioEventUnlisteners = [
+		unlistenState,
+		unlistenEnded,
+		unlistenStopped,
+		unlistenQueueChanged,
+		unlistenError
+	];
+}
 
 /**
  * Register an item in both playback and items caches.
@@ -361,10 +370,6 @@ function resolveAudioItem(itemId: string): MediaListItem | null {
 	const item = resolveItem(itemId);
 	return item && isMediaItem(item) ? item : null;
 }
-
-// ---------------------------------------------------------------------------
-// Backend-owned playback session sync
-// ---------------------------------------------------------------------------
 
 const inFlightAudioItemHydrations: Record<string, Promise<void> | undefined> = {};
 
@@ -441,12 +446,31 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 	}
 }
 
+function patchItemDuration(itemId: string, durationSeconds: number): void {
+	const item = resolveItem(itemId);
+	if (!item || !isMediaItem(item)) return;
+	if (item.mediaEnclosure.durationSeconds === durationSeconds) return;
+
+	const patched = {
+		...item,
+		mediaEnclosure: { ...item.mediaEnclosure, durationSeconds }
+	};
+
+	itemsState.itemSummariesById[itemId] = patched as FeedListItem;
+	const audioItem = playbackState.audioItemsById[itemId];
+	if (audioItem) {
+		playbackState.audioItemsById[itemId] = {
+			...audioItem,
+			mediaEnclosure: { ...(audioItem as MediaListItem).mediaEnclosure, durationSeconds }
+		} as FeedListItem;
+	}
+}
+
 function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boolean = false): void {
 	const positionSeconds = Math.floor(event.positionSeconds);
 	const durationSeconds = Math.floor(event.durationSeconds);
 	const previous = playbackState.currentPlaybackState;
 
-	// Check if playback state actually changed
 	const playbackUnchanged =
 		previous &&
 		previous.itemId === event.itemId &&
@@ -465,7 +489,6 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 	const previousItemId = previous?.itemId;
 	const wasPlaying = previous?.isPlaying ?? false;
 
-	// If item changed, pre-calculate the cover theme
 	if (previousItemId !== event.itemId) {
 		const item = resolveItem(event.itemId);
 		if (item) {
@@ -482,7 +505,10 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		volume: event.volume
 	};
 
-	// Sync position back to caches when playback stops
+	if (durationSeconds > 0) {
+		patchItemDuration(event.itemId, durationSeconds);
+	}
+
 	if (!event.isPlaying) {
 		patchItemSummary(event.itemId, { playbackPositionSeconds: positionSeconds });
 		patchAudioItem(event.itemId, { playbackPositionSeconds: positionSeconds });
@@ -492,7 +518,6 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		playbackState.isAudioLoading = false;
 	}
 
-	// Mark as read when playback starts
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
 		void markItemRead(event.itemId, true).catch((error) => {
 			console.error('Failed to mark item as read during playback.', error);
@@ -533,10 +558,6 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 		void precalculateCoverTheme(feed?.imageUrl);
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Playback controls
-// ---------------------------------------------------------------------------
 
 async function yieldForPlaybackUiPaint(): Promise<void> {
 	await tick();
@@ -606,13 +627,10 @@ export function playAudioItem(
 		volume: playbackState.currentPlaybackState?.volume ?? 1
 	};
 
-	// Set playback context (defaults to feed context if not specified)
 	playbackState.playbackContext = context ?? { contextType: 'feed', id: item.feedId };
 
-	// Persist playback context
 	void persistPlaybackContext();
 
-	// Pre-calculate cover theme for the new track
 	const feed = feedsState.feeds.find((f) => f.id === item.feedId);
 	void precalculateCoverTheme(feed?.imageUrl);
 
@@ -661,6 +679,22 @@ export function requestSeekTo(positionSeconds: number): void {
 	});
 }
 
+export function requestNextEpisode(): void {
+	playbackState.isAudioLoading = true;
+	void audioQueueNext().catch((error: unknown) => {
+		console.error('Failed to skip to next episode.', error);
+		playbackState.isAudioLoading = false;
+	});
+}
+
+export function requestPreviousEpisode(): void {
+	playbackState.isAudioLoading = true;
+	void audioQueuePrev().catch((error: unknown) => {
+		console.error('Failed to skip to previous episode.', error);
+		playbackState.isAudioLoading = false;
+	});
+}
+
 let pendingVolumeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function requestSetVolume(volume: number): void {
@@ -678,10 +712,6 @@ export function requestSetVolume(volume: number): void {
 		});
 	}, 125);
 }
-
-// ---------------------------------------------------------------------------
-// Queue operations
-// ---------------------------------------------------------------------------
 
 export function getManualQueueLength(): number {
 	return playbackState.manualQueue.length;
@@ -807,10 +837,6 @@ export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// Context-aware playback start
-// ---------------------------------------------------------------------------
-
 function deriveAutoContinuation(playingItemId: string): string[] {
 	const queryKey = getActiveQueryKey();
 	if (!queryKey) {
@@ -822,12 +848,10 @@ function deriveAutoContinuation(playingItemId: string): string[] {
 		return [];
 	}
 
-	// Build ordered array of item IDs from the sparse index map
 	const sortedIndexes = Object.keys(itemIdsByIndex)
 		.map(Number)
 		.sort((a, b) => a - b);
 
-	// Find the playing item's position
 	let playingPosition = -1;
 	for (const idx of sortedIndexes) {
 		if (itemIdsByIndex[idx] === playingItemId) {
@@ -840,7 +864,6 @@ function deriveAutoContinuation(playingItemId: string): string[] {
 		return [];
 	}
 
-	// Collect audio items after the playing position
 	const manualSet = new Set(playbackState.manualQueue);
 	const continuation: string[] = [];
 
@@ -854,7 +877,6 @@ function deriveAutoContinuation(playingItemId: string): string[] {
 			continue;
 		}
 
-		// Skip items already in the manual queue
 		if (manualSet.has(candidateId)) {
 			continue;
 		}
@@ -873,7 +895,6 @@ export function startPlaybackFromContext(item: MediaListItem): void {
 	const manualQueueIds = playbackState.manualQueue.filter((itemId) => itemId !== item.id);
 	const autoQueueIds = deriveAutoContinuation(item.id);
 
-	// Determine playback context from current selection
 	const context: { contextType: 'feed' | 'station'; id: string } | null =
 		selection.selectedStationId
 			? { contextType: 'station', id: selection.selectedStationId }
@@ -900,7 +921,6 @@ export async function playStation(stationId: string): Promise<void> {
 	const firstItem = mediaItems[0];
 	const rest = mediaItems.slice(1);
 
-	// Register all items
 	for (const item of mediaItems) {
 		registerAudioItem(item);
 	}
@@ -916,10 +936,6 @@ export async function handlePlaybackEnded(): Promise<void> {
 	await syncAudioSessionFromBackend();
 }
 
-// ---------------------------------------------------------------------------
-// Playback context persistence
-// ---------------------------------------------------------------------------
-
 export async function restorePlaybackContext(): Promise<void> {
 	const context = await loadPlaybackContext();
 	if (context) {
@@ -930,10 +946,6 @@ export async function restorePlaybackContext(): Promise<void> {
 export async function persistPlaybackContext(): Promise<void> {
 	await savePlaybackContext(playbackState.playbackContext);
 }
-
-// ---------------------------------------------------------------------------
-// Getters
-// ---------------------------------------------------------------------------
 
 export function getCurrentAudioItem(): MediaListItem | null {
 	const state = playbackState.currentPlaybackState;

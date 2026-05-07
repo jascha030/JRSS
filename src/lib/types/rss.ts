@@ -195,6 +195,12 @@ export interface BackendPlaybackEndedEvent {
 	itemId: string;
 }
 
+/** Mirrors Rust `PlaybackErrorEvent`. */
+export interface BackendPlaybackErrorEvent {
+	itemId: string;
+	error: string;
+}
+
 export interface BackendQueuedItem {
 	itemId: string;
 	url: string;

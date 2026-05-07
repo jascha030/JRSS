@@ -3,6 +3,7 @@
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
 	type QueueListAppearance = 'default' | 'inverse';
 
@@ -106,7 +107,6 @@
 		return queueIndex + 1;
 	}
 
-	// Action to scroll element into view when mounted
 	function scrollIntoView(node: HTMLElement) {
 		queueMicrotask(() => {
 			node.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -115,15 +115,19 @@
 </script>
 
 {#if !hasAnyItems}
-	<div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-		<Icon icon="lucide:list-music" class={classes.emptyIcon} />
-		<p class={classes.emptyTitle}>Queue is empty</p>
-		<p class={classes.emptyText}>Press play on an episode to auto-populate</p>
-	</div>
+	<EmptyState
+		icon="lucide:list-music"
+		title="Queue is empty"
+		description="Press play on an episode to auto-populate"
+		iconClass={classes.emptyIcon}
+		titleClass={classes.emptyTitle}
+		descriptionClass={classes.emptyText}
+		class="py-16"
+	/>
 {:else}
 	<ul class="px-0 py-2">
 		{#if hasHistory}
-			{#each historyItems as item (item.id)}
+			{#each [...historyItems].reverse() as item (item.id)}
 				<li
 					oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
@@ -152,7 +156,6 @@
 				</li>
 			{/each}
 
-			<!-- Separator between history and queue -->
 			<li
 				class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
 				aria-hidden="true"
@@ -164,7 +167,6 @@
 			</li>
 		{/if}
 
-		<!-- Queue Items -->
 		{#each queueItems as item, index (item.id)}
 			<li
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}

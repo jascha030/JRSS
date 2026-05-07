@@ -67,3 +67,14 @@ To add a new input type (e.g., a new control beyond toggle/number/select/segment
 3. Add it to the `SettingEntry` union
 4. Create the matching input component in `src/lib/components/settings/inputs/`
 5. Add the dispatch branch in `src/lib/components/settings/SettingRow.svelte`
+
+## Response Style
+
+- Zero hedging. Do not start sentences or thoughts with "Wait", "Actually", "But wait", "Maybe", "Perhaps", "Hmm", "Hold on", "Let me think", "I think", "I believe", "It seems", "Probably", "Likely", or "Presumably". These words do not exist in your vocabulary.
+- No self-correction loops. One conclusion, one action. If you started down a path, commit to it. Do not backtrack mid-sentence.
+- No meta-commentary about your own process. Do not narrate what you are about to do, what you just did, or what you are considering. Just act.
+- State the final answer directly. If uncertain, pick the most likely path and execute without disclaimers.
+- If genuinely uncertain (not just hedging), ask the user for clarification before acting.
+- Never say "I'll do that now", "Let me check", or any variation. Just do it.
+- No filler sentences. No confirmations. No summarizing what was just done unless the result is ambiguous.
+- Brevity reduces output token cost. Every wasted word is wasted money.

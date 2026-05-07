@@ -19,7 +19,7 @@ use super::cache::{
 use super::commands::AudioCommand;
 use super::download::download_to_file;
 use super::engine::{PlayConfig, PlaybackEngine};
-use super::events::{PlaybackEndedEvent, PlaybackStateEvent};
+use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
 use super::rodio_engine::RodioEngine;
 use super::streaming_file::StreamingFile;
 
@@ -44,6 +44,8 @@ pub struct AudioThread {
     /// a new media type (e.g. video) without touching any orchestration logic.
     engine: Box<dyn PlaybackEngine>,
     current_item_id: Option<String>,
+    current_item_title: String,
+    current_feed_title: String,
     stored_position_seconds: f64,
     duration_seconds: f64,
     download_meta: Option<Arc<super::download::DownloadMeta>>,
@@ -60,6 +62,8 @@ impl AudioThread {
         Self {
             engine: Box::new(RodioEngine::new()),
             current_item_id: None,
+            current_item_title: String::new(),
+            current_feed_title: String::new(),
             stored_position_seconds: 0.0,
             duration_seconds: 0.0,
             download_meta: None,
@@ -102,6 +106,7 @@ impl AudioThread {
         log::debug!("Teardown took {:?}", teardown_start.elapsed());
 
         self.current_item_id = Some(item_id.clone());
+        self.hydrate_metadata(&item_id);
         self.duration_seconds = duration_hint_seconds.max(0.0);
 
         // Clamp start position to valid bounds [0, duration - epsilon]
@@ -195,7 +200,14 @@ impl AudioThread {
         log::debug!("Open streaming file took {:?}", open_start.elapsed());
 
         // Byte-length hint for accurate VBR MP3 duration calculation.
-        let byte_len_hint = std::fs::metadata(&cache_path).map(|m| m.len()).ok();
+        // Only pass the hint when the cache is complete — using a partial file
+        // size causes the decoder to calculate a truncated duration and stop
+        // decoding early while the download is still in progress.
+        let byte_len_hint = if meta.complete.load(Ordering::Acquire) {
+            std::fs::metadata(&cache_path).map(|m| m.len()).ok()
+        } else {
+            None
+        };
 
         let config = PlayConfig {
             start_position_seconds: self.stored_position_seconds,
@@ -225,6 +237,16 @@ impl AudioThread {
                 // Update queue current item duration so frontend gets correct value
                 if let Some(ref mut current) = self.queue.current {
                     current.duration_seconds = actual_seconds;
+                }
+
+                // Persist detected duration to the database for future reference
+                if let Some(ref item_id) = self.current_item_id {
+                    let db_state = self.app.state::<db::DatabaseState>();
+                    let db_path = db_state.db_path();
+                    let duration_i64 = actual_seconds.floor() as i64;
+                    if let Err(error) = db::update_item_duration(&db_path, item_id, duration_i64) {
+                        log::warn!("Failed to persist detected duration: {error}");
+                    }
                 }
             }
         }
@@ -261,8 +283,27 @@ impl AudioThread {
     fn stop_current(&mut self) {
         self.teardown_output_only();
         self.current_item_id = None;
+        self.current_item_title.clear();
+        self.current_feed_title.clear();
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
+    }
+
+    fn hydrate_metadata(&mut self, item_id: &str) {
+        let db_state = self.app.state::<db::DatabaseState>();
+        let db_path = db_state.db_path();
+
+        if let Some(item) = db::get_item_by_id(&db_path, item_id).ok().flatten() {
+            self.current_item_title = item.title;
+            if let Some(feed) = db::get_feed_by_id(&db_path, &item.feed_id).ok().flatten() {
+                self.current_feed_title = feed.title;
+            } else {
+                self.current_feed_title.clear();
+            }
+        } else {
+            self.current_item_title.clear();
+            self.current_feed_title.clear();
+        }
     }
 
     /// Prefetch the next item in queue so it's ready when current finishes.
@@ -299,6 +340,8 @@ impl AudioThread {
 
         Some(PlaybackStateEvent {
             item_id: item_id.clone(),
+            title: self.current_item_title.clone(),
+            artist: self.current_feed_title.clone(),
             position_seconds,
             duration_seconds: effective_duration,
             is_playing,
@@ -505,12 +548,19 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     });
 
                     if let Err(error) = state.handle_play(
-                        item_id,
+                        item_id.clone(),
                         url,
                         start_position_seconds,
                         duration_hint_seconds,
                     ) {
                         log::error!("Play failed: {error}");
+                        let _ = app.emit(
+                            "playback-error",
+                            PlaybackErrorEvent {
+                                item_id: item_id.clone(),
+                                error: error.clone(),
+                            },
+                        );
                     }
 
                     state.persist_session();
@@ -564,10 +614,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 AudioCommand::Seek { position_seconds } => {
                     let seek_start = Instant::now();
 
-                    // Clamp seek position to valid bounds [0, actual_duration - epsilon]
-                    // The epsilon prevents seeking exactly to the end which can cause immediate playback end
-                    // This handles cases where RSS metadata duration doesn't match actual audio
-                    const END_EPSILON: f64 = 0.5; // Leave 0.5s buffer at the end
+                    const END_EPSILON: f64 = 0.5;
                     let clamped_position = if state.duration_seconds > END_EPSILON {
                         position_seconds.clamp(0.0, state.duration_seconds - END_EPSILON)
                     } else {
@@ -589,12 +636,42 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                                 "Seek failed in decoder (MP3 without seek table?), position unchanged"
                             );
                         }
-                        // Always update stored position when we have an active player so the UI
-                        // shows the intended position even for unseekable formats.
                         state.stored_position_seconds = clamped_position;
                     }
 
                     log::debug!("Seek command took {:?}", seek_start.elapsed());
+                    state.persist_session();
+                    emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
+                }
+                AudioCommand::SkipForward { delta_seconds } | AudioCommand::SkipBackward { delta_seconds } => {
+                    let current_position = if state.engine.has_active_playback() {
+                        state.engine.position_seconds()
+                    } else {
+                        state.stored_position_seconds
+                    };
+
+                    let direction = if matches!(cmd, AudioCommand::SkipForward { .. }) {
+                        1.0
+                    } else {
+                        -1.0
+                    };
+
+                    let target = current_position + direction * delta_seconds;
+
+                    const END_EPSILON: f64 = 0.5;
+                    let clamped_position = if state.duration_seconds > END_EPSILON {
+                        target.clamp(0.0, state.duration_seconds - END_EPSILON)
+                    } else {
+                        target.max(0.0)
+                    };
+
+                    if state.engine.has_active_playback() {
+                        if !state.engine.seek(clamped_position) {
+                            log::warn!("Skip seek failed in decoder, position unchanged");
+                        }
+                        state.stored_position_seconds = clamped_position;
+                    }
+
                     state.persist_session();
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
@@ -624,6 +701,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         .replace(Some(item.clone()), manual_queue, auto_queue);
 
                     if let Some(current) = state.queue.current_item().cloned() {
+                        let current_item_id = current.item_id.clone();
                         if let Err(error) = state.handle_play(
                             current.item_id,
                             current.url,
@@ -631,6 +709,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                             current.duration_seconds,
                         ) {
                             log::error!("PlayWithQueue failed: {error}");
+                            let _ = app.emit(
+                                "playback-error",
+                                PlaybackErrorEvent {
+                                    item_id: current_item_id,
+                                    error: error.clone(),
+                                },
+                            );
                         }
                     }
 
@@ -665,6 +750,95 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 AudioCommand::QueueMoveDown { item_id } => {
                     state.queue.move_down(&item_id);
                     state.prefetch_next_in_queue();
+                    state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueueNext => {
+                    state.sync_cached_position();
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(
+                            &db.db_path(),
+                            item_id,
+                            state.stored_position_seconds as i64,
+                        );
+                    }
+                    state.stop_current();
+                    if let Some(next_item) = state.queue.shift_next() {
+                        let next_item_id = next_item.item_id.clone();
+                        match state.handle_play(
+                            next_item.item_id,
+                            next_item.url,
+                            0.0,
+                            next_item.duration_seconds,
+                        ) {
+                            Ok(()) => {
+                                emit_playback_snapshot(
+                                    &app,
+                                    &state,
+                                    &mut last_emit,
+                                    &mut last_emitted_state,
+                                );
+                            }
+                            Err(error) => {
+                                log::error!("QueueNext failed: {error}");
+                                let _ = app.emit(
+                                    "playback-error",
+                                    PlaybackErrorEvent {
+                                        item_id: next_item_id,
+                                        error: error.clone(),
+                                    },
+                                );
+                            }
+                        }
+                    } else {
+                        state.queue.clear_current();
+                        let _ = app.emit("playback-stopped", ());
+                    }
+                    state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueuePrev => {
+                    state.sync_cached_position();
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(
+                            &db.db_path(),
+                            item_id,
+                            state.stored_position_seconds as i64,
+                        );
+                    }
+                    state.stop_current();
+                    if let Some(prev_item) = state.queue.shift_prev() {
+                        let prev_item_id = prev_item.item_id.clone();
+                        match state.handle_play(
+                            prev_item.item_id,
+                            prev_item.url,
+                            0.0,
+                            prev_item.duration_seconds,
+                        ) {
+                            Ok(()) => {
+                                emit_playback_snapshot(
+                                    &app,
+                                    &state,
+                                    &mut last_emit,
+                                    &mut last_emitted_state,
+                                );
+                            }
+                            Err(error) => {
+                                log::error!("QueuePrev failed: {error}");
+                                let _ = app.emit(
+                                    "playback-error",
+                                    PlaybackErrorEvent {
+                                        item_id: prev_item_id,
+                                        error: error.clone(),
+                                    },
+                                );
+                            }
+                        }
+                    } else {
+                        let _ = app.emit("playback-stopped", ());
+                    }
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
@@ -766,9 +940,10 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 );
 
                 if let Some(next_item) = state.queue.shift_next() {
+                    let next_item_id = next_item.item_id.clone();
                     match state.handle_play(
-                        next_item.item_id.clone(),
-                        next_item.url.clone(),
+                        next_item.item_id,
+                        next_item.url,
                         0.0,
                         next_item.duration_seconds,
                     ) {
@@ -782,6 +957,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         }
                         Err(error) => {
                             log::error!("Auto-advance failed: {error}");
+                            let _ = app.emit(
+                                "playback-error",
+                                PlaybackErrorEvent {
+                                    item_id: next_item_id,
+                                    error: error.clone(),
+                                },
+                            );
                         }
                     }
                 } else {

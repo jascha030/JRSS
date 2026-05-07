@@ -8,9 +8,6 @@
  * when you need specific dependencies.
  */
 
-// ---------------------------------------------------------------------------
-// Selection (navigation, selection state)
-// ---------------------------------------------------------------------------
 export {
 	selection,
 	resetSelectionState,
@@ -26,9 +23,6 @@ export {
 	type SidebarSection
 } from '../state/selection.svelte';
 
-// ---------------------------------------------------------------------------
-// Query Context (active query composition)
-// ---------------------------------------------------------------------------
 export {
 	getEffectiveSortOrder,
 	getActiveQuerySpec,
@@ -38,9 +32,6 @@ export {
 	type ItemsQuerySpec
 } from '../state/query-context.svelte';
 
-// ---------------------------------------------------------------------------
-// Feeds (feed CRUD, feed list)
-// ---------------------------------------------------------------------------
 export {
 	feedsState,
 	resetFeedsState,
@@ -55,9 +46,6 @@ export {
 	setFeedSortOrder
 } from '../state/feeds.svelte';
 
-// ---------------------------------------------------------------------------
-// Stations (station CRUD, station list)
-// ---------------------------------------------------------------------------
 export {
 	stationsState,
 	resetStationsState,
@@ -67,9 +55,6 @@ export {
 	deleteExistingStation
 } from '../state/stations.svelte';
 
-// ---------------------------------------------------------------------------
-// Items (item cache, pagination, queries)
-// ---------------------------------------------------------------------------
 export {
 	itemsState,
 	resetItemsState,
@@ -92,9 +77,6 @@ export {
 	getMediaItemById
 } from '../state/items.svelte';
 
-// ---------------------------------------------------------------------------
-// Reader (reader view state)
-// ---------------------------------------------------------------------------
 export {
 	readerState,
 	resetReaderState,
@@ -104,9 +86,6 @@ export {
 	getReaderRequestItemId
 } from '../state/reader.svelte';
 
-// ---------------------------------------------------------------------------
-// Theme (color scheme + accent color)
-// ---------------------------------------------------------------------------
 export {
 	themeState,
 	applyColorScheme,
@@ -115,9 +94,6 @@ export {
 	resetThemeState
 } from '../state/theme.svelte';
 
-// ---------------------------------------------------------------------------
-// Playback (audio state, queue, playback controls)
-// ---------------------------------------------------------------------------
 export {
 	playbackState,
 	resetPlaybackState,
@@ -128,6 +104,8 @@ export {
 	requestTogglePlayback,
 	requestSeekTo,
 	requestSetVolume,
+	requestNextEpisode,
+	requestPreviousEpisode,
 	getManualQueueLength,
 	getUpcomingQueue,
 	getPlaybackHistory,
@@ -155,9 +133,6 @@ export {
 	type CoverTheme
 } from '../state/playback.svelte';
 
-// ---------------------------------------------------------------------------
-// App Initialization
-// ---------------------------------------------------------------------------
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauriClient';
 import { loadAppSettings } from '../services/feedService';
@@ -175,7 +150,6 @@ import {
 import { initTheme, resetThemeState } from '../state/theme.svelte';
 
 export async function initializeApp(): Promise<void> {
-	// Reset all state slices
 	resetSelectionState();
 	resetPlaybackState();
 	resetFeedsState();
@@ -192,7 +166,6 @@ export async function initializeApp(): Promise<void> {
 		initTheme({ colorScheme: 'system', accentColor: null });
 	}
 
-	// Initialize
 	await initAudioEventListeners();
 	await loadFeeds();
 	await loadStations();
@@ -200,8 +173,6 @@ export async function initializeApp(): Promise<void> {
 	await syncAudioSessionFromBackend();
 	await restorePlaybackContext();
 
-	// Wire up the background auto-refresh event from the Rust task.
-	// We keep a module-level reference so re-initialisation cleans up first.
 	if (isTauriRuntime()) {
 		if (_unlistenAutoRefresh) {
 			_unlistenAutoRefresh();

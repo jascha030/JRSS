@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import type { Feed, FeedListItem, ItemSortOrder, Station } from '$lib/types/rss';
@@ -11,7 +11,11 @@
 		openAudioContextMenu,
 		openFeedContextMenu
 	} from '$lib/utils/tauri-menu';
-	import Icon from '@iconify/svelte';
+
+	import SearchInput from '$lib/components/ui/SearchInput.svelte';
+	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
+	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
 
 	type Props = {
@@ -83,6 +87,7 @@
 	const OVERSCAN_ROWS = 1;
 
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
+		home: 'Home',
 		all: 'All feeds',
 		unread: 'Unread',
 		media: 'Media',
@@ -254,12 +259,10 @@
 		scrollViewport.scrollTop = targetScrollTop;
 	}
 
-	onMount(() => {
-		let unlistenSearch: UnlistenFn | undefined;
-		let unlistenRefresh: UnlistenFn | undefined;
-
-		const setupListeners = async () => {
-			unlistenSearch = await listen('menu-search-feed', () => {
+	useMenuShortcuts([
+		{
+			event: 'menu-search-feed',
+			handler: () => {
 				if (selectedFeed) {
 					searchInputRef?.focus();
 				} else if (selectedStation) {
@@ -267,25 +270,22 @@
 				} else if (selectedSection === 'unread' || selectedSection === 'media') {
 					sectionSearchInputRef?.focus();
 				}
-			});
-			unlistenRefresh = await listen('menu-refresh-feed', () => {
+			}
+		},
+		{
+			event: 'menu-refresh-feed',
+			handler: () => {
 				if (selectedFeed && !isRefreshing) {
 					void onRefresh(selectedFeed.id);
 				}
-			});
-		};
+			}
+		}
+	]);
 
-		void setupListeners();
-
+	onMount(() => {
 		return () => {
 			if (scrollFrame !== 0) {
 				cancelAnimationFrame(scrollFrame);
-			}
-			if (unlistenSearch) {
-				unlistenSearch();
-			}
-			if (unlistenRefresh) {
-				unlistenRefresh();
 			}
 		};
 	});
@@ -319,34 +319,28 @@
 
 		<div class="flex flex-wrap items-center justify-end gap-3 align-top">
 			{#if selectedStation}
-				<button
-					type="button"
+				<IconButton
+					icon="lucide:play"
 					title="Play station"
-					class="preset-filled-accent btn-icon rounded-xl"
+					label="Play station"
+					variant="accent"
 					onclick={onPlayStation}
-				>
-					<Icon icon="lucide:play" class="size-4" />
-				</button>
+				/>
 
-				<button
-					type="button"
+				<IconButton
+					icon="lucide:pencil"
 					title="Edit station"
-					class="preset-outlined-subtle btn-icon rounded-xl"
+					label="Edit station"
 					onclick={onEditStation}
-					aria-label="Edit station"
-				>
-					<Icon icon="lucide:pencil" class="size-4" />
-				</button>
+				/>
 
-				<button
-					type="button"
+				<IconButton
+					icon="lucide:trash-2"
 					title="Delete station"
-					class="preset-filled-error btn-icon rounded-xl"
+					label="Delete station"
+					variant="error"
 					onclick={onDeleteStation}
-					aria-label="Delete station"
-				>
-					<Icon icon="lucide:trash-2" class="size-4" />
-				</button>
+				/>
 			{:else if selectedFeed}
 				<div class="flex shrink-0 items-center gap-2">
 					<label class="sr-only" for="feed-sort-order">Sort order</label>
@@ -369,23 +363,16 @@
 						<option value="oldest_first">Oldest first</option>
 					</select>
 
-					<button
-						title="Refresh feed"
-						class="preset-outlined-subtle btn-icon shrink-0 rounded-xl"
-						disabled={isRefreshing}
-						type="button"
-						onclick={() => {
-							void onRefresh(selectedFeed.id);
-						}}
-						aria-label="Refresh feed"
-					>
-						{#key isRefreshing}
-							<Icon
-								icon="lucide:refresh-cw"
-								class={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-							/>
-						{/key}
-					</button>
+					{#key isRefreshing}
+						<IconButton
+							icon="lucide:refresh-cw"
+							title="Refresh feed"
+							label="Refresh feed"
+							iconClass="size-4 {isRefreshing ? 'animate-spin' : ''}"
+							disabled={isRefreshing}
+							onclick={() => void onRefresh(selectedFeed.id)}
+						/>
+					{/key}
 				</div>
 			{/if}
 		</div>
@@ -394,121 +381,53 @@
 			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
 				<div class="flex-1">
 					{#if selectedFeed}
-						<label class="sr-only" for="feed-search">Search this feed</label>
-
-						<div
-							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
-						>
-							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
-							<input
-								id="feed-search"
-								bind:this={searchInputRef}
-								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
-								placeholder="Search this feed"
-								type="search"
-								value={searchTerm}
-								oninput={(event) => {
-									const target = event.currentTarget;
-									if (target instanceof HTMLInputElement) {
-										onSearchChange(target.value);
-									}
-								}}
-								onkeydown={(event) => {
-									if (event.key === 'Escape') {
-										onSearchChange('');
-										searchInputRef?.blur();
-									}
-								}}
-							/>
-							<div class="flex items-center gap-1">
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>⌘</kbd
-								>
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>F</kbd
-								>
-							</div>
-						</div>
+						<SearchInput
+							id="feed-search"
+							label="Search this feed"
+							placeholder="Search this feed"
+							bind:value={searchTerm}
+							bind:inputRef={searchInputRef}
+							kbdShortcuts={['⌘', 'F']}
+							oninput={(event) => onSearchChange(event.currentTarget.value)}
+							onkeydown={(event) => {
+								if (event.key === 'Escape') {
+									onSearchChange('');
+									searchInputRef?.blur();
+								}
+							}}
+						/>
 					{:else if selectedStation}
-						<label class="sr-only" for="station-search">Search this station</label>
-
-						<div
-							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
-						>
-							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
-							<input
-								id="station-search"
-								bind:this={stationSearchInputRef}
-								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
-								placeholder="Search this station"
-								type="search"
-								value={stationSearchTerm}
-								oninput={(event) => {
-									const target = event.currentTarget;
-									if (target instanceof HTMLInputElement) {
-										onStationSearchChange(target.value);
-									}
-								}}
-								onkeydown={(event) => {
-									if (event.key === 'Escape') {
-										onStationSearchChange('');
-										stationSearchInputRef?.blur();
-									}
-								}}
-							/>
-							<div class="flex items-center gap-1">
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>⌘</kbd
-								>
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>F</kbd
-								>
-							</div>
-						</div>
+						<SearchInput
+							id="station-search"
+							label="Search this station"
+							placeholder="Search this station"
+							bind:value={stationSearchTerm}
+							bind:inputRef={stationSearchInputRef}
+							kbdShortcuts={['⌘', 'F']}
+							oninput={(event) => onStationSearchChange(event.currentTarget.value)}
+							onkeydown={(event) => {
+								if (event.key === 'Escape') {
+									onStationSearchChange('');
+									stationSearchInputRef?.blur();
+								}
+							}}
+						/>
 					{:else if selectedSection === 'unread' || selectedSection === 'media'}
-						<label class="sr-only" for="section-search"
-							>Search {selectedSection === 'unread' ? 'unread' : 'media'}</label
-						>
-
-						<div
-							class="flex h-9 items-center gap-2 rounded-xl border border-border bg-surface-sidebar px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
-						>
-							<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
-							<input
-								id="section-search"
-								bind:this={sectionSearchInputRef}
-								class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
-								placeholder="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
-								type="search"
-								value={sectionSearchTerm}
-								oninput={(event) => {
-									const target = event.currentTarget;
-									if (target instanceof HTMLInputElement) {
-										onSectionSearchChange(target.value);
-									}
-								}}
-								onkeydown={(event) => {
-									if (event.key === 'Escape') {
-										onSectionSearchChange('');
-										sectionSearchInputRef?.blur();
-									}
-								}}
-							/>
-							<div class="flex items-center gap-1">
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>⌘</kbd
-								>
-								<kbd
-									class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-									>F</kbd
-								>
-							</div>
-						</div>
+						<SearchInput
+							id="section-search"
+							label="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
+							placeholder="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
+							bind:value={sectionSearchTerm}
+							bind:inputRef={sectionSearchInputRef}
+							kbdShortcuts={['⌘', 'F']}
+							oninput={(event) => onSectionSearchChange(event.currentTarget.value)}
+							onkeydown={(event) => {
+								if (event.key === 'Escape') {
+									onSectionSearchChange('');
+									sectionSearchInputRef?.blur();
+								}
+							}}
+						/>
 					{/if}
 				</div>
 			</div>
@@ -525,33 +444,22 @@
 			<div class="px-6 py-4 lg:px-8">
 				<div class="space-y-4">
 					{#each Array.from({ length: 4 }), index (index)}
-						<div class="px-0 py-5">
-							<div class="h-3 w-32 rounded-full bg-skeleton"></div>
-							<div class="mt-5 h-6 w-3/4 rounded-full bg-skeleton"></div>
-							<div class="mt-3 space-y-2">
-								<div class="h-3 rounded-full bg-skeleton"></div>
-								<div class="h-3 w-11/12 rounded-full bg-skeleton"></div>
-								<div class="h-3 w-2/3 rounded-full bg-skeleton"></div>
-							</div>
-						</div>
+						<SkeletonRow />
 					{/each}
 				</div>
 			</div>
 		{:else if totalCount === 0}
-			<div class="px-6 py-12 text-center lg:px-8">
-				{#if hasActiveSearch}
-					<h3 class="text-xl font-semibold text-fg">No matching items</h3>
-					<p class="mt-3 text-sm leading-6 text-fg-secondary">
-						Try a different search term or clear the filter.
-					</p>
-				{:else}
-					<h3 class="text-xl font-semibold text-fg">Nothing here yet</h3>
-					<p class="mx-auto mt-3 max-w-xl text-sm leading-6 text-fg-secondary">
-						This view is wired up, but there are no matching items right now. Add more feeds or
-						switch filters to keep exploring the shell.
-					</p>
-				{/if}
-			</div>
+			{#if hasActiveSearch}
+				<EmptyState
+					title="No matching items"
+					description="Try a different search term or clear the filter."
+				/>
+			{:else}
+				<EmptyState
+					title="Nothing here yet"
+					description="This view is wired up, but there are no matching items right now. Add more feeds or switch filters to keep exploring the shell."
+				/>
+			{/if}
 		{:else}
 			<div class="relative" style={`height: ${totalHeight}px;`}>
 				{#each visibleRows as { item, index, top } (item?.id ?? index)}
@@ -618,20 +526,14 @@
 										{/if}
 
 										{#if !isMediaItem(item)}
-											<button
-												class="preset-outlined-subtle btn-icon rounded-xl"
-												type="button"
-												aria-label={item.read ? 'Mark as unread' : 'Mark as read'}
-												onclick={() => {
-													void onMarkRead(item.id, !item.read);
-												}}
-											>
-												{#if item.read}
-													<Icon icon="heroicons:envelope-open-solid" class="size-5" />
-												{:else}
-													<Icon icon="heroicons:envelope-solid" class="size-5" />
-												{/if}
-											</button>
+											<IconButton
+												icon={item.read
+													? 'heroicons:envelope-open-solid'
+													: 'heroicons:envelope-solid'}
+												label={item.read ? 'Mark as unread' : 'Mark as read'}
+												iconClass="size-5"
+												onclick={() => void onMarkRead(item.id, !item.read)}
+											/>
 										{/if}
 									</div>
 								</div>
@@ -642,13 +544,7 @@
 									index > 0 ? 'border-t border-border' : ''
 								}`}
 							>
-								<div class="h-3 w-32 rounded-full bg-skeleton"></div>
-								<div class="mt-5 h-6 w-3/4 rounded-full bg-skeleton"></div>
-								<div class="mt-3 space-y-2">
-									<div class="h-3 rounded-full bg-skeleton"></div>
-									<div class="h-3 w-11/12 rounded-full bg-skeleton"></div>
-									<div class="h-3 w-2/3 rounded-full bg-skeleton"></div>
-								</div>
+								<SkeletonRow />
 							</div>
 						{/if}
 					</div>

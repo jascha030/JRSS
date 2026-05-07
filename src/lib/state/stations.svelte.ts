@@ -38,7 +38,6 @@ export async function updateExistingStation(input: UpdateStationInput): Promise<
 	const station = await updateStationService(input);
 	await loadStations();
 
-	// If the updated station is currently selected, reload its episodes
 	if (selection.selectedStationId === input.id) {
 		invalidateAllQueries();
 		await loadInitialItemsPage();

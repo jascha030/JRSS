@@ -387,6 +387,14 @@ export async function audioQueueMoveDown(itemId: string): Promise<void> {
 	await invokeCommand('audio_queue_move_down', { itemId });
 }
 
+export async function audioQueueNext(): Promise<void> {
+	await invokeCommand('audio_queue_next');
+}
+
+export async function audioQueuePrev(): Promise<void> {
+	await invokeCommand('audio_queue_prev');
+}
+
 export async function audioQueueClear(): Promise<void> {
 	await invokeCommand('audio_queue_clear');
 }

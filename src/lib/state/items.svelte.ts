@@ -53,7 +53,6 @@ export function invalidateAllQueries(): void {
 	selection.selectedItemId = null;
 }
 
-// Re-export for convenience
 export { getActiveQuerySpec, getActiveQueryKey, type ItemsQuerySpec };
 
 export function getActiveTotalCount(): number {
@@ -147,11 +146,6 @@ export function storeItemDetails(item: FeedItem): void {
 		readerContentText: item.readerContentText
 	};
 }
-
-// ---------------------------------------------------------------------------
-// Shared item mutation helpers
-// These ensure both itemsState and playback audioItemsById stay in sync
-// ---------------------------------------------------------------------------
 
 /**
  * Register an item in the shared cache.
@@ -350,7 +344,6 @@ export async function ensureItemLoaded(itemId: string): Promise<void> {
 	const queryKey = querySpec.queryKey;
 	const itemIdsByIndex = itemsState.itemIdsByIndexByQueryKey[queryKey];
 
-	// Check if item is already loaded
 	if (itemIdsByIndex && Object.values(itemIdsByIndex).includes(itemId)) {
 		return;
 	}
@@ -360,7 +353,6 @@ export async function ensureItemLoaded(itemId: string): Promise<void> {
 		return;
 	}
 
-	// Load pages until we find the item or exhaust the list
 	let offset = 0;
 	const maxOffset = Math.min(totalCount, 10000);
 

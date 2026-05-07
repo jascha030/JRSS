@@ -70,6 +70,20 @@ pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> Ap
     Ok(())
 }
 
+pub fn update_item_duration(db_path: &Path, item_id: &str, duration_seconds: i64) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+    let safe_duration = duration_seconds.max(0);
+
+    connection
+        .execute(
+            "UPDATE items SET enclosure_duration_seconds = ?2 WHERE id = ?1",
+            params![item_id, safe_duration],
+        )
+        .map_err(|error| format!("Failed to update item duration: {error}"))?;
+
+    Ok(())
+}
+
 pub fn save_reader_content(
     db_path: &Path,
     item_id: &str,

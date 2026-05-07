@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
 	import FeedListView from '$lib/components/feed/FeedListView.svelte';
+	import HomeView from '$lib/components/feed/HomeView.svelte';
 	import Header from '$lib/components/feed/Header.svelte';
 	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
 	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
@@ -34,7 +34,6 @@
 		getCurrentAudioItemFeed,
 		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
-		getManualQueueLength,
 		getPlaybackContext,
 		getPlaybackHistory,
 		getReaderRequestItemId,
@@ -67,9 +66,6 @@
 
 	import { toast } from 'svelte-sonner';
 
-	// ---------------------------------------------------------------------------
-	// Local UI state
-	// ---------------------------------------------------------------------------
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
@@ -81,9 +77,6 @@
 	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
 
-	// ---------------------------------------------------------------------------
-	// Derived state from stores
-	// ---------------------------------------------------------------------------
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
 	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
@@ -99,7 +92,6 @@
 	const stationSearchTerm = $derived(selection.stationSearchTerm);
 	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
 
-	// Computed selectors
 	const selectedFeed = $derived(getSelectedFeed(feeds));
 	const selectedStation = $derived(getSelectedStation(stations));
 	const selectedItem = $derived(getSelectedItem());
@@ -115,7 +107,6 @@
 	const playbackHistory = $derived(getPlaybackHistory());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
-	const manualQueueLength = $derived(getManualQueueLength());
 	const readerRequestSeq = $derived(getReaderRequestSeq());
 
 	const isSelectedFeedRefreshing = $derived(
@@ -130,11 +121,6 @@
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
-	// ---------------------------------------------------------------------------
-	// Effects
-	// ---------------------------------------------------------------------------
-
-	// Load items when the active query changes
 	$effect(() => {
 		const queryKey = getActiveQueryKey();
 		if (queryKey && queryKey !== lastQueryKey) {
@@ -145,14 +131,12 @@
 		}
 	});
 
-	// Reset reader mode when item changes
 	$effect(() => {
 		if (selectedItemId) {
 			readerPaneMode = 'feed';
 		}
 	});
 
-	// Load item details when selection changes
 	$effect(() => {
 		if (!selectedItemId) return;
 
@@ -161,7 +145,6 @@
 		});
 	});
 
-	// Handle reader view requests from context menu
 	let lastConsumedReaderSeq = 0;
 	$effect(() => {
 		if (readerRequestSeq > lastConsumedReaderSeq) {
@@ -170,10 +153,6 @@
 			if (itemId) void handleLoadReaderView(itemId);
 		}
 	});
-
-	// ---------------------------------------------------------------------------
-	// Event handlers
-	// ---------------------------------------------------------------------------
 
 	async function handleAddFeed(url: string) {
 		try {
@@ -302,24 +281,75 @@
 		}
 	}
 
-	// Listen for settings shortcut - works in all modes including cover view
-	onMount(() => {
-		let unlistenSettings: UnlistenFn | undefined;
+	function handleCycleSource(direction: 1 | -1) {
+		const sources = [
+			...feeds.map((f) => ({ type: 'feed' as const, id: f.id })),
+			...stations.map((s) => ({ type: 'station' as const, id: s.id }))
+		];
+		if (sources.length === 0) return;
 
-		const setupListener = async () => {
-			unlistenSettings = await listen('menu-settings', () => {
-				// Exit cover mode if active, then navigate to settings
+		let currentIndex = -1;
+		if (selectedFeedId) {
+			currentIndex = sources.findIndex((s) => s.type === 'feed' && s.id === selectedFeedId);
+		} else if (selectedStationId) {
+			currentIndex = sources.findIndex((s) => s.type === 'station' && s.id === selectedStationId);
+		}
+
+		if (currentIndex === -1) {
+			currentIndex = direction === 1 ? 0 : sources.length - 1;
+		} else {
+			currentIndex = (currentIndex + direction + sources.length) % sources.length;
+		}
+
+		const next = sources[currentIndex];
+		if (next.type === 'feed') {
+			selectFeed(next.id);
+		} else {
+			selectStation(next.id);
+		}
+	}
+
+	useMenuShortcuts([
+		{
+			event: 'menu-settings',
+			handler: () => {
 				playerMode = 'default';
 				selectSection('settings');
-			});
-		};
-
-		void setupListener();
-
-		return () => {
-			if (unlistenSettings) unlistenSettings();
-		};
-	});
+			}
+		},
+		{
+			event: 'menu-toggle-sidebar',
+			handler: () => {
+				isSidebarCollapsed = !isSidebarCollapsed;
+			}
+		},
+		{
+			event: 'menu-next-source',
+			handler: () => {
+				if (playerMode === 'cover') return;
+				handleCycleSource(1);
+			}
+		},
+		{
+			event: 'menu-prev-source',
+			handler: () => {
+				if (playerMode === 'cover') return;
+				handleCycleSource(-1);
+			}
+		},
+		{
+			event: 'menu-toggle-cover',
+			handler: () => {
+				playerMode = playerMode === 'cover' ? 'default' : 'cover';
+			}
+		},
+		{
+			event: 'menu-toggle-mini-player',
+			handler: async () => {
+				await handlePopOutMiniPlayer();
+			}
+		}
+	]);
 </script>
 
 <FeedEditor
@@ -379,7 +409,6 @@
 			open={isQueueDrawerOpen}
 			historyItems={playbackHistory}
 			queueItems={upcomingQueue}
-			{manualQueueLength}
 			{feeds}
 			onRemoveItem={removeQueuedItem}
 			onMoveItemUp={moveQueuedItemUp}
@@ -418,6 +447,8 @@
 							<EmptyFeedView />
 						{:else if selectedSection === 'settings'}
 							<SettingsView />
+						{:else if selectedSection === 'home'}
+							<HomeView {feeds} {stations} />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div

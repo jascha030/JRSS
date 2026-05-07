@@ -1,11 +1,11 @@
 import type { Station, Feed } from '$lib/types/rss';
 
-export type SidebarSection = 'all' | 'unread' | 'media' | 'settings' | null;
+export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 
 export const selection = $state({
 	selectedFeedId: null as string | null,
 	selectedStationId: null as string | null,
-	selectedSection: 'all' as SidebarSection,
+	selectedSection: 'home' as SidebarSection,
 	selectedItemId: null as string | null,
 	feedSearchTerm: '',
 	stationSearchTerm: '',
@@ -15,7 +15,7 @@ export const selection = $state({
 export function resetSelectionState(): void {
 	selection.selectedFeedId = null;
 	selection.selectedStationId = null;
-	selection.selectedSection = 'all';
+	selection.selectedSection = 'home';
 	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';

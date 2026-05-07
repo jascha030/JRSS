@@ -1,9 +1,19 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import type { Snippet } from 'svelte';
-	import { requestSeekTo, requestSetVolume, requestTogglePlayback } from '$lib/stores/app.svelte';
+
+	import {
+		SKIP_SECONDS,
+		VOLUME_STEP,
+		adjustVolume,
+		nextEpisode,
+		previousEpisode,
+		skip,
+		togglePlayback
+	} from '$lib/utils/player-controls';
+	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
+	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
+	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
 	import AudioPlayerControls from './AudioPlayerControls.svelte';
 	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
@@ -18,9 +28,6 @@
 		controls?: Snippet;
 	};
 
-	const SKIP_SECONDS = 15;
-	const VOLUME_STEP = 0.1;
-
 	let { item, imageUrl, playbackState, onNavigateToItem, onShowCover, controls }: Props = $props();
 
 	function durationForPlayer(): number {
@@ -30,92 +37,65 @@
 		return item?.mediaEnclosure.durationSeconds ?? 0;
 	}
 
-	function skip(deltaSeconds: number) {
-		const current = playbackState?.positionSeconds ?? 0;
-		const dur = durationForPlayer();
-		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
-		requestSeekTo(target);
+	function handleSkip(deltaSeconds: number) {
+		skip(playbackState, item?.mediaEnclosure.durationSeconds, deltaSeconds);
 	}
 
-	function togglePlayback() {
-		requestTogglePlayback();
+	function handleTogglePlayback() {
+		togglePlayback();
 	}
 
-	function adjustVolume(delta: number) {
-		if (!playbackState) return;
-		const newVolume = Math.max(0, Math.min(1, playbackState.volume + delta));
-		requestSetVolume(newVolume);
+	function handleAdjustVolume(delta: number) {
+		adjustVolume(playbackState, delta);
 	}
 
-	onMount(() => {
-		let unlistenPlayPause: UnlistenFn | undefined;
-		let unlistenSkipForward: UnlistenFn | undefined;
-		let unlistenSkipBackward: UnlistenFn | undefined;
-		let unlistenVolumeUp: UnlistenFn | undefined;
-		let unlistenVolumeDown: UnlistenFn | undefined;
-		let unlistenGoToFeed: UnlistenFn | undefined;
+	const canSkipPrevious = $derived(globalPlaybackState.playbackHistory.length > 0);
+	const canSkipNext = $derived(
+		globalPlaybackState.manualQueue.length > 0 || globalPlaybackState.autoQueue.length > 0
+	);
 
-		const setupListeners = async () => {
-			unlistenPlayPause = await listen('menu-play-pause', () => {
-				if (item) {
-					togglePlayback();
-				}
-			});
-			unlistenSkipForward = await listen('menu-skip-forward', () => {
-				if (item) {
-					skip(SKIP_SECONDS);
-				}
-			});
-			unlistenSkipBackward = await listen('menu-skip-backward', () => {
-				if (item) {
-					skip(-SKIP_SECONDS);
-				}
-			});
-			unlistenVolumeUp = await listen('menu-volume-up', () => {
-				adjustVolume(VOLUME_STEP);
-			});
-			unlistenVolumeDown = await listen('menu-volume-down', () => {
-				adjustVolume(-VOLUME_STEP);
-			});
-			unlistenGoToFeed = await listen('menu-go-to-feed', () => {
-				if (item) {
-					onNavigateToItem();
-				}
-			});
-		};
-
-		void setupListeners();
-
-		return () => {
-			if (unlistenPlayPause) unlistenPlayPause();
-			if (unlistenSkipForward) unlistenSkipForward();
-			if (unlistenSkipBackward) unlistenSkipBackward();
-			if (unlistenVolumeUp) unlistenVolumeUp();
-			if (unlistenVolumeDown) unlistenVolumeDown();
-			if (unlistenGoToFeed) unlistenGoToFeed();
-		};
-	});
-
-	$effect(() => {
-		if (!item || !('mediaSession' in navigator)) {
-			return;
+	useMenuShortcuts([
+		{
+			event: 'menu-play-pause',
+			handler: () => {
+				if (item) handleTogglePlayback();
+			}
+		},
+		{
+			event: 'menu-skip-forward',
+			handler: () => {
+				if (item) handleSkip(SKIP_SECONDS);
+			}
+		},
+		{
+			event: 'menu-skip-backward',
+			handler: () => {
+				if (item) handleSkip(-SKIP_SECONDS);
+			}
+		},
+		{
+			event: 'menu-next-episode',
+			handler: () => {
+				if (canSkipNext) nextEpisode();
+			}
+		},
+		{
+			event: 'menu-prev-episode',
+			handler: () => {
+				if (canSkipPrevious) previousEpisode();
+			}
+		},
+		{ event: 'menu-volume-up', handler: () => handleAdjustVolume(VOLUME_STEP) },
+		{ event: 'menu-volume-down', handler: () => handleAdjustVolume(-VOLUME_STEP) },
+		{
+			event: 'menu-go-to-feed',
+			handler: () => {
+				if (item) onNavigateToItem();
+			}
 		}
+	]);
 
-		const back = () => skip(-SKIP_SECONDS);
-		const forward = () => skip(SKIP_SECONDS);
-
-		navigator.mediaSession.setActionHandler('previoustrack', back);
-		navigator.mediaSession.setActionHandler('nexttrack', forward);
-		navigator.mediaSession.setActionHandler('seekbackward', back);
-		navigator.mediaSession.setActionHandler('seekforward', forward);
-
-		return () => {
-			navigator.mediaSession.setActionHandler('previoustrack', null);
-			navigator.mediaSession.setActionHandler('nexttrack', null);
-			navigator.mediaSession.setActionHandler('seekbackward', null);
-			navigator.mediaSession.setActionHandler('seekforward', null);
-		};
-	});
+	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
 </script>
 
 {#if item && playbackState}
@@ -135,8 +115,12 @@
 				<AudioPlayerControls
 					durationSeconds={durationForPlayer()}
 					isPlaying={playbackState.isPlaying}
-					onTogglePlayback={togglePlayback}
-					onSkip={skip}
+					onTogglePlayback={handleTogglePlayback}
+					onSkip={handleSkip}
+					onPreviousEpisode={previousEpisode}
+					onNextEpisode={nextEpisode}
+					{canSkipPrevious}
+					{canSkipNext}
 					skipSeconds={SKIP_SECONDS}
 					class="shrink-0"
 				/>

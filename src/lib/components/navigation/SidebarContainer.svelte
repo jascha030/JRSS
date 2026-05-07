@@ -61,12 +61,10 @@
 	<aside
 		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface-sidebar md:block"
 	>
-		<!-- single scroll container for both rail and panel -->
 		<div class="scrollbar-none flex h-full overflow-y-auto">
-			<!-- rail -->
 			<div class="flex w-16 shrink-0 flex-col bg-surface-sidebar">
 				<div
-					class="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface-sidebar"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface-shell-opaque"
 				>
 					<button
 						type="button"
@@ -113,7 +111,6 @@
 				</div>
 			</div>
 
-			<!-- sliding panel -->
 			<div
 				class={`w-44 flex-1 shrink-0 transform-gpu bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 					isCollapsed
@@ -122,7 +119,7 @@
 				}`}
 			>
 				<div
-					class="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b border-border bg-surface-sidebar px-3"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b border-border bg-surface-shell-opaque px-3"
 				>
 					<div class="min-w-0">
 						<h1 class="truncate text-base font-semibold text-fg">Library</h1>
@@ -204,7 +201,8 @@
 
 {#snippet sidebarRailSections()}
 	{@const sections = [
-		{ id: 'all', label: 'All feeds', icon: 'heroicons:home' },
+		{ id: 'home', label: 'Home', icon: 'heroicons:home' },
+		{ id: 'all', label: 'All feeds', icon: 'heroicons:squares-2x2' },
 		{ id: 'unread', label: 'Unread', icon: 'heroicons:inbox' },
 		{ id: 'media', label: 'Media', icon: 'heroicons:microphone' },
 		{ id: 'settings', label: 'Settings', icon: 'heroicons:cog-6-tooth' }
@@ -295,6 +293,7 @@
 
 {#snippet sidebarPanelSections()}
 	{@const sections = [
+		{ id: 'home', label: 'Home' },
 		{ id: 'all', label: 'All feeds' },
 		{ id: 'unread', label: 'Unread' },
 		{ id: 'media', label: 'Media' },

@@ -109,6 +109,8 @@ pub fn normalize_feed_url(url: &str) -> AppResult<String> {
 }
 
 pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
+    crate::rate_limit::throttle_request(feed_url);
+
     let client = build_http_client()?;
 
     let response = client
@@ -167,6 +169,8 @@ fn extract_apple_podcast_id_from_url(url: &Url) -> Option<String> {
 }
 
 fn lookup_apple_podcast_feed_url(podcast_id: &str) -> AppResult<String> {
+    crate::rate_limit::throttle_request(APPLE_LOOKUP_URL);
+
     let client = build_http_client()?;
     let lookup_url = Url::parse_with_params(APPLE_LOOKUP_URL, &[("id", podcast_id)])
         .map_err(|error| format!("Failed to build Apple Podcasts lookup URL: {error}"))?;
@@ -246,6 +250,16 @@ fn parse_feed(xml_bytes: &[u8], feed_url: &str) -> AppResult<ParsedFeed> {
     Err("Unsupported or malformed RSS/Atom feed.".to_string())
 }
 
+fn is_podcast_medium(channel: &RssChannel) -> bool {
+    channel
+        .extensions()
+        .get("podcast")
+        .and_then(|extensions| extensions.get("medium"))
+        .and_then(|values| values.first())
+        .and_then(|extension| extension.value())
+        .is_some_and(|value| value.eq_ignore_ascii_case("podcast"))
+}
+
 fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
     let items = channel
         .items()
@@ -253,7 +267,7 @@ fn parse_rss(channel: RssChannel, feed_url: &str) -> ParsedFeed {
         .map(|item| parse_rss_item(item, feed_url))
         .collect::<Vec<_>>();
     let has_audio = items.iter().any(|item| item.media_enclosure.is_some());
-    let is_podcast = has_audio || channel.itunes_ext().is_some();
+    let is_podcast = has_audio || channel.itunes_ext().is_some() || is_podcast_medium(&channel);
 
     let site_url = resolve_optional_url(Some(channel.link()), feed_url);
 
@@ -1048,6 +1062,108 @@ mod tests {
         assert_eq!(
             select_apple_lookup_feed_url(response),
             Err("Apple Podcasts did not return a public RSS feed for this show.".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_rss_classifies_itunes_feed_as_media() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel>
+    <title>Test Podcast</title>
+    <link>https://example.com</link>
+    <description>A test podcast</description>
+    <itunes:author>Test Author</itunes:author>
+    <item>
+        <title>Episode 1</title>
+        <guid>ep1</guid>
+        <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+</channel>
+</rss>"#;
+
+        let channel = RssChannel::read_from(Cursor::new(&xml[..])).expect("valid RSS");
+        let parsed = parse_rss(channel, "https://example.com/feed.xml");
+
+        assert_eq!(parsed.kind, "media");
+    }
+
+    #[test]
+    fn parse_rss_classifies_podcast_index_medium_as_media() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+<channel>
+    <title>Test Podcast</title>
+    <link>https://example.com</link>
+    <description>A test podcast</description>
+    <podcast:medium>podcast</podcast:medium>
+    <item>
+        <title>Episode 1</title>
+        <guid>ep1</guid>
+        <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+</channel>
+</rss>"#;
+
+        let channel = RssChannel::read_from(Cursor::new(&xml[..])).expect("valid RSS");
+        let parsed = parse_rss(channel, "https://example.com/feed.xml");
+
+        assert_eq!(parsed.kind, "media");
+    }
+
+    #[test]
+    fn parse_rss_classifies_audio_enclosure_as_media() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <description>A test feed</description>
+    <item>
+        <title>Episode 1</title>
+        <guid>ep1</guid>
+        <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+        <enclosure url="https://example.com/audio.mp3" length="1000" type="audio/mpeg" />
+    </item>
+</channel>
+</rss>"#;
+
+        let channel = RssChannel::read_from(Cursor::new(&xml[..])).expect("valid RSS");
+        let parsed = parse_rss(channel, "https://example.com/feed.xml");
+
+        assert_eq!(parsed.kind, "media");
+    }
+
+    #[test]
+    fn parse_rss_classifies_plain_feed_as_article() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <description>A test feed</description>
+    <item>
+        <title>Article 1</title>
+        <guid>art1</guid>
+        <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+    </item>
+</channel>
+</rss>"#;
+
+        let channel = RssChannel::read_from(Cursor::new(&xml[..])).expect("valid RSS");
+        let parsed = parse_rss(channel, "https://example.com/feed.xml");
+
+        assert_eq!(parsed.kind, "article");
+    }
+
+    #[test]
+    fn fetch_and_parse_grand_theft_world_classifies_as_media() {
+        let parsed = fetch_and_parse_feed("https://grandtheftworld.com/feed/podcast/").unwrap();
+
+        assert_eq!(parsed.kind, "media");
+        assert!(
+            parsed.items.iter().any(|item| item.media_enclosure.is_some()),
+            "expected at least one item with an audio enclosure"
         );
     }
 }

@@ -1,20 +1,8 @@
-
-
-## Recommended file
-
-Save this as:
-
-```text
-.opencode/instructions/comment-policy.md
-```
-
-## Ready-to-paste policy
-
 # Comment Policy for Tauri 2 + SvelteKit 2 + Rust Project
 
 ## Priority Rule
 
-If a comment can be eliminated by better naming, extraction, typing, or structure, eliminate the comment.
+If information can be expressed through naming, extraction, typing, file structure, module boundaries, or whitespace, do not use a comment.
 
 Comments must not compensate for unclear code.
 
@@ -24,11 +12,11 @@ Prefer clarity in code over explanatory comments.
 
 Code should communicate intent through:
 
-* clear names
-* explicit types
-* small focused functions
-* well-defined module boundaries
-* separation of concerns
+- clear names
+- explicit types
+- small focused functions
+- well-defined module boundaries
+- separation of concerns
 
 Single-line explanatory comments are generally a code smell.
 
@@ -38,11 +26,11 @@ Single-line explanatory comments are generally a code smell.
 
 When writing or modifying code:
 
-* do not add comments by default
-* first improve naming and structure
-* use doc comments for public APIs
-* use inline comments only when they are required for correctness, safety, tooling, or non-obvious constraints
-* in tests, comments are allowed and encouraged when they explain intent, edge cases, regressions, or setup
+- do not add comments by default
+- improve naming and structure first
+- use doc comments for public APIs and real boundaries
+- use inline comments only when they are required for correctness, safety, tooling, or non-obvious constraints
+- in tests, comments are allowed and encouraged when they explain intent, edge cases, regressions, or setup
 
 ## Allowed Comments
 
@@ -52,17 +40,17 @@ Use doc comments for exported or public APIs.
 
 This includes:
 
-* exported TypeScript functions, types, interfaces, classes, and constants when the intent is not trivially obvious
-* Svelte component APIs when they are reused or externally consumed
-* public Rust items
-* public `#[tauri::command]` functions
-* Rust modules that benefit from module-level documentation
+- exported TypeScript functions, types, interfaces, classes, and constants when the intent is not trivially obvious
+- Svelte component APIs when they are reused or externally consumed
+- public Rust items
+- public `#[tauri::command]` functions
+- Rust modules that benefit from module-level documentation
 
 Preferred forms:
 
-* TypeScript / JavaScript / Svelte: `/** ... */`
-* Rust item docs: `///`
-* Rust module docs: `//!`
+- TypeScript / JavaScript / Svelte: `/** ... */`
+- Rust item docs: `///`
+- Rust module docs: `//!`
 
 ### Tooling and static-analysis comments
 
@@ -70,10 +58,10 @@ Allowed when required by the toolchain, linter, compiler, or type system.
 
 Examples include:
 
-* `@ts-expect-error`
-* ESLint suppression comments
-* Rust `SAFETY:` comments for `unsafe` blocks
-* narrowly scoped suppression comments with a concrete reason
+- `@ts-expect-error`
+- ESLint suppression comments
+- Rust `SAFETY:` comments for `unsafe` blocks
+- narrowly scoped suppression comments with a concrete reason
 
 These comments must explain **why** the exception is necessary.
 
@@ -83,12 +71,12 @@ Allowed when the code is correct but the reason is not inferable from the code a
 
 Examples include:
 
-* protocol quirks
-* platform-specific behavior
-* interoperability constraints
-* security boundaries
-* performance-sensitive tradeoffs
-* invariants that must remain true across layers
+- protocol quirks
+- platform-specific behavior
+- interoperability constraints
+- security boundaries
+- performance-sensitive tradeoffs
+- invariants that must remain true across layers
 
 Keep these comments short and factual.
 
@@ -102,21 +90,21 @@ Prefer doc comments above the function rather than scattered inline comments.
 
 Allowed for files that define shared contracts or boundaries, such as:
 
-* IPC command definitions
-* serialization formats
-* application configuration structures
-* frontend-backend type mappings
+- IPC command definitions
+- serialization formats
+- application configuration structures
+- frontend-backend type mappings
 
 ## Prohibited Comments
 
-Do not add comments that merely restate the code.
+### Single-line explanatory comments
 
-### Avoid single-line explanatory comments
+Do not add comments that merely restate the code.
 
 Bad:
 
 ```ts
-const result = data.filter(x => x.active); // Get active items
+const result = data.filter((x) => x.active); // Get active items
 ```
 
 Good:
@@ -125,7 +113,7 @@ Good:
 const activeItems = data.filter((item) => item.active);
 ```
 
-### Avoid narrating obvious steps
+### Narrating obvious steps
 
 Bad:
 
@@ -144,13 +132,13 @@ let mut count = 0;
 count += 1;
 ```
 
-### Avoid status comments without a concrete reference
+### Status comments without a concrete reference
 
 Do not write vague comments like:
 
-* `TODO: fix this later`
-* `HACK: ugly but works`
-* `BUG: broken on macOS`
+- `TODO: fix this later`
+- `HACK: ugly but works`
+- `BUG: broken on macOS`
 
 If a note is necessary, reference a real issue, ticket, or upstream limitation.
 
@@ -160,15 +148,15 @@ Preferred style:
 // See issue #142 for removal once upstream API typing is fixed.
 ```
 
-### Avoid comments that restate control flow
+### Restating control flow
 
 Bad:
 
 ```ts
 // Check if user is authenticated
 if (isAuthenticated) {
-    // Redirect to dashboard
-    navigate('/dashboard');
+	// Redirect to dashboard
+	navigate('/dashboard');
 }
 ```
 
@@ -176,11 +164,11 @@ Good:
 
 ```ts
 if (isAuthenticated) {
-    navigate('/dashboard');
+	navigate('/dashboard');
 }
 ```
 
-### Avoid comments that restate type information
+### Restating obvious type information
 
 Bad:
 
@@ -195,9 +183,52 @@ Good:
 let mut numbers = Vec::new();
 ```
 
+### Decorative and structural comment formatting
+
+Do not use decorative comments, separator lines, banner headers, boxed section comments, or visual dividers inside source files.
+
+This includes comments used only to group or label:
+
+- imports
+- exports
+- helper sections
+- state sections
+- query sections
+- action sections
+- component sections
+- internal code regions
+
+Prohibited patterns include:
+
+```ts
+// ---------------------------------------------------------------------------
+// Selection
+// ---------------------------------------------------------------------------
+```
+
+```ts
+// Feeds (feed CRUD, feed list)
+```
+
+```ts
+/* ============================
+   Query Context
+   ============================ */
+```
+
+These comments are not documentation. They are visual formatting noise and should be replaced by:
+
+- smaller files
+- clearer module boundaries
+- better file names
+- better symbol names
+- whitespace only where useful
+
+If code needs visual section labels to be understandable, restructure the file instead of adding comments.
+
 ## Preferred Replacements for Comments
 
-Use these techniques instead of explanatory comments:
+Use these techniques instead of explanatory comments.
 
 ### Use semantic names
 
@@ -223,9 +254,9 @@ Bad:
 
 ```ts
 async function handleCommand(command: UserCommand): Promise<void> {
-    // validate
-    // execute
-    // persist
+	// validate
+	// execute
+	// persist
 }
 ```
 
@@ -233,9 +264,9 @@ Good:
 
 ```ts
 async function handleCommand(command: UserCommand): Promise<void> {
-    const validatedCommand = await validateCommandPermissions(command);
-    const executionResult = await executeCommand(validatedCommand);
-    await persistCommandHistory(executionResult);
+	const validatedCommand = await validateCommandPermissions(command);
+	const executionResult = await executeCommand(validatedCommand);
+	await persistCommandHistory(executionResult);
 }
 ```
 
@@ -253,11 +284,11 @@ Test files are exempt from the no-single-line-comment rule.
 
 In tests, comments are welcome when they explain:
 
-* the purpose of the test
-* a regression being protected
-* an edge case
-* unusual setup
-* the reason a fixture or mock exists
+- the purpose of the test
+- a regression being protected
+- an edge case
+- unusual setup
+- the reason a fixture or mock exists
 
 Comments in tests should still be useful and specific.
 
@@ -269,29 +300,29 @@ All public Tauri command functions should have doc comments.
 
 Document:
 
-* what the command does
-* important arguments
-* important return behavior
-* error behavior when relevant
+- what the command does
+- important arguments
+- important return behavior
+- error behavior when relevant
 
 ### Frontend-backend boundaries
 
 Prefer clear documentation on:
 
-* command names
-* payload shapes
-* return types
-* serialization expectations
-* side effects
+- command names
+- payload shapes
+- return types
+- serialization expectations
+- side effects
 
 ### IPC and persistence boundaries
 
 Use documentation comments where behavior crosses boundaries that are not obvious from local code alone, such as:
 
-* frontend to Rust IPC
-* Rust to filesystem
-* Rust to database
-* config loading and persistence
+- frontend to Rust IPC
+- Rust to filesystem
+- Rust to database
+- config loading and persistence
 
 ## Rust-Specific Rules
 
@@ -327,9 +358,9 @@ Use JSDoc or TSDoc for exported APIs when external callers rely on them.
 
 When using:
 
-* `@ts-expect-error`
-* ESLint disable comments
-* framework-specific suppressions
+- `@ts-expect-error`
+- ESLint disable comments
+- framework-specific suppressions
 
 always include the concrete reason.
 
@@ -347,25 +378,43 @@ Good:
 const result = legacyCall();
 ```
 
+## Exceptions
+
+A comment is allowed only when it communicates necessary information that cannot be expressed clearly through naming, structure, typing, file boundaries, or whitespace.
+
+Valid exceptions include:
+
+- safety requirements
+- tooling requirements
+- platform-specific quirks
+- external constraints
+- public API contracts
+- test intent
+- non-obvious algorithms
+
 ## Enforcement Rules for LLMs
 
 When generating or editing code, follow this order:
 
 1. make the code clearer first
 2. remove comments that only restate the code
-3. add doc comments for public APIs and important boundaries
-4. add inline comments only for safety, tooling, constraints, or non-obvious reasoning
-5. allow broader comment usage in tests
-6. if unsure whether a comment is necessary, do not add it
+3. remove decorative or structural comments used for visual organization
+4. add doc comments for public APIs and important boundaries
+5. add inline comments only for safety, tooling, constraints, or non-obvious reasoning
+6. allow broader comment usage in tests
+7. if unsure whether a comment is necessary, do not add it
+
+Do not add comments for visual organization or section formatting. Use file structure and module boundaries instead.
 
 ## Review Checklist
 
 Before keeping a comment, ask:
 
-* does this comment explain something the code cannot express well on its own?
-* can better naming remove the need for this comment?
-* can function extraction remove the need for this comment?
-* is this comment documenting a public contract, safety requirement, or external constraint?
-* if this is a test, does the comment improve clarity of intent?
+- does this comment explain something the code cannot express well on its own?
+- can better naming remove the need for this comment?
+- can function extraction remove the need for this comment?
+- can file structure or module boundaries remove the need for this comment?
+- is this comment documenting a public contract, safety requirement, or external constraint?
+- if this is a test, does the comment improve clarity of intent?
 
 If the answer is no, remove the comment.

@@ -1,15 +1,26 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, MediaListItem, PlaybackState } from '$lib/types/rss';
-	import { requestSeekTo, requestSetVolume, requestTogglePlayback } from '$lib/stores/app.svelte';
+	import { requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
+	import {
+		SKIP_SECONDS,
+		VOLUME_STEP,
+		adjustVolume,
+		nextEpisode,
+		previousEpisode,
+		skip,
+		togglePlayback
+	} from '$lib/utils/player-controls';
+	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
+	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
+	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import Icon from '@iconify/svelte';
 	import AudioPlayerControls from './AudioPlayerControls.svelte';
 	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
 	import AudioSeekBar from './AudioSeekBar.svelte';
 	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
 	import QueueList from './QueueList.svelte';
+	import CoverThemeStyles from './CoverThemeStyles.svelte';
 
 	type Props = {
 		item: MediaListItem | null;
@@ -28,9 +39,6 @@
 		onClearQueue?: () => void;
 	};
 
-	const SKIP_SECONDS = 15;
-	const VOLUME_STEP = 0.1;
-
 	let {
 		item,
 		imageUrl,
@@ -48,7 +56,6 @@
 		onClearQueue
 	}: Props = $props();
 
-	// Use pre-calculated theme from playback state (extracted when track loaded)
 	let coverTheme = $derived(getCoverTheme());
 
 	function durationForPlayer(): number {
@@ -58,93 +65,68 @@
 		return item?.mediaEnclosure.durationSeconds ?? 0;
 	}
 
-	function skip(deltaSeconds: number) {
-		const current = playbackState?.positionSeconds ?? 0;
-		const dur = durationForPlayer();
-		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
-		requestSeekTo(target);
+	function handleSkip(deltaSeconds: number) {
+		skip(playbackState, item?.mediaEnclosure.durationSeconds, deltaSeconds);
 	}
 
-	function togglePlayback() {
-		requestTogglePlayback();
+	function handleTogglePlayback() {
+		togglePlayback();
 	}
 
-	function adjustVolume(delta: number) {
-		if (!playbackState) return;
-		const newVolume = Math.max(0, Math.min(1, playbackState.volume + delta));
-		requestSetVolume(newVolume);
+	function handleAdjustVolume(delta: number) {
+		adjustVolume(playbackState, delta);
 	}
 
-	onMount(() => {
-		let unlistenPlayPause: UnlistenFn | undefined;
-		let unlistenSkipForward: UnlistenFn | undefined;
-		let unlistenSkipBackward: UnlistenFn | undefined;
-		let unlistenVolumeUp: UnlistenFn | undefined;
-		let unlistenVolumeDown: UnlistenFn | undefined;
-		let unlistenGoToFeed: UnlistenFn | undefined;
+	const canSkipPrevious = $derived(globalPlaybackState.playbackHistory.length > 0);
+	const canSkipNext = $derived(
+		globalPlaybackState.manualQueue.length > 0 || globalPlaybackState.autoQueue.length > 0
+	);
 
-		const setupListeners = async () => {
-			unlistenPlayPause = await listen('menu-play-pause', () => {
-				if (item) {
-					togglePlayback();
-				}
-			});
-			unlistenSkipForward = await listen('menu-skip-forward', () => {
-				if (item) {
-					skip(SKIP_SECONDS);
-				}
-			});
-			unlistenSkipBackward = await listen('menu-skip-backward', () => {
-				if (item) {
-					skip(-SKIP_SECONDS);
-				}
-			});
-			unlistenVolumeUp = await listen('menu-volume-up', () => {
-				adjustVolume(VOLUME_STEP);
-			});
-			unlistenVolumeDown = await listen('menu-volume-down', () => {
-				adjustVolume(-VOLUME_STEP);
-			});
-			unlistenGoToFeed = await listen('menu-go-to-feed', () => {
-				if (item && onNavigateToItem) {
-					onNavigateToItem();
-				}
-			});
-		};
-
-		void setupListeners();
-
-		return () => {
-			if (unlistenPlayPause) unlistenPlayPause();
-			if (unlistenSkipForward) unlistenSkipForward();
-			if (unlistenSkipBackward) unlistenSkipBackward();
-			if (unlistenVolumeUp) unlistenVolumeUp();
-			if (unlistenVolumeDown) unlistenVolumeDown();
-			if (unlistenGoToFeed) unlistenGoToFeed();
-		};
-	});
-
-	$effect(() => {
-		if (!item || !('mediaSession' in navigator)) {
-			return;
+	useMenuShortcuts([
+		{
+			event: 'menu-play-pause',
+			handler: () => {
+				if (item) handleTogglePlayback();
+			}
+		},
+		{
+			event: 'menu-skip-forward',
+			handler: () => {
+				if (item) handleSkip(SKIP_SECONDS);
+			}
+		},
+		{
+			event: 'menu-skip-backward',
+			handler: () => {
+				if (item) handleSkip(-SKIP_SECONDS);
+			}
+		},
+		{
+			event: 'menu-next-episode',
+			handler: () => {
+				if (canSkipNext) nextEpisode();
+			}
+		},
+		{
+			event: 'menu-prev-episode',
+			handler: () => {
+				if (canSkipPrevious) previousEpisode();
+			}
+		},
+		{ event: 'menu-volume-up', handler: () => handleAdjustVolume(VOLUME_STEP) },
+		{ event: 'menu-volume-down', handler: () => handleAdjustVolume(-VOLUME_STEP) },
+		{
+			event: 'menu-go-to-feed',
+			handler: () => {
+				if (item && onNavigateToItem) onNavigateToItem();
+			}
 		}
+	]);
 
-		const back = () => skip(-SKIP_SECONDS);
-		const forward = () => skip(SKIP_SECONDS);
-
-		navigator.mediaSession.setActionHandler('previoustrack', back);
-		navigator.mediaSession.setActionHandler('nexttrack', forward);
-		navigator.mediaSession.setActionHandler('seekbackward', back);
-		navigator.mediaSession.setActionHandler('seekforward', forward);
-
-		return () => {
-			navigator.mediaSession.setActionHandler('previoustrack', null);
-			navigator.mediaSession.setActionHandler('nexttrack', null);
-			navigator.mediaSession.setActionHandler('seekbackward', null);
-			navigator.mediaSession.setActionHandler('seekforward', null);
-		};
-	});
+	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
 </script>
+
+<CoverThemeStyles />
 
 <div
 	data-tauri-drag-region
@@ -154,7 +136,7 @@
 
 {#if item && playbackState}
 	<div
-		class={`cover-view-theme fixed inset-0 min-h-150 overflow-hidden px-12 ${className}`}
+		class={`cover-theme fixed inset-0 min-h-150 overflow-hidden px-12 ${className}`}
 		style:--cover-bg-1={coverTheme.bg1}
 		style:--cover-bg-2={coverTheme.bg2}
 		style:--cover-bg-3={coverTheme.bg3}
@@ -239,7 +221,6 @@
 
 					<div class="grid grid-cols-2 xs:grid-cols-3">
 						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
-							<!-- Controls -->
 							<AudioPlayerControls
 								durationSeconds={playbackState.durationSeconds ||
 									item.mediaEnclosure.durationSeconds ||
@@ -247,7 +228,11 @@
 								isPlaying={playbackState.isPlaying}
 								skipSeconds={15}
 								onTogglePlayback={requestTogglePlayback}
-								onSkip={skip}
+								onSkip={handleSkip}
+								onPreviousEpisode={previousEpisode}
+								onNextEpisode={nextEpisode}
+								{canSkipPrevious}
+								{canSkipNext}
 							/>
 						</div>
 
@@ -298,7 +283,7 @@
 {/if}
 
 <style>
-	.cover-view-theme {
+	.cover-theme {
 		color: var(--cover-fg);
 	}
 
@@ -379,69 +364,5 @@
 
 	.cover-view-side-panel > :global(div:first-child) {
 		border-color: rgba(255, 255, 255, 0.14);
-	}
-
-	/**
-     * Local semantic token overrides for descendants.
-     * These do not affect the same components elsewhere.
-     */
-	.cover-view-theme :global(.text-fg) {
-		color: var(--cover-fg) !important;
-	}
-
-	.cover-view-theme :global(.text-fg-muted) {
-		color: var(--cover-fg-muted) !important;
-	}
-
-	.cover-view-theme :global(.text-fg-subtle) {
-		color: var(--cover-fg-subtle) !important;
-	}
-
-	.cover-view-theme :global(.text-accent),
-	.cover-view-theme :global(.hover\:text-accent:hover),
-	.cover-view-theme :global(.focus-visible\:text-accent:focus-visible) {
-		color: var(--cover-accent) !important;
-	}
-
-	/**
-     * Local overrides for your preset button styles.
-     */
-	.cover-view-theme :global(.preset-icon-subtle) {
-		color: var(--cover-fg) !important;
-		background: var(--cover-button-bg) !important;
-		border-color: var(--cover-panel-border) !important;
-		backdrop-filter: blur(18px);
-	}
-
-	.cover-view-theme :global(.preset-icon-subtle:hover) {
-		background: var(--cover-button-bg-hover) !important;
-	}
-
-	.cover-view-theme :global(.preset-filled-accent) {
-		color: var(--cover-accent-contrast) !important;
-		background: var(--cover-accent) !important;
-		border-color: transparent !important;
-	}
-
-	.cover-view-theme :global(.preset-filled-accent:hover) {
-		filter: brightness(1.04);
-	}
-
-	/**
-     * If btn-icon adds its own colors/borders, this keeps them aligned in cover mode.
-     */
-	.cover-view-theme :global(.btn-icon) {
-		box-shadow: none;
-	}
-
-	/**
-	 * Range input (seek bar) styling to match play button accent color.
-	 */
-	.cover-view-theme :global(.player-range) {
-		--fill: var(--cover-seek-fill) !important;
-	}
-
-	.cover-view-theme :global(.player-range:focus-visible) {
-		outline-color: var(--cover-seek-fill) !important;
 	}
 </style>

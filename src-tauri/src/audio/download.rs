@@ -43,6 +43,8 @@ pub fn download_to_file(
     let marker_path = cache_complete_marker_path(path);
     let _ = std::fs::remove_file(&marker_path);
 
+    crate::rate_limit::throttle_request(url);
+
     // Use a configured HTTP client with timeout and user agent
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
@@ -50,14 +52,48 @@ pub fn download_to_file(
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
-    let response = client
-        .get(url)
-        .send()
-        .map_err(|e| format!("HTTP request failed: {e}"))?;
+    let response = {
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            let resp = client
+                .get(url)
+                .send()
+                .map_err(|e| format!("HTTP request failed: {e}"))?;
 
-    if !response.status().is_success() {
-        return Err(format!("HTTP {}", response.status()));
-    }
+            let status = resp.status();
+            if status.is_success() {
+                break resp;
+            }
+
+            if status.as_u16() == 429 && attempt < 3 {
+                let backoff = std::time::Duration::from_secs(2_u64.pow(attempt - 1));
+                if let Some(retry_after) = resp
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.parse::<u64>().ok())
+                {
+                    log::warn!(
+                        "Download hit 429, respecting Retry-After: {}s",
+                        retry_after
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(retry_after));
+                } else {
+                    log::warn!(
+                        "Download hit 429, backing off for {:?} (attempt {}/{})",
+                        backoff,
+                        attempt,
+                        3
+                    );
+                    std::thread::sleep(backoff);
+                }
+                continue;
+            }
+
+            return Err(format!("HTTP {}", status));
+        }
+    };
 
     // Capture Content-Length for total size
     if let Some(content_length) = response.content_length() {

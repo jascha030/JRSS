@@ -11,10 +11,6 @@
 
 import type { AppSettings, ColorScheme } from '$lib/types/rss';
 
-// ---------------------------------------------------------------------------
-// Module-level reactive state
-// ---------------------------------------------------------------------------
-
 let _colorScheme = $state<ColorScheme>('system');
 let _accentColor = $state<string | null>(null);
 
@@ -27,10 +23,6 @@ export const themeState = {
 		return _accentColor;
 	}
 };
-
-// ---------------------------------------------------------------------------
-// Media query listener lifecycle
-// ---------------------------------------------------------------------------
 
 let _mediaQuery: MediaQueryList | null = null;
 let _onMediaChange: (() => void) | null = null;
@@ -46,10 +38,6 @@ function tearDownMediaListener(): void {
 function setDarkClass(isDark: boolean): void {
 	document.documentElement.classList.toggle('dark', isDark);
 }
-
-// ---------------------------------------------------------------------------
-// Public actions
-// ---------------------------------------------------------------------------
 
 /**
  * Apply a color scheme to `<html>`.
