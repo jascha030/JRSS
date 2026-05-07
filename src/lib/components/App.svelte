@@ -51,6 +51,7 @@
 		playStation,
 		refreshExistingFeed,
 		removeQueuedItem,
+		requestTogglePlayback,
 		selectFeed,
 		selectItem,
 		selectSection,
@@ -62,8 +63,10 @@
 		updateExistingStation
 	} from '$lib/stores/app.svelte';
 	import { isMediaItem } from '$lib/types/rss';
-	import { openMiniPlayer } from '$lib/utils/tauri-window';
+	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
+	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	let isSidebarCollapsed = $state(true);
@@ -274,6 +277,11 @@
 	}
 
 	async function handlePopOutMiniPlayer() {
+		const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
+		if (miniWindow && (await miniWindow.isVisible())) {
+			return;
+		}
+
 		try {
 			await openMiniPlayer();
 		} catch (error: unknown) {
@@ -350,6 +358,34 @@
 			}
 		}
 	]);
+
+	onMount(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key !== ' ') return;
+
+			const target = e.target;
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable)
+			) {
+				return;
+			}
+
+			if (!playbackState.currentPlaybackState) {
+				return;
+			}
+
+			e.preventDefault();
+			requestTogglePlayback();
+		};
+
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
 </script>
 
 <FeedEditor
