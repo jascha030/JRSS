@@ -17,7 +17,9 @@ import {
 	audioQueueGetState,
 	audioQueueMoveDown,
 	audioQueueMoveUp,
+	audioQueueNext,
 	audioQueuePlayNext,
+	audioQueuePrev,
 	audioQueueRemove,
 	audioQueueSet,
 	audioSeek,
@@ -650,6 +652,22 @@ export function requestTogglePlayback(): void {
 export function requestSeekTo(positionSeconds: number): void {
 	void audioSeek(positionSeconds).catch((error: unknown) => {
 		console.error('Failed to seek.', error);
+	});
+}
+
+export function requestNextEpisode(): void {
+	playbackState.isAudioLoading = true;
+	void audioQueueNext().catch((error: unknown) => {
+		console.error('Failed to skip to next episode.', error);
+		playbackState.isAudioLoading = false;
+	});
+}
+
+export function requestPreviousEpisode(): void {
+	playbackState.isAudioLoading = true;
+	void audioQueuePrev().catch((error: unknown) => {
+		console.error('Failed to skip to previous episode.', error);
+		playbackState.isAudioLoading = false;
 	});
 }
 

@@ -104,6 +104,8 @@ export {
 	requestTogglePlayback,
 	requestSeekTo,
 	requestSetVolume,
+	requestNextEpisode,
+	requestPreviousEpisode,
 	getManualQueueLength,
 	getUpcomingQueue,
 	getPlaybackHistory,

@@ -1,4 +1,10 @@
-import { requestSeekTo, requestSetVolume, requestTogglePlayback } from '$lib/stores/app.svelte';
+import {
+	requestNextEpisode,
+	requestPreviousEpisode,
+	requestSeekTo,
+	requestSetVolume,
+	requestTogglePlayback
+} from '$lib/stores/app.svelte';
 import type { PlaybackState } from '$lib/types/rss';
 
 export const SKIP_SECONDS = 15;
@@ -23,4 +29,12 @@ export function adjustVolume(playbackState: PlaybackState | null, delta: number)
 	if (!playbackState) return;
 	const newVolume = Math.max(0, Math.min(1, playbackState.volume + delta));
 	requestSetVolume(newVolume);
+}
+
+export function nextEpisode() {
+	requestNextEpisode();
+}
+
+export function previousEpisode() {
+	requestPreviousEpisode();
 }
