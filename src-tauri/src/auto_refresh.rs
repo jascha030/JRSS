@@ -72,7 +72,8 @@ async fn run_refresh_sweep(db_path: PathBuf, app_handle: AppHandle) {
 
     log::info!("Auto-refresh: refreshing {} feed(s)", feeds.len());
 
-    for feed in feeds {
+    let feed_count = feeds.len();
+    for (index, feed) in feeds.into_iter().enumerate() {
         let url = feed.url.clone();
         let title = feed.title.clone();
         let db_path = db_path.clone();
@@ -87,6 +88,10 @@ async fn run_refresh_sweep(db_path: PathBuf, app_handle: AppHandle) {
             Err(error) => {
                 log::warn!("Auto-refresh: refresh task for '{title}' panicked: {error}")
             }
+        }
+
+        if index + 1 < feed_count {
+            tokio::time::sleep(Duration::from_secs(2)).await;
         }
     }
 

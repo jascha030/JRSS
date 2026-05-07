@@ -109,6 +109,8 @@ pub fn normalize_feed_url(url: &str) -> AppResult<String> {
 }
 
 pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
+    crate::rate_limit::throttle_request(feed_url);
+
     let client = build_http_client()?;
 
     let response = client
@@ -167,6 +169,8 @@ fn extract_apple_podcast_id_from_url(url: &Url) -> Option<String> {
 }
 
 fn lookup_apple_podcast_feed_url(podcast_id: &str) -> AppResult<String> {
+    crate::rate_limit::throttle_request(APPLE_LOOKUP_URL);
+
     let client = build_http_client()?;
     let lookup_url = Url::parse_with_params(APPLE_LOOKUP_URL, &[("id", podcast_id)])
         .map_err(|error| format!("Failed to build Apple Podcasts lookup URL: {error}"))?;

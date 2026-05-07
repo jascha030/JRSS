@@ -7,6 +7,7 @@ mod feed_ingest;
 mod menu;
 mod models;
 mod queue;
+mod rate_limit;
 mod reader_extract;
 
 use audio::AudioState;
