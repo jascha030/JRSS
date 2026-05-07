@@ -61,10 +61,10 @@
 	<aside
 		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface-sidebar md:block"
 	>
-		<div class="scrollbar-none flex h-full overflow-hidden">
-			<div class="flex w-16 shrink-0 flex-col overflow-hidden bg-surface-sidebar">
+		<div class="scrollbar-none flex h-full overflow-y-auto">
+			<div class="flex w-16 shrink-0 flex-col bg-surface-sidebar">
 				<div
-					class="flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface-shell-opaque"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-center border-r border-b border-border bg-surface-shell-opaque"
 				>
 					<button
 						type="button"
@@ -90,7 +90,7 @@
 					</button>
 				</div>
 
-				<div class="scrollbar-none flex-1 overflow-y-auto border-r border-border py-3">
+				<div class="flex-1 border-r border-border py-3">
 					<div class="space-y-1 px-2">
 						{@render sidebarRailSections()}
 					</div>
@@ -112,14 +112,14 @@
 			</div>
 
 			<div
-				class={`w-44 flex-1 shrink-0 transform-gpu overflow-hidden bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+				class={`w-44 flex-1 shrink-0 transform-gpu bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 					isCollapsed
 						? 'pointer-events-none -translate-x-full opacity-0'
 						: 'translate-x-0 opacity-100'
 				}`}
 			>
 				<div
-					class="flex h-16 shrink-0 items-center border-b border-border bg-surface-shell-opaque px-3"
+					class="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b border-border bg-surface-shell-opaque px-3"
 				>
 					<div class="min-w-0">
 						<h1 class="truncate text-base font-semibold text-fg">Library</h1>
@@ -130,7 +130,7 @@
 					</div>
 				</div>
 
-				<div class="scrollbar-none flex-1 overflow-y-auto py-3">
+				<div class="flex-1 py-3">
 					<div class="space-y-1 px-2">
 						{@render sidebarPanelSections()}
 					</div>
