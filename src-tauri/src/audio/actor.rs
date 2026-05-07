@@ -200,7 +200,14 @@ impl AudioThread {
         log::debug!("Open streaming file took {:?}", open_start.elapsed());
 
         // Byte-length hint for accurate VBR MP3 duration calculation.
-        let byte_len_hint = std::fs::metadata(&cache_path).map(|m| m.len()).ok();
+        // Only pass the hint when the cache is complete — using a partial file
+        // size causes the decoder to calculate a truncated duration and stop
+        // decoding early while the download is still in progress.
+        let byte_len_hint = if meta.complete.load(Ordering::Acquire) {
+            std::fs::metadata(&cache_path).map(|m| m.len()).ok()
+        } else {
+            None
+        };
 
         let config = PlayConfig {
             start_position_seconds: self.stored_position_seconds,
