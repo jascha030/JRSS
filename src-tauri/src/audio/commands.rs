@@ -26,6 +26,12 @@ pub enum AudioCommand {
     Seek {
         position_seconds: f64,
     },
+    SkipForward {
+        delta_seconds: f64,
+    },
+    SkipBackward {
+        delta_seconds: f64,
+    },
     SetVolume {
         volume: f32,
     },
