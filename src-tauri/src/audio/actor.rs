@@ -683,6 +683,95 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state.persist_session();
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
+                AudioCommand::QueueNext => {
+                    state.sync_cached_position();
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(
+                            &db.db_path(),
+                            item_id,
+                            state.stored_position_seconds as i64,
+                        );
+                    }
+                    state.stop_current();
+                    if let Some(next_item) = state.queue.shift_next() {
+                        let next_item_id = next_item.item_id.clone();
+                        match state.handle_play(
+                            next_item.item_id,
+                            next_item.url,
+                            0.0,
+                            next_item.duration_seconds,
+                        ) {
+                            Ok(()) => {
+                                emit_playback_snapshot(
+                                    &app,
+                                    &state,
+                                    &mut last_emit,
+                                    &mut last_emitted_state,
+                                );
+                            }
+                            Err(error) => {
+                                log::error!("QueueNext failed: {error}");
+                                let _ = app.emit(
+                                    "playback-error",
+                                    PlaybackErrorEvent {
+                                        item_id: next_item_id,
+                                        error: error.clone(),
+                                    },
+                                );
+                            }
+                        }
+                    } else {
+                        state.queue.clear_current();
+                        let _ = app.emit("playback-stopped", ());
+                    }
+                    state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
+                AudioCommand::QueuePrev => {
+                    state.sync_cached_position();
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db = app.state::<crate::db::DatabaseState>();
+                        let _ = crate::db::save_playback(
+                            &db.db_path(),
+                            item_id,
+                            state.stored_position_seconds as i64,
+                        );
+                    }
+                    state.stop_current();
+                    if let Some(prev_item) = state.queue.shift_prev() {
+                        let prev_item_id = prev_item.item_id.clone();
+                        match state.handle_play(
+                            prev_item.item_id,
+                            prev_item.url,
+                            0.0,
+                            prev_item.duration_seconds,
+                        ) {
+                            Ok(()) => {
+                                emit_playback_snapshot(
+                                    &app,
+                                    &state,
+                                    &mut last_emit,
+                                    &mut last_emitted_state,
+                                );
+                            }
+                            Err(error) => {
+                                log::error!("QueuePrev failed: {error}");
+                                let _ = app.emit(
+                                    "playback-error",
+                                    PlaybackErrorEvent {
+                                        item_id: prev_item_id,
+                                        error: error.clone(),
+                                    },
+                                );
+                            }
+                        }
+                    } else {
+                        let _ = app.emit("playback-stopped", ());
+                    }
+                    state.persist_session();
+                    let _ = app.emit("queue-changed", state.queue.to_event());
+                }
                 AudioCommand::QueueClear => {
                     state.queue.clear();
                     state.persist_session();

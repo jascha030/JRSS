@@ -422,6 +422,16 @@ pub fn audio_queue_move_down(app: tauri::AppHandle, item_id: String) -> Result<(
 }
 
 #[tauri::command]
+pub fn audio_queue_next(app: tauri::AppHandle) -> Result<(), String> {
+    audio::queue_next(&app)
+}
+
+#[tauri::command]
+pub fn audio_queue_prev(app: tauri::AppHandle) -> Result<(), String> {
+    audio::queue_prev(&app)
+}
+
+#[tauri::command]
 pub fn audio_queue_clear(app: tauri::AppHandle) -> Result<(), String> {
     audio::queue_clear(&app)
 }

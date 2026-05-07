@@ -162,6 +162,14 @@ pub fn queue_move_down(app: &AppHandle, item_id: String) -> Result<(), String> {
         .send(AudioCommand::QueueMoveDown { item_id })
 }
 
+pub fn queue_next(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueueNext)
+}
+
+pub fn queue_prev(app: &AppHandle) -> Result<(), String> {
+    app.state::<AudioState>().send(AudioCommand::QueuePrev)
+}
+
 pub fn queue_clear(app: &AppHandle) -> Result<(), String> {
     app.state::<AudioState>().send(AudioCommand::QueueClear)
 }

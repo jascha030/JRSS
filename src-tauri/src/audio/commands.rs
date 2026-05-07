@@ -50,6 +50,8 @@ pub enum AudioCommand {
     QueueMoveDown {
         item_id: String,
     },
+    QueueNext,
+    QueuePrev,
     QueueClear,
     QueueClearHistory,
     QueueGetState {
