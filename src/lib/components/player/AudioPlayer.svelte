@@ -6,9 +6,12 @@
 		SKIP_SECONDS,
 		VOLUME_STEP,
 		adjustVolume,
+		nextEpisode,
+		previousEpisode,
 		skip,
 		togglePlayback
 	} from '$lib/utils/player-controls';
+	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
@@ -46,6 +49,11 @@
 		adjustVolume(playbackState, delta);
 	}
 
+	const canSkipPrevious = $derived(globalPlaybackState.playbackHistory.length > 0);
+	const canSkipNext = $derived(
+		globalPlaybackState.manualQueue.length > 0 || globalPlaybackState.autoQueue.length > 0
+	);
+
 	useMenuShortcuts([
 		{
 			event: 'menu-play-pause',
@@ -65,6 +73,18 @@
 				if (item) handleSkip(-SKIP_SECONDS);
 			}
 		},
+		{
+			event: 'menu-next-episode',
+			handler: () => {
+				if (canSkipNext) nextEpisode();
+			}
+		},
+		{
+			event: 'menu-prev-episode',
+			handler: () => {
+				if (canSkipPrevious) previousEpisode();
+			}
+		},
 		{ event: 'menu-volume-up', handler: () => handleAdjustVolume(VOLUME_STEP) },
 		{ event: 'menu-volume-down', handler: () => handleAdjustVolume(-VOLUME_STEP) },
 		{
@@ -75,7 +95,7 @@
 		}
 	]);
 
-	useMediaSession(() => item, handleSkip);
+	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
 </script>
 
 {#if item && playbackState}
@@ -97,6 +117,10 @@
 					isPlaying={playbackState.isPlaying}
 					onTogglePlayback={handleTogglePlayback}
 					onSkip={handleSkip}
+					onPreviousEpisode={previousEpisode}
+					onNextEpisode={nextEpisode}
+					{canSkipPrevious}
+					{canSkipNext}
 					skipSeconds={SKIP_SECONDS}
 					class="shrink-0"
 				/>

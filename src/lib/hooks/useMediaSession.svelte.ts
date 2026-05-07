@@ -1,21 +1,29 @@
 import type { MediaListItem } from '$lib/types/rss';
 
 type SkipFn = (deltaSeconds: number) => void;
+type EpisodeFn = () => void;
 
-export function useMediaSession(getItem: () => MediaListItem | null, skip: SkipFn) {
+export function useMediaSession(
+	getItem: () => MediaListItem | null,
+	skip: SkipFn,
+	onPreviousEpisode?: EpisodeFn,
+	onNextEpisode?: EpisodeFn
+) {
 	$effect(() => {
 		const item = getItem();
 		if (!item || !('mediaSession' in navigator)) {
 			return;
 		}
 
-		const back = () => skip(-15);
-		const forward = () => skip(15);
+		const seekBack = () => skip(-15);
+		const seekForward = () => skip(15);
+		const prevTrack = onPreviousEpisode ? onPreviousEpisode : seekBack;
+		const nextTrack = onNextEpisode ? onNextEpisode : seekForward;
 
-		navigator.mediaSession.setActionHandler('previoustrack', back);
-		navigator.mediaSession.setActionHandler('nexttrack', forward);
-		navigator.mediaSession.setActionHandler('seekbackward', back);
-		navigator.mediaSession.setActionHandler('seekforward', forward);
+		navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+		navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+		navigator.mediaSession.setActionHandler('seekbackward', seekBack);
+		navigator.mediaSession.setActionHandler('seekforward', seekForward);
 
 		return () => {
 			navigator.mediaSession.setActionHandler('previoustrack', null);

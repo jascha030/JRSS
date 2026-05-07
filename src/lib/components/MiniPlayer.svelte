@@ -6,7 +6,15 @@
 	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
 	import { requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
-	import { SKIP_SECONDS, VOLUME_STEP, adjustVolume, skip } from '$lib/utils/player-controls';
+	import {
+		SKIP_SECONDS,
+		VOLUME_STEP,
+		adjustVolume,
+		nextEpisode,
+		previousEpisode,
+		skip
+	} from '$lib/utils/player-controls';
+	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import AudioSeekBar from './player/AudioSeekBar.svelte';
 	import AudioPlayerControls from './player/AudioPlayerControls.svelte';
@@ -33,6 +41,11 @@
 		adjustVolume(playbackState, delta);
 	}
 
+	const canSkipPrevious = $derived(globalPlaybackState.playbackHistory.length > 0);
+	const canSkipNext = $derived(
+		globalPlaybackState.manualQueue.length > 0 || globalPlaybackState.autoQueue.length > 0
+	);
+
 	onMount(() => {
 		const miniWindow = getCurrentWebviewWindow();
 		const unlisten = miniWindow.onCloseRequested(async (event) => {
@@ -43,6 +56,8 @@
 
 		let unlistenSkipForward: EventUnlistenFn | undefined;
 		let unlistenSkipBackward: EventUnlistenFn | undefined;
+		let unlistenNextEpisode: EventUnlistenFn | undefined;
+		let unlistenPrevEpisode: EventUnlistenFn | undefined;
 		let unlistenVolumeUp: EventUnlistenFn | undefined;
 		let unlistenVolumeDown: EventUnlistenFn | undefined;
 		let unlistenSettings: EventUnlistenFn | undefined;
@@ -54,6 +69,12 @@
 			});
 			unlistenSkipBackward = await listen('menu-skip-backward', () => {
 				if (item) handleSkip(-SKIP_SECONDS);
+			});
+			unlistenNextEpisode = await listen('menu-next-episode', () => {
+				if (canSkipNext) nextEpisode();
+			});
+			unlistenPrevEpisode = await listen('menu-prev-episode', () => {
+				if (canSkipPrevious) previousEpisode();
 			});
 			unlistenVolumeUp = await listen('menu-volume-up', () => {
 				handleAdjustVolume(VOLUME_STEP);
@@ -91,6 +112,8 @@
 			document.removeEventListener('keydown', handleKeyDown);
 			if (unlistenSkipForward) unlistenSkipForward();
 			if (unlistenSkipBackward) unlistenSkipBackward();
+			if (unlistenNextEpisode) unlistenNextEpisode();
+			if (unlistenPrevEpisode) unlistenPrevEpisode();
 			if (unlistenVolumeUp) unlistenVolumeUp();
 			if (unlistenVolumeDown) unlistenVolumeDown();
 			if (unlistenSettings) unlistenSettings();
@@ -98,7 +121,7 @@
 		};
 	});
 
-	useMediaSession(() => item, handleSkip);
+	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
 </script>
 
 <CoverThemeStyles />
@@ -159,6 +182,10 @@
 								skipSeconds={15}
 								onTogglePlayback={requestTogglePlayback}
 								onSkip={handleSkip}
+								onPreviousEpisode={previousEpisode}
+								onNextEpisode={nextEpisode}
+								{canSkipPrevious}
+								{canSkipNext}
 							/>
 						</div>
 
