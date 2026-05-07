@@ -87,6 +87,7 @@
 	const OVERSCAN_ROWS = 1;
 
 	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
+		home: 'Home',
 		all: 'All feeds',
 		unread: 'Unread',
 		media: 'Media',

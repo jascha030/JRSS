@@ -1,6 +1,6 @@
 import type { Station, Feed } from '$lib/types/rss';
 
-export type SidebarSection = 'all' | 'unread' | 'media' | 'settings' | null;
+export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 
 export const selection = $state({
 	selectedFeedId: null as string | null,

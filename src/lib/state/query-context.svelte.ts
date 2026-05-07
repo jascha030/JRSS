@@ -52,7 +52,7 @@ export function normalizeSearchTerm(term: string): string {
 }
 
 export function getActiveListSection(): 'all' | 'unread' | 'media' | null {
-	if (selection.selectedSection === 'settings') {
+	if (selection.selectedSection === 'settings' || selection.selectedSection === 'home') {
 		return null;
 	}
 
