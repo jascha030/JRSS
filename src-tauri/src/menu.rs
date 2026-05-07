@@ -56,11 +56,17 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         let play_pause_item = MenuItemBuilder::with_id("play-pause", "Play/Pause")
             .accelerator("Space")
             .build(app)?;
+        let skip_backward_item = MenuItemBuilder::with_id("skip-backward", "Skip Backward")
+            .accelerator("CmdOrCtrl+Shift+Left")
+            .build(app)?;
         let skip_forward_item = MenuItemBuilder::with_id("skip-forward", "Skip Forward")
             .accelerator("CmdOrCtrl+Shift+Right")
             .build(app)?;
-        let skip_backward_item = MenuItemBuilder::with_id("skip-backward", "Skip Backward")
-            .accelerator("CmdOrCtrl+Shift+Left")
+        let prev_episode_item = MenuItemBuilder::with_id("prev-episode", "Previous Episode")
+            .accelerator("CmdOrCtrl+Alt+Left")
+            .build(app)?;
+        let next_episode_item = MenuItemBuilder::with_id("next-episode", "Next Episode")
+            .accelerator("CmdOrCtrl+Alt+Right")
             .build(app)?;
         let volume_up_item = MenuItemBuilder::with_id("volume-up", "Volume Up")
             .accelerator("CmdOrCtrl+Up")
@@ -118,6 +124,9 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .separator()
             .item(&skip_backward_item)
             .item(&skip_forward_item)
+            .separator()
+            .item(&prev_episode_item)
+            .item(&next_episode_item)
             .separator()
             .item(&volume_up_item)
             .item(&volume_down_item)
@@ -178,6 +187,36 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             |_app, _shortcut, event| {
                 if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                     let _ = _app.emit("menu-skip-backward", ());
+                }
+            },
+        )?;
+
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::ALT,
+                ),
+                tauri_plugin_global_shortcut::Code::ArrowRight,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-next-episode", ());
+                }
+            },
+        )?;
+
+        app.global_shortcut().on_shortcut(
+            Shortcut::new(
+                Some(
+                    tauri_plugin_global_shortcut::Modifiers::META
+                        | tauri_plugin_global_shortcut::Modifiers::ALT,
+                ),
+                tauri_plugin_global_shortcut::Code::ArrowLeft,
+            ),
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-prev-episode", ());
                 }
             },
         )?;
