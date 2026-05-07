@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
@@ -34,7 +33,6 @@
 		getCurrentAudioItemFeed,
 		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
-		getManualQueueLength,
 		getPlaybackContext,
 		getPlaybackHistory,
 		getReaderRequestItemId,
@@ -93,7 +91,6 @@
 	const stationSearchTerm = $derived(selection.stationSearchTerm);
 	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
 
-	// Computed selectors
 	const selectedFeed = $derived(getSelectedFeed(feeds));
 	const selectedStation = $derived(getSelectedStation(stations));
 	const selectedItem = $derived(getSelectedItem());
@@ -109,7 +106,6 @@
 	const playbackHistory = $derived(getPlaybackHistory());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
-	const manualQueueLength = $derived(getManualQueueLength());
 	const readerRequestSeq = $derived(getReaderRequestSeq());
 
 	const isSelectedFeedRefreshing = $derived(
@@ -124,8 +120,6 @@
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
-
-	// Load items when the active query changes
 	$effect(() => {
 		const queryKey = getActiveQueryKey();
 		if (queryKey && queryKey !== lastQueryKey) {
@@ -136,14 +130,12 @@
 		}
 	});
 
-	// Reset reader mode when item changes
 	$effect(() => {
 		if (selectedItemId) {
 			readerPaneMode = 'feed';
 		}
 	});
 
-	// Load item details when selection changes
 	$effect(() => {
 		if (!selectedItemId) return;
 
@@ -152,7 +144,6 @@
 		});
 	});
 
-	// Handle reader view requests from context menu
 	let lastConsumedReaderSeq = 0;
 	$effect(() => {
 		if (readerRequestSeq > lastConsumedReaderSeq) {
@@ -289,24 +280,15 @@
 		}
 	}
 
-	// Listen for settings shortcut - works in all modes including cover view
-	onMount(() => {
-		let unlistenSettings: UnlistenFn | undefined;
-
-		const setupListener = async () => {
-			unlistenSettings = await listen('menu-settings', () => {
-				// Exit cover mode if active, then navigate to settings
+	useMenuShortcuts([
+		{
+			event: 'menu-settings',
+			handler: () => {
 				playerMode = 'default';
 				selectSection('settings');
-			});
-		};
-
-		void setupListener();
-
-		return () => {
-			if (unlistenSettings) unlistenSettings();
-		};
-	});
+			}
+		}
+	]);
 </script>
 
 <FeedEditor
@@ -366,7 +348,6 @@
 			open={isQueueDrawerOpen}
 			historyItems={playbackHistory}
 			queueItems={upcomingQueue}
-			{manualQueueLength}
 			{feeds}
 			onRemoveItem={removeQueuedItem}
 			onMoveItemUp={moveQueuedItemUp}
