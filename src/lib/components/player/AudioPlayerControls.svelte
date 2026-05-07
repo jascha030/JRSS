@@ -11,7 +11,8 @@
 		onNextEpisode?: () => void;
 		canSkipPrevious?: boolean;
 		canSkipNext?: boolean;
-		skipSeconds?: number;
+		skipForwardSeconds?: number;
+		skipBackwardSeconds?: number;
 		class?: string;
 	};
 
@@ -23,7 +24,8 @@
 		onNextEpisode,
 		canSkipPrevious = false,
 		canSkipNext = false,
-		skipSeconds = 15,
+		skipForwardSeconds = 15,
+		skipBackwardSeconds = 15,
 		class: className = ''
 	}: Props = $props();
 </script>
@@ -44,8 +46,8 @@
 	<button
 		class="text-fg-subtle hover:text-white"
 		type="button"
-		aria-label={`Back ${skipSeconds} seconds`}
-		onclick={() => onSkip(-skipSeconds)}
+		aria-label={`Back ${skipBackwardSeconds} seconds`}
+		onclick={() => onSkip(-skipBackwardSeconds)}
 	>
 		<Icon icon="bi:rewind-fill" class="size-5" />
 	</button>
@@ -72,8 +74,8 @@
 	<button
 		class="text-fg-subtle hover:text-white"
 		type="button"
-		aria-label={`Forward ${skipSeconds} seconds`}
-		onclick={() => onSkip(skipSeconds)}
+		aria-label={`Forward ${skipForwardSeconds} seconds`}
+		onclick={() => onSkip(skipForwardSeconds)}
 	>
 		<Icon icon="bi:fast-forward-fill" class="size-5" />
 	</button>

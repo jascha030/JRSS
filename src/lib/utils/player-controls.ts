@@ -7,7 +7,7 @@ import {
 } from '$lib/stores/app.svelte';
 import type { PlaybackState } from '$lib/types/rss';
 
-export const SKIP_SECONDS = 15;
+export const DEFAULT_SKIP_SECONDS = 15;
 export const VOLUME_STEP = 0.1;
 
 export function skip(

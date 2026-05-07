@@ -3,7 +3,6 @@
 	import type { Snippet } from 'svelte';
 
 	import {
-		SKIP_SECONDS,
 		VOLUME_STEP,
 		adjustVolume,
 		nextEpisode,
@@ -11,6 +10,7 @@
 		skip,
 		togglePlayback
 	} from '$lib/utils/player-controls';
+	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
@@ -64,13 +64,13 @@
 		{
 			event: 'menu-skip-forward',
 			handler: () => {
-				if (item) handleSkip(SKIP_SECONDS);
+				if (item) handleSkip(playbackSettings.skipForwardSeconds);
 			}
 		},
 		{
 			event: 'menu-skip-backward',
 			handler: () => {
-				if (item) handleSkip(-SKIP_SECONDS);
+				if (item) handleSkip(-playbackSettings.skipBackwardSeconds);
 			}
 		},
 		{
@@ -121,7 +121,8 @@
 					onNextEpisode={nextEpisode}
 					{canSkipPrevious}
 					{canSkipNext}
-					skipSeconds={SKIP_SECONDS}
+					skipForwardSeconds={playbackSettings.skipForwardSeconds}
+					skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
 					class="shrink-0"
 				/>
 

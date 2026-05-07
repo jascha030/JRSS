@@ -148,6 +148,8 @@ import {
 	restorePlaybackContext
 } from '../state/playback.svelte';
 import { initTheme, resetThemeState } from '../state/theme.svelte';
+import { playbackSettings } from '../state/settings.svelte';
+import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/rss';
 
 export async function initializeApp(): Promise<void> {
 	resetSelectionState();
@@ -162,8 +164,16 @@ export async function initializeApp(): Promise<void> {
 	try {
 		const settings = await loadAppSettings();
 		initTheme(settings);
+		playbackSettings.setSkipForwardSeconds(
+			settings.skipForwardSeconds ?? DEFAULT_SKIP_FORWARD_SECONDS
+		);
+		playbackSettings.setSkipBackwardSeconds(
+			settings.skipBackwardSeconds ?? DEFAULT_SKIP_BACKWARD_SECONDS
+		);
 	} catch {
 		initTheme({ colorScheme: 'system', accentColor: null });
+		playbackSettings.setSkipForwardSeconds(DEFAULT_SKIP_FORWARD_SECONDS);
+		playbackSettings.setSkipBackwardSeconds(DEFAULT_SKIP_BACKWARD_SECONDS);
 	}
 
 	await initAudioEventListeners();

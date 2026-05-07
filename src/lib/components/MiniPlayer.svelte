@@ -7,13 +7,13 @@
 	import { requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import {
-		SKIP_SECONDS,
 		VOLUME_STEP,
 		adjustVolume,
 		nextEpisode,
 		previousEpisode,
 		skip
 	} from '$lib/utils/player-controls';
+	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import AudioSeekBar from './player/AudioSeekBar.svelte';
@@ -65,10 +65,10 @@
 
 		const setupListeners = async () => {
 			unlistenSkipForward = await listen('menu-skip-forward', () => {
-				if (item) handleSkip(SKIP_SECONDS);
+				if (item) handleSkip(playbackSettings.skipForwardSeconds);
 			});
 			unlistenSkipBackward = await listen('menu-skip-backward', () => {
-				if (item) handleSkip(-SKIP_SECONDS);
+				if (item) handleSkip(-playbackSettings.skipBackwardSeconds);
 			});
 			unlistenNextEpisode = await listen('menu-next-episode', () => {
 				if (canSkipNext) nextEpisode();
@@ -179,7 +179,8 @@
 									item.mediaEnclosure.durationSeconds ||
 									0}
 								isPlaying={playbackState.isPlaying}
-								skipSeconds={15}
+								skipForwardSeconds={playbackSettings.skipForwardSeconds}
+								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
 								onTogglePlayback={requestTogglePlayback}
 								onSkip={handleSkip}
 								onPreviousEpisode={previousEpisode}

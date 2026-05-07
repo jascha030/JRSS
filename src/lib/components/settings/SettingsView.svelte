@@ -10,6 +10,8 @@
 		DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 		DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 		DEFAULT_ACCENT_COLOR,
+		DEFAULT_SKIP_FORWARD_SECONDS,
+		DEFAULT_SKIP_BACKWARD_SECONDS,
 		type AppSettings
 	} from '$lib/types/rss';
 	import { APP_SETTINGS } from '$lib/config/settings';
@@ -21,13 +23,17 @@
 	let errorMessage = $state('');
 	let successMessage = $state('');
 	let initialized = $state(false);
+	let isClearingCache = $state(false);
+	let cacheMessage = $state('');
 
 	let pending = $state<AppSettings>({
 		maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 		miniPlayerAlwaysOnTop: DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 		autoRefreshIntervalMinutes: DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		colorScheme: DEFAULT_COLOR_SCHEME,
-		accentColor: DEFAULT_ACCENT_COLOR
+		accentColor: DEFAULT_ACCENT_COLOR,
+		skipForwardSeconds: DEFAULT_SKIP_FORWARD_SECONDS,
+		skipBackwardSeconds: DEFAULT_SKIP_BACKWARD_SECONDS
 	});
 
 	$effect(() => {

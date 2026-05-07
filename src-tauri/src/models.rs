@@ -332,4 +332,6 @@ pub struct AppSettingsRecord {
     /// Custom accent color override as a CSS hex string (e.g. `"#4f46e5"`), or `null` to use the
     /// theme default.
     pub accent_color: Option<String>,
+    pub skip_forward_seconds: i64,
+    pub skip_backward_seconds: i64,
 }

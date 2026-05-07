@@ -20,6 +20,8 @@ export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
 export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
 export const DEFAULT_COLOR_SCHEME: ColorScheme = 'system';
 export const DEFAULT_ACCENT_COLOR: string | null = null;
+export const DEFAULT_SKIP_FORWARD_SECONDS = 15;
+export const DEFAULT_SKIP_BACKWARD_SECONDS = 15;
 
 export interface Feed {
 	id: string;
@@ -179,6 +181,10 @@ export interface AppSettings {
 	colorScheme: ColorScheme;
 	/** Custom accent color as a CSS hex string (e.g. `'#4f46e5'`), or `null` for the theme default. */
 	accentColor: string | null;
+	/** How many seconds to skip forward when pressing the fast-forward button. */
+	skipForwardSeconds: number;
+	/** How many seconds to skip backward when pressing the rewind button. */
+	skipBackwardSeconds: number;
 }
 
 /** Mirrors Rust `PlaybackStateEvent` emitted by the audio thread. */

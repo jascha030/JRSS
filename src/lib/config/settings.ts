@@ -67,5 +67,25 @@ export const APP_SETTINGS = [
 			{ value: 120, label: 'Every 2 hours' }
 		],
 		desktopOnly: true
+	},
+	{
+		key: 'skipForwardSeconds',
+		kind: 'number',
+		label: 'Skip forward',
+		description: 'How many seconds to skip forward when pressing the fast-forward button.',
+		unit: 'seconds',
+		min: 1,
+		step: 1,
+		validate: (v: number) => (v >= 1 ? null : 'Must be at least 1 second.')
+	},
+	{
+		key: 'skipBackwardSeconds',
+		kind: 'number',
+		label: 'Skip backward',
+		description: 'How many seconds to skip backward when pressing the rewind button.',
+		unit: 'seconds',
+		min: 1,
+		step: 1,
+		validate: (v: number) => (v >= 1 ? null : 'Must be at least 1 second.')
 	}
 ] satisfies SettingsDefinition;
