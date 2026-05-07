@@ -902,6 +902,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     last.item_id != snapshot.item_id
                         || last.is_playing != snapshot.is_playing
                         || (last.position_seconds as i64) != (snapshot.position_seconds as i64)
+                        || (last.duration_seconds as i64) != (snapshot.duration_seconds as i64)
                         || (last.speed as i64) != (snapshot.speed as i64)
                 } else {
                     true // Always emit if we haven't emitted before
