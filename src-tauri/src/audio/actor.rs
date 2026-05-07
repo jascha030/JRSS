@@ -22,6 +22,7 @@ use super::engine::{PlayConfig, PlaybackEngine};
 use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
 use super::rodio_engine::RodioEngine;
 use super::streaming_file::StreamingFile;
+use rodio::Source;
 
 /// Background download that can be adopted by playback.
 struct PrefetchState {
@@ -55,6 +56,7 @@ pub struct AudioThread {
     queue: QueueState,
     app: AppHandle,
     prefetch: Option<PrefetchState>,
+    duration_probe_done: bool,
 }
 
 impl AudioThread {
@@ -73,6 +75,7 @@ impl AudioThread {
             queue: QueueState::default(),
             app,
             prefetch: None,
+            duration_probe_done: false,
         }
     }
 
@@ -108,6 +111,7 @@ impl AudioThread {
         self.current_item_id = Some(item_id.clone());
         self.hydrate_metadata(&item_id);
         self.duration_seconds = duration_hint_seconds.max(0.0);
+        self.duration_probe_done = false;
 
         // Clamp start position to valid bounds [0, duration - epsilon]
         // The epsilon prevents seeking exactly to the end which can cause immediate playback end
@@ -348,6 +352,38 @@ impl AudioThread {
             volume: self.volume as f64,
             speed: self.speed as f64,
         })
+    }
+
+    fn try_probe_complete_file_duration(&mut self) -> Option<f64> {
+        if self.duration_probe_done {
+            return None;
+        }
+
+        let meta = self.download_meta.as_ref()?;
+        if !meta.complete.load(Ordering::Acquire) {
+            return None;
+        }
+
+        self.duration_probe_done = true;
+
+        let path = self.temp_path.as_ref()?;
+        let file = std::fs::File::open(path).ok()?;
+        let byte_len = std::fs::metadata(path).map(|m| m.len()).ok()?;
+
+        let decoder = rodio::Decoder::builder()
+            .with_data(file)
+            .with_byte_len(byte_len)
+            .build()
+            .ok()?;
+
+        let duration = decoder.total_duration().map(|d| d.as_secs_f64());
+        log::debug!(
+            "Probed duration for {}: {:?} (file_size={} bytes)",
+            path.display(),
+            duration,
+            byte_len
+        );
+        duration
     }
 
     fn sync_cached_position(&mut self) {
@@ -913,6 +949,35 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 last_emit = Instant::now();
                 last_emitted_state = Some(snapshot.clone());
                 let _ = app.emit("playback-state-changed", &snapshot);
+            }
+
+            if let Some(actual) = state.try_probe_complete_file_duration() {
+                if actual > 0.0 && actual != state.duration_seconds {
+                    log::info!(
+                        "Detected duration from complete file: {}s (previous was: {}s)",
+                        actual,
+                        state.duration_seconds
+                    );
+                    state.duration_seconds = actual;
+
+                    if let Some(ref mut current) = state.queue.current {
+                        current.duration_seconds = actual;
+                    }
+
+                    if let Some(ref item_id) = state.current_item_id {
+                        let db_state = state.app.state::<db::DatabaseState>();
+                        let db_path = db_state.db_path();
+                        let duration_i64 = actual.floor() as i64;
+                        if let Err(error) = db::update_item_duration(&db_path, item_id, duration_i64) {
+                            log::warn!("Failed to persist detected duration: {error}");
+                        }
+                    }
+
+                    if let Some(snapshot) = state.snapshot() {
+                        last_emitted_state = Some(snapshot.clone());
+                        let _ = app.emit("playback-state-changed", &snapshot);
+                    }
+                }
             }
 
             if snapshot.is_playing && last_persist.elapsed() >= persist_interval {
