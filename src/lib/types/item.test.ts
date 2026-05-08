@@ -3,11 +3,11 @@ import {
 	mapRawFeedListItem,
 	mapRawFeedItem,
 	isMediaItem,
-	isFeed,
 	type RawFeedListItem,
-	type RawFeedItem,
-	type Feed
-} from '$lib/types/rss';
+	type RawFeedItem
+} from '$lib/types/item';
+import { isFeed } from '$lib/types/item';
+import type { Feed } from '$lib/types/feed';
 
 const baseRaw: Omit<RawFeedListItem, 'mediaEnclosure'> = {
 	id: 'item-1',

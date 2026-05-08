@@ -21,7 +21,25 @@
  * 5. Add the dispatch branch in `SettingRow.svelte`.
  */
 
-import type { AppSettings } from './rss';
+export type ColorScheme = 'system' | 'light' | 'dark';
+
+export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
+export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
+export const DEFAULT_COLOR_SCHEME: ColorScheme = 'system';
+export const DEFAULT_ACCENT_COLOR: string | null = null;
+export const DEFAULT_SKIP_FORWARD_SECONDS = 15;
+export const DEFAULT_SKIP_BACKWARD_SECONDS = 15;
+
+export interface AppSettings {
+	maxAudioCacheSizeBytes: number;
+	miniPlayerAlwaysOnTop: boolean;
+	autoRefreshIntervalMinutes: number;
+	colorScheme: ColorScheme;
+	accentColor: string | null;
+	skipForwardSeconds: number;
+	skipBackwardSeconds: number;
+}
 
 /** Keys of `Obj` whose values extend `T`. */
 type KeysOfType<Obj, T> = { [K in keyof Obj]: Obj[K] extends T ? K : never }[keyof Obj];
