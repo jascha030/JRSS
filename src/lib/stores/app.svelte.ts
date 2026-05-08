@@ -142,7 +142,7 @@ export {
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauriClient';
-import { loadAppSettings } from '../services/feedService';
+import { loadAppSettings } from '../services/feed';
 import { resetSelectionState } from '../state/selection.svelte';
 import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
 import { resetStationsState, loadStations } from '../state/stations.svelte';

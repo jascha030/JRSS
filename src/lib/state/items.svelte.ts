@@ -6,7 +6,7 @@ import {
 	markRead,
 	queryItems,
 	type ItemsQuery
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 import { selection } from './selection.svelte';
 import {

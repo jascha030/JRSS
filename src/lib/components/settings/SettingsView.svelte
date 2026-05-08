@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/feedService';
+	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/feed';
 	import { isTauriRuntime } from '$lib/services/tauriClient';
 	import { applyAccentColor, applyColorScheme } from '$lib/stores/app.svelte';
 	import {
@@ -14,7 +14,7 @@
 		DEFAULT_SKIP_BACKWARD_SECONDS,
 		type AppSettings
 	} from '$lib/types/rss';
-	import { APP_SETTINGS } from '$lib/config/settings';
+	import { APP_SETTINGS } from '$lib/constants/settings';
 	import SettingRow from './SettingRow.svelte';
 
 	let isDesktop = $state(false);

@@ -8,7 +8,7 @@ import {
 	queryItemsPage,
 	loadPlaybackSession,
 	loadPlaybackContext
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 
 // isTauriRuntime() is false in happy-dom (no window.__TAURI_INTERNALS__),
 // so functions guarded by it return early; invokeCommand is never reached.

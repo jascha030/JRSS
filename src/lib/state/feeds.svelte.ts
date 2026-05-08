@@ -5,7 +5,7 @@ import {
 	refreshFeed,
 	removeFeed,
 	setFeedSortOrder as persistFeedSortOrder
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 import { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } from './playback.svelte';

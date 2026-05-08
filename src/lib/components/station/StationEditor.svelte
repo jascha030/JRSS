@@ -7,7 +7,7 @@
 		StationGradient,
 		ItemSortOrder
 	} from '$lib/types/rss';
-	import { STATION_GRADIENTS, STATION_GRADIENT_OPTIONS } from '$lib/config/station-gradients';
+	import { STATION_GRADIENTS, STATION_GRADIENT_OPTIONS } from '$lib/constants/station-gradients';
 	import Icon from '@iconify/svelte';
 	import {
 		Combobox,

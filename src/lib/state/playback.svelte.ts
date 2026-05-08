@@ -30,7 +30,7 @@ import {
 	savePlaybackContext,
 	queryStationEpisodes,
 	extractCoverPalette
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 import { tick } from 'svelte';
 import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';

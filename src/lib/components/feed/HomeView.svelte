@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Feed, Station } from '$lib/types/rss';
-	import { STATION_GRADIENTS } from '$lib/config/station-gradients';
+	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import { itemsState } from '$lib/state/items.svelte';
 	import { selectFeed, selectStation } from '$lib/stores/app.svelte';
 	import { SvelteSet } from 'svelte/reactivity';

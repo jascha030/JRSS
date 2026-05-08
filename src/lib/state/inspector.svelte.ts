@@ -1,4 +1,4 @@
-import { fetchFeedRawXml } from '$lib/services/feedService';
+import { fetchFeedRawXml } from '$lib/services/feed';
 
 export const inspectorState = $state({
 	activeFeedId: null as string | null,

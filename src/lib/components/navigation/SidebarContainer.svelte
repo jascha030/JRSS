@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import type { Feed, Station } from '$lib/types/rss';
-	import { STATION_GRADIENTS } from '$lib/config/station-gradients';
+	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';

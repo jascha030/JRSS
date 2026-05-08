@@ -4,7 +4,7 @@ import {
 	deleteStation as deleteStationService,
 	listStations,
 	updateStation as updateStationService
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 

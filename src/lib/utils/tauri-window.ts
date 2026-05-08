@@ -1,5 +1,5 @@
 import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { loadAppSettings } from '$lib/services/feedService';
+import { loadAppSettings } from '$lib/services/feed';
 import { invokeCommand } from '$lib/services/tauriClient';
 import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/rss';
 

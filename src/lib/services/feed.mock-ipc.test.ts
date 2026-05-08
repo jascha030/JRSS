@@ -18,7 +18,7 @@ import {
 	savePlayback,
 	getItemDetails,
 	createStation
-} from '$lib/services/feedService';
+} from '$lib/services/feed';
 import type { Feed, RawFeedListItem } from '$lib/types/rss';
 
 afterEach(() => {

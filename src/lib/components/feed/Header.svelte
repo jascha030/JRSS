@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-	import { queryItems } from '$lib/services/feedService';
+	import { queryItems } from '$lib/services/feed';
 	import type { Feed, FeedListItem } from '$lib/types/rss';
 	import { isMediaItem } from '$lib/types/rss';
 	import { formatDate } from '$lib/utils/format';
