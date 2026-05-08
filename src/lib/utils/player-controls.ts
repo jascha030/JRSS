@@ -5,7 +5,7 @@ import {
 	requestSetVolume,
 	requestTogglePlayback
 } from '$lib/stores/app.svelte';
-import type { PlaybackState } from '$lib/types/rss';
+import type { PlaybackState } from '$lib/types/playback';
 
 export const DEFAULT_SKIP_SECONDS = 15;
 export const VOLUME_STEP = 0.1;

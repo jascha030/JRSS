@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SettingEntry } from '$lib/types/settings';
-	import type { AppSettings } from '$lib/types/rss';
+	import type { AppSettings } from '$lib/types/settings';
 	import ToggleSetting from './inputs/ToggleSetting.svelte';
 	import SegmentedSetting from './inputs/SegmentedSetting.svelte';
 	import SelectSetting from './inputs/SelectSetting.svelte';

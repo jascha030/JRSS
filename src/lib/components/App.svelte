@@ -65,7 +65,7 @@
 		setFeedSortOrder,
 		updateExistingStation
 	} from '$lib/stores/app.svelte';
-	import { isMediaItem } from '$lib/types/rss';
+	import { isMediaItem } from '$lib/types/item';
 	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
@@ -78,7 +78,7 @@
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
-	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
+	let editingStation = $state<import('$lib/types/station').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
@@ -196,7 +196,7 @@
 		}
 	}
 
-	async function handleStationSave(input: import('$lib/types/rss').CreateStationInput) {
+	async function handleStationSave(input: import('$lib/types/station').CreateStationInput) {
 		try {
 			if (editingStation) {
 				await updateExistingStation({
@@ -254,7 +254,7 @@
 		isStationEditorOpen = true;
 	}
 
-	function handleSelectSearchResult(item: import('$lib/types/rss').FeedListItem): void {
+	function handleSelectSearchResult(item: import('$lib/types/item').FeedListItem): void {
 		if (playerMode === 'cover') {
 			playerMode = 'default';
 		}

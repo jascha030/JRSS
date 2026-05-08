@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MediaListItem } from '$lib/types/rss';
+	import type { MediaListItem } from '$lib/types/item';
 	import { tick } from 'svelte';
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';

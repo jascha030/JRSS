@@ -6,7 +6,7 @@ import {
 	addSyncingFeed,
 	removeSyncingFeed
 } from './feeds.svelte';
-import type { Feed } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
 
 function makeFeed(id: string): Feed {
 	return { id, title: 'Feed', url: '', description: '', kind: 'article', createdAt: '' };

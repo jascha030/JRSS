@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
+	import type { MediaListItem } from '$lib/types/item';
+	import type { PlaybackState } from '$lib/types/playback';
 	import type { Snippet } from 'svelte';
 
 	import {

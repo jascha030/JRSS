@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-	import { queryItems } from '$lib/services/feed';
-	import type { Feed, FeedListItem } from '$lib/types/rss';
-	import { isMediaItem } from '$lib/types/rss';
+	import { queryItems } from '$lib/services/item';
+	import type { Feed } from '$lib/types/feed';
+	import type { FeedListItem } from '$lib/types/item';
+	import { isMediaItem } from '$lib/types/item';
 	import { formatDate } from '$lib/utils/format';
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';

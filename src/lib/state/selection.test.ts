@@ -12,7 +12,8 @@ import {
 	getSelectedFeed,
 	getSelectedStation
 } from './selection.svelte';
-import type { Feed, Station } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 function makeFeed(id: string): Feed {
 	return { id, title: 'Feed', url: '', description: '', kind: 'article', createdAt: '' };

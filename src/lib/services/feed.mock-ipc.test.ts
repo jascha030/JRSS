@@ -11,15 +11,11 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockIPC, clearMocks } from '@tauri-apps/api/mocks';
-import {
-	listFeeds,
-	getItemsByIds,
-	markRead,
-	savePlayback,
-	getItemDetails,
-	createStation
-} from '$lib/services/feed';
-import type { Feed, RawFeedListItem } from '$lib/types/rss';
+import { listFeeds } from '$lib/services/feed';
+import { getItemsByIds, markRead, savePlayback, getItemDetails } from '$lib/services/item';
+import { createStation } from '$lib/services/station';
+import type { Feed } from '$lib/types/feed';
+import type { RawFeedListItem } from '$lib/types/item';
 
 afterEach(() => {
 	clearMocks();

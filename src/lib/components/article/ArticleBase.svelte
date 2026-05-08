@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FeedItem } from '$lib/types/rss';
+	import type { FeedItem } from '$lib/types/item';
 	import ArticleHeader from './ArticleHeader.svelte';
 
 	type Props = {

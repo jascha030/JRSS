@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-	import type { Feed, Station } from '$lib/types/rss';
+	import type { Feed } from '$lib/types/feed';
+	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import type { SidebarSection } from '$lib/stores/app.svelte';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';

@@ -3,8 +3,10 @@
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
 	import type { SidebarSection } from '$lib/stores/app.svelte';
-	import type { Feed, FeedListItem, ItemSortOrder, Station } from '$lib/types/rss';
-	import { isMediaItem } from '$lib/types/rss';
+	import type { Feed } from '$lib/types/feed';
+	import type { FeedListItem, ItemSortOrder } from '$lib/types/item';
+	import type { Station } from '$lib/types/station';
+	import { isMediaItem } from '$lib/types/item';
 	import { formatDate } from '$lib/utils/format';
 	import {
 		openArticleContextMenu,

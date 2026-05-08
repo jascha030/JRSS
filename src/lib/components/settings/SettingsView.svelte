@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/feed';
-	import { isTauriRuntime } from '$lib/services/tauriClient';
+	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/settings';
+	import { isTauriRuntime } from '$lib/services/tauri';
 	import { applyAccentColor, applyColorScheme } from '$lib/stores/app.svelte';
 	import {
 		DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
@@ -13,7 +13,7 @@
 		DEFAULT_SKIP_FORWARD_SECONDS,
 		DEFAULT_SKIP_BACKWARD_SECONDS,
 		type AppSettings
-	} from '$lib/types/rss';
+	} from '$lib/types/settings';
 	import { APP_SETTINGS } from '$lib/constants/settings';
 	import SettingRow from './SettingRow.svelte';
 

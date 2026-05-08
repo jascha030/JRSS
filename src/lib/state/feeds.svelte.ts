@@ -1,4 +1,5 @@
-import type { Feed, ItemSortOrder } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { ItemSortOrder } from '$lib/types/item';
 import {
 	addFeed,
 	listFeeds,

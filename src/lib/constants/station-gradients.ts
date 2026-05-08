@@ -1,4 +1,4 @@
-import type { StationGradient } from '$lib/types/rss';
+import type { StationGradient } from '$lib/types/station';
 
 export const STATION_GRADIENTS: Record<
 	StationGradient,

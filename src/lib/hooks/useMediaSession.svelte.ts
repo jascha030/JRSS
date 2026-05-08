@@ -1,4 +1,4 @@
-import type { MediaListItem } from '$lib/types/rss';
+import type { MediaListItem } from '$lib/types/item';
 
 type SkipFn = (deltaSeconds: number) => void;
 type EpisodeFn = () => void;

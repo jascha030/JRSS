@@ -1,4 +1,4 @@
-import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/rss';
+import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
 
 let _skipForwardSeconds = $state(DEFAULT_SKIP_FORWARD_SECONDS);
 let _skipBackwardSeconds = $state(DEFAULT_SKIP_BACKWARD_SECONDS);

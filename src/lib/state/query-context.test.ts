@@ -18,7 +18,8 @@ import {
 } from './selection.svelte';
 import { feedsState, resetFeedsState } from './feeds.svelte';
 import { stationsState, resetStationsState } from './stations.svelte';
-import type { Feed, Station } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 function makeFeed(id: string, sortOrder?: 'newest_first' | 'oldest_first'): Feed {
 	return { id, title: '', url: '', description: '', kind: 'article', createdAt: '', sortOrder };

@@ -7,7 +7,7 @@
 		requestTogglePlayback,
 		startPlaybackFromContext
 	} from '$lib/stores/app.svelte';
-	import type { MediaItem } from '$lib/types/rss';
+	import type { MediaItem } from '$lib/types/item';
 	import { formatDuration } from '$lib/utils/format';
 	import Icon from '@iconify/svelte';
 

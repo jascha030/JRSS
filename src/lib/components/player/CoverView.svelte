@@ -1,5 +1,7 @@
 <script lang="ts">
-	import type { Feed, MediaListItem, PlaybackState } from '$lib/types/rss';
+	import type { Feed } from '$lib/types/feed';
+	import type { MediaListItem } from '$lib/types/item';
+	import type { PlaybackState } from '$lib/types/playback';
 	import { requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import {

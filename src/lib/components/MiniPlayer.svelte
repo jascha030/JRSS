@@ -3,7 +3,8 @@
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import { listen, type UnlistenFn as EventUnlistenFn } from '@tauri-apps/api/event';
 	import Icon from '@iconify/svelte';
-	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
+	import type { MediaListItem } from '$lib/types/item';
+	import type { PlaybackState } from '$lib/types/playback';
 	import { requestTogglePlayback } from '$lib/stores/app.svelte';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import {

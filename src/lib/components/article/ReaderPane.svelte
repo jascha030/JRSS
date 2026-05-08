@@ -1,8 +1,9 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
-	import type { Feed, FeedItem } from '$lib/types/rss';
-	import { isMediaItem } from '$lib/types/rss';
+	import type { Feed } from '$lib/types/feed';
+	import type { FeedItem } from '$lib/types/item';
+	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	type ReaderPaneMode = 'feed' | 'reader';

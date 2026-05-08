@@ -1,10 +1,10 @@
-import type { Station, CreateStationInput, UpdateStationInput } from '$lib/types/rss';
+import type { Station, CreateStationInput, UpdateStationInput } from '$lib/types/station';
 import {
 	createStation as createStationService,
 	deleteStation as deleteStationService,
 	listStations,
 	updateStation as updateStationService
-} from '$lib/services/feed';
+} from '$lib/services/station';
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 

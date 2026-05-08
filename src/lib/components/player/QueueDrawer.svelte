@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Feed, MediaListItem } from '$lib/types/rss';
+	import type { Feed } from '$lib/types/feed';
+	import type { MediaListItem } from '$lib/types/item';
 
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import QueueList from './QueueList.svelte';

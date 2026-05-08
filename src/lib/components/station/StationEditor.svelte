@@ -1,12 +1,12 @@
 <script lang="ts">
+	import type { Feed } from '$lib/types/feed';
+	import type { ItemSortOrder } from '$lib/types/item';
 	import type {
-		CreateStationInput,
-		Feed,
 		Station,
+		CreateStationInput,
 		StationEpisodeFilter,
-		StationGradient,
-		ItemSortOrder
-	} from '$lib/types/rss';
+		StationGradient
+	} from '$lib/types/station';
 	import { STATION_GRADIENTS, STATION_GRADIENT_OPTIONS } from '$lib/constants/station-gradients';
 	import Icon from '@iconify/svelte';
 	import {

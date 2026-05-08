@@ -1,4 +1,5 @@
-import type { Station, Feed } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 

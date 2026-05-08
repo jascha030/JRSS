@@ -16,8 +16,9 @@ import {
 	initAudioEventListeners
 } from '$lib/state/playback.svelte';
 import { itemsState, resetItemsState, registerItem } from '$lib/state/items.svelte';
-import { mapRawFeedListItem } from '$lib/types/rss';
-import type { RawFeedListItem, BackendPlaybackState, BackendQueueState } from '$lib/types/rss';
+import { mapRawFeedListItem } from '$lib/types/item';
+import type { RawFeedListItem } from '$lib/types/item';
+import type { BackendPlaybackState, BackendQueueState } from '$lib/types/playback';
 
 /** A minimal media item fixture for use in playback tests. */
 function makeMediaItem(id = 'item-1', positionSeconds = 0): RawFeedListItem {

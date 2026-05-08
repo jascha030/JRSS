@@ -1,12 +1,12 @@
-import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/rss';
-import { isMediaItem } from '$lib/types/rss';
+import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/item';
+import { isMediaItem } from '$lib/types/item';
 import {
 	getItemDetails,
 	getItemsByIds,
 	markRead,
 	queryItems,
 	type ItemsQuery
-} from '$lib/services/feed';
+} from '$lib/services/item';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 import { selection } from './selection.svelte';
 import {

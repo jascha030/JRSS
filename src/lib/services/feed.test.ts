@@ -1,14 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import {
-	addFeed,
-	getItemsByIds,
-	extractCoverPalette,
-	listFeeds,
-	queryItems,
-	queryItemsPage,
-	loadPlaybackSession,
-	loadPlaybackContext
-} from '$lib/services/feed';
+import { addFeed, listFeeds } from '$lib/services/feed';
+import { getItemsByIds, queryItems, queryItemsPage } from '$lib/services/item';
+import { extractCoverPalette } from '$lib/services/palette';
+import { loadPlaybackSession, loadPlaybackContext } from '$lib/services/playback/session';
 
 // isTauriRuntime() is false in happy-dom (no window.__TAURI_INTERNALS__),
 // so functions guarded by it return early; invokeCommand is never reached.
