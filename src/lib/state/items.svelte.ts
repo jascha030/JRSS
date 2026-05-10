@@ -1,12 +1,12 @@
-import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/rss';
-import { isMediaItem } from '$lib/types/rss';
+import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/item';
+import { isMediaItem } from '$lib/types/item';
 import {
 	getItemDetails,
 	getItemsByIds,
 	markRead,
 	queryItems,
 	type ItemsQuery
-} from '$lib/services/feedService';
+} from '$lib/services/item';
 import { measurePerfAsync } from '$lib/utils/perfDebug';
 import { selection } from './selection.svelte';
 import {
@@ -327,11 +327,23 @@ export async function ensureVisibleRangeLoaded(
 	const totalCount = itemsState.totalCountByQueryKey[querySpec.queryKey];
 	const candidateOffsets = getPageOffsetsForRange(startIndex, endIndex);
 
+	let anyPageLoaded = false;
 	for (const offset of candidateOffsets) {
 		if (totalCount !== undefined && totalCount > 0 && offset >= totalCount) {
 			continue;
 		}
+		const wasAlreadyLoaded =
+			itemsState.loadedPageOffsetsByQueryKey[querySpec.queryKey]?.[offset];
 		await loadPage(querySpec, offset);
+		if (!wasAlreadyLoaded) {
+			anyPageLoaded = true;
+		}
+	}
+
+	// If no new pages were loaded but selection needs to be ensured (e.g.,
+	// navigating back to a cached feed), run selection check anyway
+	if (!anyPageLoaded && getActiveQueryKey() === querySpec.queryKey) {
+		ensureSelectionAfterPageLoad(querySpec.queryKey);
 	}
 }
 

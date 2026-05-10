@@ -3,16 +3,17 @@
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
-	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
-	import FeedListView from '$lib/components/feed/FeedListView.svelte';
-	import HomeView from '$lib/components/feed/HomeView.svelte';
-	import Header from '$lib/components/feed/Header.svelte';
+	import EmptyFeedView from '$lib/components/home/EmptyFeedView.svelte';
+	import ItemListView from '$lib/components/content/ItemListView.svelte';
+	import HomeView from '$lib/components/home/HomeView.svelte';
+	import Header from '$lib/components/navigation/Header.svelte';
 	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
 	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
-	import ReaderPane from '$lib/components/article/ReaderPane.svelte';
+	import ReaderPane from '$lib/components/content/ReaderPane.svelte';
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
-	import SidebarContainer from '$lib/components/navigation/SidebarContainer.svelte';
+	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
+	import FeedInspector from '$lib/components/feed/FeedInspector.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
@@ -41,6 +42,8 @@
 		getSelectedFeed,
 		getSelectedItem,
 		getSelectedStation,
+		inspectorState,
+		openInspector,
 		getUpcomingQueue,
 		loadInitialItemsPage,
 		loadItemDetails,
@@ -51,19 +54,23 @@
 		playStation,
 		refreshExistingFeed,
 		removeQueuedItem,
+		requestTogglePlayback,
 		selectFeed,
 		selectItem,
 		selectSection,
 		selectStation,
+		closeInspector,
 		setFeedSearchTerm,
 		setStationSearchTerm,
 		setSectionSearchTerm,
 		setFeedSortOrder,
 		updateExistingStation
-	} from '$lib/stores/app.svelte';
-	import { isMediaItem } from '$lib/types/rss';
-	import { openMiniPlayer } from '$lib/utils/tauri-window';
+	} from '$lib/state';
+	import { isMediaItem } from '$lib/types/item';
+	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
+	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	let isSidebarCollapsed = $state(true);
@@ -72,7 +79,7 @@
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
-	let editingStation = $state<import('$lib/types/rss').Station | null>(null);
+	let editingStation = $state<import('$lib/types/station').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
@@ -112,6 +119,8 @@
 	const isSelectedFeedRefreshing = $derived(
 		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
 	);
+
+	const isInspectorActive = $derived(inspectorState.activeFeedId !== null);
 
 	const isSelectedItemReaderLoading = $derived(
 		selectedItem ? readerLoadingItemIds.includes(selectedItem.id) : false
@@ -188,7 +197,7 @@
 		}
 	}
 
-	async function handleStationSave(input: import('$lib/types/rss').CreateStationInput) {
+	async function handleStationSave(input: import('$lib/types/station').CreateStationInput) {
 		try {
 			if (editingStation) {
 				await updateExistingStation({
@@ -196,7 +205,8 @@
 					name: input.name,
 					feedIds: input.feedIds,
 					episodeFilter: input.episodeFilter,
-					sortOrder: input.sortOrder
+					sortOrder: input.sortOrder,
+					gradient: input.gradient
 				});
 				toast.success('Station updated.');
 			} else {
@@ -236,15 +246,35 @@
 		isStationEditorOpen = true;
 	}
 
+	async function handleOpenInspector(feedId: string) {
+		await openInspector(feedId);
+	}
+
 	function handleCreateStation() {
 		editingStation = null;
 		isStationEditorOpen = true;
 	}
 
-	function handleSelectSearchResult(item: import('$lib/types/rss').FeedListItem): void {
+	function handleSelectFeed(feedId: string | null) {
+		closeInspector();
+		selectFeed(feedId);
+	}
+
+	function handleSelectSection(section: import('$lib/state').SidebarSection) {
+		closeInspector();
+		selectSection(section);
+	}
+
+	function handleSelectStation(stationId: string) {
+		closeInspector();
+		selectStation(stationId);
+	}
+
+	function handleSelectSearchResult(item: import('$lib/types/item').FeedListItem): void {
 		if (playerMode === 'cover') {
 			playerMode = 'default';
 		}
+		closeInspector();
 		selectFeed(item.feedId);
 		selectItem(item.id);
 		scrollRequestSeq += 1;
@@ -260,6 +290,8 @@
 
 		const context = getPlaybackContext();
 
+		closeInspector();
+
 		if (context?.contextType === 'station') {
 			selectStation(context.id);
 			selectItem(currentAudioItem.id);
@@ -274,6 +306,11 @@
 	}
 
 	async function handlePopOutMiniPlayer() {
+		const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
+		if (miniWindow && (await miniWindow.isVisible())) {
+			return;
+		}
+
 		try {
 			await openMiniPlayer();
 		} catch (error: unknown) {
@@ -302,6 +339,7 @@
 		}
 
 		const next = sources[currentIndex];
+		closeInspector();
 		if (next.type === 'feed') {
 			selectFeed(next.id);
 		} else {
@@ -350,6 +388,34 @@
 			}
 		}
 	]);
+
+	onMount(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key !== ' ') return;
+
+			const target = e.target;
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable)
+			) {
+				return;
+			}
+
+			if (!playbackState.currentPlaybackState) {
+				return;
+			}
+
+			e.preventDefault();
+			requestTogglePlayback();
+		};
+
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeyDown);
+		};
+	});
 </script>
 
 <FeedEditor
@@ -418,15 +484,15 @@
 		/>
 
 		<div class="relative h-[calc(100%-54px)] overflow-hidden">
-			<SidebarContainer
+			<Sidebar
 				{feeds}
 				{stations}
 				{selectedFeedId}
 				{selectedStationId}
 				{selectedSection}
-				onSelectFeed={selectFeed}
-				onSelectSection={selectSection}
-				onSelectStation={selectStation}
+				onSelectFeed={handleSelectFeed}
+				onSelectSection={handleSelectSection}
+				onSelectStation={handleSelectStation}
 				onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
 				onCreateStation={handleCreateStation}
 				onAddFeed={() => (isFeedEditorOpen = true)}
@@ -437,8 +503,8 @@
 			<div
 				class={`relative z-30 h-full transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:absolute md:inset-y-0 ${
 					isSidebarCollapsed
-						? 'md:left-16 md:w-[calc(100%-4rem)]'
-						: 'md:left-60 md:w-[calc(100%-15rem)]'
+						? 'md:left-16 md:w-[calc(100%-(var(--spacing)*16))]'
+						: 'md:left-60 md:w-[calc(100%-(var(--spacing)*60))]'
 				}`}
 			>
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -449,12 +515,14 @@
 							<SettingsView />
 						{:else if selectedSection === 'home'}
 							<HomeView {feeds} {stations} />
+						{:else if isInspectorActive}
+							<FeedInspector />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
 									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
 								>
-									<FeedListView
+									<ItemListView
 										{feeds}
 										{itemIdsByIndex}
 										itemsById={itemSummariesById}
@@ -462,6 +530,7 @@
 										onDeleteStation={handleStationDelete}
 										onEditStation={handleEditStation}
 										onEnsureItemLoaded={ensureItemLoaded}
+										onInspect={handleOpenInspector}
 										onMarkRead={markItemRead}
 										onPlayStation={handlePlayStation}
 										onRefresh={handleRefreshFeed}

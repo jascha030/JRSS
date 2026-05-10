@@ -87,6 +87,21 @@ pub async fn remove_feed(id: String, state: State<'_, DatabaseState>) -> Result<
 }
 
 #[tauri::command]
+pub async fn fetch_feed_raw(
+    feed_id: String,
+    state: State<'_, DatabaseState>,
+) -> Result<String, String> {
+    let db_path = state.db_path();
+
+    blocking(move || {
+        let feed = db::get_feed_by_id(&db_path, &feed_id)?
+            .ok_or_else(|| "Feed not found.".to_string())?;
+        feed_ingest::fetch_raw_feed_xml(&feed.url)
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn query_items_page(
     query: ItemPageQueryRecord,
     state: State<'_, DatabaseState>,
@@ -449,6 +464,11 @@ pub fn audio_queue_get_state(app: tauri::AppHandle) -> QueueState {
 #[tauri::command]
 pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<(), String> {
     audio::queue_set(&app, items)
+}
+
+#[tauri::command]
+pub fn clear_audio_cache(app: tauri::AppHandle) -> Result<(), String> {
+	audio::cache::clear_audio_cache(&app)
 }
 
 // ---------------------------------------------------------------------------

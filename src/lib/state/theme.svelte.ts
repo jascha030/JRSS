@@ -9,7 +9,7 @@
  * Call `applyColorScheme` / `applyAccentColor` for immediate live preview.
  */
 
-import type { AppSettings, ColorScheme } from '$lib/types/rss';
+import type { AppSettings, ColorScheme } from '$lib/types/settings';
 
 let _colorScheme = $state<ColorScheme>('system');
 let _accentColor = $state<string | null>(null);

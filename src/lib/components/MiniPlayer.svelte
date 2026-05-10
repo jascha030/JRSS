@@ -3,23 +3,24 @@
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import { listen, type UnlistenFn as EventUnlistenFn } from '@tauri-apps/api/event';
 	import Icon from '@iconify/svelte';
-	import type { MediaListItem, PlaybackState } from '$lib/types/rss';
-	import { requestTogglePlayback } from '$lib/stores/app.svelte';
+	import type { MediaListItem } from '$lib/types/item';
+	import type { PlaybackState } from '$lib/types/playback';
+	import { requestTogglePlayback } from '$lib/state';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import {
-		SKIP_SECONDS,
 		VOLUME_STEP,
 		adjustVolume,
 		nextEpisode,
 		previousEpisode,
 		skip
 	} from '$lib/utils/player-controls';
+	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
-	import AudioSeekBar from './player/AudioSeekBar.svelte';
-	import AudioPlayerControls from './player/AudioPlayerControls.svelte';
-	import AudioPlayerVolume from './player/AudioPlayerVolume.svelte';
-	import AudioPlayerInfo from './player/AudioPlayerInfo.svelte';
+	import SeekBar from './player/SeekBar.svelte';
+	import Controls from './player/Controls.svelte';
+	import Volume from './player/Volume.svelte';
+	import Info from './player/Info.svelte';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import CoverThemeStyles from './player/CoverThemeStyles.svelte';
 
@@ -65,10 +66,10 @@
 
 		const setupListeners = async () => {
 			unlistenSkipForward = await listen('menu-skip-forward', () => {
-				if (item) handleSkip(SKIP_SECONDS);
+				if (item) handleSkip(playbackSettings.skipForwardSeconds);
 			});
 			unlistenSkipBackward = await listen('menu-skip-backward', () => {
-				if (item) handleSkip(-SKIP_SECONDS);
+				if (item) handleSkip(-playbackSettings.skipBackwardSeconds);
 			});
 			unlistenNextEpisode = await listen('menu-next-episode', () => {
 				if (canSkipNext) nextEpisode();
@@ -161,10 +162,10 @@
 					style:--color-fg-muted={coverTheme.fgMuted}
 					style:--cover-seek-fill={coverTheme.accent}
 				>
-					<AudioPlayerInfo {item} {imageUrl} showCover={false} class="mb-4 w-full justify-center" />
+					<Info {item} {imageUrl} showCover={false} class="mb-4 w-full justify-center" />
 
 					<div class="mb-4 w-full">
-						<AudioSeekBar
+						<SeekBar
 							{playbackState}
 							durationSeconds={playbackState.durationSeconds ||
 								item.mediaEnclosure.durationSeconds ||
@@ -174,12 +175,13 @@
 
 					<div class="grid grid-cols-2 xs:grid-cols-3">
 						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
-							<AudioPlayerControls
+							<Controls
 								durationSeconds={playbackState.durationSeconds ||
 									item.mediaEnclosure.durationSeconds ||
 									0}
 								isPlaying={playbackState.isPlaying}
-								skipSeconds={15}
+								skipForwardSeconds={playbackSettings.skipForwardSeconds}
+								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
 								onTogglePlayback={requestTogglePlayback}
 								onSkip={handleSkip}
 								onPreviousEpisode={previousEpisode}
@@ -190,7 +192,7 @@
 						</div>
 
 						<div class="flex min-w-0 items-center justify-end gap-2 self-end">
-							<AudioPlayerVolume volume={playbackState.volume} />
+							<Volume volume={playbackState.volume} />
 						</div>
 					</div>
 				</div>

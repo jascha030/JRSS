@@ -3,13 +3,11 @@ import type {
 	BackendPlaybackEndedEvent,
 	BackendPlaybackErrorEvent,
 	BackendPlaybackState,
-	BackendQueueState,
-	FeedListItem,
-	MediaListItem
-} from '$lib/types/rss';
-import { isMediaItem } from '$lib/types/rss';
+	BackendQueueState
+} from '$lib/types/playback';
+import type { FeedListItem, MediaListItem } from '$lib/types/item';
+import { isMediaItem } from '$lib/types/item';
 import {
-	audioGetState,
 	audioPlayWithQueue,
 	audioQueueClear,
 	audioQueueClearHistory,
@@ -21,16 +19,18 @@ import {
 	audioQueuePlayNext,
 	audioQueuePrev,
 	audioQueueRemove,
-	audioQueueSet,
+	audioQueueSet
+} from '$lib/services/playback/queue';
+import {
+	audioGetState,
 	audioSeek,
 	audioSetVolume,
 	audioStop,
-	audioToggle,
-	loadPlaybackContext,
-	savePlaybackContext,
-	queryStationEpisodes,
-	extractCoverPalette
-} from '$lib/services/feedService';
+	audioToggle
+} from '$lib/services/playback/audio';
+import { loadPlaybackContext, savePlaybackContext } from '$lib/services/playback/session';
+import { queryStationEpisodes } from '$lib/services/station';
+import { extractCoverPalette } from '$lib/services/palette';
 import { tick } from 'svelte';
 import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';

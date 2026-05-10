@@ -12,7 +12,8 @@ import {
 	getSelectedFeed,
 	getSelectedStation
 } from './selection.svelte';
-import type { Feed, Station } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 function makeFeed(id: string): Feed {
 	return { id, title: 'Feed', url: '', description: '', kind: 'article', createdAt: '' };
@@ -26,7 +27,8 @@ function makeStation(id: string): Station {
 		sortOrder: 'newest_first',
 		sortOrderPosition: 0,
 		createdAt: '',
-		feedIds: []
+		feedIds: [],
+		gradient: 'emerald'
 	};
 }
 
@@ -41,7 +43,7 @@ describe('resetSelectionState', () => {
 		resetSelectionState();
 		expect(selection.selectedFeedId).toBeNull();
 		expect(selection.feedSearchTerm).toBe('');
-		expect(selection.selectedSection).toBe('all');
+		expect(selection.selectedSection).toBe('home');
 	});
 });
 

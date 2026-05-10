@@ -1,4 +1,5 @@
-import type { Station, Feed } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 
@@ -23,12 +24,17 @@ export function resetSelectionState(): void {
 }
 
 export function selectFeed(feedId: string | null): void {
+	const isReselecting = selection.selectedFeedId === feedId;
+
 	selection.selectedFeedId = feedId;
 	selection.selectedStationId = null;
 	selection.selectedSection = feedId ? null : 'all';
-	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
 	selection.sectionSearchTerm = '';
+
+	if (!isReselecting) {
+		selection.selectedItemId = null;
+	}
 }
 
 export function selectStation(stationId: string): void {

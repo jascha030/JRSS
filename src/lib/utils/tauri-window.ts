@@ -1,7 +1,7 @@
 import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { loadAppSettings } from '$lib/services/feedService';
-import { invokeCommand } from '$lib/services/tauriClient';
-import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/rss';
+import { loadAppSettings } from '$lib/services/settings';
+import { invokeCommand } from '$lib/services/tauri';
+import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/settings';
 
 export const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';

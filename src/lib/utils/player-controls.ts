@@ -4,10 +4,10 @@ import {
 	requestSeekTo,
 	requestSetVolume,
 	requestTogglePlayback
-} from '$lib/stores/app.svelte';
-import type { PlaybackState } from '$lib/types/rss';
+} from '$lib/state';
+import type { PlaybackState } from '$lib/types/playback';
 
-export const SKIP_SECONDS = 15;
+export const DEFAULT_SKIP_SECONDS = 15;
 export const VOLUME_STEP = 0.1;
 
 export function skip(

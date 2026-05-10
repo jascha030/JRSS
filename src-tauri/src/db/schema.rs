@@ -67,12 +67,14 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 );
 
 			 CREATE TABLE IF NOT EXISTS app_settings (
-			 	id INTEGER PRIMARY KEY CHECK(id = 1),
-			 	max_audio_cache_size_bytes INTEGER NOT NULL,
-			 	mini_player_always_on_top INTEGER NOT NULL DEFAULT 0,
-			 	auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 60,
-			 	updated_at TEXT NOT NULL
-			 );
+		 		id INTEGER PRIMARY KEY CHECK(id = 1),
+		 		max_audio_cache_size_bytes INTEGER NOT NULL,
+		 		mini_player_always_on_top INTEGER NOT NULL DEFAULT 0,
+		 		auto_refresh_interval_minutes INTEGER NOT NULL DEFAULT 60,
+		 		skip_forward_seconds INTEGER NOT NULL DEFAULT 15,
+		 		skip_backward_seconds INTEGER NOT NULL DEFAULT 15,
+		 		updated_at TEXT NOT NULL
+		 	 );
 
 			 CREATE INDEX IF NOT EXISTS idx_items_feed_id_published_at_id
 			 	ON items(feed_id, published_at DESC, id DESC);
@@ -165,12 +167,41 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             })?;
     }
 
+    if existing_columns
+        .iter()
+        .all(|column| column != "skip_forward_seconds")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN skip_forward_seconds INTEGER NOT NULL DEFAULT 15",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings skip_forward_seconds column: {error}")
+            })?;
+    }
+
+    if existing_columns
+        .iter()
+        .all(|column| column != "skip_backward_seconds")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN skip_backward_seconds INTEGER NOT NULL DEFAULT 15",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings skip_backward_seconds column: {error}")
+            })?;
+    }
+
     Ok(())
 }
 
 fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
     use super::settings::{
         DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
+        DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS,
     };
 
     connection
@@ -180,14 +211,18 @@ fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
 		        max_audio_cache_size_bytes,
 		        mini_player_always_on_top,
 		        color_scheme,
+		        skip_forward_seconds,
+		        skip_backward_seconds,
 		        updated_at
 		     )
-			 VALUES (1, ?1, ?2, ?3, ?4)
+			 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
 			 ON CONFLICT(id) DO NOTHING",
             params![
                 DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
                 DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
                 DEFAULT_COLOR_SCHEME,
+                DEFAULT_SKIP_FORWARD_SECONDS,
+                DEFAULT_SKIP_BACKWARD_SECONDS,
                 Utc::now().to_rfc3339()
             ],
         )
@@ -391,7 +426,8 @@ fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
                 episode_filter TEXT NOT NULL DEFAULT 'all' CHECK(episode_filter IN ('all', 'unplayed')),
                 sort_order TEXT NOT NULL DEFAULT 'newest_first' CHECK(sort_order IN ('newest_first', 'oldest_first')),
                 sort_order_position INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                gradient TEXT NOT NULL DEFAULT 'emerald'
             );
 
             CREATE TABLE IF NOT EXISTS station_feeds (
@@ -401,6 +437,30 @@ fn ensure_stations_tables(connection: &Connection) -> AppResult<()> {
             );",
 		)
 		.map_err(|error| format!("Failed to create stations tables: {error}"))?;
+
+    ensure_stations_columns(connection)?;
+
+    Ok(())
+}
+
+fn ensure_stations_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(stations)")
+        .map_err(|error| format!("Failed to inspect SQLite stations columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite stations columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite stations columns: {error}"))?;
+
+    if existing_columns.iter().all(|c| c != "gradient") {
+        connection
+            .execute(
+                "ALTER TABLE stations ADD COLUMN gradient TEXT NOT NULL DEFAULT 'emerald'",
+                [],
+            )
+            .map_err(|error| format!("Failed to add stations.gradient column: {error}"))?;
+    }
 
     Ok(())
 }

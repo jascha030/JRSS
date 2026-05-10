@@ -1,11 +1,13 @@
 <script lang="ts">
+	import type { Feed } from '$lib/types/feed';
+	import type { ItemSortOrder } from '$lib/types/item';
 	import type {
-		CreateStationInput,
-		Feed,
 		Station,
+		CreateStationInput,
 		StationEpisodeFilter,
-		ItemSortOrder
-	} from '$lib/types/rss';
+		StationGradient
+	} from '$lib/types/station';
+	import { STATION_GRADIENTS, STATION_GRADIENT_OPTIONS } from '$lib/constants/station-gradients';
 	import Icon from '@iconify/svelte';
 	import {
 		Combobox,
@@ -43,6 +45,7 @@
 	let name = $state('');
 	let episodeFilter = $state<StationEpisodeFilter>('all');
 	let sortOrder = $state<ItemSortOrder>('newest_first');
+	let gradient = $state<StationGradient>('emerald');
 	let selectedFeedValues = $state<string[]>([]);
 	let filteredPodcastOptions = $state<FeedOption[]>([]);
 	let nameInputRef = $state<HTMLInputElement | null>(null);
@@ -83,6 +86,7 @@
 			name = station?.name ?? '';
 			episodeFilter = station?.episodeFilter ?? 'all';
 			sortOrder = station?.sortOrder ?? 'newest_first';
+			gradient = station?.gradient ?? 'emerald';
 			selectedFeedValues = station?.feedIds ?? [];
 			filteredPodcastOptions = allPodcastOptions;
 			queueMicrotask(() => {
@@ -127,7 +131,8 @@
 			name: trimmedName,
 			episodeFilter,
 			sortOrder,
-			feedIds: selectedFeedValues
+			feedIds: selectedFeedValues,
+			gradient
 		});
 	}
 </script>
@@ -152,6 +157,22 @@
 			placeholder="My station"
 			class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
 		/>
+	</div>
+
+	<div>
+		<p class="mb-2 text-sm font-medium text-fg-secondary">Icon color</p>
+		<div class="flex flex-wrap gap-2">
+			{#each STATION_GRADIENT_OPTIONS as g (g)}
+				<button
+					type="button"
+					class={`flex size-8 items-center justify-center rounded-lg bg-linear-to-br ${STATION_GRADIENTS[g].from} ${STATION_GRADIENTS[g].to} ${gradient === g ? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent' : ''}`}
+					aria-label={`Select ${g} gradient`}
+					onclick={() => (gradient = g)}
+				>
+					<Icon icon="heroicons:microphone" class="size-4 text-white/80" />
+				</button>
+			{/each}
+		</div>
 	</div>
 
 	<div>

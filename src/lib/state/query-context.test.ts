@@ -18,7 +18,8 @@ import {
 } from './selection.svelte';
 import { feedsState, resetFeedsState } from './feeds.svelte';
 import { stationsState, resetStationsState } from './stations.svelte';
-import type { Feed, Station } from '$lib/types/rss';
+import type { Feed } from '$lib/types/feed';
+import type { Station } from '$lib/types/station';
 
 function makeFeed(id: string, sortOrder?: 'newest_first' | 'oldest_first'): Feed {
 	return { id, title: '', url: '', description: '', kind: 'article', createdAt: '', sortOrder };
@@ -35,7 +36,8 @@ function makeStation(
 		sortOrder,
 		sortOrderPosition: 0,
 		createdAt: '',
-		feedIds: []
+		feedIds: [],
+		gradient: 'emerald'
 	};
 }
 
@@ -81,8 +83,8 @@ describe('getActiveListSection', () => {
 		expect(getActiveListSection()).toBe('media');
 	});
 
-	it('returns "all" for default state', () => {
-		expect(getActiveListSection()).toBe('all');
+	it('returns null for default "home" state', () => {
+		expect(getActiveListSection()).toBeNull();
 	});
 
 	it('returns "all" when no section set (null)', () => {
@@ -126,7 +128,12 @@ describe('getActiveQuerySpec', () => {
 		expect(getActiveQuerySpec()).toBeNull();
 	});
 
-	it('returns feed-items spec for default "all" section', () => {
+	it('returns null for default "home" section', () => {
+		expect(getActiveQuerySpec()).toBeNull();
+	});
+
+	it('returns feed-items spec when "all" section is active', () => {
+		selectSection('all');
 		const spec = getActiveQuerySpec();
 		expect(spec?.kind).toBe('feed-items');
 	});
@@ -142,6 +149,7 @@ describe('getActiveQuerySpec', () => {
 	});
 
 	it('includes normalised search in queryKey from sectionSearchTerm', () => {
+		selectSection('all');
 		setSectionSearchTerm('  FOO  ');
 		const spec = getActiveQuerySpec();
 		expect(spec?.queryKey).toContain('search:foo');
@@ -164,6 +172,7 @@ describe('getActiveQuerySpec', () => {
 	});
 
 	it('omits search fragment when term is blank', () => {
+		selectSection('all');
 		const spec = getActiveQuerySpec();
 		expect(spec?.queryKey).not.toContain('search:');
 	});
@@ -176,8 +185,9 @@ describe('getActiveQueryKey', () => {
 	});
 
 	it('returns a non-empty string for a normal section', () => {
+		selectSection('all');
 		const key = getActiveQueryKey();
 		expect(typeof key).toBe('string');
-		expect(key?.length).toBeGreaterThan(0);
+		expect(key!.length).toBeGreaterThan(0);
 	});
 });

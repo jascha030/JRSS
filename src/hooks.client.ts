@@ -1,4 +1,4 @@
-import { initializeApp } from '$lib/stores/app.svelte';
+import { initializeApp } from '$lib/state';
 
 /** @type {import('@sveltejs/kit').ClientInit} */
 export async function init() {

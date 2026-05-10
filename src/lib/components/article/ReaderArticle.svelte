@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ArticleBase from './ArticleBase.svelte';
-	import type { FeedItem } from '$lib/types/rss';
+	import type { FeedItem } from '$lib/types/item';
 
 	type Props = {
 		item: FeedItem;

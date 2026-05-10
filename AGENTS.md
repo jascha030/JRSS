@@ -23,8 +23,8 @@
 ## Architecture
 
 - SPA only: `src/routes/+layout.ts` sets `prerender = true` and `ssr = false`; `adapter-static` uses `build/index.html` fallback.
-- Client startup is `src/hooks.client.ts`, which calls `initializeApp()` from `src/lib/stores/app.svelte.ts`.
-- Main UI composition is `src/routes/+page.svelte`; most components import state/actions from the `src/lib/stores/app.svelte.ts` facade.
+- Client startup is `src/hooks.client.ts`, which calls `initializeApp()` from `src/lib/state/index.ts`.
+- Main UI composition is `src/routes/+page.svelte`; most components import state/actions from the `src/lib/state/index.ts` facade.
 - Domain state lives in `src/lib/state/*.svelte.ts`; service boundary is `src/lib/services/feedService.ts`.
 - Frontend/backend path: state/actions -> `feedService.ts` -> `src/lib/services/tauriClient.ts` -> Tauri commands in `src-tauri/src/commands.rs`, registered in `src-tauri/src/lib.rs`.
 - `src/lib/types/rss.ts` holds frontend domain types plus raw IPC shapes; `feedService.ts` maps flat Rust payloads into discriminated unions.

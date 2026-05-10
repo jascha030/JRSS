@@ -4,10 +4,24 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	resolve: process.env.VITEST
+		? {
+				conditions: ['browser']
+			}
+		: undefined,
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}'],
+		include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
 		globals: true,
 		environment: 'happy-dom',
-		setupFiles: ['./vitest.setup.ts']
+		setupFiles: ['./vitest.setup.ts'],
+		coverage: {
+			include: ['src/**/*.{svelte,ts,js}'],
+			exclude: [
+				'src/**/*.test.{js,ts,svelte}',
+				'src/**/*.spec.{js,ts,svelte}',
+				'src/lib/types/**',
+				'src/routes/+layout.ts'
+			]
+		}
 	}
 });

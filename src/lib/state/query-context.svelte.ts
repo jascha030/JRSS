@@ -8,7 +8,7 @@
  * Consumed by: items, playback, page
  */
 
-import type { ItemPageQuery, ItemSortOrder } from '$lib/types/rss';
+import type { ItemPageQuery, ItemSortOrder } from '$lib/types/item';
 import { selection } from './selection.svelte';
 import { feedsState } from './feeds.svelte';
 import { stationsState } from './stations.svelte';

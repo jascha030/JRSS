@@ -11,7 +11,7 @@ import {
 	invalidateAllQueries
 } from './items.svelte';
 import { resetSelectionState, selection, selectItem } from './selection.svelte';
-import type { ArticleListItem, MediaListItem, FeedItem } from '$lib/types/rss';
+import type { ArticleListItem, MediaListItem, FeedItem } from '$lib/types/item';
 
 function makeArticle(id: string): ArticleListItem {
 	return {

@@ -145,6 +145,7 @@ pub fn run() {
             commands::add_feed,
             commands::refresh_feed,
             commands::remove_feed,
+            commands::fetch_feed_raw,
             commands::query_items_page,
             commands::get_item_details,
             commands::mark_read,
@@ -190,6 +191,7 @@ pub fn run() {
             commands::save_playback_context,
             commands::load_playback_context,
             commands::extract_cover_palette,
+            commands::clear_audio_cache,
             commands::set_window_content_aspect_ratio
         ]);
 

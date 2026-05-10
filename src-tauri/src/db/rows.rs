@@ -102,5 +102,6 @@ pub fn map_station_row(row: &Row<'_>) -> rusqlite::Result<StationRecord> {
         sort_order: row.get(3)?,
         sort_order_position: row.get(4)?,
         created_at: row.get(5)?,
+        gradient: row.get(6)?,
     })
 }

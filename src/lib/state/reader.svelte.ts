@@ -1,5 +1,5 @@
-import type { FeedItem } from '$lib/types/rss';
-import { loadReaderContent } from '$lib/services/feedService';
+import type { FeedItem } from '$lib/types/item';
+import { loadReaderContent } from '$lib/services/item';
 import { mergeDetailedItem } from './items.svelte';
 import { selection } from './selection.svelte';
 

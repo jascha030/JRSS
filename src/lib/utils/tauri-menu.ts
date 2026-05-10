@@ -15,8 +15,9 @@ import {
 	selectFeed,
 	startPlaybackFromContext,
 	stopPlayback
-} from '$lib/stores/app.svelte';
-import type { ArticleListItem, Feed, MediaListItem } from '$lib/types/rss';
+} from '$lib/state';
+import type { Feed } from '$lib/types/feed';
+import type { ArticleListItem, MediaListItem } from '$lib/types/item';
 
 /**
  * Whether the user is browsing a section (all/unread/media) rather than
