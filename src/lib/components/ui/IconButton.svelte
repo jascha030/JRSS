@@ -28,7 +28,7 @@
 		title,
 		label,
 		variant = 'subtle',
-		class: className = '',
+		class: className = 'pointer-events-auto',
 		iconClass = 'size-4',
 		disabled = false,
 		type = 'button',

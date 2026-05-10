@@ -139,9 +139,7 @@
 
 					<div class="mt-6 border-t border-border px-2 pt-4">
 						<div class="mb-3 flex items-center justify-between px-3">
-							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-								My feeds
-							</h2>
+							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">Feeds</h2>
 							<button
 								type="button"
 								title="Add feed"
