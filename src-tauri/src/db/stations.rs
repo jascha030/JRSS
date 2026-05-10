@@ -363,6 +363,7 @@ mod tests {
             episode_filter: StationEpisodeFilter::All,
             sort_order: ItemSortOrder::NewestFirst,
             feed_ids: Vec::new(),
+            gradient: "gray".to_string(),
         }
     }
 
@@ -408,6 +409,7 @@ mod tests {
                 episode_filter: None,
                 sort_order: None,
                 feed_ids: None,
+                gradient: None,
             },
         ).unwrap();
         let stations = list_stations(&db_path).unwrap();
