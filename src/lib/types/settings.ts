@@ -194,5 +194,12 @@ type ColorEntry = { readonly key: NullableStringKeys } & ColorDef;
  */
 export type SettingEntry = BooleanEntry | NumericEntry | SegmentedEntry | ColorEntry;
 
+/** A titled group of settings rendered together with a section header. */
+export interface SettingSection {
+	readonly title: string;
+	readonly description?: string;
+	readonly entries: ReadonlyArray<SettingEntry>;
+}
+
 /** Ordered array of setting entries that drives the settings UI. */
-export type SettingsDefinition = ReadonlyArray<SettingEntry>;
+export type SettingsDefinition = ReadonlyArray<SettingSection>;

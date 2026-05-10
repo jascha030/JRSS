@@ -12,7 +12,8 @@
 		DEFAULT_ACCENT_COLOR,
 		DEFAULT_SKIP_FORWARD_SECONDS,
 		DEFAULT_SKIP_BACKWARD_SECONDS,
-		type AppSettings
+		type AppSettings,
+		type SettingEntry
 	} from '$lib/types/settings';
 	import { APP_SETTINGS } from '$lib/constants/settings';
 	import SettingRow from './SettingRow.svelte';
@@ -35,6 +36,14 @@
 		skipForwardSeconds: DEFAULT_SKIP_FORWARD_SECONDS,
 		skipBackwardSeconds: DEFAULT_SKIP_BACKWARD_SECONDS
 	});
+
+	function flatEntries(): SettingEntry[] {
+		const result: SettingEntry[] = [];
+		for (const section of APP_SETTINGS) {
+			result.push(...section.entries);
+		}
+		return result;
+	}
 
 	$effect(() => {
 		const scheme = pending.colorScheme;
@@ -69,7 +78,7 @@
 	});
 
 	let isFormValid = $derived(
-		APP_SETTINGS.every((entry) => {
+		flatEntries().every((entry) => {
 			if (entry.kind !== 'number') return true;
 			if (!entry.validate || !entry.toDisplay) return true;
 			const displayVal = entry.toDisplay(pending[entry.key]);
@@ -87,7 +96,7 @@
 			return;
 		}
 
-		for (const entry of APP_SETTINGS) {
+		for (const entry of flatEntries()) {
 			if (entry.kind !== 'number') continue;
 			if (!entry.validate || !entry.toDisplay) continue;
 			const displayVal = entry.toDisplay(pending[entry.key]);
@@ -136,56 +145,63 @@
 			Configure desktop playback behavior and how much downloaded audio JRSS can keep locally.
 		</p>
 
-		<form class="mt-8" onsubmit={handleSave}>
-			<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-				<div class="flex flex-col divide-y divide-border">
-					{#each APP_SETTINGS as entry (entry.key)}
-						<div class="py-6 first:pt-0 last:pb-0">
-							<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
-						</div>
-					{/each}
-					<div class="py-6 first:pt-0 last:pb-0">
-						<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-							<div class="max-w-2xl">
-								<h2 class="text-base font-semibold text-fg">Clear audio cache</h2>
-								<p class="mt-2 text-sm text-fg-muted">
-									Remove all downloaded audio files from the local cache directory.
-								</p>
+		<form class="mt-8 flex flex-col gap-6" onsubmit={handleSave}>
+			{#each APP_SETTINGS as section (section.title)}
+				<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+					<h3 class="text-lg font-semibold text-fg">{section.title}</h3>
+					{#if section.description}
+						<p class="mt-1 text-sm text-fg-muted">{section.description}</p>
+					{/if}
+					<div class="mt-5 flex flex-col divide-y divide-border">
+						{#each section.entries as entry (entry.key)}
+							<div class="py-5 first:pt-0 last:pb-0">
+								<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
 							</div>
-							<div class="flex w-full max-w-xs flex-col gap-2">
-								<button
-									type="button"
-									class="btn rounded-xl preset-tonal"
-									disabled={isClearingCache || !isDesktop}
-									onclick={handleClearCache}
-								>
-									{isClearingCache ? 'Clearing…' : 'Clear cache'}
-								</button>
-								{#if cacheMessage}
-									<p class="text-sm text-fg-muted">{cacheMessage}</p>
-								{/if}
-							</div>
-						</div>
+						{/each}
 					</div>
 				</div>
+			{/each}
 
-				<div class="mt-6 flex flex-wrap items-center gap-3">
-					<button
-						type="submit"
-						class="btn rounded-xl preset-filled"
-						disabled={isLoading || isSaving || !isDesktop || !isFormValid}
-					>
-						{isSaving ? 'Saving…' : 'Save settings'}
-					</button>
-
-					{#if isLoading}
-						<p class="text-sm text-fg-muted">Loading settings…</p>
-					{:else if successMessage}
-						<p class="text-success text-sm">{successMessage}</p>
-					{:else if errorMessage}
-						<p class="text-error text-sm">{errorMessage}</p>
-					{/if}
+			<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+				<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+					<div class="max-w-2xl">
+						<h2 class="text-base font-semibold text-fg">Clear audio cache</h2>
+						<p class="mt-2 text-sm text-fg-muted">
+							Remove all downloaded audio files from the local cache directory.
+						</p>
+					</div>
+					<div class="flex w-full max-w-xs flex-col gap-2">
+						<button
+							type="button"
+							class="btn rounded-xl preset-tonal"
+							disabled={isClearingCache || !isDesktop}
+							onclick={handleClearCache}
+						>
+							{isClearingCache ? 'Clearing…' : 'Clear cache'}
+						</button>
+						{#if cacheMessage}
+							<p class="text-sm text-fg-muted">{cacheMessage}</p>
+						{/if}
+					</div>
 				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center justify-end gap-3">
+				<button
+					type="submit"
+					class="btn rounded-xl preset-filled"
+					disabled={isLoading || isSaving || !isDesktop || !isFormValid}
+				>
+					{isSaving ? 'Saving…' : 'Save settings'}
+				</button>
+
+				{#if isLoading}
+					<p class="text-sm text-fg-muted">Loading settings…</p>
+				{:else if successMessage}
+					<p class="text-success text-sm">{successMessage}</p>
+				{:else if errorMessage}
+					<p class="text-error text-sm">{errorMessage}</p>
+				{/if}
 			</div>
 		</form>
 	</div>
