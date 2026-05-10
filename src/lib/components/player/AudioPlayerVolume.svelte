@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { requestSetVolume } from '$lib/stores/app.svelte';
+	import { requestSetVolume } from '$lib/state';
 	import Icon from '@iconify/svelte';
 	import RangeInput from '../ui/RangeInput.svelte';
 

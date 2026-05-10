@@ -64,7 +64,7 @@
 		setSectionSearchTerm,
 		setFeedSortOrder,
 		updateExistingStation
-	} from '$lib/stores/app.svelte';
+	} from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';

@@ -2,11 +2,7 @@
 	import { page } from '$app/state';
 	import App from '$lib/components/App.svelte';
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte';
-	import {
-		playbackState,
-		getCurrentAudioItem,
-		getCurrentAudioItemFeed
-	} from '$lib/stores/app.svelte';
+	import { playbackState, getCurrentAudioItem, getCurrentAudioItemFeed } from '$lib/state';
 
 	const isMiniWindow = $derived(page.url.searchParams.get('window') === 'mini');
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isAudioLoading } from '$lib/stores/app.svelte';
+	import { isAudioLoading } from '$lib/state';
 	import Icon from '@iconify/svelte';
 
 	type Props = {

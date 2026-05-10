@@ -5,7 +5,7 @@
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/types/playback';
-	import { requestTogglePlayback } from '$lib/stores/app.svelte';
+	import { requestTogglePlayback } from '$lib/state';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import {
 		VOLUME_STEP,

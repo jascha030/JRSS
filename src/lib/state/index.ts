@@ -21,7 +21,7 @@ export {
 	getSelectedFeed,
 	getSelectedStation,
 	type SidebarSection
-} from '../state/selection.svelte';
+} from './selection.svelte';
 
 export {
 	getEffectiveSortOrder,
@@ -30,7 +30,7 @@ export {
 	getActiveListSection,
 	normalizeSearchTerm,
 	type ItemsQuerySpec
-} from '../state/query-context.svelte';
+} from './query-context.svelte';
 
 export {
 	feedsState,
@@ -44,7 +44,7 @@ export {
 	addSyncingFeed,
 	removeSyncingFeed,
 	setFeedSortOrder
-} from '../state/feeds.svelte';
+} from './feeds.svelte';
 
 export {
 	stationsState,
@@ -53,7 +53,7 @@ export {
 	createStation,
 	updateExistingStation,
 	deleteExistingStation
-} from '../state/stations.svelte';
+} from './stations.svelte';
 
 export {
 	itemsState,
@@ -75,7 +75,7 @@ export {
 	patchItemSummary,
 	getItemById,
 	getMediaItemById
-} from '../state/items.svelte';
+} from './items.svelte';
 
 export {
 	readerState,
@@ -84,14 +84,14 @@ export {
 	requestOpenInReader,
 	getReaderRequestSeq,
 	getReaderRequestItemId
-} from '../state/reader.svelte';
+} from './reader.svelte';
 
 export {
 	inspectorState,
 	resetInspectorState,
 	openInspector,
 	closeInspector
-} from '../state/inspector.svelte';
+} from './inspector.svelte';
 
 export {
 	themeState,
@@ -99,7 +99,7 @@ export {
 	applyAccentColor,
 	initTheme,
 	resetThemeState
-} from '../state/theme.svelte';
+} from './theme.svelte';
 
 export {
 	playbackState,
@@ -138,25 +138,25 @@ export {
 	getPlaybackPositionForItem,
 	getCoverTheme,
 	type CoverTheme
-} from '../state/playback.svelte';
+} from './playback.svelte';
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauri';
 import { loadAppSettings } from '../services/settings';
-import { resetSelectionState } from '../state/selection.svelte';
-import { resetFeedsState, loadFeeds } from '../state/feeds.svelte';
-import { resetStationsState, loadStations } from '../state/stations.svelte';
-import { resetItemsState, invalidateAllQueries, loadInitialItemsPage } from '../state/items.svelte';
-import { resetInspectorState } from '../state/inspector.svelte';
-import { resetReaderState } from '../state/reader.svelte';
+import { resetSelectionState } from './selection.svelte';
+import { resetFeedsState, loadFeeds } from './feeds.svelte';
+import { resetStationsState, loadStations } from './stations.svelte';
+import { resetItemsState, invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
+import { resetInspectorState } from './inspector.svelte';
+import { resetReaderState } from './reader.svelte';
 import {
 	resetPlaybackState,
 	initAudioEventListeners,
 	syncAudioSessionFromBackend,
 	restorePlaybackContext
-} from '../state/playback.svelte';
-import { initTheme, resetThemeState } from '../state/theme.svelte';
-import { playbackSettings } from '../state/settings.svelte';
+} from './playback.svelte';
+import { initTheme, resetThemeState } from './theme.svelte';
+import { playbackSettings } from './settings.svelte';
 import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
 
 export async function initializeApp(): Promise<void> {
@@ -172,10 +172,13 @@ export async function initializeApp(): Promise<void> {
 	// Apply persisted theme before first render to prevent FOUC.
 	try {
 		const settings = await loadAppSettings();
+
 		initTheme(settings);
+
 		playbackSettings.setSkipForwardSeconds(
 			settings.skipForwardSeconds ?? DEFAULT_SKIP_FORWARD_SECONDS
 		);
+
 		playbackSettings.setSkipBackwardSeconds(
 			settings.skipBackwardSeconds ?? DEFAULT_SKIP_BACKWARD_SECONDS
 		);

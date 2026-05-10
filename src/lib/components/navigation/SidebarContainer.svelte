@@ -4,7 +4,7 @@
 	import type { Feed } from '$lib/types/feed';
 	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
-	import type { SidebarSection } from '$lib/stores/app.svelte';
+	import type { SidebarSection } from '$lib/state';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
 

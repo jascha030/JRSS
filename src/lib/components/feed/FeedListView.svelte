@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
-	import type { SidebarSection } from '$lib/stores/app.svelte';
+	import type { SidebarSection } from '$lib/state';
 	import type { Feed } from '$lib/types/feed';
 	import type { FeedListItem, ItemSortOrder } from '$lib/types/item';
 	import type { Station } from '$lib/types/station';

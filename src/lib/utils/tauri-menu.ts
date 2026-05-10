@@ -15,7 +15,7 @@ import {
 	selectFeed,
 	startPlaybackFromContext,
 	stopPlayback
-} from '$lib/stores/app.svelte';
+} from '$lib/state';
 import type { Feed } from '$lib/types/feed';
 import type { ArticleListItem, MediaListItem } from '$lib/types/item';
 

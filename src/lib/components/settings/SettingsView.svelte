@@ -3,7 +3,7 @@
 
 	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/settings';
 	import { isTauriRuntime } from '$lib/services/tauri';
-	import { applyAccentColor, applyColorScheme } from '$lib/stores/app.svelte';
+	import { applyAccentColor, applyColorScheme } from '$lib/state';
 	import {
 		DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		DEFAULT_COLOR_SCHEME,

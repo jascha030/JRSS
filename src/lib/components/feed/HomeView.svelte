@@ -3,7 +3,7 @@
 	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import { itemsState } from '$lib/state/items.svelte';
-	import { selectFeed, selectStation } from '$lib/stores/app.svelte';
+	import { selectFeed, selectStation } from '$lib/state';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	type Props = {

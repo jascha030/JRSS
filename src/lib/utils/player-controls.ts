@@ -4,7 +4,7 @@ import {
 	requestSeekTo,
 	requestSetVolume,
 	requestTogglePlayback
-} from '$lib/stores/app.svelte';
+} from '$lib/state';
 import type { PlaybackState } from '$lib/types/playback';
 
 export const DEFAULT_SKIP_SECONDS = 15;

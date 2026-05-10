@@ -2,7 +2,7 @@
 	import type { Feed } from '$lib/types/feed';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/types/playback';
-	import { requestTogglePlayback } from '$lib/stores/app.svelte';
+	import { requestTogglePlayback } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import {
 		VOLUME_STEP,
