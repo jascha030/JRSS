@@ -27,6 +27,8 @@ pub mod devices;
 pub mod download;
 pub mod engine;
 pub mod events;
+#[cfg(target_os = "macos")]
+pub mod macos;
 pub mod rodio_engine;
 pub mod streaming_file;
 

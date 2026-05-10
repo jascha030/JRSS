@@ -8,8 +8,9 @@ pub fn open_connection(db_path: &Path) -> AppResult<Connection> {
 
     connection
         .execute_batch(
-            "PRAGMA foreign_keys = ON;
-			 PRAGMA journal_mode = WAL;",
+			"PRAGMA foreign_keys = ON;
+			 PRAGMA journal_mode = WAL;
+			 PRAGMA synchronous = NORMAL;",
         )
         .map_err(|error| format!("Failed to configure SQLite connection: {error}"))?;
 

@@ -57,6 +57,8 @@ pub struct AudioThread {
     app: AppHandle,
     prefetch: Option<PrefetchState>,
     duration_probe_done: bool,
+    #[cfg(target_os = "macos")]
+    power_assertion: Option<super::macos::power::PowerAssertion>,
 }
 
 impl AudioThread {
@@ -76,6 +78,8 @@ impl AudioThread {
             app,
             prefetch: None,
             duration_probe_done: false,
+            #[cfg(target_os = "macos")]
+            power_assertion: None,
         }
     }
 
@@ -258,6 +262,11 @@ impl AudioThread {
         self.download_meta = Some(meta);
         self.temp_path = Some(cache_path);
 
+        #[cfg(target_os = "macos")]
+        {
+            self.power_assertion = Some(super::macos::power::PowerAssertion::new("JRSS audio playback"));
+        }
+
         // Prefetch next item in queue for seamless transition
         self.prefetch_next_in_queue();
 
@@ -291,6 +300,10 @@ impl AudioThread {
         self.current_feed_title.clear();
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
+        #[cfg(target_os = "macos")]
+        {
+            self.power_assertion = None;
+        }
     }
 
     fn hydrate_metadata(&mut self, item_id: &str) {
@@ -550,6 +563,9 @@ fn emit_playback_snapshot(
 }
 
 pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
+    #[cfg(target_os = "macos")]
+    super::macos::set_audio_thread_qos();
+
     let mut state = AudioThread::new(app.clone());
     restore_persisted_session(&mut state, &app);
 
