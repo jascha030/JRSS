@@ -24,14 +24,17 @@ export function resetSelectionState(): void {
 }
 
 export function selectFeed(feedId: string | null): void {
-	if (selection.selectedFeedId === feedId) return;
+	const isReselecting = selection.selectedFeedId === feedId;
 
 	selection.selectedFeedId = feedId;
 	selection.selectedStationId = null;
 	selection.selectedSection = feedId ? null : 'all';
-	selection.selectedItemId = null;
 	selection.feedSearchTerm = '';
 	selection.sectionSearchTerm = '';
+
+	if (!isReselecting) {
+		selection.selectedItemId = null;
+	}
 }
 
 export function selectStation(stationId: string): void {
