@@ -30,7 +30,7 @@
 	let isOpen = $derived(hasChildren && (forceOpenIds.has(node.id) || expandedIds.has(node.id)));
 </script>
 
-<div class="select-none">
+<div class="bg-surface-shell-opaque select-none">
 	<div class="flex items-start gap-1 py-0.5" style={`padding-left:${depth * 12}px;`}>
 		{#if hasChildren}
 			<button

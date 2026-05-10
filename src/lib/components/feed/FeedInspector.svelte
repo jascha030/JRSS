@@ -171,10 +171,10 @@
 {#if inspectorState.activeFeedId}
 	<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface">
 		<div
-			class="flex shrink-0 items-center justify-between border-b border-border px-6 py-4 lg:px-8"
+			class="flex shrink-0 items-center justify-between border-b border-border bg-surface-shell-opaque px-6 py-4 lg:px-8"
 		>
 			<div>
-				<h2 class="text-lg font-semibold tracking-tight text-fg">Feed Inspector</h2>
+				<h2 class="text-lg font-semibold tracking-tight text-fg">Feed inspector</h2>
 				<p class="mt-1 text-xs text-fg-subtle">
 					Raw XML for feed
 					<code class="rounded bg-surface-active px-1 text-xs">
@@ -192,7 +192,7 @@
 			/>
 		</div>
 
-		<div class="min-h-0 flex-1 overflow-hidden">
+		<div class="min-h-0 flex-1 overflow-hidden bg-surface-shell-opaque">
 			{#if inspectorState.loading}
 				<div class="flex h-full items-center justify-center py-16 text-fg-muted">
 					<Icon icon="lucide:loader-circle" class="mr-2 size-5 animate-spin" />
