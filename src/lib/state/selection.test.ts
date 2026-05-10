@@ -43,7 +43,7 @@ describe('resetSelectionState', () => {
 		resetSelectionState();
 		expect(selection.selectedFeedId).toBeNull();
 		expect(selection.feedSearchTerm).toBe('');
-		expect(selection.selectedSection).toBe('all');
+		expect(selection.selectedSection).toBe('home');
 	});
 });
 
