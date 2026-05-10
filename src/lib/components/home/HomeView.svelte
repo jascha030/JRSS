@@ -35,7 +35,7 @@
 	}
 </script>
 
-<section class="flex h-full w-full flex-1 flex-col overflow-y-auto bg-surface">
+<section class="flex h-full w-full flex-1 flex-col overflow-y-auto bg-surface-shell-opaque">
 	<div class="px-6 py-8 lg:px-8">
 		<h2 class="text-2xl font-semibold tracking-tight text-fg">Home</h2>
 
