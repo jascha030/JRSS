@@ -24,6 +24,8 @@ export function resetSelectionState(): void {
 }
 
 export function selectFeed(feedId: string | null): void {
+	if (selection.selectedFeedId === feedId) return;
+
 	selection.selectedFeedId = feedId;
 	selection.selectedStationId = null;
 	selection.selectedSection = feedId ? null : 'all';

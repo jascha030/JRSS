@@ -59,6 +59,7 @@
 		selectItem,
 		selectSection,
 		selectStation,
+		closeInspector,
 		setFeedSearchTerm,
 		setStationSearchTerm,
 		setSectionSearchTerm,
@@ -254,10 +255,26 @@
 		isStationEditorOpen = true;
 	}
 
+	function handleSelectFeed(feedId: string | null) {
+		closeInspector();
+		selectFeed(feedId);
+	}
+
+	function handleSelectSection(section: import('$lib/state').SidebarSection) {
+		closeInspector();
+		selectSection(section);
+	}
+
+	function handleSelectStation(stationId: string) {
+		closeInspector();
+		selectStation(stationId);
+	}
+
 	function handleSelectSearchResult(item: import('$lib/types/item').FeedListItem): void {
 		if (playerMode === 'cover') {
 			playerMode = 'default';
 		}
+		closeInspector();
 		selectFeed(item.feedId);
 		selectItem(item.id);
 		scrollRequestSeq += 1;
@@ -272,6 +289,8 @@
 		}
 
 		const context = getPlaybackContext();
+
+		closeInspector();
 
 		if (context?.contextType === 'station') {
 			selectStation(context.id);
@@ -320,6 +339,7 @@
 		}
 
 		const next = sources[currentIndex];
+		closeInspector();
 		if (next.type === 'feed') {
 			selectFeed(next.id);
 		} else {
@@ -470,9 +490,9 @@
 				{selectedFeedId}
 				{selectedStationId}
 				{selectedSection}
-				onSelectFeed={selectFeed}
-				onSelectSection={selectSection}
-				onSelectStation={selectStation}
+				onSelectFeed={handleSelectFeed}
+				onSelectSection={handleSelectSection}
+				onSelectStation={handleSelectStation}
 				onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
 				onCreateStation={handleCreateStation}
 				onAddFeed={() => (isFeedEditorOpen = true)}
