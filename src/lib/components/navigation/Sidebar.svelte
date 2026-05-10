@@ -59,10 +59,8 @@
 	});
 </script>
 
-<div class="absolute inset-y-0 left-0 z-20 hidden md:block">
-	<aside
-		class="relative hidden h-full w-60 shrink-0 overflow-hidden border-r border-border bg-surface-sidebar md:block"
-	>
+<div class="h-full w-full">
+	<aside class="relative h-full w-full overflow-hidden border-r border-border bg-surface-sidebar">
 		<div class="scrollbar-none flex h-full overflow-y-auto">
 			<div class="flex w-16 shrink-0 flex-col bg-surface-sidebar">
 				<div
@@ -114,7 +112,7 @@
 			</div>
 
 			<div
-				class={`w-44 flex-1 shrink-0 transform-gpu bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+				class={`w-44 shrink-0 transform-gpu bg-surface-sidebar transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
 					isCollapsed
 						? 'pointer-events-none -translate-x-full opacity-0'
 						: 'translate-x-0 opacity-100'

@@ -483,30 +483,30 @@
 			onClose={() => (isQueueDrawerOpen = false)}
 		/>
 
-		<div class="relative h-[calc(100%-54px)] overflow-hidden">
-			<Sidebar
-				{feeds}
-				{stations}
-				{selectedFeedId}
-				{selectedStationId}
-				{selectedSection}
-				onSelectFeed={handleSelectFeed}
-				onSelectSection={handleSelectSection}
-				onSelectStation={handleSelectStation}
-				onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
-				onCreateStation={handleCreateStation}
-				onAddFeed={() => (isFeedEditorOpen = true)}
-				refreshingFeedIds={syncingFeedIds}
-				isCollapsed={isSidebarCollapsed}
-			/>
-
+		<div class="flex h-[calc(100%-54px)] overflow-hidden">
 			<div
-				class={`relative z-30 h-full transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:absolute md:inset-y-0 ${
-					isSidebarCollapsed
-						? 'md:left-16 md:w-[calc(100%-(var(--spacing)*16))]'
-						: 'md:left-60 md:w-[calc(100%-(var(--spacing)*60))]'
+				class={`hidden shrink-0 overflow-hidden motion-reduce:transition-none md:block md:transition-[width] md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
+					isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
 				}`}
 			>
+				<Sidebar
+					{feeds}
+					{stations}
+					{selectedFeedId}
+					{selectedStationId}
+					{selectedSection}
+					onSelectFeed={handleSelectFeed}
+					onSelectSection={handleSelectSection}
+					onSelectStation={handleSelectStation}
+					onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
+					onCreateStation={handleCreateStation}
+					onAddFeed={() => (isFeedEditorOpen = true)}
+					refreshingFeedIds={syncingFeedIds}
+					isCollapsed={isSidebarCollapsed}
+				/>
+			</div>
+
+			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
 					<main class="flex min-h-0 flex-1 flex-col">
 						{#if feeds.length === 0 && !isInitialLoading}
