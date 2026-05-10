@@ -3,15 +3,15 @@
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
-	import EmptyFeedView from '$lib/components/feed/EmptyFeedView.svelte';
-	import FeedListView from '$lib/components/feed/FeedListView.svelte';
-	import HomeView from '$lib/components/feed/HomeView.svelte';
-	import Header from '$lib/components/feed/Header.svelte';
+	import EmptyFeedView from '$lib/components/home/EmptyFeedView.svelte';
+	import ItemListView from '$lib/components/content/ItemListView.svelte';
+	import HomeView from '$lib/components/home/HomeView.svelte';
+	import Header from '$lib/components/navigation/Header.svelte';
 	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
 	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
-	import ReaderPane from '$lib/components/article/ReaderPane.svelte';
+	import ReaderPane from '$lib/components/content/ReaderPane.svelte';
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
-	import SidebarContainer from '$lib/components/navigation/SidebarContainer.svelte';
+	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
 	import FeedInspector from '$lib/components/feed/FeedInspector.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
@@ -464,7 +464,7 @@
 		/>
 
 		<div class="relative h-[calc(100%-54px)] overflow-hidden">
-			<SidebarContainer
+			<Sidebar
 				{feeds}
 				{stations}
 				{selectedFeedId}
@@ -502,7 +502,7 @@
 								<div
 									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
 								>
-									<FeedListView
+									<ItemListView
 										{feeds}
 										{itemIdsByIndex}
 										itemsById={itemSummariesById}

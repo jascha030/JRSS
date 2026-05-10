@@ -5,7 +5,7 @@
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
-	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
+	import PlayButton from '../playback/PlayButton.svelte';
 
 	type Props = {
 		feedTitle?: string;
@@ -68,7 +68,7 @@
 
 			{#if isMedia && isMediaItem(item)}
 				<div class="mt-2 flex flex-wrap items-center gap-2">
-					<DynamicPlayButton {item} size="sm" />
+					<PlayButton {item} size="sm" />
 
 					<IconButton
 						icon="lucide:ellipsis"

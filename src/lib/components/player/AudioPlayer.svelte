@@ -15,10 +15,10 @@
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
-	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
-	import AudioPlayerControls from './AudioPlayerControls.svelte';
-	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
-	import AudioSeekBar from './AudioSeekBar.svelte';
+	import Info from './Info.svelte';
+	import Controls from './Controls.svelte';
+	import Volume from './Volume.svelte';
+	import SeekBar from './SeekBar.svelte';
 
 	type Props = {
 		item: MediaListItem | null;
@@ -104,7 +104,7 @@
 		class="sticky bottom-0 z-10 border-t border-border bg-surface-glass-heavy px-4 py-3 backdrop-blur"
 	>
 		<div class="mx-auto flex max-w-6xl items-center gap-6 4xl:max-w-400">
-			<AudioPlayerInfo
+			<Info
 				{item}
 				{imageUrl}
 				onNavigate={onNavigateToItem}
@@ -113,7 +113,7 @@
 			/>
 
 			<div class="flex min-w-0 flex-1 items-center gap-4">
-				<AudioPlayerControls
+				<Controls
 					durationSeconds={durationForPlayer()}
 					isPlaying={playbackState.isPlaying}
 					onTogglePlayback={handleTogglePlayback}
@@ -127,13 +127,9 @@
 					class="shrink-0"
 				/>
 
-				<AudioSeekBar
-					{playbackState}
-					durationSeconds={durationForPlayer()}
-					class="min-w-0 flex-1"
-				/>
+				<SeekBar {playbackState} durationSeconds={durationForPlayer()} class="min-w-0 flex-1" />
 
-				<AudioPlayerVolume volume={playbackState.volume} class="shrink-0" />
+				<Volume volume={playbackState.volume} class="shrink-0" />
 			</div>
 
 			{#if controls}

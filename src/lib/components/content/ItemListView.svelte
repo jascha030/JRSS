@@ -18,7 +18,7 @@
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import DynamicPlayButton from '../player/DynamicPlayButton.svelte';
+	import PlayButton from '../playback/PlayButton.svelte';
 
 	type Props = {
 		feeds: Feed[];
@@ -535,7 +535,7 @@
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div class="flex flex-wrap gap-2" onclick={(e) => e.stopPropagation()}>
 										{#if isMediaItem(item)}
-											<DynamicPlayButton {item} compact={true} size="sm" />
+											<PlayButton {item} compact={true} size="sm" />
 										{/if}
 
 										{#if !isMediaItem(item)}

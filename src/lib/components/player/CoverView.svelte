@@ -17,10 +17,10 @@
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import Icon from '@iconify/svelte';
-	import AudioPlayerControls from './AudioPlayerControls.svelte';
-	import AudioPlayerInfo from './AudioPlayerInfo.svelte';
-	import AudioSeekBar from './AudioSeekBar.svelte';
-	import AudioPlayerVolume from './AudioPlayerVolume.svelte';
+	import Controls from './Controls.svelte';
+	import Info from './Info.svelte';
+	import SeekBar from './SeekBar.svelte';
+	import Volume from './Volume.svelte';
 	import QueueList from './QueueList.svelte';
 	import CoverThemeStyles from './CoverThemeStyles.svelte';
 
@@ -213,17 +213,17 @@
 						class="mx-auto grid w-full max-w-6xl min-w-150 grid-cols-[minmax(200px,1fr)_auto_minmax(150px,1fr)] items-center gap-4 4xl:max-w-400"
 					>
 						<div class="min-w-0">
-							<AudioPlayerInfo {item} showCover={false} onNavigate={onNavigateToItem} />
+							<Info {item} showCover={false} onNavigate={onNavigateToItem} />
 						</div>
 					</div>
 
 					<div class="flex min-w-0 flex-row gap-4">
-						<AudioSeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
+						<SeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
 					</div>
 
 					<div class="grid grid-cols-2 xs:grid-cols-3">
 						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
-							<AudioPlayerControls
+							<Controls
 								durationSeconds={playbackState.durationSeconds ||
 									item.mediaEnclosure.durationSeconds ||
 									0}
@@ -240,7 +240,7 @@
 						</div>
 
 						<div class="flex min-w-0 items-center justify-end gap-2 self-end">
-							<AudioPlayerVolume volume={playbackState.volume} />
+							<Volume volume={playbackState.volume} />
 						</div>
 					</div>
 				</div>
