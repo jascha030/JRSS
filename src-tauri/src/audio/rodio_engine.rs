@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Rodio-backed audio playback engine.
 //!
 //! [`RodioEngine`] wraps rodio's [`MixerDeviceSink`] and [`Player`] to

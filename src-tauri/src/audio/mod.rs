@@ -31,6 +31,10 @@ pub mod events;
 pub mod macos;
 pub mod rodio_engine;
 pub mod streaming_file;
+#[cfg(target_os = "macos")]
+pub mod av_main_thread_actor;
+#[cfg(target_os = "macos")]
+pub mod av_proxy_engine;
 
 use commands::AudioCommand;
 pub use events::{OutputDeviceInfo, PlaybackStateEvent};

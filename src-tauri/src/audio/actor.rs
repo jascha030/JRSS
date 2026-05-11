@@ -20,6 +20,9 @@ use super::commands::AudioCommand;
 use super::download::download_to_file;
 use super::engine::{PlayConfig, PlaybackEngine};
 use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
+#[cfg(target_os = "macos")]
+use super::av_proxy_engine::AvProxyEngine;
+#[cfg(not(target_os = "macos"))]
 use super::rodio_engine::RodioEngine;
 use super::streaming_file::StreamingFile;
 use rodio::Source;
@@ -43,7 +46,7 @@ impl PrefetchState {
 pub struct AudioThread {
     /// Media rendering engine. Swapping this field is sufficient to support
     /// a new media type (e.g. video) without touching any orchestration logic.
-    engine: Box<dyn PlaybackEngine>,
+    engine: Box<dyn PlaybackEngine + Send>,
     current_item_id: Option<String>,
     current_item_title: String,
     current_feed_title: String,
@@ -59,11 +62,17 @@ pub struct AudioThread {
     duration_probe_done: bool,
     #[cfg(target_os = "macos")]
     power_assertion: Option<super::macos::power::PowerAssertion>,
+    /// Set to true when the user explicitly pauses. Used to distinguish
+    /// manual pause from an unexpected system pause (e.g. audio route change).
+    manual_pause: bool,
 }
 
 impl AudioThread {
     pub fn new(app: AppHandle) -> Self {
         Self {
+            #[cfg(target_os = "macos")]
+            engine: Box::new(AvProxyEngine::new()),
+            #[cfg(not(target_os = "macos"))]
             engine: Box::new(RodioEngine::new()),
             current_item_id: None,
             current_item_title: String::new(),
@@ -80,6 +89,7 @@ impl AudioThread {
             duration_probe_done: false,
             #[cfg(target_os = "macos")]
             power_assertion: None,
+            manual_pause: false,
         }
     }
 
@@ -90,6 +100,8 @@ impl AudioThread {
         start_position_seconds: f64,
         duration_hint_seconds: f64,
     ) -> Result<(), String> {
+        self.manual_pause = false;
+
         let play_start = Instant::now();
 
         // Check for matching prefetch BEFORE tearing down
@@ -223,6 +235,7 @@ impl AudioThread {
             volume: self.volume,
             speed: self.speed,
             byte_len_hint,
+            file_path: Some(cache_path.clone()),
         };
 
         let decode_start = Instant::now();
@@ -262,10 +275,11 @@ impl AudioThread {
         self.download_meta = Some(meta);
         self.temp_path = Some(cache_path);
 
-        #[cfg(target_os = "macos")]
-        {
-            self.power_assertion = Some(super::macos::power::PowerAssertion::new("JRSS audio playback"));
-        }
+        // Temporarily disabled for spatial audio crash debugging
+        // #[cfg(target_os = "macos")]
+        // {
+        //     self.power_assertion = Some(super::macos::power::PowerAssertion::new("JRSS audio playback"));
+        // }
 
         // Prefetch next item in queue for seamless transition
         self.prefetch_next_in_queue();
@@ -300,6 +314,7 @@ impl AudioThread {
         self.current_feed_title.clear();
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
+        self.manual_pause = false;
         #[cfg(target_os = "macos")]
         {
             self.power_assertion = None;
@@ -337,16 +352,15 @@ impl AudioThread {
 
     pub fn snapshot(&self) -> Option<PlaybackStateEvent> {
         let item_id = self.current_item_id.as_ref()?;
-
-        let position_seconds = if self.engine.has_active_playback() {
-            self.engine.position_seconds()
-        } else {
-            self.stored_position_seconds
-        };
-
-        let is_playing = self.engine.has_active_playback()
-            && !self.engine.is_paused()
-            && !self.engine.is_finished();
+        let has_active = self.engine.has_active_playback();
+        let is_paused = self.engine.is_paused();
+        let is_finished = self.engine.is_finished();
+        let position_seconds = if has_active { self.engine.position_seconds() } else { self.stored_position_seconds };
+        let is_playing = has_active && !is_paused && !is_finished;
+        log::trace!(
+            "snapshot: item_id={} has_active={} is_paused={} is_finished={} position={} is_playing={} manual_pause={}",
+            item_id, has_active, is_paused, is_finished, position_seconds, is_playing, self.manual_pause
+        );
 
         // Dynamically extend duration if position exceeds it (handles dynamic ad injection)
         // Use the greater of: stored duration, current position, or stored position
@@ -563,8 +577,9 @@ fn emit_playback_snapshot(
 }
 
 pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
-    #[cfg(target_os = "macos")]
-    super::macos::set_audio_thread_qos();
+    // Temporarily disabled for spatial audio crash debugging
+    // #[cfg(target_os = "macos")]
+    // super::macos::set_audio_thread_qos();
 
     let mut state = AudioThread::new(app.clone());
     restore_persisted_session(&mut state, &app);
@@ -575,6 +590,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let persist_interval = Duration::from_secs(5);
     let mut last_persist = Instant::now();
     let mut was_playing = false;
+    let mut last_unexpected_pause_resume: Option<Instant> = None;
+    let mut unexpected_pause_attempts: u32 = 0;
 
     // Throttling for playback-state-changed events
     let min_emit_interval_while_playing = Duration::from_millis(250);
@@ -592,6 +609,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     duration_hint_seconds,
                 } => {
                     was_playing = false;
+                    state.manual_pause = false;
                     state.queue.current = Some(QueuedItem {
                         item_id: item_id.clone(),
                         url: url.clone(),
@@ -620,11 +638,19 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Pause => {
+                    log::trace!("AudioCommand::Pause received (media controls)");
+                    // Do NOT set manual_pause here — this command comes from system
+                    // media controls (keyboard, AirPods gestures, Control Center), not
+                    // the in-app UI. macOS sends spurious Pause events during audio
+                    // route changes (e.g. spatial audio reconfiguration). Setting
+                    // manual_pause would prevent auto-recovery.
                     state.engine.pause();
                     state.persist_session();
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Resume => {
+                    log::trace!("AudioCommand::Resume received");
+                    state.manual_pause = false;
                     if state.engine.has_active_playback() {
                         state.engine.resume();
                     } else if let Err(error) = resume_current_item(&mut state) {
@@ -634,19 +660,26 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::TogglePlayback => {
+                    log::trace!("AudioCommand::TogglePlayback received");
                     if state.engine.has_active_playback() {
                         if state.engine.is_paused() {
+                            state.manual_pause = false;
                             state.engine.resume();
                         } else {
+                            state.manual_pause = true;
                             state.engine.pause();
                         }
-                    } else if let Err(error) = resume_current_item(&mut state) {
-                        log::info!("TogglePlayback ignored: {error}");
+                    } else {
+                        state.manual_pause = false;
+                        if let Err(error) = resume_current_item(&mut state) {
+                            log::info!("TogglePlayback ignored: {error}");
+                        }
                     }
                     state.persist_session();
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::Stop => {
+                    log::trace!("AudioCommand::Stop received");
                     state.sync_cached_position();
                     if let Some(ref item_id) = state.current_item_id {
                         let db = app.state::<crate::db::DatabaseState>();
@@ -748,6 +781,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     start_position_seconds,
                 } => {
                     was_playing = false;
+                    state.manual_pause = false;
                     state
                         .queue
                         .replace(Some(item.clone()), manual_queue, auto_queue);
@@ -1057,7 +1091,52 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 let _ = app.emit("queue-changed", state.queue.to_event());
             }
 
-            was_playing = snapshot.is_playing;
+            // Recover from unexpected stops (route changes, player errors, etc.)
+            // TEMPORARILY DISABLED: Auto-recovery fights AirPods route changes and may trigger
+            // the BTAudioHALPlugin crash. Manual play/pause still works.
+            const AUTO_RECOVERY_ENABLED: bool = false;
+            
+            let is_finished = state.engine.is_finished();
+            let has_error = state.engine.has_error();
+            let needs_recovery = AUTO_RECOVERY_ENABLED && was_playing && !snapshot.is_playing && !state.manual_pause && !is_finished;
+            
+            if was_playing && !snapshot.is_playing && !state.manual_pause && !is_finished {
+                log::debug!("Playback stopped unexpectedly (possibly route change). Auto-recovery is DISABLED. Click play to resume.");
+            }
+            
+            if needs_recovery {
+                if has_error {
+                    log::warn!("Playback engine error detected, recreating player");
+                    unexpected_pause_attempts = 0;
+                    state.stored_position_seconds = snapshot.position_seconds;
+                    if let Err(error) = resume_current_item(&mut state) {
+                        log::error!("Player recreation after error failed: {error}");
+                    }
+                } else if last_unexpected_pause_resume.map_or(true, |t| t.elapsed() >= Duration::from_secs(3)) {
+                    last_unexpected_pause_resume = Some(Instant::now());
+                    unexpected_pause_attempts += 1;
+
+                    if unexpected_pause_attempts >= 2 {
+                        log::warn!("Auto-resume failed {unexpected_pause_attempts} times, recreating player");
+                        unexpected_pause_attempts = 0;
+                        state.stored_position_seconds = snapshot.position_seconds;
+                        if let Err(error) = resume_current_item(&mut state) {
+                            log::error!("Player recreation after stalled playback failed: {error}");
+                        }
+                    } else {
+                        log::info!("Playback paused unexpectedly, auto-resuming (attempt {unexpected_pause_attempts})");
+                        state.engine.resume();
+                    }
+                }
+            } else {
+                unexpected_pause_attempts = 0;
+            }
+
+            // Only reset was_playing when recovery is not in progress; otherwise
+            // the next poll iteration would see was_playing=false and never retry.
+            if !needs_recovery || snapshot.is_playing {
+                was_playing = snapshot.is_playing;
+            }
         }
     }
 }
