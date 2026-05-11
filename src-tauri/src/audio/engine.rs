@@ -26,7 +26,7 @@ pub struct PlayConfig {
     /// RSS / UI duration hint — used as the initial guess until the decoder
     /// provides a more accurate value via [`PlaybackEngine::play_stream`]'s
     /// return value. Engines that cannot determine duration from the container
-    /// may use this as a fallback.
+    /// header may use this as a fallback.
     #[allow(dead_code)]
     pub duration_hint_seconds: f64,
     /// Playback volume in \[0.0, 1.0\].
@@ -36,7 +36,12 @@ pub struct PlayConfig {
     /// Known byte length of the media file, if available. Engines may use
     /// this to compute accurate durations for variable-bitrate formats (e.g.
     /// VBR MP3).
+    #[allow(dead_code)]
     pub byte_len_hint: Option<u64>,
+    /// Path to the local cache file. macOS-native engines that read via
+    /// file URL (e.g. AVPlayer) use this instead of the [`StreamingFile`]
+    /// stream handle.
+    pub file_path: Option<std::path::PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -47,6 +52,7 @@ pub struct PlayConfig {
 #[derive(Debug)]
 pub enum EngineError {
     /// The requested output device could not be found or opened.
+    #[allow(dead_code)]
     DeviceNotFound(String),
     /// The media stream could not be decoded.
     DecodeFailed(String),
@@ -82,7 +88,7 @@ impl std::error::Error for EngineError {}
 /// The trait is intentionally object-safe so it can be stored as
 /// `Box<dyn PlaybackEngine>` when multiple concrete engine types must coexist
 /// at runtime (e.g. audio + video).
-pub trait PlaybackEngine: Send {
+pub trait PlaybackEngine {
     // ------------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------------
@@ -154,9 +160,17 @@ pub trait PlaybackEngine: Send {
     /// Whether playback is currently paused. Returns `false` if stopped.
     fn is_paused(&self) -> bool;
 
-    /// Whether the media stream has been fully consumed (natural end of
-    /// stream). Returns `false` when stopped or not yet started.
-    fn is_finished(&self) -> bool;
+	/// Whether the media stream has been fully consumed (natural end of
+	/// stream). Returns `false` when stopped or not yet started.
+	fn is_finished(&self) -> bool;
+
+	/// Whether the engine has encountered a fatal error that prevents
+	/// continued playback (e.g. decoder failure, resource lost).
+	///
+	/// The default implementation returns `false`.
+	fn has_error(&self) -> bool {
+		false
+	}
 
     // ------------------------------------------------------------------
     // Device management (optional — override for engines with selectable
