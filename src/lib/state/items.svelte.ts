@@ -332,8 +332,7 @@ export async function ensureVisibleRangeLoaded(
 		if (totalCount !== undefined && totalCount > 0 && offset >= totalCount) {
 			continue;
 		}
-		const wasAlreadyLoaded =
-			itemsState.loadedPageOffsetsByQueryKey[querySpec.queryKey]?.[offset];
+		const wasAlreadyLoaded = itemsState.loadedPageOffsetsByQueryKey[querySpec.queryKey]?.[offset];
 		await loadPage(querySpec, offset);
 		if (!wasAlreadyLoaded) {
 			anyPageLoaded = true;

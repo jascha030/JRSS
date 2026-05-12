@@ -15,11 +15,13 @@
 
 	const feedsWithUnread = $derived.by(() => {
 		const result = new SvelteSet<string>();
+
 		for (const item of Object.values(itemsState.itemSummariesById)) {
 			if (!item.read) {
 				result.add(item.feedId);
 			}
 		}
+
 		return result;
 	});
 
@@ -33,6 +35,10 @@
 	function handleStationClick(stationId: string) {
 		selectStation(stationId);
 	}
+
+	function getFeedCardImageUrl(feed: Feed) {
+		return feed.imageUrl;
+	}
 </script>
 
 <section class="flex h-full w-full flex-1 flex-col overflow-y-auto bg-surface-shell-opaque">
@@ -40,25 +46,34 @@
 		<h2 class="text-2xl font-semibold tracking-tight text-fg">Home</h2>
 
 		{#if podcasts.length > 0}
-			<div class="mt-8">
+			<div class="mt-8 [contain-intrinsic-size:960px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Podcasts</h3>
+
 				<div
-					class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
 				>
 					{#each podcasts as feed (feed.id)}
+						{@const imageUrl = getFeedCardImageUrl(feed)}
+
 						<button
 							type="button"
-							class="group relative flex flex-col items-center gap-2 rounded-xl p-2 transition-colors hover:bg-surface-hover"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleFeedClick(feed.id)}
+							title={feed.title}
+							aria-label={`Open feed ${feed.title}`}
 						>
 							<div
 								class="bg-surface-elevated relative aspect-square w-full overflow-hidden rounded-xl shadow-sm"
 							>
-								{#if feed.imageUrl}
+								{#if imageUrl}
 									<img
-										src={feed.imageUrl}
+										src={imageUrl}
 										alt={feed.title}
-										class="size-full object-cover transition-transform duration-200 group-hover:scale-105"
+										loading="lazy"
+										decoding="async"
+										fetchpriority="low"
+										draggable="false"
+										class="size-full object-cover"
 									/>
 								{:else}
 									<span
@@ -83,25 +98,34 @@
 		{/if}
 
 		{#if articles.length > 0}
-			<div class="mt-8">
+			<div class="mt-8 [contain-intrinsic-size:960px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Articles</h3>
+
 				<div
-					class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
 				>
 					{#each articles as feed (feed.id)}
+						{@const imageUrl = getFeedCardImageUrl(feed)}
+
 						<button
 							type="button"
-							class="group relative flex flex-col items-center gap-2 rounded-xl p-2 transition-colors hover:bg-surface-hover"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleFeedClick(feed.id)}
+							title={feed.title}
+							aria-label={`Open feed ${feed.title}`}
 						>
 							<div
 								class="bg-surface-elevated relative aspect-square w-full overflow-hidden rounded-xl shadow-sm"
 							>
-								{#if feed.imageUrl}
+								{#if imageUrl}
 									<img
-										src={feed.imageUrl}
+										src={imageUrl}
 										alt={feed.title}
-										class="size-full object-cover transition-transform duration-200 group-hover:scale-105"
+										loading="lazy"
+										decoding="async"
+										fetchpriority="low"
+										draggable="false"
+										class="size-full object-cover"
 									/>
 								{:else}
 									<span
@@ -126,19 +150,24 @@
 		{/if}
 
 		{#if stations.length > 0}
-			<div class="mt-8">
+			<div class="mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Stations</h3>
+
 				<div
-					class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
 				>
 					{#each stations as station (station.id)}
+						{@const gradient = STATION_GRADIENTS[station.gradient]}
+
 						<button
 							type="button"
-							class="group relative flex flex-col items-center gap-2 rounded-xl p-2 transition-colors hover:bg-surface-hover"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleStationClick(station.id)}
+							title={station.name}
+							aria-label={`Open station ${station.name}`}
 						>
 							<div
-								class={`relative aspect-square w-full overflow-hidden rounded-xl bg-linear-to-br ${STATION_GRADIENTS[station.gradient].from} ${STATION_GRADIENTS[station.gradient].to} shadow-sm`}
+								class={`relative aspect-square w-full overflow-hidden rounded-xl bg-linear-to-br ${gradient.from} ${gradient.to} shadow-sm`}
 							>
 								<span
 									class="flex size-full items-center justify-center text-2xl font-bold text-fg-inverse"

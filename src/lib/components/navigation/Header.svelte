@@ -130,7 +130,7 @@
 
 <svelte:window onkeydown={handleGlobalKeydown} onclick={handleWindowClick} />
 
-<div class="flex w-full items-center gap-4 px-2 pointer-events-none">
+<div class="pointer-events-none flex w-full items-center gap-4 px-2">
 	<div bind:this={containerRef} class="relative mr-12 flex-1">
 		<SearchInput
 			id="global-search"

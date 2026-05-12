@@ -559,6 +559,29 @@
 	}
 }
 
+/* ── UI text selection ─────────────────────────
+   Prevent text selection on UI elements for native app feel.
+   Form elements and article content are explicitly re-enabled.
+   ───────────────────────────────────────────── */
+
+body {
+	@apply select-none cursor-default;
+}
+
+input,
+textarea,
+[contenteditable] {
+	@apply select-text cursor-auto;
+}
+
+.article-html {
+	@apply select-text cursor-auto;
+}
+
+.selectable {
+	@apply select-text cursor-auto;
+}
+
 /* ── Button component classes ──────────────────
    Base shape: rounded-xl, px-4 py-3, text-sm font-medium
    Variants: primary (accent), secondary (outlined), danger, success, warning

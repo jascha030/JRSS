@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type * as Monaco from 'monaco-editor';
-	import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
-
 	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
 	import type { XmlOffsetRange } from '$lib/utils/xml-inspector';
@@ -59,6 +57,7 @@
 			}
 
 			const monacoModule = await import('monaco-editor');
+			await import('monaco-editor/esm/vs/basic-languages/xml/xml.contribution');
 
 			if (disposed) {
 				return;

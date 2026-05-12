@@ -13,7 +13,6 @@
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
 	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
-	import FeedInspector from '$lib/components/feed/FeedInspector.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
@@ -71,10 +70,13 @@
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 	import { onMount } from 'svelte';
+	import type { Component } from 'svelte';
+	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
+	let FeedInspector = $state<typeof FeedInspectorComponent | null>(null);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
@@ -129,6 +131,14 @@
 	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
+
+	$effect(() => {
+		if (isInspectorActive && FeedInspector === null) {
+			void import('$lib/components/feed/FeedInspector.svelte').then((m) => {
+				FeedInspector = m.default;
+			});
+		}
+	});
 
 	$effect(() => {
 		const queryKey = getActiveQueryKey();
@@ -483,30 +493,30 @@
 			onClose={() => (isQueueDrawerOpen = false)}
 		/>
 
-		<div class="relative h-[calc(100%-54px)] overflow-hidden">
-			<Sidebar
-				{feeds}
-				{stations}
-				{selectedFeedId}
-				{selectedStationId}
-				{selectedSection}
-				onSelectFeed={handleSelectFeed}
-				onSelectSection={handleSelectSection}
-				onSelectStation={handleSelectStation}
-				onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
-				onCreateStation={handleCreateStation}
-				onAddFeed={() => (isFeedEditorOpen = true)}
-				refreshingFeedIds={syncingFeedIds}
-				isCollapsed={isSidebarCollapsed}
-			/>
-
+		<div class="flex h-[calc(100%-54px)] overflow-hidden">
 			<div
-				class={`relative z-30 h-full transition-[left,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:absolute md:inset-y-0 ${
-					isSidebarCollapsed
-						? 'md:left-16 md:w-[calc(100%-(var(--spacing)*16))]'
-						: 'md:left-60 md:w-[calc(100%-(var(--spacing)*60))]'
+				class={`hidden shrink-0 overflow-hidden motion-reduce:transition-none md:block md:transition-[width] md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
+					isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
 				}`}
 			>
+				<Sidebar
+					{feeds}
+					{stations}
+					{selectedFeedId}
+					{selectedStationId}
+					{selectedSection}
+					onSelectFeed={handleSelectFeed}
+					onSelectSection={handleSelectSection}
+					onSelectStation={handleSelectStation}
+					onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
+					onCreateStation={handleCreateStation}
+					onAddFeed={() => (isFeedEditorOpen = true)}
+					refreshingFeedIds={syncingFeedIds}
+					isCollapsed={isSidebarCollapsed}
+				/>
+			</div>
+
+			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
 					<main class="flex min-h-0 flex-1 flex-col">
 						{#if feeds.length === 0 && !isInitialLoading}
@@ -515,7 +525,7 @@
 							<SettingsView />
 						{:else if selectedSection === 'home'}
 							<HomeView {feeds} {stations} />
-						{:else if isInspectorActive}
+						{:else if isInspectorActive && FeedInspector !== null}
 							<FeedInspector />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">

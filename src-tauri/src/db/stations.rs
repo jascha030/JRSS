@@ -235,7 +235,7 @@ pub fn query_station_episodes(
     // Load station metadata
     let station = connection
         .query_row(
-			"SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
+            "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 		     FROM stations WHERE id = ?1",
             [station_id],
             map_station_row,
@@ -346,9 +346,11 @@ pub fn query_station_episodes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::db::schema::initialize_database;
-    use crate::models::{CreateStationInput, ItemSortOrder, StationEpisodeFilter, UpdateStationInput};
+    use crate::models::{
+        CreateStationInput, ItemSortOrder, StationEpisodeFilter, UpdateStationInput,
+    };
+    use tempfile::TempDir;
 
     fn tmpdb() -> (TempDir, std::path::PathBuf) {
         let dir = TempDir::new().expect("tempdir");
@@ -411,7 +413,8 @@ mod tests {
                 feed_ids: None,
                 gradient: None,
             },
-        ).unwrap();
+        )
+        .unwrap();
         let stations = list_stations(&db_path).unwrap();
         assert_eq!(stations[0].station.name, "Updated");
     }

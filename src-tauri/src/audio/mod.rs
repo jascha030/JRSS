@@ -21,12 +21,19 @@ use tauri::{AppHandle, Manager};
 use crate::queue::{QueueState, QueuedItem};
 
 pub mod actor;
+#[cfg(target_os = "macos")]
+pub mod av_main_thread_actor;
+#[cfg(target_os = "macos")]
+pub mod av_proxy_engine;
 pub mod cache;
 pub mod commands;
 pub mod devices;
 pub mod download;
 pub mod engine;
+pub mod engine_factory;
 pub mod events;
+#[cfg(target_os = "macos")]
+pub mod macos;
 pub mod rodio_engine;
 pub mod streaming_file;
 
@@ -54,6 +61,10 @@ impl AudioState {
         self.tx
             .send(cmd)
             .map_err(|_| "Audio thread is not running".to_string())
+    }
+
+    pub fn sender(&self) -> mpsc::Sender<AudioCommand> {
+        self.tx.clone()
     }
 }
 
@@ -117,7 +128,13 @@ pub fn get_playback_state(app: &AppHandle) -> Option<PlaybackStateEvent> {
     state
         .send(AudioCommand::GetState { reply: reply_tx })
         .ok()?;
-    reply_rx.recv_timeout(Duration::from_secs(1)).ok()?
+    match reply_rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(state) => state,
+        Err(error) => {
+            log::warn!("Timed out waiting for audio playback state: {error}");
+            None
+        }
+    }
 }
 
 pub fn play_with_queue(
@@ -183,9 +200,13 @@ pub fn get_queue_state(app: &AppHandle) -> QueueState {
     let state = app.state::<AudioState>();
     let (reply_tx, reply_rx) = mpsc::channel();
     let _ = state.send(AudioCommand::QueueGetState { reply: reply_tx });
-    reply_rx
-        .recv_timeout(Duration::from_secs(1))
-        .unwrap_or_default()
+    match reply_rx.recv_timeout(Duration::from_secs(5)) {
+        Ok(queue) => queue,
+        Err(error) => {
+            log::warn!("Timed out waiting for audio queue state: {error}");
+            QueueState::default()
+        }
+    }
 }
 
 pub fn queue_set(app: &AppHandle, items: Vec<QueuedItem>) -> Result<(), String> {

@@ -22,25 +22,25 @@ pub fn get_audio_cache_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 pub fn clear_audio_cache(app: &tauri::AppHandle) -> Result<(), String> {
-	let cache_dir = get_audio_cache_path(app)?;
-	let entries = std::fs::read_dir(&cache_dir)
-		.map_err(|e| format!("Failed to read cache dir: {e}"))?;
+    let cache_dir = get_audio_cache_path(app)?;
+    let entries =
+        std::fs::read_dir(&cache_dir).map_err(|e| format!("Failed to read cache dir: {e}"))?;
 
-	for entry in entries {
-		let entry = entry.map_err(|e| format!("Failed to read cache entry: {e}"))?;
-		let path = entry.path();
-		let is_cache_file = path
-			.extension()
-			.and_then(|ext| ext.to_str())
-			.map(|ext| ext == "mp3" || ext == "complete")
-			.unwrap_or(false);
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read cache entry: {e}"))?;
+        let path = entry.path();
+        let is_cache_file = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext == "mp3" || ext == "complete")
+            .unwrap_or(false);
 
-		if is_cache_file {
-			let _ = std::fs::remove_file(&path);
-		}
-	}
+        if is_cache_file {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
 
-	Ok(())
+    Ok(())
 }
 
 fn ensure_audio_cache_dir(cache_dir: &Path) -> Result<(), String> {

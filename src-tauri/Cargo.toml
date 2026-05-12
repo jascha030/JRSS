@@ -74,4 +74,15 @@ features = [
 tempfile = "3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26"
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSProcessInfo", "NSObject"] }
+objc2-av-foundation = { version = "0.3", features = ["AVPlayer", "AVPlayerItem", "objc2-core-media"] }
+objc2-core-media = { version = "0.3", features = ["CMTime"] }
+libc = "0.2"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

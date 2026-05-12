@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Rodio-backed audio playback engine.
 //!
 //! [`RodioEngine`] wraps rodio's [`MixerDeviceSink`] and [`Player`] to
@@ -192,10 +194,7 @@ impl PlaybackEngine for RodioEngine {
     }
 
     fn is_paused(&self) -> bool {
-        self.player
-            .as_ref()
-            .map(|p| p.is_paused())
-            .unwrap_or(false)
+        self.player.as_ref().map(|p| p.is_paused()).unwrap_or(false)
     }
 
     fn is_finished(&self) -> bool {

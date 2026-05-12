@@ -13,22 +13,40 @@ use crate::reader_extract;
 use tauri::{Manager, State};
 
 #[cfg(target_os = "macos")]
-#[allow(deprecated)]
-use cocoa::{appkit::NSWindow, base::id, foundation::NSSize};
-
-#[cfg(target_os = "macos")]
-#[allow(deprecated)]
 fn set_macos_window_content_aspect_ratio(
     window: &tauri::WebviewWindow,
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    let ns_window = window.ns_window().map_err(|error| error.to_string())? as id;
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use objc2::{Encode, Encoding};
 
-    unsafe {
-        ns_window.setContentAspectRatio_(NSSize::new(width, height));
+    // CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
+    #[repr(C)]
+    struct CGSize {
+        width: f64,
+        height: f64,
     }
 
+    // SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
+    unsafe impl Encode for CGSize {
+        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+    }
+
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
+    let size = CGSize { width, height };
+    unsafe { msg_send![ns_window, setContentAspectRatio: size] }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_macos_window_content_aspect_ratio(
+    _window: &tauri::WebviewWindow,
+    _width: f64,
+    _height: f64,
+) -> Result<(), String> {
     Ok(())
 }
 
@@ -94,8 +112,8 @@ pub async fn fetch_feed_raw(
     let db_path = state.db_path();
 
     blocking(move || {
-        let feed = db::get_feed_by_id(&db_path, &feed_id)?
-            .ok_or_else(|| "Feed not found.".to_string())?;
+        let feed =
+            db::get_feed_by_id(&db_path, &feed_id)?.ok_or_else(|| "Feed not found.".to_string())?;
         feed_ingest::fetch_raw_feed_xml(&feed.url)
     })
     .await
@@ -468,7 +486,7 @@ pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<
 
 #[tauri::command]
 pub fn clear_audio_cache(app: tauri::AppHandle) -> Result<(), String> {
-	audio::cache::clear_audio_cache(&app)
+    audio::cache::clear_audio_cache(&app)
 }
 
 // ---------------------------------------------------------------------------
@@ -508,15 +526,7 @@ pub fn set_window_content_aspect_ratio(
         .get_webview_window(&label)
         .ok_or_else(|| format!("Window '{label}' not found."))?;
 
-    #[cfg(target_os = "macos")]
-    {
-        set_macos_window_content_aspect_ratio(&window, width, height)?;
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (window, width, height);
-    }
+    set_macos_window_content_aspect_ratio(&window, width, height)?;
 
     Ok(())
 }

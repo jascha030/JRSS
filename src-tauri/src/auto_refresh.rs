@@ -79,8 +79,7 @@ async fn run_refresh_sweep(db_path: PathBuf, app_handle: AppHandle) {
         let db_path = db_path.clone();
 
         let result =
-            tauri::async_runtime::spawn_blocking(move || refresh_feed_by_url(&db_path, &url))
-                .await;
+            tauri::async_runtime::spawn_blocking(move || refresh_feed_by_url(&db_path, &url)).await;
 
         match result {
             Ok(Ok(())) => log::info!("Auto-refresh: refreshed '{title}'"),

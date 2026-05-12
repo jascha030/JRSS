@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Audio output device management.
 
 use rodio::cpal;
