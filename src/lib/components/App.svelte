@@ -13,7 +13,6 @@
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
 	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
-	import FeedInspector from '$lib/components/feed/FeedInspector.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
 	import {
 		feedsState,
@@ -71,10 +70,13 @@
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 	import { onMount } from 'svelte';
+	import type { Component } from 'svelte';
+	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
+	let FeedInspector = $state<typeof FeedInspectorComponent | null>(null);
 	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
@@ -129,6 +131,14 @@
 	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
+
+	$effect(() => {
+		if (isInspectorActive && FeedInspector === null) {
+			void import('$lib/components/feed/FeedInspector.svelte').then((m) => {
+				FeedInspector = m.default;
+			});
+		}
+	});
 
 	$effect(() => {
 		const queryKey = getActiveQueryKey();
@@ -515,9 +525,9 @@
 							<SettingsView />
 						{:else if selectedSection === 'home'}
 							<HomeView {feeds} {stations} />
-						{:else if isInspectorActive}
-							<FeedInspector />
-						{:else}
+					{:else if isInspectorActive && FeedInspector !== null}
+						<FeedInspector />
+					{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
 									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
