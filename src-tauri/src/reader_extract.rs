@@ -183,9 +183,7 @@ fn extract_excerpt(html: &str) -> Option<String> {
 }
 
 fn extract_meta_content(html: &str, candidates: &[(&str, &str)]) -> Option<String> {
-    let Some(meta_tag_regex) = meta_tag_regex() else {
-        return None;
-    };
+    let meta_tag_regex = meta_tag_regex()?;
 
     for meta_tag in meta_tag_regex.find_iter(html) {
         let attributes = parse_tag_attributes(meta_tag.as_str());
@@ -350,14 +348,12 @@ fn build_excerpt_from_text(candidate: &str) -> Option<String> {
     }
 
     let mut end_index = 0;
-    let mut char_count = 0;
 
-    for (index, character) in normalized.char_indices() {
+    for (char_count, (index, character)) in normalized.char_indices().enumerate() {
         if char_count == READER_EXCERPT_MAX_CHARS {
             break;
         }
 
-        char_count += 1;
         end_index = index + character.len_utf8();
     }
 
