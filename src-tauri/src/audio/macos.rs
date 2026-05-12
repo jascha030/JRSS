@@ -6,8 +6,8 @@
 
 #[cfg(target_os = "macos")]
 pub mod remote_commands {
-    use std::sync::mpsc;
     use std::sync::OnceLock;
+    use std::sync::mpsc;
 
     use block2::RcBlock;
     use objc2::runtime::AnyObject;
@@ -27,7 +27,9 @@ pub mod remote_commands {
     /// Idempotent: subsequent calls are no-ops (logged as warnings).
     pub fn install(tx: mpsc::Sender<AudioCommand>) {
         if INSTALLED.set(()).is_err() {
-            log::warn!("[remote_commands] install() called more than once — skipping duplicate registration");
+            log::warn!(
+                "[remote_commands] install() called more than once — skipping duplicate registration"
+            );
             return;
         }
         // SAFETY: called from the main thread (Tauri setup); all pointers are
@@ -38,8 +40,7 @@ pub mod remote_commands {
     }
 
     unsafe fn register_all(tx: mpsc::Sender<AudioCommand>) {
-        let center: *mut AnyObject =
-            msg_send![class!(MPRemoteCommandCenter), sharedCommandCenter];
+        let center: *mut AnyObject = msg_send![class!(MPRemoteCommandCenter), sharedCommandCenter];
 
         // MPSkipIntervalCommand requires preferredIntervals to be non-empty or
         // the system may not expose the skip commands in Control Center / AirPods.
@@ -130,7 +131,9 @@ pub mod remote_commands {
             let tx = tx.clone();
             let block = RcBlock::new(move |event: *mut AnyObject| -> isize {
                 let position_seconds: f64 = msg_send![event, positionTime];
-                log::debug!("[remote_commands] changePlaybackPosition → Seek({position_seconds:.2}s)");
+                log::debug!(
+                    "[remote_commands] changePlaybackPosition → Seek({position_seconds:.2}s)"
+                );
                 let _ = tx.send(AudioCommand::Seek { position_seconds });
                 HANDLER_SUCCESS
             });

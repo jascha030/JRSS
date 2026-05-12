@@ -15,10 +15,8 @@ mod reader_extract;
 use audio::AudioState;
 use db::DatabaseState;
 #[cfg(not(target_os = "macos"))]
-use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
+mod media_controls;
 use tauri::Manager;
-#[cfg(not(target_os = "macos"))]
-use tauri::Listener;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -40,7 +38,7 @@ pub fn run() {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Trace)
+                        .level(log::LevelFilter::Info)
                         .build(),
                 )?;
             }
@@ -60,8 +58,7 @@ pub fn run() {
                 .unwrap_or(db::DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES);
             app.manage(database_state);
 
-            let auto_refresh_state =
-                auto_refresh::spawn(app.handle().clone(), initial_interval);
+            let auto_refresh_state = auto_refresh::spawn(app.handle().clone(), initial_interval);
             app.manage(auto_refresh_state);
 
             let audio_state = AudioState::new(app.handle().clone())
@@ -69,82 +66,7 @@ pub fn run() {
             app.manage(audio_state);
 
             #[cfg(not(target_os = "macos"))]
-            {
-                let mut media_controls = MediaControls::new(PlatformConfig {
-                    dbus_name: "jrss",
-                    display_name: "JRSS",
-                    hwnd: None,
-                })
-                .map_err(|e| format!("Failed to create media controls: {e}"))?;
-
-                let app_handle_for_media = app.handle().clone();
-                media_controls
-                    .attach(move |event: MediaControlEvent| {
-                        let audio_state = app_handle_for_media.state::<AudioState>();
-                        let cmd = match event {
-                            MediaControlEvent::Play => Some(audio::commands::AudioCommand::Resume),
-                            MediaControlEvent::Pause => Some(audio::commands::AudioCommand::Pause),
-                            MediaControlEvent::Toggle => {
-                                Some(audio::commands::AudioCommand::TogglePlayback)
-                            }
-                            MediaControlEvent::Next => {
-                                Some(audio::commands::AudioCommand::SkipForward {
-                                    delta_seconds: 15.0,
-                                })
-                            }
-                            MediaControlEvent::Previous => {
-                                Some(audio::commands::AudioCommand::SkipBackward {
-                                    delta_seconds: 15.0,
-                                })
-                            }
-                            MediaControlEvent::Stop => Some(audio::commands::AudioCommand::Stop),
-                            _ => None,
-                        };
-                        if let Some(cmd) = cmd {
-                            let _ = audio_state.send(cmd);
-                        }
-                    })
-                    .map_err(|e| format!("Failed to attach media controls: {e}"))?;
-
-                app.manage(std::sync::Mutex::new(media_controls));
-
-                let app_handle_for_events = app.handle().clone();
-                let last_media_item_id = std::sync::Mutex::new(None::<String>);
-                app.handle().listen("playback-state-changed", move |event| {
-                    let Ok(payload) =
-                        serde_json::from_str::<audio::events::PlaybackStateEvent>(event.payload())
-                    else {
-                        return;
-                    };
-
-                    let controls =
-                        app_handle_for_events.state::<std::sync::Mutex<MediaControls>>();
-                    let Ok(mut controls) = controls.lock() else {
-                        return;
-                    };
-
-                    let Ok(mut last_id) = last_media_item_id.lock() else {
-                        return;
-                    };
-
-                    if *last_id != Some(payload.item_id.clone()) {
-                        *last_id = Some(payload.item_id.clone());
-                        let _ = controls.set_metadata(MediaMetadata {
-                            title: Some(&payload.title),
-                            artist: Some(&payload.artist),
-                            album: Some(&payload.artist),
-                            ..Default::default()
-                        });
-                    }
-
-                    let playback = if payload.is_playing {
-                        MediaPlayback::Playing { progress: None }
-                    } else {
-                        MediaPlayback::Paused { progress: None }
-                    };
-                    let _ = controls.set_playback(playback);
-                });
-            }
+            media_controls::install(app)?;
 
             // On macOS, the AVPlayer actor owns MPNowPlayingInfoCenter (publishing
             // from the main thread on every state transition), and we wire

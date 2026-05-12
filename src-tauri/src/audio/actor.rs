@@ -19,11 +19,8 @@ use super::cache::{
 use super::commands::AudioCommand;
 use super::download::download_to_file;
 use super::engine::{PlayConfig, PlaybackEngine, PlaybackSnapshot};
+use super::engine_factory;
 use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
-#[cfg(target_os = "macos")]
-use super::av_proxy_engine::AvProxyEngine;
-#[cfg(not(target_os = "macos"))]
-use super::rodio_engine::RodioEngine;
 use super::streaming_file::StreamingFile;
 use rodio::Source;
 
@@ -68,10 +65,7 @@ pub struct AudioThread {
 impl AudioThread {
     pub fn new(app: AppHandle) -> Self {
         Self {
-            #[cfg(target_os = "macos")]
-            engine: Box::new(AvProxyEngine::new()),
-            #[cfg(not(target_os = "macos"))]
-            engine: Box::new(RodioEngine::new()),
+            engine: engine_factory::create_engine(),
             current_item_id: None,
             current_item_title: String::new(),
             current_feed_title: String::new(),
@@ -348,7 +342,11 @@ impl AudioThread {
     /// engine fields needed by the poll loop. Avoids repeated IPC for engines
     /// like [`AvProxyEngine`] whose state queries cross a dispatch boundary.
     pub fn snapshot_full(&self) -> (Option<PlaybackStateEvent>, PlaybackSnapshot) {
-        let eng = self.engine.playback_snapshot();
+        let eng = if self.engine.has_active_playback() {
+            self.engine.playback_snapshot()
+        } else {
+            PlaybackSnapshot::default()
+        };
         let event = self.current_item_id.as_ref().map(|item_id| {
             let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
             let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
@@ -419,6 +417,7 @@ impl AudioThread {
         let db_path = db_state.db_path();
 
         if self.queue.current.is_none() && self.queue.is_empty() {
+            log::debug!("Clearing playback session (no current item and empty queue)");
             if let Err(error) = db::clear_playback_session(&db_path) {
                 log::error!("Failed to clear playback session: {error}");
             }
@@ -427,9 +426,7 @@ impl AudioThread {
 
         // Update stored duration to effective duration if position has exceeded it
         // This handles dynamic ad injection where actual audio is longer than RSS metadata
-        let effective_duration = self
-            .duration_seconds
-            .max(self.stored_position_seconds);
+        let effective_duration = self.duration_seconds.max(self.stored_position_seconds);
         if effective_duration > self.duration_seconds {
             log::debug!(
                 "Updating duration from {}s to {}s based on playback position",
@@ -440,6 +437,15 @@ impl AudioThread {
         }
 
         let (history_queue, manual_queue, auto_queue) = self.queue.to_session_parts();
+
+        log::debug!(
+            "Saving playback session: current={:?}, history={}, manual={}, auto={}",
+            self.queue.current_item().map(|i| &i.item_id),
+            history_queue.len(),
+            manual_queue.len(),
+            auto_queue.len()
+        );
+
         let session = PlaybackSessionRecord {
             current_item_id: self.queue.current_item().map(|item| item.item_id.clone()),
             position_seconds: self.stored_position_seconds.floor() as i64,
@@ -719,7 +725,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     state.persist_session();
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
-                AudioCommand::SkipForward { delta_seconds } | AudioCommand::SkipBackward { delta_seconds } => {
+                AudioCommand::SkipForward { delta_seconds }
+                | AudioCommand::SkipBackward { delta_seconds } => {
                     let current_position = if state.engine.has_active_playback() {
                         state.engine.position_seconds()
                     } else {
@@ -944,8 +951,12 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let _ = reply.send(state.engine.list_output_devices());
                 }
                 AudioCommand::GetSelectedOutputDevice { reply } => {
-                    let _ = reply
-                        .send(state.engine.selected_output_device_id().map(|s| s.to_string()));
+                    let _ = reply.send(
+                        state
+                            .engine
+                            .selected_output_device_id()
+                            .map(|s| s.to_string()),
+                    );
                 }
                 AudioCommand::SetOutputDevice { device_id, reply } => {
                     let result = state.change_output_device(device_id);
@@ -1010,7 +1021,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         let db_state = state.app.state::<db::DatabaseState>();
                         let db_path = db_state.db_path();
                         let duration_i64 = actual.floor() as i64;
-                        if let Err(error) = db::update_item_duration(&db_path, item_id, duration_i64) {
+                        if let Err(error) =
+                            db::update_item_duration(&db_path, item_id, duration_i64)
+                        {
                             log::warn!("Failed to persist detected duration: {error}");
                         }
                     }
@@ -1087,7 +1100,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             // crash reports. Auto-recovery is disabled; AVPlayer resumes reliably
             // via manual play/pause and auto-resume fought AirPods route changes.
             if was_playing && !snapshot.is_playing && !state.manual_pause && !eng_snap.is_finished {
-                log::debug!("Playback stopped unexpectedly (possibly route change); click play to resume.");
+                log::debug!(
+                    "Playback stopped unexpectedly (possibly route change); click play to resume."
+                );
             }
 
             was_playing = snapshot.is_playing;
@@ -1129,10 +1144,31 @@ fn feed_item_to_queued_item(item: crate::models::FeedItemRecord) -> Option<Queue
 }
 
 fn load_queued_item(db_path: &std::path::Path, item_id: String) -> Option<QueuedItem> {
-    crate::db::get_item_by_id(db_path, &item_id)
-        .ok()
-        .flatten()
-        .and_then(feed_item_to_queued_item)
+    let item = match crate::db::get_item_by_id(db_path, &item_id) {
+        Ok(Some(item)) => item,
+        Ok(None) => {
+            log::debug!(
+                "Item {} not found in database during session restore",
+                item_id
+            );
+            return None;
+        }
+        Err(error) => {
+            log::debug!("Failed to load item {} from database: {}", item_id, error);
+            return None;
+        }
+    };
+
+    match feed_item_to_queued_item(item) {
+        Some(queued) => Some(queued),
+        None => {
+            log::debug!(
+                "Item {} skipped during session restore: no media enclosure",
+                item_id
+            );
+            None
+        }
+    }
 }
 
 fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
@@ -1148,8 +1184,17 @@ fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
     };
 
     let Some(session) = session else {
+        log::debug!("No playback session found to restore");
         return;
     };
+
+    log::debug!(
+        "Restoring session: current={:?}, history={}, manual={}, auto={}",
+        session.current_item_id,
+        session.history_queue.len(),
+        session.manual_queue.len(),
+        session.auto_queue.len()
+    );
 
     let history = session
         .history_queue
@@ -1169,6 +1214,14 @@ fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
         .into_iter()
         .filter_map(|item_id| load_queued_item(&db_path, item_id))
         .collect::<Vec<_>>();
+
+    log::debug!(
+        "Session restored: current={:?}, history={}, manual={}, auto={}",
+        current.as_ref().map(|i| &i.item_id),
+        history.len(),
+        manual.len(),
+        auto.len()
+    );
 
     state
         .queue

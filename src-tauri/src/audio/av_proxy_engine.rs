@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use super::av_main_thread_actor::{dispatch_cmd, start_on_main_queue, ActorHandle, AvCmd, AvResp};
+use super::av_main_thread_actor::{ActorHandle, AvCmd, AvResp, dispatch_cmd, start_on_main_queue};
 use super::engine::{EngineError, PlayConfig, PlaybackEngine, PlaybackSnapshot};
 use super::streaming_file::StreamingFile;
 

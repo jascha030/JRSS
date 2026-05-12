@@ -1184,7 +1184,10 @@ mod tests {
 
         assert_eq!(parsed.kind, "media");
         assert!(
-            parsed.items.iter().any(|item| item.media_enclosure.is_some()),
+            parsed
+                .items
+                .iter()
+                .any(|item| item.media_enclosure.is_some()),
             "expected at least one item with an audio enclosure"
         );
     }

@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2::{class, msg_send, MainThreadMarker, MainThreadOnly};
+use objc2::{MainThreadMarker, MainThreadOnly, class, msg_send};
 use objc2_av_foundation::{AVPlayer, AVPlayerItem};
 use objc2_core_media::CMTime;
 use objc2_foundation::{NSString, NSURL};
@@ -204,9 +204,8 @@ impl AvMainThreadActor {
                 self.current_item = Some(item);
             }
             None => {
-                let player = unsafe {
-                    AVPlayer::initWithPlayerItem(AVPlayer::alloc(mtm), Some(&item))
-                };
+                let player =
+                    unsafe { AVPlayer::initWithPlayerItem(AVPlayer::alloc(mtm), Some(&item)) };
                 unsafe {
                     player.setVolume(volume);
                     if start_position > 0.0 {
@@ -257,7 +256,11 @@ impl AvMainThreadActor {
         let Some(player) = self.player.as_deref() else {
             return;
         };
-        let target = if self.desired_speed > 0.0 { self.desired_speed } else { 1.0 };
+        let target = if self.desired_speed > 0.0 {
+            self.desired_speed
+        } else {
+            1.0
+        };
         unsafe {
             if (target - 1.0).abs() < 0.01 {
                 player.play();
@@ -293,7 +296,11 @@ impl AvMainThreadActor {
         if let Some(player) = self.player.as_deref() {
             unsafe { player.setRate(speed) };
         }
-        let state = if speed == 0.0 { MP_STATE_PAUSED } else { MP_STATE_PLAYING };
+        let state = if speed == 0.0 {
+            MP_STATE_PAUSED
+        } else {
+            MP_STATE_PLAYING
+        };
         self.publish_now_playing_snapshot(state);
     }
 
@@ -362,14 +369,12 @@ impl AvMainThreadActor {
 
             if !self.current_title.is_empty() {
                 let title = NSString::from_str(&self.current_title);
-                let _: () =
-                    msg_send![dict, setObject: &*title, forKey: MPMediaItemPropertyTitle];
+                let _: () = msg_send![dict, setObject: &*title, forKey: MPMediaItemPropertyTitle];
             }
 
             if !self.current_artist.is_empty() {
                 let artist = NSString::from_str(&self.current_artist);
-                let _: () =
-                    msg_send![dict, setObject: &*artist, forKey: MPMediaItemPropertyArtist];
+                let _: () = msg_send![dict, setObject: &*artist, forKey: MPMediaItemPropertyArtist];
             }
 
             if duration.is_finite() && duration > 0.0 {

@@ -41,6 +41,15 @@ fn set_macos_window_content_aspect_ratio(
     Ok(())
 }
 
+#[cfg(not(target_os = "macos"))]
+fn set_macos_window_content_aspect_ratio(
+    _window: &tauri::WebviewWindow,
+    _width: f64,
+    _height: f64,
+) -> Result<(), String> {
+    Ok(())
+}
+
 /// Helper to run blocking tasks on a thread pool and convert errors.
 async fn blocking<T, F>(task: F) -> Result<T, String>
 where
@@ -103,8 +112,8 @@ pub async fn fetch_feed_raw(
     let db_path = state.db_path();
 
     blocking(move || {
-        let feed = db::get_feed_by_id(&db_path, &feed_id)?
-            .ok_or_else(|| "Feed not found.".to_string())?;
+        let feed =
+            db::get_feed_by_id(&db_path, &feed_id)?.ok_or_else(|| "Feed not found.".to_string())?;
         feed_ingest::fetch_raw_feed_xml(&feed.url)
     })
     .await
@@ -477,7 +486,7 @@ pub fn audio_queue_set(app: tauri::AppHandle, items: Vec<QueuedItem>) -> Result<
 
 #[tauri::command]
 pub fn clear_audio_cache(app: tauri::AppHandle) -> Result<(), String> {
-	audio::cache::clear_audio_cache(&app)
+    audio::cache::clear_audio_cache(&app)
 }
 
 // ---------------------------------------------------------------------------
@@ -517,15 +526,7 @@ pub fn set_window_content_aspect_ratio(
         .get_webview_window(&label)
         .ok_or_else(|| format!("Window '{label}' not found."))?;
 
-    #[cfg(target_os = "macos")]
-    {
-        set_macos_window_content_aspect_ratio(&window, width, height)?;
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (window, width, height);
-    }
+    set_macos_window_content_aspect_ratio(&window, width, height)?;
 
     Ok(())
 }

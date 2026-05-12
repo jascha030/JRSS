@@ -268,12 +268,13 @@ pub fn query_items(
     let safe_offset = query.offset.max(0);
 
     // Determine feed_ids and station metadata
-    let (feed_ids, episode_filter): (Vec<String>, Option<String>) =
-        if let Some(ref station_id) = query.station_id {
-            // Station view: get feeds and episode filter from station
-            use super::rows::map_station_row;
+    let (feed_ids, episode_filter): (Vec<String>, Option<String>) = if let Some(ref station_id) =
+        query.station_id
+    {
+        // Station view: get feeds and episode filter from station
+        use super::rows::map_station_row;
 
-            let station = connection
+        let station = connection
                 .query_row(
                     "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
 				     FROM stations WHERE id = ?1",
@@ -284,25 +285,25 @@ pub fn query_items(
                 .map_err(|error| format!("Failed to query station: {error}"))?
                 .ok_or_else(|| "Station not found.".to_string())?;
 
-            let feed_ids = super::stations::get_station_feed_ids(&connection, station_id)?;
-            (feed_ids, Some(station.episode_filter))
+        let feed_ids = super::stations::get_station_feed_ids(&connection, station_id)?;
+        (feed_ids, Some(station.episode_filter))
+    } else {
+        // Feed or section view: use feed_id if set, otherwise all feeds
+        let feed_ids = if let Some(ref feed_id) = query.feed_id {
+            vec![feed_id.clone()]
         } else {
-            // Feed or section view: use feed_id if set, otherwise all feeds
-            let feed_ids = if let Some(ref feed_id) = query.feed_id {
-                vec![feed_id.clone()]
-            } else {
-                // Get all feed IDs for section views
-                let mut stmt = connection
-                    .prepare("SELECT id FROM feeds")
-                    .map_err(|error| format!("Failed to prepare feed list: {error}"))?;
-                let ids: Result<Vec<String>, _> = stmt
-                    .query_map([], |row| row.get(0))
-                    .map_err(|error| format!("Failed to query feeds: {error}"))?
-                    .collect();
-                ids.map_err(|error| format!("Failed to read feeds: {error}"))?
-            };
-            (feed_ids, None)
+            // Get all feed IDs for section views
+            let mut stmt = connection
+                .prepare("SELECT id FROM feeds")
+                .map_err(|error| format!("Failed to prepare feed list: {error}"))?;
+            let ids: Result<Vec<String>, _> = stmt
+                .query_map([], |row| row.get(0))
+                .map_err(|error| format!("Failed to query feeds: {error}"))?
+                .collect();
+            ids.map_err(|error| format!("Failed to read feeds: {error}"))?
         };
+        (feed_ids, None)
+    };
 
     if feed_ids.is_empty() {
         return Ok(ItemPageRecord {
@@ -409,7 +410,7 @@ pub fn query_items(
         .query_map(page_refs.as_slice(), map_item_list_row)
         .map_err(|error| format!("Failed to query items: {error}"))?
         .collect::<Result<Vec<_>, _>>()
-         .map_err(|error| format!("Failed to read items: {error}"))?;
+        .map_err(|error| format!("Failed to read items: {error}"))?;
 
     Ok(ItemPageRecord { items, total_count })
 }
@@ -417,10 +418,10 @@ pub fn query_items(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use crate::db::schema::initialize_database;
     use crate::db::feeds::upsert_feed_snapshot;
+    use crate::db::schema::initialize_database;
     use crate::models::{ParsedFeed, ParsedFeedItem};
+    use tempfile::TempDir;
 
     fn tmpdb() -> (TempDir, std::path::PathBuf) {
         let dir = TempDir::new().expect("tempdir");
@@ -454,11 +455,13 @@ mod tests {
                     media_enclosure: None,
                 }],
             },
-        ).unwrap();
+        )
+        .unwrap();
         // Mirror the stable_hash + build_item_id logic from feeds.rs.
         format!(
             "item-{}",
-            sha1_smol::Sha1::from(format!("{}:{}", feed.id, "ext-1")).digest().to_string()
+            sha1_smol::Sha1::from(format!("{}:{}", feed.id, "ext-1"))
+                .digest()
         )
     }
 

@@ -235,9 +235,9 @@ pub fn upsert_feed_snapshot(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use crate::db::schema::initialize_database;
     use crate::models::{ParsedFeed, ParsedFeedItem};
+    use tempfile::TempDir;
 
     fn tmpdb() -> (TempDir, std::path::PathBuf) {
         let dir = TempDir::new().expect("tempdir");
@@ -283,7 +283,8 @@ mod tests {
     #[test]
     fn upsert_creates_feed() {
         let (_dir, db_path) = tmpdb();
-        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let feed =
+            upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
         assert_eq!(feed.title, "Test");
         assert!(feed.id.starts_with("feed-"));
     }
@@ -291,8 +292,10 @@ mod tests {
     #[test]
     fn upsert_is_idempotent_preserving_id() {
         let (_dir, db_path) = tmpdb();
-        let f1 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 1")).unwrap();
-        let f2 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 2")).unwrap();
+        let f1 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 1"))
+            .unwrap();
+        let f2 = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Title 2"))
+            .unwrap();
         assert_eq!(f1.id, f2.id);
         let feeds = list_feeds(&db_path).unwrap();
         assert_eq!(feeds.len(), 1);
@@ -302,7 +305,8 @@ mod tests {
     #[test]
     fn get_feed_by_id_returns_feed() {
         let (_dir, db_path) = tmpdb();
-        let created = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let created =
+            upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
         let found = get_feed_by_id(&db_path, &created.id).unwrap().unwrap();
         assert_eq!(found.title, "Test");
     }
@@ -316,7 +320,8 @@ mod tests {
     #[test]
     fn remove_feed_deletes_it() {
         let (_dir, db_path) = tmpdb();
-        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let feed =
+            upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
         remove_feed(&db_path, &feed.id).unwrap();
         assert!(list_feeds(&db_path).unwrap().is_empty());
     }
@@ -328,7 +333,8 @@ mod tests {
             &db_path,
             "https://example.com/rss",
             make_feed_with_item("Feed", "ext-1"),
-        ).unwrap();
+        )
+        .unwrap();
         remove_feed(&db_path, &feed.id).unwrap();
         // If items were not deleted the DB would have orphaned rows;
         // a successful remove without FK violation is sufficient evidence.
@@ -338,7 +344,8 @@ mod tests {
     #[test]
     fn set_feed_sort_order_persists() {
         let (_dir, db_path) = tmpdb();
-        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let feed =
+            upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
         set_feed_sort_order(&db_path, &feed.id, Some("oldest_first")).unwrap();
         let updated = get_feed_by_id(&db_path, &feed.id).unwrap().unwrap();
         assert_eq!(updated.sort_order, Some("oldest_first".to_string()));
@@ -347,7 +354,8 @@ mod tests {
     #[test]
     fn set_feed_sort_order_to_none_clears_it() {
         let (_dir, db_path) = tmpdb();
-        let feed = upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
+        let feed =
+            upsert_feed_snapshot(&db_path, "https://example.com/rss", make_feed("Test")).unwrap();
         set_feed_sort_order(&db_path, &feed.id, Some("oldest_first")).unwrap();
         set_feed_sort_order(&db_path, &feed.id, None).unwrap();
         let updated = get_feed_by_id(&db_path, &feed.id).unwrap().unwrap();

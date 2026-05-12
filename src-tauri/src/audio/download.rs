@@ -74,10 +74,7 @@ pub fn download_to_file(
                     .and_then(|v| v.to_str().ok())
                     .and_then(|v| v.parse::<u64>().ok())
                 {
-                    log::warn!(
-                        "Download hit 429, respecting Retry-After: {}s",
-                        retry_after
-                    );
+                    log::warn!("Download hit 429, respecting Retry-After: {}s", retry_after);
                     std::thread::sleep(std::time::Duration::from_secs(retry_after));
                 } else {
                     log::warn!(

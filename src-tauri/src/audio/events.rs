@@ -24,8 +24,8 @@ pub struct PlaybackEndedEvent {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackErrorEvent {
-	pub item_id: String,
-	pub error: String,
+    pub item_id: String,
+    pub error: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -182,9 +182,9 @@ pub trait PlaybackEngine {
     /// Whether playback is currently paused. Returns `false` if stopped.
     fn is_paused(&self) -> bool;
 
-	/// Whether the media stream has been fully consumed (natural end of
-	/// stream). Returns `false` when stopped or not yet started.
-	fn is_finished(&self) -> bool;
+    /// Whether the media stream has been fully consumed (natural end of
+    /// stream). Returns `false` when stopped or not yet started.
+    fn is_finished(&self) -> bool;
 
     /// Collapsed state snapshot — one round-trip for engines whose state
     /// queries are expensive (e.g. cross-thread IPC).

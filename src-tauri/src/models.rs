@@ -294,9 +294,7 @@ impl ToSql for ColorScheme {
 
 impl FromSql for ColorScheme {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        value
-            .as_str()
-            .map(|s| s.parse().unwrap_or_default())
+        value.as_str().map(|s| s.parse().unwrap_or_default())
     }
 }
 

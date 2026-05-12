@@ -158,10 +158,7 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
         .all(|column| column != "accent_color")
     {
         connection
-            .execute(
-                "ALTER TABLE app_settings ADD COLUMN accent_color TEXT",
-                [],
-            )
+            .execute("ALTER TABLE app_settings ADD COLUMN accent_color TEXT", [])
             .map_err(|error| {
                 format!("Failed to add SQLite app settings accent_color column: {error}")
             })?;
@@ -200,8 +197,9 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
 
 fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
     use super::settings::{
-        DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
-        DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS,
+        DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+        DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP, DEFAULT_SKIP_BACKWARD_SECONDS,
+        DEFAULT_SKIP_FORWARD_SECONDS,
     };
 
     connection
@@ -498,7 +496,13 @@ mod tests {
             .collect::<Result<_, _>>()
             .unwrap();
 
-        for table in ["feeds", "items", "playback_state", "stations", "station_feeds"] {
+        for table in [
+            "feeds",
+            "items",
+            "playback_state",
+            "stations",
+            "station_feeds",
+        ] {
             assert!(
                 table_names.iter().any(|t| t == table),
                 "expected table '{table}' to exist; got: {table_names:?}"
