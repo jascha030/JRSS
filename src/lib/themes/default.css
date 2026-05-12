@@ -1,0 +1,112 @@
+/*
+ * Public theme contract.
+ *
+ * Future dotfile themes should override these `--app-*` variables only.
+ * App code keeps consuming the internal `--color-*` and `--font-*` tokens.
+ */
+
+:root {
+	--app-spacing: 0.28rem;
+	--app-radius-base: 0.375rem;
+	--app-radius-container: 1.5rem;
+
+	--app-font-sans:
+		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI',
+		system-ui, sans-serif;
+	--app-font-serif: ui-serif, 'New York', 'Times New Roman', serif;
+	--app-font-mono:
+		ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+		'Courier New', monospace;
+
+	--app-accent: #4f46e5;
+	--app-color-primary: var(--app-accent);
+	--app-color-secondary: #e11d48;
+	--app-color-tertiary: #3b82f6;
+	--app-color-success: #22c55e;
+	--app-color-warning: #f59e0b;
+	--app-color-error: #ef4444;
+
+	--app-bg: #f8fafc;
+	--app-surface: rgb(255 255 255 / 0.55);
+	--app-surface-alt: rgb(241 245 249 / 0.55);
+	--app-surface-card: rgb(255 255 255 / 0.55);
+	--app-surface-active: rgb(241 245 249 / 0.6);
+	--app-surface-hover: rgb(248 250 252 / 0.55);
+	--app-surface-inset: rgb(248 250 252 / 0.8);
+	--app-surface-glass: rgb(255 255 255 / 0.5);
+	--app-surface-glass-heavy: rgb(255 255 255 / 0.82);
+	--app-surface-shell: rgb(241 245 249 / 0.6);
+	--app-surface-shell-opaque: rgb(241 245 249);
+	--app-surface-sidebar: rgb(241 245 249 / 0.45);
+	--app-surface-sidebar-hover: rgb(0 0 0 / 0.05);
+	--app-surface-sidebar-active: rgb(0 0 0 / 0.09);
+
+	--app-fg: #020617;
+	--app-fg-secondary: #334155;
+	--app-fg-muted: #64748b;
+	--app-fg-subtle: #94a3b8;
+	--app-fg-inverse: #ffffff;
+	--app-fg-link: #2563eb;
+
+	--app-border: #e2e8f0;
+	--app-border-strong: #cbd5e1;
+	--app-border-hover: #94a3b8;
+	--app-ring: #cbd5e1;
+
+	--app-interactive: #020617;
+	--app-interactive-hover: #2e405c;
+	--app-interactive-text: #ffffff;
+
+	--app-article-body: #334155;
+	--app-article-heading: #0f172a;
+	--app-article-link: #2563eb;
+	--app-article-blockquote-border: #cbd5e1;
+	--app-article-blockquote-text: #475569;
+	--app-article-caption: #64748b;
+	--app-article-code-bg: #f1f5f9;
+	--app-article-table-border: #e2e8f0;
+}
+
+:root.dark {
+	--app-accent: #6366f1;
+
+	--app-bg: #020617;
+	--app-surface: rgb(2 6 23 / 0.55);
+	--app-surface-alt: rgb(15 23 42 / 0.55);
+	--app-surface-card: rgb(15 23 42 / 0.55);
+	--app-surface-active: rgb(30 41 59 / 0.6);
+	--app-surface-hover: rgb(15 23 42 / 0.55);
+	--app-surface-inset: rgb(15 23 42 / 0.6);
+	--app-surface-glass: rgb(2 6 23 / 0.5);
+	--app-surface-glass-heavy: rgb(2 6 23 / 0.82);
+	--app-surface-shell: rgb(2 6 23 / 0.6);
+	--app-surface-shell-opaque: rgb(2 6 23);
+	--app-surface-sidebar: rgb(2 6 23 / 0.5);
+	--app-surface-sidebar-hover: rgb(255 255 255 / 0.08);
+	--app-surface-sidebar-active: rgb(255 255 255 / 0.14);
+
+	--app-fg: #ffffff;
+	--app-fg-secondary: #e2e8f0;
+	--app-fg-muted: #94a3b8;
+	--app-fg-subtle: #64748b;
+	--app-fg-inverse: #020617;
+	--app-fg-link: #60a5fa;
+
+	--app-border: #1e293b;
+	--app-border-strong: #334155;
+	--app-border-hover: #64748b;
+	--app-ring: #334155;
+
+	--app-interactive: #e9edf2;
+	--app-interactive-hover: #ffffff;
+	--app-interactive-text: #020617;
+
+	--app-article-body: #e2e8f0;
+	--app-article-heading: #f8fafc;
+	--app-article-link: #60a5fa;
+	--app-article-blockquote-border: #475569;
+	--app-article-blockquote-text: #cbd5e1;
+	--app-article-caption: #94a3b8;
+	--app-article-code-bg: #0f172a;
+	--app-article-table-border: #334155;
+}
