@@ -61,6 +61,10 @@ impl AudioState {
             .send(cmd)
             .map_err(|_| "Audio thread is not running".to_string())
     }
+
+    pub fn sender(&self) -> mpsc::Sender<AudioCommand> {
+        self.tx.clone()
+    }
 }
 
 // ---------------------------------------------------------------------------

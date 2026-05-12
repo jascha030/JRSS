@@ -1,172 +1,170 @@
 //! Send-safe proxy for the main-thread AV actor.
 //!
-//! [`AvProxyEngine`] implements [`PlaybackEngine`] by forwarding all commands
-//! to an [`AvMainThreadActor`] running on the main dispatch queue via mpsc
-//! channels. This allows the orchestration layer to own the engine on a
-//! background thread while AVPlayer (which is main-thread-only) lives on the
-//! main queue.
+//! [`AvProxyEngine`] implements [`PlaybackEngine`] by forwarding each command
+//! to [`AvMainThreadActor`] via a one-shot `dispatch_async_f` call on the main
+//! queue.  No timer polling; no shared channels between commands.
 
-use std::sync::mpsc;
 use std::time::Duration;
 
-use super::av_main_thread_actor::{start_on_main_queue, AvCmd, AvResp};
-use super::engine::{EngineError, PlayConfig, PlaybackEngine};
+use super::av_main_thread_actor::{dispatch_cmd, start_on_main_queue, ActorHandle, AvCmd, AvResp};
+use super::engine::{EngineError, PlayConfig, PlaybackEngine, PlaybackSnapshot};
 use super::streaming_file::StreamingFile;
 
-const RESPONSE_TIMEOUT: Duration = Duration::from_secs(5);
+const CMD_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Send-safe proxy engine that delegates all playback operations to an
-/// [`AvMainThreadActor`] on the main thread.
 pub struct AvProxyEngine {
-	cmd_tx: mpsc::Sender<AvCmd>,
-	resp_rx: mpsc::Receiver<AvResp>,
-	cached_duration: f64,
-	has_active: bool,
+    handle: ActorHandle,
+    cached_duration: f64,
+    has_active: bool,
 }
 
 impl AvProxyEngine {
-	/// Spawn the [`AvMainThreadActor`] on the main dispatch queue and return
-	/// the proxy.
-	pub fn new() -> Self {
-		let (cmd_tx, cmd_rx) = mpsc::channel();
-		let (resp_tx, resp_rx) = mpsc::channel();
+    pub fn new() -> Self {
+        Self {
+            handle: start_on_main_queue(),
+            cached_duration: 0.0,
+            has_active: false,
+        }
+    }
 
-		start_on_main_queue(cmd_rx, resp_tx);
-
-		Self {
-			cmd_tx,
-			resp_rx,
-			cached_duration: 0.0,
-			has_active: false,
-		}
-	}
-
-	/// Return the duration reported by the actor, falling back to the cached
-	/// hint if the query fails.
-	pub fn duration_seconds(&self) -> f64 {
-		match self.send_cmd(AvCmd::GetDuration) {
-			Ok(AvResp::Duration(d)) => d,
-			_ => self.cached_duration,
-		}
-	}
-
-	fn send_cmd(&self, cmd: AvCmd) -> Result<AvResp, EngineError> {
-		self.cmd_tx
-			.send(cmd)
-			.map_err(|_| EngineError::Internal("AV command channel closed".into()))?;
-
-		self.resp_rx
-			.recv_timeout(RESPONSE_TIMEOUT)
-			.map_err(|_| EngineError::Internal("AV response timed out".into()))
-	}
+    fn send(&self, cmd: AvCmd) -> Result<AvResp, EngineError> {
+        // dispatch_cmd blocks on an mpsc::SyncSender; apply a wall-clock guard
+        // with a thread so we don't block the audio thread indefinitely.
+        let handle = self.handle.clone();
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let resp = dispatch_cmd(&handle, cmd);
+            let _ = tx.send(resp);
+        });
+        rx.recv_timeout(CMD_TIMEOUT)
+            .map_err(|_| EngineError::Internal("AV command timed out".into()))?
+            .ok_or_else(|| EngineError::Internal("AV actor closed".into()))
+    }
 }
 
 impl PlaybackEngine for AvProxyEngine {
-	fn initialize(&mut self) {}
+    fn initialize(&mut self) {}
 
-	fn play_stream(
-		&mut self,
-		_stream: StreamingFile,
-		config: PlayConfig,
-	) -> Result<Option<f64>, EngineError> {
-		let Some(ref path) = config.file_path else {
-			return Err(EngineError::Internal(
-				"AVProxyEngine requires a file path".into(),
-			));
-		};
+    fn play_stream(
+        &mut self,
+        _stream: StreamingFile,
+        config: PlayConfig,
+    ) -> Result<Option<f64>, EngineError> {
+        let Some(ref path) = config.file_path else {
+            return Err(EngineError::Internal(
+                "AvProxyEngine requires a file path".into(),
+            ));
+        };
 
-		let file_path = path.to_string_lossy().into_owned();
+        let cmd = AvCmd::Play {
+            file_path: path.to_string_lossy().into_owned(),
+            start_position: config.start_position_seconds,
+            volume: config.volume,
+            speed: config.speed,
+            title: config.title.clone(),
+            artist: config.artist.clone(),
+        };
 
-		let cmd = AvCmd::Play {
-			file_path,
-			start_position: config.start_position_seconds,
-			volume: config.volume,
-			speed: config.speed,
-		};
+        match self.send(cmd)? {
+            AvResp::Ok => {
+                self.has_active = true;
+                // Fetch duration via snapshot immediately after play succeeds.
+                let snap = match self.send(AvCmd::GetSnapshot)? {
+                    AvResp::Snapshot(s) => s,
+                    _ => return Ok(None),
+                };
+                if snap.duration > 0.0 {
+                    self.cached_duration = snap.duration;
+                    Ok(Some(snap.duration))
+                } else {
+                    Ok(None)
+                }
+            }
+            AvResp::Err(msg) => Err(EngineError::DecodeFailed(msg)),
+            _ => Err(EngineError::Internal(
+                "Unexpected AV response for Play".into(),
+            )),
+        }
+    }
 
-		match self.send_cmd(cmd)? {
-			AvResp::Ok => {
-				self.has_active = true;
-				let actual = match self.send_cmd(AvCmd::GetDuration)? {
-					AvResp::Duration(d) if d > 0.0 => {
-						self.cached_duration = d;
-						Some(d)
-					}
-					_ => None,
-				};
-				Ok(actual)
-			}
-			AvResp::Err(msg) => Err(EngineError::DecodeFailed(msg)),
-			_ => Err(EngineError::Internal(
-				"Unexpected AV response for Play".into(),
-			)),
-		}
-	}
+    fn stop(&mut self) {
+        let _ = self.send(AvCmd::Stop);
+        self.has_active = false;
+        self.cached_duration = 0.0;
+    }
 
-	fn stop(&mut self) {
-		let _ = self.send_cmd(AvCmd::Stop);
-		self.has_active = false;
-		self.cached_duration = 0.0;
-	}
+    fn pause(&mut self) {
+        let _ = self.send(AvCmd::Pause);
+    }
 
-	fn pause(&mut self) {
-		let _ = self.send_cmd(AvCmd::Pause);
-	}
+    fn resume(&mut self) {
+        let _ = self.send(AvCmd::Resume);
+    }
 
-	fn resume(&mut self) {
-		let _ = self.send_cmd(AvCmd::Resume);
-	}
+    fn seek(&mut self, position_seconds: f64) -> bool {
+        matches!(
+            self.send(AvCmd::Seek {
+                position: position_seconds
+            }),
+            Ok(AvResp::Ok)
+        )
+    }
 
-	fn seek(&mut self, position_seconds: f64) -> bool {
-		matches!(
-			self.send_cmd(AvCmd::Seek {
-				position: position_seconds
-			}),
-			Ok(AvResp::Ok)
-		)
-	}
+    fn set_volume(&mut self, volume: f32) {
+        let _ = self.send(AvCmd::SetVolume { volume });
+    }
 
-	fn set_volume(&mut self, volume: f32) {
-		let _ = self.send_cmd(AvCmd::SetVolume { volume });
-	}
+    fn set_speed(&mut self, speed: f32) {
+        let _ = self.send(AvCmd::SetSpeed { speed });
+    }
 
-	fn set_speed(&mut self, speed: f32) {
-		let _ = self.send_cmd(AvCmd::SetSpeed { speed });
-	}
+    fn position_seconds(&self) -> f64 {
+        match self.send(AvCmd::GetSnapshot) {
+            Ok(AvResp::Snapshot(s)) => s.position,
+            _ => 0.0,
+        }
+    }
 
-	fn position_seconds(&self) -> f64 {
-		match self.send_cmd(AvCmd::GetPosition) {
-			Ok(AvResp::Position(p)) => p,
-			_ => 0.0,
-		}
-	}
+    fn has_active_playback(&self) -> bool {
+        self.has_active
+    }
 
-	fn has_active_playback(&self) -> bool {
-		self.has_active
-	}
+    fn is_paused(&self) -> bool {
+        match self.send(AvCmd::GetSnapshot) {
+            Ok(AvResp::Snapshot(s)) => s.is_paused,
+            _ => false,
+        }
+    }
 
-	fn is_paused(&self) -> bool {
-		match self.send_cmd(AvCmd::IsPaused) {
-			Ok(AvResp::Paused(p)) => p,
-			_ => false,
-		}
-	}
+    fn is_finished(&self) -> bool {
+        match self.send(AvCmd::GetSnapshot) {
+            Ok(AvResp::Snapshot(s)) => s.is_finished,
+            _ => false,
+        }
+    }
 
-	fn is_finished(&self) -> bool {
-		match self.send_cmd(AvCmd::IsFinished) {
-			Ok(AvResp::Finished(f)) => f,
-			_ => false,
-		}
-	}
+    fn has_error(&self) -> bool {
+        match self.send(AvCmd::GetSnapshot) {
+            Ok(AvResp::Snapshot(s)) => s.has_error,
+            _ => false,
+        }
+    }
 
-	fn has_error(&self) -> bool {
-		match self.send_cmd(AvCmd::HasError) {
-			Ok(AvResp::HasError(e)) => e,
-			_ => false,
-		}
-	}
+    fn playback_snapshot(&self) -> PlaybackSnapshot {
+        match self.send(AvCmd::GetSnapshot) {
+            Ok(AvResp::Snapshot(s)) => PlaybackSnapshot {
+                position: s.position,
+                duration: s.duration,
+                is_paused: s.is_paused,
+                is_finished: s.is_finished,
+                has_error: s.has_error,
+                has_active: s.has_active,
+            },
+            _ => PlaybackSnapshot::default(),
+        }
+    }
 
-	fn selected_output_device_id(&self) -> Option<&str> {
-		None
-	}
+    fn selected_output_device_id(&self) -> Option<&str> {
+        None
+    }
 }

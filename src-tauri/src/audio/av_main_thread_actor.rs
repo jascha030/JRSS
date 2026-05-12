@@ -1,407 +1,531 @@
-//! Main-thread AV actor — owns `AVPlayer` / `AVPlayerItem` and processes commands
-//! dispatched from the audio proxy on the main queue.
+//! Main-thread AV actor — owns a persistent `AVPlayer` and processes commands
+//! dispatched one-shot from [`AvProxyEngine`] via `dispatch_async_f`.
+//!
+//! ## Thread safety contract
+//! `AVPlayer` is `MainThreadOnly` in objc2, which makes `AvMainThreadActor`
+//! `!Send`. The actor is stored in `Arc<Mutex<Option<…>>>` and accessed
+//! exclusively through `dispatch_async_f` targeting `_dispatch_main_q`,
+//! guaranteeing every access happens on the main thread.
+//!
+//! `unsafe impl Send for AvMainThreadActor` is sound under that invariant.
 
-#![allow(unexpected_cfgs)]
-#![allow(deprecated)]
-
-use cocoa::base::{id, nil};
-use cocoa::foundation::NSString;
-use objc::{class, msg_send, sel, sel_impl};
+use std::ffi::c_void;
 use std::marker::PhantomData;
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+
+use objc2::rc::Retained;
+use objc2::runtime::AnyObject;
+use objc2::{class, msg_send, MainThreadMarker, MainThreadOnly};
+use objc2_av_foundation::{AVPlayer, AVPlayerItem, AVPlayerItemStatus, AVPlayerStatus};
+use objc2_core_media::CMTime;
+use objc2_foundation::{NSString, NSURL};
 
 // ---------------------------------------------------------------------------
-// CoreMedia CMTime bridging
+// MPNowPlayingInfoCenter — optional Now Playing publishing
 // ---------------------------------------------------------------------------
+//
+// Hypothesis (unproven): registering with MPNowPlayingInfoCenter before
+// playback starts may prevent BTAudioHALPlugin from receiving a NULL client
+// identity string, which would crash coreaudiod via CFStringCreateCopy.
+// The crash still occurred after this was added, so the hypothesis is
+// unconfirmed. The `now-playing` Cargo feature gates all of this path so it
+// can be disabled for isolation testing without rebuilding the rest of the app.
 
-#[allow(dead_code)]
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct CMTime {
-	value: i64,
-	timescale: i32,
-	flags: u32,
-	epoch: i64,
-}
-
-#[link(name = "CoreMedia", kind = "framework")]
+// MediaPlayer framework must be linked unconditionally: MPRemoteCommandCenter
+// (used by the remote-commands feature) lives in the same framework.
+#[link(name = "MediaPlayer", kind = "framework")]
 unsafe extern "C" {
-	fn CMTimeMakeWithSeconds(seconds: f64, preferredTimescale: i32) -> CMTime;
-	fn CMTimeGetSeconds(time: CMTime) -> f64;
+    #[cfg(feature = "now-playing")]
+    static MPMediaItemPropertyTitle: *mut AnyObject;
+    #[cfg(feature = "now-playing")]
+    static MPMediaItemPropertyArtist: *mut AnyObject;
+    #[cfg(feature = "now-playing")]
+    static MPMediaItemPropertyPlaybackDuration: *mut AnyObject;
+    #[cfg(feature = "now-playing")]
+    static MPNowPlayingInfoPropertyPlaybackRate: *mut AnyObject;
+    #[cfg(feature = "now-playing")]
+    static MPNowPlayingInfoPropertyElapsedPlaybackTime: *mut AnyObject;
 }
 
+#[cfg(feature = "now-playing")]
+const MP_STATE_PLAYING: u64 = 1;
+#[cfg(feature = "now-playing")]
+const MP_STATE_PAUSED: u64 = 2;
+#[cfg(feature = "now-playing")]
+const MP_STATE_STOPPED: u64 = 3;
+
 // ---------------------------------------------------------------------------
-// Command / Response enums
+// Public command / response types
 // ---------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum AvCmd {
-	Play {
-		file_path: String,
-		start_position: f64,
-		volume: f32,
-		speed: f32,
-	},
-	Pause,
-	Resume,
-	Stop,
-	Seek {
-		position: f64,
-	},
-	SetVolume {
-		volume: f32,
-	},
-	SetSpeed {
-		speed: f32,
-	},
-	GetPosition,
-	GetDuration,
-	IsPaused,
-	IsFinished,
-	HasError,
+    Play {
+        file_path: String,
+        start_position: f64,
+        volume: f32,
+        speed: f32,
+        title: String,
+        artist: String,
+    },
+    Pause,
+    Resume,
+    Stop,
+    Seek {
+        position: f64,
+    },
+    SetVolume {
+        volume: f32,
+    },
+    SetSpeed {
+        speed: f32,
+    },
+    GetSnapshot,
+}
+
+/// Collapsed state snapshot — one round-trip replaces four separate queries.
+#[derive(Debug, Default)]
+pub struct AvSnapshot {
+    pub position: f64,
+    pub duration: f64,
+    pub is_paused: bool,
+    pub is_finished: bool,
+    pub has_error: bool,
+    pub has_active: bool,
 }
 
 #[derive(Debug)]
 pub enum AvResp {
-	Ok,
-	Err(String),
-	Position(f64),
-	Duration(f64),
-	Paused(bool),
-	Finished(bool),
-	HasError(bool),
+    Ok,
+    Err(String),
+    Snapshot(AvSnapshot),
 }
 
 // ---------------------------------------------------------------------------
 // Actor
 // ---------------------------------------------------------------------------
 
-/// `AVPlayer`-backed actor that must live and run exclusively on the main
-/// thread. The `!Send` bound is enforced by a `PhantomData<Rc<()>>` marker
-/// because raw pointers are technically `Send` in Rust.
+/// Owns a persistent `AVPlayer` that is reused across tracks via
+/// `replaceCurrentItemWithPlayerItem:`.  Must run exclusively on the main
+/// thread; the `!Send` bound is enforced by `PhantomData<Rc<()>>`.
 pub struct AvMainThreadActor {
-	player: Option<id>,
-	current_item: Option<id>,
-	cmd_rx: mpsc::Receiver<AvCmd>,
-	resp_tx: mpsc::Sender<AvResp>,
-	last_duration: f64,
-	desired_speed: f32,
-	_not_send: PhantomData<std::rc::Rc<()>>,
+    player: Option<Retained<AVPlayer>>,
+    current_item: Option<Retained<AVPlayerItem>>,
+    last_duration: f64,
+    desired_speed: f32,
+    current_title: String,
+    current_artist: String,
+    _not_send: PhantomData<std::rc::Rc<()>>,
 }
 
+// SAFETY: every access is routed through `dispatch_async_f` targeting
+// `_dispatch_main_q`, so the actor is only ever touched on the main thread.
+unsafe impl Send for AvMainThreadActor {}
+
 impl AvMainThreadActor {
-	pub fn new(cmd_rx: mpsc::Receiver<AvCmd>, resp_tx: mpsc::Sender<AvResp>) -> Self {
-		Self {
-			player: None,
-			current_item: None,
-			cmd_rx,
-			resp_tx,
-			last_duration: 0.0,
-			desired_speed: 1.0,
-			_not_send: PhantomData,
-		}
-	}
+    fn new() -> Self {
+        Self {
+            player: None,
+            current_item: None,
+            last_duration: 0.0,
+            desired_speed: 1.0,
+            current_title: String::new(),
+            current_artist: String::new(),
+            _not_send: PhantomData,
+        }
+    }
 
-	/// Blocking command loop. Must be called on the main thread.
-	pub fn run(&mut self) {
-		while let Ok(cmd) = self.cmd_rx.recv() {
-			let resp = self.handle_cmd(cmd);
-			if self.resp_tx.send(resp).is_err() {
-				break;
-			}
-		}
-	}
+    pub fn handle_cmd(&mut self, cmd: AvCmd) -> AvResp {
+        match cmd {
+            AvCmd::Play {
+                file_path,
+                start_position,
+                volume,
+                speed,
+                title,
+                artist,
+            } => self.play(&file_path, start_position, volume, speed, &title, &artist),
+            AvCmd::Pause => {
+                self.pause();
+                AvResp::Ok
+            }
+            AvCmd::Resume => {
+                self.resume();
+                AvResp::Ok
+            }
+            AvCmd::Stop => {
+                self.stop();
+                AvResp::Ok
+            }
+            AvCmd::Seek { position } => {
+                self.seek(position);
+                AvResp::Ok
+            }
+            AvCmd::SetVolume { volume } => {
+                self.set_volume(volume);
+                AvResp::Ok
+            }
+            AvCmd::SetSpeed { speed } => {
+                self.set_speed(speed);
+                AvResp::Ok
+            }
+            AvCmd::GetSnapshot => AvResp::Snapshot(self.snapshot()),
+        }
+    }
 
-	fn handle_cmd(&mut self, cmd: AvCmd) -> AvResp {
-		match cmd {
-			AvCmd::Play {
-				file_path,
-				start_position,
-				volume,
-				speed,
-			} => self.play(&file_path, start_position, volume, speed),
-			AvCmd::Pause => {
-				self.pause();
-				AvResp::Ok
-			}
-			AvCmd::Resume => {
-				self.resume();
-				AvResp::Ok
-			}
-			AvCmd::Stop => {
-				self.stop();
-				AvResp::Ok
-			}
-			AvCmd::Seek { position } => {
-				self.seek(position);
-				AvResp::Ok
-			}
-			AvCmd::SetVolume { volume } => {
-				self.set_volume(volume);
-				AvResp::Ok
-			}
-			AvCmd::SetSpeed { speed } => {
-				self.set_speed(speed);
-				AvResp::Ok
-			}
-			AvCmd::GetPosition => AvResp::Position(self.position_seconds()),
-			AvCmd::GetDuration => AvResp::Duration(self.item_duration()),
-			AvCmd::IsPaused => AvResp::Paused(self.is_paused()),
-			AvCmd::IsFinished => AvResp::Finished(self.is_finished()),
-			AvCmd::HasError => AvResp::HasError(self.has_error()),
-		}
-	}
+    // -----------------------------------------------------------------------
+    // AVPlayer operations
+    // -----------------------------------------------------------------------
 
-	// -----------------------------------------------------------------------
-	// AVPlayer operations
-	// -----------------------------------------------------------------------
+    fn play(
+        &mut self,
+        file_path: &str,
+        start_position: f64,
+        volume: f32,
+        speed: f32,
+        title: &str,
+        artist: &str,
+    ) -> AvResp {
+        // SAFETY: called exclusively on the main thread via dispatch trampoline.
+        let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
-	fn play(
-		&mut self,
-		file_path: &str,
-		start_position: f64,
-		volume: f32,
-		speed: f32,
-	) -> AvResp {
-		self.stop_and_release();
+        self.current_title = title.to_owned();
+        self.current_artist = artist.to_owned();
+        self.desired_speed = speed;
 
-		let result: Result<(id, id, Option<f64>), String> = unsafe {
-			objc::rc::autoreleasepool(|| {
-				let path_ns = NSString::alloc(nil).init_str(file_path);
-				let url: id = msg_send![class!(NSURL), fileURLWithPath:path_ns];
-				let _: () = msg_send![path_ns, release];
+        let path_ns = NSString::from_str(file_path);
+        let url = NSURL::fileURLWithPath(&path_ns);
+        let item = unsafe { AVPlayerItem::playerItemWithURL(&url, mtm) };
 
-				let item: id = msg_send![class!(AVPlayerItem), playerItemWithURL:url];
-				if item == nil {
-					return Err("Failed to create AVPlayerItem".to_string());
-				}
-				// playerItemWithURL: returns autoreleased — retain for ownership.
-				let _: () = msg_send![item, retain];
+        match self.player.as_deref() {
+            Some(player) => {
+                // Reuse the existing player — avoids CoreAudio graph teardown.
+                unsafe {
+                    player.replaceCurrentItemWithPlayerItem(Some(&item));
+                    player.setVolume(volume);
+                    if start_position > 0.0 {
+                        let time = CMTime::with_seconds(start_position, 1_000);
+                        player.seekToTime(time);
+                    }
+                    if (speed - 1.0).abs() < 0.01 {
+                        player.play();
+                    } else {
+                        player.setRate(speed);
+                    }
+                }
+                self.last_duration = item_duration(&item).unwrap_or(0.0);
+                self.current_item = Some(item);
+            }
+            None => {
+                let player = unsafe {
+                    AVPlayer::initWithPlayerItem(AVPlayer::alloc(mtm), Some(&item))
+                };
+                unsafe {
+                    player.setVolume(volume);
+                    if start_position > 0.0 {
+                        let time = CMTime::with_seconds(start_position, 1_000);
+                        player.seekToTime(time);
+                    }
+                    if (speed - 1.0).abs() < 0.01 {
+                        player.play();
+                    } else {
+                        player.setRate(speed);
+                    }
+                }
+                self.last_duration = item_duration(&item).unwrap_or(0.0);
+                self.current_item = Some(item);
+                self.player = Some(player);
+            }
+        }
 
-				let player: id = msg_send![class!(AVPlayer), alloc];
-				let player: id = msg_send![player, initWithPlayerItem:item];
-				if player == nil {
-					let _: () = msg_send![item, release];
-					return Err("Failed to create AVPlayer".to_string());
-				}
+        // Publish after the player/item swap is complete and playback has started.
+        #[cfg(feature = "now-playing")]
+        self.publish_now_playing_snapshot(MP_STATE_PLAYING);
 
-				let _: () = msg_send![player, setVolume:volume];
+        AvResp::Ok
+    }
 
-				if start_position > 0.0 {
-					let time = CMTimeMakeWithSeconds(start_position, 1000);
-					let _: () = msg_send![player, seekToTime:time];
-				}
+    fn stop(&mut self) {
+        if let Some(player) = self.player.as_deref() {
+            unsafe {
+                player.pause();
+                // Detach item without destroying the player or its audio session.
+                player.replaceCurrentItemWithPlayerItem(None);
+            }
+        }
+        self.current_item = None;
+        self.last_duration = 0.0;
+        self.current_title.clear();
+        self.current_artist.clear();
+        #[cfg(feature = "now-playing")]
+        self.erase_now_playing();
+    }
 
-				self.desired_speed = speed;
-				let _: () = msg_send![player, setRate:speed];
+    fn pause(&mut self) {
+        if let Some(player) = self.player.as_deref() {
+            unsafe { player.pause() };
+        }
+        #[cfg(feature = "now-playing")]
+        self.publish_now_playing_snapshot(MP_STATE_PAUSED);
+    }
 
-				let duration = item_duration_from_id(item);
+    fn resume(&mut self) {
+        let Some(player) = self.player.as_deref() else {
+            return;
+        };
+        let target = if self.desired_speed > 0.0 { self.desired_speed } else { 1.0 };
+        unsafe {
+            if (target - 1.0).abs() < 0.01 {
+                player.play();
+            } else {
+                player.setRate(target);
+            }
+        }
+        #[cfg(feature = "now-playing")]
+        self.publish_now_playing_snapshot(MP_STATE_PLAYING);
+    }
 
-				Ok((player, item, duration))
-			})
-		};
+    fn seek(&mut self, position_seconds: f64) {
+        if let Some(player) = self.player.as_deref() {
+            unsafe {
+                let time = CMTime::with_seconds(position_seconds, 1_000);
+                player.seekToTime(time);
+            }
+        }
+        #[cfg(feature = "now-playing")]
+        {
+            let state = match self.player.as_deref() {
+                Some(p) if unsafe { p.rate() } != 0.0 => MP_STATE_PLAYING,
+                _ => MP_STATE_PAUSED,
+            };
+            self.publish_now_playing_snapshot(state);
+        }
+    }
 
-		match result {
-			Ok((player, item, duration)) => {
-				self.player = Some(player);
-				self.current_item = Some(item);
-				self.last_duration = duration.unwrap_or(0.0);
-				AvResp::Ok
-			}
-			Err(e) => AvResp::Err(e),
-		}
-	}
+    fn set_volume(&mut self, volume: f32) {
+        if let Some(player) = self.player.as_deref() {
+            unsafe { player.setVolume(volume) };
+        }
+    }
 
-	fn stop(&mut self) {
-		self.stop_and_release();
-	}
+    fn set_speed(&mut self, speed: f32) {
+        self.desired_speed = speed;
+        if let Some(player) = self.player.as_deref() {
+            unsafe { player.setRate(speed) };
+        }
+        #[cfg(feature = "now-playing")]
+        {
+            let state = if speed == 0.0 { MP_STATE_PAUSED } else { MP_STATE_PLAYING };
+            self.publish_now_playing_snapshot(state);
+        }
+    }
 
-	fn stop_and_release(&mut self) {
-		if let Some(player) = self.player.take() {
-			unsafe {
-				let _: () = msg_send![player, pause];
-				let _: () = msg_send![player, release];
-			}
-		}
-		if let Some(item) = self.current_item.take() {
-			unsafe {
-				let _: () = msg_send![item, release];
-			}
-		}
-		self.last_duration = 0.0;
-	}
+    fn position_seconds(&self) -> f64 {
+        let Some(player) = self.player.as_deref() else {
+            return 0.0;
+        };
+        let time = unsafe { player.currentTime() };
+        unsafe {
+            if time.timescale > 0 {
+                let s = CMTime::seconds(time);
+                if s.is_finite() && s >= 0.0 { s } else { 0.0 }
+            } else {
+                0.0
+            }
+        }
+    }
 
-	fn pause(&mut self) {
-		if let Some(player) = self.player {
-			unsafe {
-				let _: () = msg_send![player, pause];
-			}
-		}
-	}
+    fn item_duration(&self) -> f64 {
+        self.current_item
+            .as_deref()
+            .and_then(item_duration)
+            .unwrap_or(self.last_duration)
+    }
 
-	fn resume(&mut self) {
-		let Some(player) = self.player else {
-			return;
-		};
-		unsafe {
-			let target_rate = if self.desired_speed > 0.0 {
-				self.desired_speed
-			} else {
-				1.0
-			};
-			if (target_rate - 1.0).abs() < 0.01 {
-				let _: () = msg_send![player, play];
-			} else {
-				let _: () = msg_send![player, setRate:target_rate];
-			}
-		}
-	}
+    fn snapshot(&self) -> AvSnapshot {
+        let Some(player) = self.player.as_deref() else {
+            return AvSnapshot::default();
+        };
 
-	fn seek(&mut self, position_seconds: f64) {
-		if let Some(player) = self.player {
-			unsafe {
-				let time = CMTimeMakeWithSeconds(position_seconds, 1000);
-				let _: () = msg_send![player, seekToTime:time];
-			}
-		}
-	}
+        let rate = unsafe { player.rate() };
+        let pos = self.position_seconds();
+        let dur = self.item_duration();
 
-	fn set_volume(&mut self, volume: f32) {
-		if let Some(player) = self.player {
-			unsafe {
-				let _: () = msg_send![player, setVolume:volume];
-			}
-		}
-	}
+        let player_status = unsafe { player.status() };
+        let item_status = self
+            .current_item
+            .as_deref()
+            .map(|i| unsafe { i.status() });
 
-	fn set_speed(&mut self, speed: f32) {
-		self.desired_speed = speed;
-		if let Some(player) = self.player {
-			unsafe {
-				let _: () = msg_send![player, setRate:speed];
-			}
-		}
-	}
+        let has_error = player_status == AVPlayerStatus::Failed
+            || item_status == Some(AVPlayerItemStatus::Failed);
 
-	fn position_seconds(&self) -> f64 {
-		let Some(player) = self.player else {
-			return 0.0;
-		};
-		unsafe {
-			let time: CMTime = msg_send![player, currentTime];
-			if time.timescale > 0 {
-				let s = CMTimeGetSeconds(time);
-				if s.is_finite() && s >= 0.0 {
-					s
-				} else {
-					0.0
-				}
-			} else {
-				0.0
-			}
-		}
-	}
+        const END_EPSILON: f64 = 0.2;
+        let is_finished = dur > 0.0 && pos >= dur - END_EPSILON && rate == 0.0;
 
-	fn item_duration(&self) -> f64 {
-		self.current_item
-			.and_then(|item| item_duration_from_id(item))
-			.unwrap_or(self.last_duration)
-	}
+        AvSnapshot {
+            position: pos,
+            duration: dur,
+            is_paused: rate == 0.0,
+            is_finished,
+            has_error,
+            has_active: self.current_item.is_some(),
+        }
+    }
 
-	fn is_paused(&self) -> bool {
-		let Some(player) = self.player else {
-			return false;
-		};
-		unsafe {
-			let rate: f64 = msg_send![player, rate];
-			rate == 0.0
-		}
-	}
+    // -----------------------------------------------------------------------
+    // Now Playing publishing
+    // -----------------------------------------------------------------------
 
-	fn is_finished(&self) -> bool {
-		if self.player.is_none() {
-			return false;
-		}
-		let rate: f64 = unsafe { msg_send![self.player.unwrap(), rate] };
-		let pos = self.position_seconds();
-		let dur = self.item_duration();
-		const END_EPSILON: f64 = 0.2;
-		dur > 0.0 && pos >= dur - END_EPSILON && rate == 0.0
-	}
+    #[cfg(feature = "now-playing")]
+    fn publish_now_playing_snapshot(&self, playback_state: u64) {
+        let Some(player) = self.player.as_deref() else {
+            return;
+        };
 
-	fn has_error(&self) -> bool {
-		let Some(player) = self.player else {
-			return false;
-		};
-		unsafe {
-			let player_status: i32 = msg_send![player, status];
-			let item_status: i32 = self.current_item.map_or(-1, |i| msg_send![i, status]);
-			player_status == 2 || item_status == 2
-		}
-	}
+        let elapsed = self.position_seconds();
+        let duration = self.item_duration();
+        let rate = unsafe { player.rate() } as f64;
+
+        // SAFETY: called exclusively on the main thread via the dispatch
+        // trampoline. The extern statics are stable MediaPlayer.framework
+        // symbols. MPNowPlayingInfoCenter is documented as main-thread-only.
+        unsafe {
+            let center: *mut AnyObject = msg_send![class!(MPNowPlayingInfoCenter), defaultCenter];
+            let dict: *mut AnyObject = msg_send![class!(NSMutableDictionary), dictionary];
+
+            if !self.current_title.is_empty() {
+                let title = NSString::from_str(&self.current_title);
+                let _: () =
+                    msg_send![dict, setObject: &*title, forKey: MPMediaItemPropertyTitle];
+            }
+
+            if !self.current_artist.is_empty() {
+                let artist = NSString::from_str(&self.current_artist);
+                let _: () =
+                    msg_send![dict, setObject: &*artist, forKey: MPMediaItemPropertyArtist];
+            }
+
+            if duration.is_finite() && duration > 0.0 {
+                let dur_num: *mut AnyObject =
+                    msg_send![class!(NSNumber), numberWithDouble: duration];
+                let _: () = msg_send![dict, setObject: dur_num,
+                    forKey: MPMediaItemPropertyPlaybackDuration];
+            }
+
+            let elapsed_num: *mut AnyObject =
+                msg_send![class!(NSNumber), numberWithDouble: elapsed.max(0.0)];
+            let _: () = msg_send![dict, setObject: elapsed_num,
+                forKey: MPNowPlayingInfoPropertyElapsedPlaybackTime];
+
+            let rate_num: *mut AnyObject =
+                msg_send![class!(NSNumber), numberWithDouble: rate.max(0.0)];
+            let _: () = msg_send![dict, setObject: rate_num,
+                forKey: MPNowPlayingInfoPropertyPlaybackRate];
+
+            let _: () = msg_send![center, setNowPlayingInfo: dict];
+            let _: () = msg_send![center, setPlaybackState: playback_state];
+        }
+    }
+
+    /// Clears Now Playing and sets the stopped state. Called only from `stop`.
+    ///
+    /// Must be called before actor metadata fields are cleared, and on the
+    /// main thread.
+    #[cfg(feature = "now-playing")]
+    fn erase_now_playing(&self) {
+        // SAFETY: called exclusively on the main thread via the dispatch trampoline.
+        unsafe {
+            let center: *mut AnyObject = msg_send![class!(MPNowPlayingInfoCenter), defaultCenter];
+            let nil_info: *mut AnyObject = std::ptr::null_mut();
+            let _: () = msg_send![center, setNowPlayingInfo: nil_info];
+            let _: () = msg_send![center, setPlaybackState: MP_STATE_STOPPED];
+        }
+    }
 }
 
 impl Drop for AvMainThreadActor {
-	fn drop(&mut self) {
-		self.stop_and_release();
-	}
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn item_duration_from_id(item: id) -> Option<f64> {
-	if item == nil {
-		return None;
-	}
-	unsafe {
-		let duration: CMTime = msg_send![item, duration];
-		if duration.timescale > 0 {
-			let secs = CMTimeGetSeconds(duration);
-			if secs.is_finite() && secs > 0.0 {
-				Some(secs)
-			} else {
-				None
-			}
-		} else {
-			None
-		}
-	}
+fn item_duration(item: &AVPlayerItem) -> Option<f64> {
+    let dur = unsafe { item.duration() };
+    if dur.timescale > 0 {
+        let secs = unsafe { CMTime::seconds(dur) };
+        if secs.is_finite() && secs > 0.0 {
+            Some(secs)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
-// Main-queue scheduling
+// Main-queue handle and per-command dispatch
 // ---------------------------------------------------------------------------
+
+/// Thread-safe handle to the main-thread actor.  All field accesses are routed
+/// through `dispatch_async_f` on `_dispatch_main_q`.
+pub type ActorHandle = Arc<Mutex<Option<AvMainThreadActor>>>;
 
 #[link(name = "System", kind = "framework")]
 unsafe extern "C" {
-	static _dispatch_main_q: std::ffi::c_void;
-	fn dispatch_async_f(
-		queue: *mut std::ffi::c_void,
-		context: *mut std::ffi::c_void,
-		work: extern "C" fn(*mut std::ffi::c_void),
-	);
+    static _dispatch_main_q: c_void;
+    fn dispatch_async_f(
+        queue: *const c_void,
+        context: *mut c_void,
+        work: unsafe extern "C" fn(*mut c_void),
+    );
 }
 
-fn main_queue() -> *mut std::ffi::c_void {
-	unsafe { &_dispatch_main_q as *const _ as *mut _ }
+fn main_queue() -> *const c_void {
+    unsafe { &_dispatch_main_q as *const _ }
 }
 
-/// Construct the actor on the main dispatch queue and start its command loop.
-/// The actor is never moved across threads.
-pub fn start_on_main_queue(cmd_rx: mpsc::Receiver<AvCmd>, resp_tx: mpsc::Sender<AvResp>) {
-	let channels = Box::new((cmd_rx, resp_tx));
-	let ptr = Box::into_raw(channels) as *mut std::ffi::c_void;
-
-	unsafe {
-		dispatch_async_f(main_queue(), ptr, run_actor_trampoline);
-	}
+struct CmdPayload {
+    handle: ActorHandle,
+    cmd: AvCmd,
+    resp: std::sync::mpsc::SyncSender<AvResp>,
 }
 
-extern "C" fn run_actor_trampoline(ctx: *mut std::ffi::c_void) {
-	let (cmd_rx, resp_tx) =
-		unsafe { *Box::from_raw(ctx as *mut (mpsc::Receiver<AvCmd>, mpsc::Sender<AvResp>)) };
-	let mut actor = AvMainThreadActor::new(cmd_rx, resp_tx);
-	actor.run();
+unsafe extern "C" fn cmd_trampoline(ctx: *mut c_void) {
+    // SAFETY: `ctx` is a `Box<CmdPayload>` leaked in `dispatch_cmd`.
+    let payload = unsafe { Box::from_raw(ctx as *mut CmdPayload) };
+    let mut guard = payload.handle.lock().unwrap();
+    let actor = guard.get_or_insert_with(AvMainThreadActor::new);
+    let resp = actor.handle_cmd(payload.cmd);
+    let _ = payload.resp.send(resp);
+}
+
+/// Dispatch a command to the actor on the main queue and block until the
+/// response arrives.  Returns `None` if the channel is closed.
+pub fn dispatch_cmd(handle: &ActorHandle, cmd: AvCmd) -> Option<AvResp> {
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    let payload = Box::new(CmdPayload {
+        handle: Arc::clone(handle),
+        cmd,
+        resp: tx,
+    });
+    unsafe {
+        dispatch_async_f(
+            main_queue(),
+            Box::into_raw(payload) as *mut c_void,
+            cmd_trampoline,
+        );
+    }
+    rx.recv().ok()
+}
+
+/// Create an empty `ActorHandle`.  The actor itself is lazily initialised on
+/// the first command dispatched to the main queue.
+pub fn start_on_main_queue() -> ActorHandle {
+    Arc::new(Mutex::new(None))
 }

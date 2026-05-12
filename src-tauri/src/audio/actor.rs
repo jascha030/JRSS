@@ -18,7 +18,7 @@ use super::cache::{
 };
 use super::commands::AudioCommand;
 use super::download::download_to_file;
-use super::engine::{PlayConfig, PlaybackEngine};
+use super::engine::{PlayConfig, PlaybackEngine, PlaybackSnapshot};
 use super::events::{PlaybackEndedEvent, PlaybackErrorEvent, PlaybackStateEvent};
 #[cfg(target_os = "macos")]
 use super::av_proxy_engine::AvProxyEngine;
@@ -236,6 +236,10 @@ impl AudioThread {
             speed: self.speed,
             byte_len_hint,
             file_path: Some(cache_path.clone()),
+            #[cfg(target_os = "macos")]
+            title: self.current_item_title.clone(),
+            #[cfg(target_os = "macos")]
+            artist: self.current_feed_title.clone(),
         };
 
         let decode_start = Instant::now();
@@ -351,34 +355,41 @@ impl AudioThread {
     }
 
     pub fn snapshot(&self) -> Option<PlaybackStateEvent> {
-        let item_id = self.current_item_id.as_ref()?;
-        let has_active = self.engine.has_active_playback();
-        let is_paused = self.engine.is_paused();
-        let is_finished = self.engine.is_finished();
-        let position_seconds = if has_active { self.engine.position_seconds() } else { self.stored_position_seconds };
-        let is_playing = has_active && !is_paused && !is_finished;
-        log::trace!(
-            "snapshot: item_id={} has_active={} is_paused={} is_finished={} position={} is_playing={} manual_pause={}",
-            item_id, has_active, is_paused, is_finished, position_seconds, is_playing, self.manual_pause
-        );
+        self.snapshot_full().0
+    }
 
-        // Dynamically extend duration if position exceeds it (handles dynamic ad injection)
-        // Use the greater of: stored duration, current position, or stored position
-        let effective_duration = self
-            .duration_seconds
-            .max(position_seconds)
-            .max(self.stored_position_seconds);
+    /// One engine round-trip that yields both the Tauri event and the raw
+    /// engine fields needed by the poll loop. Avoids repeated IPC for engines
+    /// like [`AvProxyEngine`] whose state queries cross a dispatch boundary.
+    pub fn snapshot_full(&self) -> (Option<PlaybackStateEvent>, PlaybackSnapshot) {
+        let eng = self.engine.playback_snapshot();
+        let event = self.current_item_id.as_ref().map(|item_id| {
+            let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
+            let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
+            log::trace!(
+                "snapshot: item_id={} has_active={} is_paused={} is_finished={} position={} is_playing={} manual_pause={}",
+                item_id, eng.has_active, eng.is_paused, eng.is_finished, position_seconds, is_playing, self.manual_pause
+            );
+            let effective_duration = self
+                .duration_seconds
+                .max(position_seconds)
+                .max(self.stored_position_seconds);
+            PlaybackStateEvent {
+                item_id: item_id.clone(),
+                title: self.current_item_title.clone(),
+                artist: self.current_feed_title.clone(),
+                position_seconds,
+                duration_seconds: effective_duration,
+                is_playing,
+                volume: self.volume as f64,
+                speed: self.speed as f64,
+            }
+        });
+        (event, eng)
+    }
 
-        Some(PlaybackStateEvent {
-            item_id: item_id.clone(),
-            title: self.current_item_title.clone(),
-            artist: self.current_feed_title.clone(),
-            position_seconds,
-            duration_seconds: effective_duration,
-            is_playing,
-            volume: self.volume as f64,
-            speed: self.speed as f64,
-        })
+    pub fn engine_snapshot(&self) -> PlaybackSnapshot {
+        self.engine.playback_snapshot()
     }
 
     fn try_probe_complete_file_duration(&mut self) -> Option<f64> {
@@ -974,7 +985,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
 
-        if let Some(snapshot) = state.snapshot() {
+        let (snapshot_opt, eng_snap) = state.snapshot_full();
+        if let Some(snapshot) = snapshot_opt {
             // Throttle playback-state-changed emissions
             let min_interval = if snapshot.is_playing {
                 min_emit_interval_while_playing
@@ -1042,7 +1054,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             }
 
             // Auto-advance: fire when the stream was playing but has now ended naturally.
-            if was_playing && !snapshot.is_playing && state.engine.is_finished() {
+            if was_playing && !snapshot.is_playing && eng_snap.is_finished {
                 let finished_item_id = snapshot.item_id.clone();
                 let db = app.state::<crate::db::DatabaseState>();
                 let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
@@ -1095,17 +1107,15 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             // TEMPORARILY DISABLED: Auto-recovery fights AirPods route changes and may trigger
             // the BTAudioHALPlugin crash. Manual play/pause still works.
             const AUTO_RECOVERY_ENABLED: bool = false;
-            
-            let is_finished = state.engine.is_finished();
-            let has_error = state.engine.has_error();
-            let needs_recovery = AUTO_RECOVERY_ENABLED && was_playing && !snapshot.is_playing && !state.manual_pause && !is_finished;
-            
-            if was_playing && !snapshot.is_playing && !state.manual_pause && !is_finished {
+
+            let needs_recovery = AUTO_RECOVERY_ENABLED && was_playing && !snapshot.is_playing && !state.manual_pause && !eng_snap.is_finished;
+
+            if was_playing && !snapshot.is_playing && !state.manual_pause && !eng_snap.is_finished {
                 log::debug!("Playback stopped unexpectedly (possibly route change). Auto-recovery is DISABLED. Click play to resume.");
             }
-            
+
             if needs_recovery {
-                if has_error {
+                if eng_snap.has_error {
                     log::warn!("Playback engine error detected, recreating player");
                     unexpected_pause_attempts = 0;
                     state.stored_position_seconds = snapshot.position_seconds;

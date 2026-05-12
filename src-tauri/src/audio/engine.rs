@@ -42,6 +42,14 @@ pub struct PlayConfig {
     /// file URL (e.g. AVPlayer) use this instead of the [`StreamingFile`]
     /// stream handle.
     pub file_path: Option<std::path::PathBuf>,
+    /// Episode title — used on macOS to populate `MPNowPlayingInfoCenter`
+    /// from the main thread, preventing a NULL-client crash in `BTAudioHALPlugin`
+    /// during Bluetooth spatial audio property changes.
+    #[cfg(target_os = "macos")]
+    pub title: String,
+    /// Feed/show title, used as the artist field in `MPNowPlayingInfoCenter`.
+    #[cfg(target_os = "macos")]
+    pub artist: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +79,22 @@ impl std::fmt::Display for EngineError {
 }
 
 impl std::error::Error for EngineError {}
+
+// ---------------------------------------------------------------------------
+// PlaybackSnapshot
+// ---------------------------------------------------------------------------
+
+/// Collapsed engine state for callers that need multiple fields at once.
+/// Avoids repeated cross-thread round-trips on engines like [`AvProxyEngine`].
+#[derive(Debug, Default)]
+pub struct PlaybackSnapshot {
+    pub position: f64,
+    pub duration: f64,
+    pub is_paused: bool,
+    pub is_finished: bool,
+    pub has_error: bool,
+    pub has_active: bool,
+}
 
 // ---------------------------------------------------------------------------
 // PlaybackEngine
@@ -164,13 +188,29 @@ pub trait PlaybackEngine {
 	/// stream). Returns `false` when stopped or not yet started.
 	fn is_finished(&self) -> bool;
 
-	/// Whether the engine has encountered a fatal error that prevents
+    /// Whether the engine has encountered a fatal error that prevents
 	/// continued playback (e.g. decoder failure, resource lost).
 	///
 	/// The default implementation returns `false`.
 	fn has_error(&self) -> bool {
 		false
 	}
+
+    /// Collapsed state snapshot — one round-trip for engines whose state
+    /// queries are expensive (e.g. cross-thread IPC).
+    ///
+    /// The default implementation calls each query individually. Override
+    /// when batching is cheaper (e.g. [`AvProxyEngine`]).
+    fn playback_snapshot(&self) -> PlaybackSnapshot {
+        PlaybackSnapshot {
+            position: self.position_seconds(),
+            duration: 0.0,
+            is_paused: self.is_paused(),
+            is_finished: self.is_finished(),
+            has_error: self.has_error(),
+            has_active: self.has_active_playback(),
+        }
+    }
 
     // ------------------------------------------------------------------
     // Device management (optional — override for engines with selectable
