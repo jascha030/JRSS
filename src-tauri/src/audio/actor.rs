@@ -60,6 +60,9 @@ pub struct AudioThread {
     /// Set to true when the user explicitly pauses. Used to distinguish
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
+    /// Cached engine snapshot from the last poll iteration. Used to serve
+    /// GetState commands without blocking on the main thread (AVPlayer).
+    cached_engine_snapshot: PlaybackSnapshot,
 }
 
 impl AudioThread {
@@ -80,6 +83,7 @@ impl AudioThread {
             prefetch: None,
             duration_probe_done: false,
             manual_pause: false,
+            cached_engine_snapshot: PlaybackSnapshot::default(),
         }
     }
 
@@ -338,6 +342,30 @@ impl AudioThread {
         self.snapshot_full().0
     }
 
+    /// Build snapshot from cached engine state — non-blocking, safe for GetState
+    /// commands when main thread may be busy (e.g., during window creation).
+    fn snapshot_from_cache(&self) -> Option<PlaybackStateEvent> {
+        let eng = &self.cached_engine_snapshot;
+        self.current_item_id.as_ref().map(|item_id| {
+            let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
+            let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
+            let effective_duration = self
+                .duration_seconds
+                .max(position_seconds)
+                .max(self.stored_position_seconds);
+            PlaybackStateEvent {
+                item_id: item_id.clone(),
+                title: self.current_item_title.clone(),
+                artist: self.current_feed_title.clone(),
+                position_seconds,
+                duration_seconds: effective_duration,
+                is_playing,
+                volume: self.volume as f64,
+                speed: self.speed as f64,
+            }
+        })
+    }
+
     /// One engine round-trip that yields both the Tauri event and the raw
     /// engine fields needed by the poll loop. Avoids repeated IPC for engines
     /// like [`AvProxyEngine`] whose state queries cross a dispatch boundary.
@@ -591,7 +619,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let mut was_playing = false;
 
     // Throttling for playback-state-changed events
-    let min_emit_interval_while_playing = Duration::from_millis(250);
+    // Using longer intervals for AVPlayer on macOS to avoid blocking the
+    // main thread during window creation (miniplayer freeze issue).
+    let min_emit_interval_while_playing = Duration::from_millis(1000);
     let min_emit_interval_while_paused = Duration::from_secs(2);
     let mut last_emit = Instant::now();
     let mut last_emitted_state: Option<PlaybackStateEvent> = None;
@@ -770,7 +800,10 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
                 }
                 AudioCommand::GetState { reply } => {
-                    let _ = reply.send(state.snapshot());
+                    // Use cached snapshot to avoid blocking on main thread
+                    // (critical for AVPlayer during window creation)
+                    let event = state.snapshot_from_cache();
+                    let _ = reply.send(event);
                 }
                 AudioCommand::PlayWithQueue {
                     item,
@@ -977,6 +1010,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         }
 
         let (snapshot_opt, eng_snap) = state.snapshot_full();
+        // Cache engine snapshot for non-blocking GetState responses
+        state.cached_engine_snapshot = eng_snap.clone();
         if let Some(snapshot) = snapshot_opt {
             // Throttle playback-state-changed emissions
             let min_interval = if snapshot.is_playing {

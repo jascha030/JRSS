@@ -86,7 +86,7 @@ impl std::error::Error for EngineError {}
 
 /// Collapsed engine state for callers that need multiple fields at once.
 /// Avoids repeated cross-thread round-trips on engines like [`AvProxyEngine`].
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PlaybackSnapshot {
     pub position: f64,
     pub is_paused: bool,
