@@ -60,8 +60,6 @@ pub struct AudioThread {
     app: AppHandle,
     prefetch: Option<PrefetchState>,
     duration_probe_done: bool,
-    #[cfg(target_os = "macos")]
-    power_assertion: Option<super::macos::power::PowerAssertion>,
     /// Set to true when the user explicitly pauses. Used to distinguish
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
@@ -87,8 +85,6 @@ impl AudioThread {
             app,
             prefetch: None,
             duration_probe_done: false,
-            #[cfg(target_os = "macos")]
-            power_assertion: None,
             manual_pause: false,
         }
     }
@@ -279,12 +275,6 @@ impl AudioThread {
         self.download_meta = Some(meta);
         self.temp_path = Some(cache_path);
 
-        // Temporarily disabled for spatial audio crash debugging
-        // #[cfg(target_os = "macos")]
-        // {
-        //     self.power_assertion = Some(super::macos::power::PowerAssertion::new("JRSS audio playback"));
-        // }
-
         // Prefetch next item in queue for seamless transition
         self.prefetch_next_in_queue();
 
@@ -319,10 +309,6 @@ impl AudioThread {
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
         self.manual_pause = false;
-        #[cfg(target_os = "macos")]
-        {
-            self.power_assertion = None;
-        }
     }
 
     fn hydrate_metadata(&mut self, item_id: &str) {
@@ -386,10 +372,6 @@ impl AudioThread {
             }
         });
         (event, eng)
-    }
-
-    pub fn engine_snapshot(&self) -> PlaybackSnapshot {
-        self.engine.playback_snapshot()
     }
 
     fn try_probe_complete_file_duration(&mut self) -> Option<f64> {

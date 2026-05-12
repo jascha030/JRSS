@@ -89,10 +89,8 @@ impl std::error::Error for EngineError {}
 #[derive(Debug, Default)]
 pub struct PlaybackSnapshot {
     pub position: f64,
-    pub duration: f64,
     pub is_paused: bool,
     pub is_finished: bool,
-    pub has_error: bool,
     pub has_active: bool,
 }
 
@@ -188,14 +186,6 @@ pub trait PlaybackEngine {
 	/// stream). Returns `false` when stopped or not yet started.
 	fn is_finished(&self) -> bool;
 
-    /// Whether the engine has encountered a fatal error that prevents
-	/// continued playback (e.g. decoder failure, resource lost).
-	///
-	/// The default implementation returns `false`.
-	fn has_error(&self) -> bool {
-		false
-	}
-
     /// Collapsed state snapshot — one round-trip for engines whose state
     /// queries are expensive (e.g. cross-thread IPC).
     ///
@@ -204,10 +194,8 @@ pub trait PlaybackEngine {
     fn playback_snapshot(&self) -> PlaybackSnapshot {
         PlaybackSnapshot {
             position: self.position_seconds(),
-            duration: 0.0,
             is_paused: self.is_paused(),
             is_finished: self.is_finished(),
-            has_error: self.has_error(),
             has_active: self.has_active_playback(),
         }
     }

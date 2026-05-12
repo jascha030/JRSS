@@ -1,59 +1,6 @@
 //! macOS-native helpers for the audio subsystem.
 
 // ---------------------------------------------------------------------------
-// Power assertion — prevents App Nap and system sleep during playback
-// ---------------------------------------------------------------------------
-
-#[cfg(target_os = "macos")]
-pub mod power {
-    use objc2::rc::Retained;
-    use objc2::runtime::ProtocolObject;
-    use objc2_foundation::{NSActivityOptions, NSObjectProtocol, NSProcessInfo, NSString};
-
-    const NS_ACTIVITY_IDLE_SYSTEM_SLEEP_DISABLED: u64 = 1 << 20;
-    const NS_ACTIVITY_IDLE_DISPLAY_SLEEP_DISABLED: u64 = 1 << 40;
-    const NS_ACTIVITY_USER_INITIATED: u64 = 0x00FF_FFFF;
-
-    /// Wraps an `NSProcessInfo` activity token that prevents idle sleep.
-    /// Dropping the guard ends the activity.
-    pub struct PowerAssertion(Retained<ProtocolObject<dyn NSObjectProtocol>>);
-
-    impl PowerAssertion {
-        pub fn new(reason: &str) -> Self {
-            let info = NSProcessInfo::processInfo();
-            let reason_ns = NSString::from_str(reason);
-            let options = NSActivityOptions(
-                NS_ACTIVITY_USER_INITIATED
-                    | NS_ACTIVITY_IDLE_SYSTEM_SLEEP_DISABLED
-                    | NS_ACTIVITY_IDLE_DISPLAY_SLEEP_DISABLED,
-            );
-            let activity =
-                info.beginActivityWithOptions_reason(options, &reason_ns);
-            Self(activity)
-        }
-    }
-
-    impl Drop for PowerAssertion {
-        fn drop(&mut self) {
-            let info = NSProcessInfo::processInfo();
-            unsafe { info.endActivity(&self.0) };
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Thread QoS — elevate the audio thread so decoder callbacks aren't delayed
-// ---------------------------------------------------------------------------
-
-#[cfg(target_os = "macos")]
-    pub fn set_audio_thread_qos() {
-    use libc::qos_class_t::QOS_CLASS_USER_INITIATED;
-    unsafe {
-        libc::pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
-    }
-}
-
-// ---------------------------------------------------------------------------
 // MPRemoteCommandCenter — hardware/headphone media key handlers
 // ---------------------------------------------------------------------------
 

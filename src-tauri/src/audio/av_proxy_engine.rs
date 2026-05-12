@@ -80,7 +80,6 @@ impl PlaybackEngine for AvProxyEngine {
                     Ok(None)
                 }
             }
-            AvResp::Err(msg) => Err(EngineError::DecodeFailed(msg)),
             _ => Err(EngineError::Internal(
                 "Unexpected AV response for Play".into(),
             )),
@@ -143,21 +142,12 @@ impl PlaybackEngine for AvProxyEngine {
         }
     }
 
-    fn has_error(&self) -> bool {
-        match self.send(AvCmd::GetSnapshot) {
-            Ok(AvResp::Snapshot(s)) => s.has_error,
-            _ => false,
-        }
-    }
-
     fn playback_snapshot(&self) -> PlaybackSnapshot {
         match self.send(AvCmd::GetSnapshot) {
             Ok(AvResp::Snapshot(s)) => PlaybackSnapshot {
                 position: s.position,
-                duration: s.duration,
                 is_paused: s.is_paused,
                 is_finished: s.is_finished,
-                has_error: s.has_error,
                 has_active: s.has_active,
             },
             _ => PlaybackSnapshot::default(),

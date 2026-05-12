@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send, MainThreadMarker, MainThreadOnly};
-use objc2_av_foundation::{AVPlayer, AVPlayerItem, AVPlayerItemStatus, AVPlayerStatus};
+use objc2_av_foundation::{AVPlayer, AVPlayerItem};
 use objc2_core_media::CMTime;
 use objc2_foundation::{NSString, NSURL};
 
@@ -79,14 +79,12 @@ pub struct AvSnapshot {
     pub duration: f64,
     pub is_paused: bool,
     pub is_finished: bool,
-    pub has_error: bool,
     pub has_active: bool,
 }
 
 #[derive(Debug)]
 pub enum AvResp {
     Ok,
-    Err(String),
     Snapshot(AvSnapshot),
 }
 
@@ -330,15 +328,6 @@ impl AvMainThreadActor {
         let pos = self.position_seconds();
         let dur = self.item_duration();
 
-        let player_status = unsafe { player.status() };
-        let item_status = self
-            .current_item
-            .as_deref()
-            .map(|i| unsafe { i.status() });
-
-        let has_error = player_status == AVPlayerStatus::Failed
-            || item_status == Some(AVPlayerItemStatus::Failed);
-
         const END_EPSILON: f64 = 0.2;
         let is_finished = dur > 0.0 && pos >= dur - END_EPSILON && rate == 0.0;
 
@@ -347,7 +336,6 @@ impl AvMainThreadActor {
             duration: dur,
             is_paused: rate == 0.0,
             is_finished,
-            has_error,
             has_active: self.current_item.is_some(),
         }
     }
