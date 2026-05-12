@@ -525,9 +525,9 @@
 							<SettingsView />
 						{:else if selectedSection === 'home'}
 							<HomeView {feeds} {stations} />
-					{:else if isInspectorActive && FeedInspector !== null}
-						<FeedInspector />
-					{:else}
+						{:else if isInspectorActive && FeedInspector !== null}
+							<FeedInspector />
+						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
 									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"

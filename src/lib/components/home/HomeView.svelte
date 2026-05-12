@@ -49,13 +49,15 @@
 			<div class="mt-8 [contain-intrinsic-size:960px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Podcasts</h3>
 
-				<div class="mt-4 flex flex-wrap items-start gap-4">
+				<div
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
+				>
 					{#each podcasts as feed (feed.id)}
 						{@const imageUrl = getFeedCardImageUrl(feed)}
 
 						<button
 							type="button"
-							class="group relative flex w-40 shrink-0 flex-col items-center gap-2 rounded-xl p-2 transition-colors [contain:paint] hover:bg-surface-hover sm:w-44"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleFeedClick(feed.id)}
 							title={feed.title}
 							aria-label={`Open feed ${feed.title}`}
@@ -99,13 +101,15 @@
 			<div class="mt-8 [contain-intrinsic-size:960px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Articles</h3>
 
-				<div class="mt-4 flex flex-wrap items-start gap-4">
+				<div
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
+				>
 					{#each articles as feed (feed.id)}
 						{@const imageUrl = getFeedCardImageUrl(feed)}
 
 						<button
 							type="button"
-							class="group relative flex w-40 shrink-0 flex-col items-center gap-2 rounded-xl p-2 transition-colors [contain:paint] hover:bg-surface-hover sm:w-44"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleFeedClick(feed.id)}
 							title={feed.title}
 							aria-label={`Open feed ${feed.title}`}
@@ -149,13 +153,15 @@
 			<div class="mt-8 [contain-intrinsic-size:720px] [content-visibility:auto]">
 				<h3 class="text-sm font-semibold tracking-widest text-fg-muted uppercase">Stations</h3>
 
-				<div class="mt-4 flex flex-wrap items-start gap-4">
+				<div
+					class="mt-4 grid grid-cols-[repeat(auto-fill,10rem)] justify-center gap-4 sm:grid-cols-[repeat(auto-fill,11rem)]"
+				>
 					{#each stations as station (station.id)}
 						{@const gradient = STATION_GRADIENTS[station.gradient]}
 
 						<button
 							type="button"
-							class="group relative flex w-40 shrink-0 flex-col items-center gap-2 rounded-xl p-2 transition-colors [contain:paint] hover:bg-surface-hover sm:w-44"
+							class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 							onclick={() => handleStationClick(station.id)}
 							title={station.name}
 							aria-label={`Open station ${station.name}`}

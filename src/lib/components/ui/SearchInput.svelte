@@ -34,7 +34,7 @@
 {/if}
 
 <div
-	class="flex h-9 items-center gap-2 rounded-xl border border-border {bgClass} px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring pointer-events-auto"
+	class="flex h-9 items-center gap-2 rounded-xl border border-border {bgClass} pointer-events-auto px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
 >
 	{#if isLoading}
 		<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
