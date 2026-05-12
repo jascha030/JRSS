@@ -13,21 +13,30 @@ use crate::reader_extract;
 use tauri::{Manager, State};
 
 #[cfg(target_os = "macos")]
-#[allow(deprecated)]
-use cocoa::{appkit::NSWindow, base::id, foundation::NSSize};
-
-#[cfg(target_os = "macos")]
-#[allow(deprecated)]
 fn set_macos_window_content_aspect_ratio(
     window: &tauri::WebviewWindow,
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    let ns_window = window.ns_window().map_err(|error| error.to_string())? as id;
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use objc2::{Encode, Encoding};
 
-    unsafe {
-        ns_window.setContentAspectRatio_(NSSize::new(width, height));
+    // CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
+    #[repr(C)]
+    struct CGSize {
+        width: f64,
+        height: f64,
     }
+
+    // SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
+    unsafe impl Encode for CGSize {
+        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+    }
+
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
+    let size = CGSize { width, height };
+    unsafe { msg_send![ns_window, setContentAspectRatio: size] }
 
     Ok(())
 }
