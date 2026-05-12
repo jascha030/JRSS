@@ -21,37 +21,26 @@ use objc2_core_media::CMTime;
 use objc2_foundation::{NSString, NSURL};
 
 // ---------------------------------------------------------------------------
-// MPNowPlayingInfoCenter — optional Now Playing publishing
+// MPNowPlayingInfoCenter — Now Playing publishing
 // ---------------------------------------------------------------------------
 //
-// Hypothesis (unproven): registering with MPNowPlayingInfoCenter before
-// playback starts may prevent BTAudioHALPlugin from receiving a NULL client
-// identity string, which would crash coreaudiod via CFStringCreateCopy.
-// The crash still occurred after this was added, so the hypothesis is
-// unconfirmed. The `now-playing` Cargo feature gates all of this path so it
-// can be disabled for isolation testing without rebuilding the rest of the app.
-
-// MediaPlayer framework must be linked unconditionally: MPRemoteCommandCenter
-// (used by the remote-commands feature) lives in the same framework.
+// Publishing to MPNowPlayingInfoCenter makes the session visible to Control
+// Center, AirPods long-press, and external media keys.  It must be called on
+// the main thread; the dispatch trampoline in this module guarantees that.
+//
+// MediaPlayer framework is linked here; MPRemoteCommandCenter (wired in
+// macos::remote_commands) lives in the same framework.
 #[link(name = "MediaPlayer", kind = "framework")]
 unsafe extern "C" {
-    #[cfg(feature = "now-playing")]
     static MPMediaItemPropertyTitle: *mut AnyObject;
-    #[cfg(feature = "now-playing")]
     static MPMediaItemPropertyArtist: *mut AnyObject;
-    #[cfg(feature = "now-playing")]
     static MPMediaItemPropertyPlaybackDuration: *mut AnyObject;
-    #[cfg(feature = "now-playing")]
     static MPNowPlayingInfoPropertyPlaybackRate: *mut AnyObject;
-    #[cfg(feature = "now-playing")]
     static MPNowPlayingInfoPropertyElapsedPlaybackTime: *mut AnyObject;
 }
 
-#[cfg(feature = "now-playing")]
 const MP_STATE_PLAYING: u64 = 1;
-#[cfg(feature = "now-playing")]
 const MP_STATE_PAUSED: u64 = 2;
-#[cfg(feature = "now-playing")]
 const MP_STATE_STOPPED: u64 = 3;
 
 // ---------------------------------------------------------------------------
@@ -239,7 +228,6 @@ impl AvMainThreadActor {
         }
 
         // Publish after the player/item swap is complete and playback has started.
-        #[cfg(feature = "now-playing")]
         self.publish_now_playing_snapshot(MP_STATE_PLAYING);
 
         AvResp::Ok
@@ -257,7 +245,6 @@ impl AvMainThreadActor {
         self.last_duration = 0.0;
         self.current_title.clear();
         self.current_artist.clear();
-        #[cfg(feature = "now-playing")]
         self.erase_now_playing();
     }
 
@@ -265,7 +252,6 @@ impl AvMainThreadActor {
         if let Some(player) = self.player.as_deref() {
             unsafe { player.pause() };
         }
-        #[cfg(feature = "now-playing")]
         self.publish_now_playing_snapshot(MP_STATE_PAUSED);
     }
 
@@ -281,7 +267,6 @@ impl AvMainThreadActor {
                 player.setRate(target);
             }
         }
-        #[cfg(feature = "now-playing")]
         self.publish_now_playing_snapshot(MP_STATE_PLAYING);
     }
 
@@ -292,14 +277,11 @@ impl AvMainThreadActor {
                 player.seekToTime(time);
             }
         }
-        #[cfg(feature = "now-playing")]
-        {
-            let state = match self.player.as_deref() {
-                Some(p) if unsafe { p.rate() } != 0.0 => MP_STATE_PLAYING,
-                _ => MP_STATE_PAUSED,
-            };
-            self.publish_now_playing_snapshot(state);
-        }
+        let state = match self.player.as_deref() {
+            Some(p) if unsafe { p.rate() } != 0.0 => MP_STATE_PLAYING,
+            _ => MP_STATE_PAUSED,
+        };
+        self.publish_now_playing_snapshot(state);
     }
 
     fn set_volume(&mut self, volume: f32) {
@@ -313,11 +295,8 @@ impl AvMainThreadActor {
         if let Some(player) = self.player.as_deref() {
             unsafe { player.setRate(speed) };
         }
-        #[cfg(feature = "now-playing")]
-        {
-            let state = if speed == 0.0 { MP_STATE_PAUSED } else { MP_STATE_PLAYING };
-            self.publish_now_playing_snapshot(state);
-        }
+        let state = if speed == 0.0 { MP_STATE_PAUSED } else { MP_STATE_PLAYING };
+        self.publish_now_playing_snapshot(state);
     }
 
     fn position_seconds(&self) -> f64 {
@@ -377,7 +356,6 @@ impl AvMainThreadActor {
     // Now Playing publishing
     // -----------------------------------------------------------------------
 
-    #[cfg(feature = "now-playing")]
     fn publish_now_playing_snapshot(&self, playback_state: u64) {
         let Some(player) = self.player.as_deref() else {
             return;
@@ -432,7 +410,6 @@ impl AvMainThreadActor {
     ///
     /// Must be called before actor metadata fields are cleared, and on the
     /// main thread.
-    #[cfg(feature = "now-playing")]
     fn erase_now_playing(&self) {
         // SAFETY: called exclusively on the main thread via the dispatch trampoline.
         unsafe {

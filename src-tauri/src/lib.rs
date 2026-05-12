@@ -150,7 +150,7 @@ pub fn run() {
             // from the main thread on every state transition), and we wire
             // MPRemoteCommandCenter once here so Control Center / media keys
             // forward into the same audio command queue.
-            #[cfg(all(target_os = "macos", feature = "remote-commands"))]
+            #[cfg(target_os = "macos")]
             audio::macos::remote_commands::install(app.state::<AudioState>().sender());
 
             // Set up menu with keyboard shortcuts

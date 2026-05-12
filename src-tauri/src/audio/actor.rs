@@ -601,8 +601,6 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let persist_interval = Duration::from_secs(5);
     let mut last_persist = Instant::now();
     let mut was_playing = false;
-    let mut last_unexpected_pause_resume: Option<Instant> = None;
-    let mut unexpected_pause_attempts: u32 = 0;
 
     // Throttling for playback-state-changed events
     let min_emit_interval_while_playing = Duration::from_millis(250);
@@ -1103,50 +1101,14 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 let _ = app.emit("queue-changed", state.queue.to_event());
             }
 
-            // Recover from unexpected stops (route changes, player errors, etc.)
-            // TEMPORARILY DISABLED: Auto-recovery fights AirPods route changes and may trigger
-            // the BTAudioHALPlugin crash. Manual play/pause still works.
-            const AUTO_RECOVERY_ENABLED: bool = false;
-
-            let needs_recovery = AUTO_RECOVERY_ENABLED && was_playing && !snapshot.is_playing && !state.manual_pause && !eng_snap.is_finished;
-
+            // Log unexpected stops (route changes, errors) so they show up in
+            // crash reports. Auto-recovery is disabled; AVPlayer resumes reliably
+            // via manual play/pause and auto-resume fought AirPods route changes.
             if was_playing && !snapshot.is_playing && !state.manual_pause && !eng_snap.is_finished {
-                log::debug!("Playback stopped unexpectedly (possibly route change). Auto-recovery is DISABLED. Click play to resume.");
+                log::debug!("Playback stopped unexpectedly (possibly route change); click play to resume.");
             }
 
-            if needs_recovery {
-                if eng_snap.has_error {
-                    log::warn!("Playback engine error detected, recreating player");
-                    unexpected_pause_attempts = 0;
-                    state.stored_position_seconds = snapshot.position_seconds;
-                    if let Err(error) = resume_current_item(&mut state) {
-                        log::error!("Player recreation after error failed: {error}");
-                    }
-                } else if last_unexpected_pause_resume.map_or(true, |t| t.elapsed() >= Duration::from_secs(3)) {
-                    last_unexpected_pause_resume = Some(Instant::now());
-                    unexpected_pause_attempts += 1;
-
-                    if unexpected_pause_attempts >= 2 {
-                        log::warn!("Auto-resume failed {unexpected_pause_attempts} times, recreating player");
-                        unexpected_pause_attempts = 0;
-                        state.stored_position_seconds = snapshot.position_seconds;
-                        if let Err(error) = resume_current_item(&mut state) {
-                            log::error!("Player recreation after stalled playback failed: {error}");
-                        }
-                    } else {
-                        log::info!("Playback paused unexpectedly, auto-resuming (attempt {unexpected_pause_attempts})");
-                        state.engine.resume();
-                    }
-                }
-            } else {
-                unexpected_pause_attempts = 0;
-            }
-
-            // Only reset was_playing when recovery is not in progress; otherwise
-            // the next poll iteration would see was_playing=false and never retry.
-            if !needs_recovery || snapshot.is_playing {
-                was_playing = snapshot.is_playing;
-            }
+            was_playing = snapshot.is_playing;
         }
     }
 }

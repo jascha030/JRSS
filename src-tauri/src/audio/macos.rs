@@ -83,7 +83,6 @@ pub mod remote_commands {
             log::warn!("[remote_commands] install() called more than once — skipping duplicate registration");
             return;
         }
-        log::info!("[remote_commands] registering MPRemoteCommandCenter handlers");
         // SAFETY: called from the main thread (Tauri setup); all pointers are
         // non-null singletons from class lookups; blocks are intentionally leaked
         // so ObjC retains them for the app lifetime via addTargetWithHandler:.
