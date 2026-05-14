@@ -8,6 +8,7 @@ import {
 	isAudioPlaying,
 	isItemCurrentAudio,
 	markItemRead,
+	markItemsRead,
 	playAudioItemNext,
 	requestOpenInReader,
 	requestSeekTo,
@@ -17,7 +18,7 @@ import {
 	stopPlayback
 } from '$lib/state';
 import type { Feed } from '$lib/types/feed';
-import type { ArticleListItem, MediaListItem } from '$lib/types/item';
+import type { ArticleListItem, FeedListItem, MediaListItem } from '$lib/types/item';
 
 /**
  * Whether the user is browsing a section (all/unread/media) rather than
@@ -27,16 +28,47 @@ function isInSectionView(): boolean {
 	return selection.selectedFeedId === null;
 }
 
+type MultiSelectOptions = {
+	selectedIds: Set<string>;
+	itemsById: Record<string, FeedListItem>;
+};
+
 /**
  * Native context menu for article items with reader, feed, and read-state actions.
  */
 export async function openArticleContextMenu(
 	event: MouseEvent,
-	item: ArticleListItem
+	item: ArticleListItem,
+	multiSelect?: MultiSelectOptions
 ): Promise<void> {
 	event.preventDefault();
 
 	const items: Array<MenuItem | PredefinedMenuItem> = [];
+
+	if (multiSelect && multiSelect.selectedIds.size > 1 && multiSelect.selectedIds.has(item.id)) {
+		const count = multiSelect.selectedIds.size;
+		const allRead = [...multiSelect.selectedIds].every((id) => multiSelect.itemsById[id]?.read);
+
+		items.push(
+			await MenuItem.new({
+				id: 'header',
+				text: `${count} item${count > 1 ? 's' : ''} selected`,
+				enabled: false
+			})
+		);
+		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+		items.push(
+			await MenuItem.new({
+				id: allRead ? 'mark-unread' : 'mark-read',
+				text: allRead ? 'Mark unread' : 'Mark read',
+				action: () => void markItemsRead([...multiSelect.selectedIds], !allRead)
+			})
+		);
+
+		const menu = await Menu.new({ items });
+		await menu.popup();
+		return;
+	}
 
 	items.push(
 		await MenuItem.new({
@@ -85,15 +117,73 @@ export async function openArticleContextMenu(
 /**
  * Native context menu for audio items with playback, queue, and clipboard actions.
  */
-export async function openAudioContextMenu(event: MouseEvent, item: MediaListItem): Promise<void> {
+export async function openAudioContextMenu(
+	event: MouseEvent,
+	item: MediaListItem,
+	multiSelect?: MultiSelectOptions
+): Promise<void> {
 	event.preventDefault();
+
+	const items: Array<MenuItem | PredefinedMenuItem> = [];
+
+	if (multiSelect && multiSelect.selectedIds.size > 1 && multiSelect.selectedIds.has(item.id)) {
+		const count = multiSelect.selectedIds.size;
+		const allRead = [...multiSelect.selectedIds].every((id) => multiSelect.itemsById[id]?.read);
+
+		items.push(
+			await MenuItem.new({
+				id: 'header',
+				text: `${count} item${count > 1 ? 's' : ''} selected`,
+				enabled: false
+			})
+		);
+		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+		items.push(
+			await MenuItem.new({
+				id: allRead ? 'mark-unplayed' : 'mark-played',
+				text: allRead ? 'Mark unplayed' : 'Mark played',
+				action: () => void markItemsRead([...multiSelect.selectedIds], !allRead)
+			})
+		);
+		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+		items.push(
+			await MenuItem.new({
+				id: 'add-to-queue',
+				text: 'Add to queue',
+				action: () => {
+					for (const id of multiSelect.selectedIds) {
+						const it = multiSelect.itemsById[id];
+						if (it && it.itemType === 'media') {
+							enqueueAudioItem(it);
+						}
+					}
+				}
+			})
+		);
+		items.push(
+			await MenuItem.new({
+				id: 'play-next',
+				text: 'Play next',
+				action: () => {
+					for (const id of [...multiSelect.selectedIds].reverse()) {
+						const it = multiSelect.itemsById[id];
+						if (it && it.itemType === 'media') {
+							playAudioItemNext(it);
+						}
+					}
+				}
+			})
+		);
+
+		const menu = await Menu.new({ items });
+		await menu.popup();
+		return;
+	}
 
 	const enclosureUrl = item.mediaEnclosure.url;
 	const isCurrent = isItemCurrentAudio(item.id);
 	const playing = isCurrent && isAudioPlaying();
 	const hasProgress = item.playbackPositionSeconds > 0;
-
-	const items: Array<MenuItem | PredefinedMenuItem> = [];
 
 	if (playing) {
 		items.push(

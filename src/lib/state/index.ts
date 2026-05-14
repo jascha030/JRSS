@@ -64,6 +64,7 @@ export {
 	ensureItemLoaded,
 	loadItemDetails,
 	markItemRead,
+	markItemsRead,
 	loadItemsByIds,
 	getSelectedItem,
 	getActiveTotalCount,

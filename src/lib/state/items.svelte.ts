@@ -4,6 +4,7 @@ import {
 	getItemDetails,
 	getItemsByIds,
 	markRead,
+	markReadBatch,
 	queryItems,
 	type ItemsQuery
 } from '$lib/services/item';
@@ -405,6 +406,29 @@ export async function markItemRead(itemId: string, read: boolean): Promise<void>
 	} catch (error) {
 		if (previousItem) {
 			itemsState.itemSummariesById[itemId] = previousItem;
+		}
+		throw error;
+	}
+}
+
+export async function markItemsRead(itemIds: string[], read: boolean): Promise<void> {
+	const previousItems: Record<string, FeedListItem | undefined> = {};
+	for (const itemId of itemIds) {
+		previousItems[itemId] = itemsState.itemSummariesById[itemId];
+		patchItemSummary(itemId, { read });
+	}
+
+	try {
+		await markReadBatch(itemIds, read);
+		if (getActiveListSection() === 'unread') {
+			await loadInitialItemsPage();
+		}
+	} catch (error) {
+		for (const itemId of itemIds) {
+			const previousItem = previousItems[itemId];
+			if (previousItem) {
+				itemsState.itemSummariesById[itemId] = previousItem;
+			}
 		}
 		throw error;
 	}
