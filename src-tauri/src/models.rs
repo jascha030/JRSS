@@ -335,4 +335,7 @@ pub struct AppSettingsRecord {
     pub accent_color: Option<String>,
     pub skip_forward_seconds: i64,
     pub skip_backward_seconds: i64,
+    /// Filename of the active user theme (e.g. `"my-theme.css"`), or `null` to use the built-in
+    /// default.
+    pub theme_name: Option<String>,
 }

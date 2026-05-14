@@ -81,9 +81,10 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
         accent_color,
         skip_forward_seconds,
         skip_backward_seconds,
+        theme_name,
     ) = connection
         .query_row(
-            "SELECT max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes, color_scheme, accent_color, skip_forward_seconds, skip_backward_seconds
+            "SELECT max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes, color_scheme, accent_color, skip_forward_seconds, skip_backward_seconds, theme_name
 		         FROM app_settings
 		         WHERE id = 1",
             [],
@@ -96,6 +97,7 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
                     row.get::<_, Option<String>>(4)?,
                     row.get::<_, i64>(5)?,
                     row.get::<_, i64>(6)?,
+                    row.get::<_, Option<String>>(7)?,
                 ))
             },
         )
@@ -113,6 +115,7 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
         accent_color: normalize_accent_color(accent_color),
         skip_forward_seconds: normalize_skip_forward_seconds(skip_forward_seconds),
         skip_backward_seconds: normalize_skip_backward_seconds(skip_backward_seconds),
+        theme_name,
     })
 }
 
@@ -132,6 +135,7 @@ pub fn save_app_settings(
     let accent_color = normalize_accent_color(settings.accent_color.clone());
     let skip_forward_seconds = normalize_skip_forward_seconds(settings.skip_forward_seconds);
     let skip_backward_seconds = normalize_skip_backward_seconds(settings.skip_backward_seconds);
+    let theme_name = settings.theme_name.clone();
 
     connection
         .execute(
@@ -144,9 +148,10 @@ pub fn save_app_settings(
 		        accent_color,
 		        skip_forward_seconds,
 		        skip_backward_seconds,
+		        theme_name,
 		        updated_at
 		     )
-		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 		     ON CONFLICT(id) DO UPDATE SET
 		        max_audio_cache_size_bytes = excluded.max_audio_cache_size_bytes,
 		        mini_player_always_on_top = excluded.mini_player_always_on_top,
@@ -155,6 +160,7 @@ pub fn save_app_settings(
 		        accent_color = excluded.accent_color,
 		        skip_forward_seconds = excluded.skip_forward_seconds,
 		        skip_backward_seconds = excluded.skip_backward_seconds,
+		        theme_name = excluded.theme_name,
 		        updated_at = excluded.updated_at",
             params![
                 max_audio_cache_size_bytes,
@@ -164,6 +170,7 @@ pub fn save_app_settings(
                 accent_color,
                 skip_forward_seconds,
                 skip_backward_seconds,
+                theme_name,
                 Utc::now().to_rfc3339()
             ],
         )
@@ -177,5 +184,6 @@ pub fn save_app_settings(
         accent_color,
         skip_forward_seconds,
         skip_backward_seconds,
+        theme_name,
     })
 }

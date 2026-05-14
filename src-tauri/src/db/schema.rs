@@ -192,6 +192,17 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             })?;
     }
 
+    if existing_columns
+        .iter()
+        .all(|column| column != "theme_name")
+    {
+        connection
+            .execute("ALTER TABLE app_settings ADD COLUMN theme_name TEXT", [])
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings theme_name column: {error}")
+            })?;
+    }
+
     Ok(())
 }
 

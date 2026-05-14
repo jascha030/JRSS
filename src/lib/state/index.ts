@@ -97,6 +97,7 @@ export {
 	themeState,
 	applyColorScheme,
 	applyAccentColor,
+	applyThemeCss,
 	initTheme,
 	resetThemeState
 } from './theme.svelte';
@@ -142,7 +143,7 @@ export {
 
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauri';
-import { loadAppSettings } from '../services/settings';
+import { loadAppSettings, loadTheme } from '../services/settings';
 import { resetSelectionState } from './selection.svelte';
 import { resetFeedsState, loadFeeds } from './feeds.svelte';
 import { resetStationsState, loadStations } from './stations.svelte';
@@ -155,7 +156,7 @@ import {
 	syncAudioSessionFromBackend,
 	restorePlaybackContext
 } from './playback.svelte';
-import { initTheme, resetThemeState } from './theme.svelte';
+import { initTheme, resetThemeState, applyThemeCss } from './theme.svelte';
 import { playbackSettings } from './settings.svelte';
 import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
 
@@ -172,8 +173,17 @@ export async function initializeApp(): Promise<void> {
 	// Apply persisted theme before first render to prevent FOUC.
 	try {
 		const settings = await loadAppSettings();
+		let themeCss: string | undefined;
 
-		initTheme(settings);
+		if (settings.themeName) {
+			try {
+				themeCss = await loadTheme(settings.themeName);
+			} catch {
+				// Ignore: fallback to built-in theme.
+			}
+		}
+
+		initTheme(settings, themeCss);
 
 		playbackSettings.setSkipForwardSeconds(
 			settings.skipForwardSeconds ?? DEFAULT_SKIP_FORWARD_SECONDS
@@ -183,7 +193,7 @@ export async function initializeApp(): Promise<void> {
 			settings.skipBackwardSeconds ?? DEFAULT_SKIP_BACKWARD_SECONDS
 		);
 	} catch {
-		initTheme({ colorScheme: 'system', accentColor: null });
+		initTheme({ colorScheme: 'system', accentColor: null, themeName: null });
 		playbackSettings.setSkipForwardSeconds(DEFAULT_SKIP_FORWARD_SECONDS);
 		playbackSettings.setSkipBackwardSeconds(DEFAULT_SKIP_BACKWARD_SECONDS);
 	}

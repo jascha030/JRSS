@@ -1,18 +1,21 @@
 /**
  * Theme State
  *
- * Owns color scheme (light/dark/system) and accent color overrides.
- * Applies them directly to `document.documentElement` so the CSS `.dark` class
- * and `--color-accent` custom property are always in sync with stored settings.
+ * Owns color scheme (light/dark/system), accent color overrides, and custom
+ * theme CSS injection. Applies them directly to `document.documentElement` so
+ * the CSS `.dark` class, `--color-accent` custom property, and any injected
+ * theme stylesheet are always in sync with stored settings.
  *
  * Call `initTheme(settings)` once during app startup (before first render).
- * Call `applyColorScheme` / `applyAccentColor` for immediate live preview.
+ * Call `applyColorScheme` / `applyAccentColor` / `applyThemeCss` for immediate
+ * live preview.
  */
 
 import type { AppSettings, ColorScheme } from '$lib/types/settings';
 
 let _colorScheme = $state<ColorScheme>('system');
 let _accentColor = $state<string | null>(null);
+let _themeCss = $state<string | null>(null);
 
 /** Read-only view of the active theme settings. */
 export const themeState = {
@@ -88,17 +91,45 @@ export function applyAccentColor(color: string | null): void {
 	}
 }
 
+const THEME_STYLE_ID = 'user-theme-css';
+
+/** Inject or remove a `<style>` tag with custom theme CSS. */
+export function applyThemeCss(css: string | null): void {
+	_themeCss = css;
+	let style = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null;
+
+	if (css === null || css.trim() === '') {
+		if (style) {
+			style.remove();
+		}
+		return;
+	}
+
+	if (!style) {
+		style = document.createElement('style');
+		style.id = THEME_STYLE_ID;
+		document.head.appendChild(style);
+	}
+
+	style.textContent = css;
+}
+
 /**
  * Initialise the theme from persisted settings.
  * Called once in `initializeApp()` before the first render.
  */
-export function initTheme(settings: Pick<AppSettings, 'colorScheme' | 'accentColor'>): void {
+export function initTheme(
+	settings: Pick<AppSettings, 'colorScheme' | 'accentColor' | 'themeName'>,
+	css?: string
+): void {
 	applyColorScheme(settings.colorScheme);
 	applyAccentColor(settings.accentColor);
+	applyThemeCss(css ?? null);
 }
 
-/** Reset theme to defaults (system scheme, no custom accent). */
+/** Reset theme to defaults (system scheme, no custom accent, no custom CSS). */
 export function resetThemeState(): void {
 	applyColorScheme('system');
 	applyAccentColor(null);
+	applyThemeCss(null);
 }

@@ -1,9 +1,14 @@
 /*
- * Custom theme template.
- *
- * Copy this file, rename it, and override any `--app-*` variables you want.
- * `:root.dark` is applied when the app adds `.dark` to `<html>`.
- */
+name: My Theme
+
+Custom theme template.
+
+Copy this file, rename it, and override any `--app-*` variables you want.
+`:root.dark` is applied when the app adds `.dark` to `<html>`.
+
+Metadata (first comment block only):
+  name — display name shown in the theme picker
+*/
 
 :root {
 	--app-spacing: 0.28rem;

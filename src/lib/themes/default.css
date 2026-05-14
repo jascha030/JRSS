@@ -1,9 +1,14 @@
 /*
- * Public theme contract.
- *
- * Future dotfile themes should override these `--app-*` variables only.
- * App code keeps consuming the internal `--color-*` and `--font-*` tokens.
- */
+name: Default
+
+Public theme contract.
+
+Future dotfile themes should override these `--app-*` variables only.
+App code keeps consuming the internal `--color-*` and `--font-*` tokens.
+
+Metadata (first comment block only):
+  name — display name shown in the theme picker
+*/
 
 :root {
 	--app-spacing: 0.28rem;
