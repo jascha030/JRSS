@@ -199,7 +199,7 @@
 					Fetching feed XML…
 				</div>
 			{:else if inspectorState.error}
-				<div class="text-fg-error flex h-full items-center justify-center py-16">
+				<div class="flex h-full items-center justify-center py-16 text-fg-error">
 					<p>{inspectorState.error}</p>
 				</div>
 			{:else if inspectorState.xmlContent}
@@ -371,7 +371,7 @@
 					<div class="min-w-0 flex-1 p-4">
 						{#if inspection.error}
 							<div
-								class="text-fg-error mb-3 rounded-md border border-border bg-surface-active px-3 py-2 text-sm"
+								class="mb-3 rounded-md border border-border bg-surface-active px-3 py-2 text-sm text-fg-error"
 							>
 								Failed to build the XML tree. Showing raw XML in the editor.
 							</div>

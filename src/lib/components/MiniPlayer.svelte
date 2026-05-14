@@ -141,7 +141,7 @@
 					/>
 				{:else}
 					<div
-						class="bg-surface-elevated flex h-full w-full items-center justify-center"
+						class="flex h-full w-full items-center justify-center bg-surface-elevated"
 						data-tauri-drag-region
 					>
 						<Icon icon="lucide:disc-3" class="size-16 text-fg-muted" />
