@@ -4,6 +4,7 @@
 	import { queryItems } from '$lib/services/item';
 	import type { Feed } from '$lib/types/feed';
 	import type { FeedListItem } from '$lib/types/item';
+	import type { Station } from '$lib/types/station';
 	import { isMediaItem } from '$lib/types/item';
 	import { formatDate } from '$lib/utils/format';
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
@@ -12,8 +13,10 @@
 	type Props = {
 		onOpenDialog: () => void;
 		feeds: Feed[];
+		stations: Station[];
 		onSelectResult: (item: FeedListItem) => void;
 		onSelectFeedResult: (feed: Feed) => void;
+		onSelectStationResult: (station: Station) => void;
 		onAddFeed: (url: string) => void;
 	};
 
@@ -26,14 +29,24 @@
 	type CombinedResult =
 		| { kind: 'action'; data: ActionResult }
 		| { kind: 'feed'; data: Feed }
+		| { kind: 'station'; data: Station }
 		| { kind: 'item'; data: FeedListItem };
 
-	let { onOpenDialog, feeds, onSelectResult, onSelectFeedResult, onAddFeed }: Props = $props();
+	let {
+		onOpenDialog,
+		feeds,
+		stations,
+		onSelectResult,
+		onSelectFeedResult,
+		onSelectStationResult,
+		onAddFeed
+	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let containerRef = $state<HTMLDivElement | null>(null);
 	let inputValue = $state('');
 	let feedResults = $state<Feed[]>([]);
+	let stationResults = $state<Station[]>([]);
 	let results = $state<FeedListItem[]>([]);
 	let isLoading = $state(false);
 	let isOpen = $state(false);
@@ -69,6 +82,7 @@
 	const combinedResults = $derived.by<CombinedResult[]>(() => [
 		...actionResults.map((a) => ({ kind: 'action' as const, data: a })),
 		...feedResults.map((f) => ({ kind: 'feed' as const, data: f })),
+		...stationResults.map((s) => ({ kind: 'station' as const, data: s })),
 		...results.map((i) => ({ kind: 'item' as const, data: i }))
 	]);
 
@@ -86,6 +100,7 @@
 
 		if (!term) {
 			feedResults = [];
+			stationResults = [];
 			results = [];
 			isLoading = false;
 			isOpen = false;
@@ -100,13 +115,19 @@
 			)
 			.slice(0, 3);
 
+		const newStationResults = stations
+			.filter((s) => s.name.toLowerCase().includes(lowerTerm))
+			.slice(0, 3);
+
 		feedResults = newFeedResults;
+		stationResults = newStationResults;
 		results = [];
 		highlightedIndex = -1;
 		isLoading = true;
 		isOpen = true;
 
 		const hasFeedResults = newFeedResults.length > 0;
+		const hasStationResults = newStationResults.length > 0;
 		const hasActionResults = actionResults.length > 0;
 
 		let cancelled = false;
@@ -125,7 +146,7 @@
 					const nextResults = page.items;
 					results = nextResults;
 
-					if (nextResults.length > 0 || hasFeedResults || hasActionResults) {
+					if (nextResults.length > 0 || hasFeedResults || hasStationResults || hasActionResults) {
 						isOpen = true;
 					}
 				})
@@ -175,6 +196,14 @@
 		searchInputRef?.blur();
 	}
 
+	function handleSelectStation(station: Station): void {
+		onSelectStationResult(station);
+		inputValue = '';
+		isOpen = false;
+		highlightedIndex = -1;
+		searchInputRef?.blur();
+	}
+
 	function handleInputKeydown(event: KeyboardEvent): void {
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
@@ -192,6 +221,8 @@
 				entry.data.handleSelectAction();
 			} else if (entry.kind === 'feed') {
 				handleSelectFeed(entry.data);
+			} else if (entry.kind === 'station') {
+				handleSelectStation(entry.data);
 			} else {
 				handleSelect(entry.data);
 			}
@@ -305,8 +336,37 @@
 						<p class="truncate text-xs text-fg-secondary">{feed.url}</p>
 					</div>
 				{/each}
-				{#each results as item, i (item.id)}
+				{#each stationResults as station, i (station.id)}
 					{@const globalIndex = actionResults.length + feedResults.length + i}
+					<div
+						bind:this={resultRefs[globalIndex]}
+						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${
+							globalIndex > 0 ? 'border-t border-border' : ''
+						} ${globalIndex === highlightedIndex ? 'bg-surface-sidebar-active-opaque' : 'hover:bg-surface-sidebar-hover-opaque'}`}
+						role="option"
+						tabindex="-1"
+						aria-selected={globalIndex === highlightedIndex}
+						onmousedown={(e) => {
+							e.preventDefault();
+							handleSelectStation(station);
+						}}
+						onmouseenter={() => (highlightedIndex = globalIndex)}
+					>
+						<div class="flex items-center gap-2">
+							<span class="truncate text-xs font-medium tracking-widest text-fg-muted uppercase"
+								>Station</span
+							>
+						</div>
+						<p class="truncate text-sm font-medium text-fg">{station.name}</p>
+						<p class="truncate text-xs text-fg-secondary">
+							{station.feedIds.length}
+							{station.feedIds.length === 1 ? 'podcast' : 'podcasts'}
+						</p>
+					</div>
+				{/each}
+				{#each results as item, i (item.id)}
+					{@const globalIndex =
+						actionResults.length + feedResults.length + stationResults.length + i}
 					<div
 						bind:this={resultRefs[globalIndex]}
 						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${

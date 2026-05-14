@@ -14,6 +14,7 @@
 	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
+	import CommandPalette from '$lib/components/command/CommandPalette.svelte';
 	import {
 		feedsState,
 		stationsState,
@@ -80,6 +81,7 @@
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
+	let isCommandPaletteOpen = $state(false);
 	let editingStation = $state<import('$lib/types/station').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
@@ -298,6 +300,14 @@
 		selectFeed(feed.id);
 	}
 
+	function handleSelectStationSearchResult(station: import('$lib/types/station').Station): void {
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
+		closeInspector();
+		selectStation(station.id);
+	}
+
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
@@ -430,10 +440,29 @@
 			requestTogglePlayback();
 		};
 
+		const handleCommandPaletteKeyDown = (e: KeyboardEvent) => {
+			const isMod = e.metaKey || e.ctrlKey;
+			if (!isMod || e.key !== 'k') return;
+
+			const target = e.target;
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable)
+			) {
+				return;
+			}
+
+			e.preventDefault();
+			isCommandPaletteOpen = true;
+		};
+
 		document.addEventListener('keydown', handleKeyDown);
+		document.addEventListener('keydown', handleCommandPaletteKeyDown);
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('keydown', handleCommandPaletteKeyDown);
 		};
 	});
 </script>
@@ -453,6 +482,35 @@
 	onClose={() => {
 		isStationEditorOpen = false;
 		editingStation = null;
+	}}
+/>
+
+<CommandPalette
+	open={isCommandPaletteOpen}
+	{feeds}
+	{stations}
+	isPlaying={currentPlaybackState?.isPlaying ?? false}
+	onClose={() => (isCommandPaletteOpen = false)}
+	onToggleCover={() => {
+		playerMode = playerMode === 'cover' ? 'default' : 'cover';
+		isCommandPaletteOpen = false;
+	}}
+	onToggleMiniPlayer={() => {
+		void handlePopOutMiniPlayer();
+		isCommandPaletteOpen = false;
+	}}
+	onToggleSidebar={() => {
+		isSidebarCollapsed = !isSidebarCollapsed;
+		isCommandPaletteOpen = false;
+	}}
+	onAddFeed={() => {
+		isFeedEditorOpen = true;
+		isCommandPaletteOpen = false;
+	}}
+	onAddStation={() => {
+		editingStation = null;
+		isStationEditorOpen = true;
+		isCommandPaletteOpen = false;
 	}}
 />
 
@@ -485,9 +543,11 @@
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}
 						{feeds}
+						{stations}
 						onSelectResult={handleSelectSearchResult}
 						onSelectFeedResult={handleSelectFeedSearchResult}
-                        onAddFeed={handleAddFeed}
+						onSelectStationResult={handleSelectStationSearchResult}
+						onAddFeed={handleAddFeed}
 					/>
 				</div>
 			</AppBar.Toolbar>
