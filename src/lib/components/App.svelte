@@ -487,6 +487,7 @@
 						{feeds}
 						onSelectResult={handleSelectSearchResult}
 						onSelectFeedResult={handleSelectFeedSearchResult}
+                        onAddFeed={handleAddFeed}
 					/>
 				</div>
 			</AppBar.Toolbar>

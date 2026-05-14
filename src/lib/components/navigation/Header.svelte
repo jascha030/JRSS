@@ -14,9 +14,21 @@
 		feeds: Feed[];
 		onSelectResult: (item: FeedListItem) => void;
 		onSelectFeedResult: (feed: Feed) => void;
+		onAddFeed: (url: string) => void;
 	};
 
-	let { onOpenDialog, feeds, onSelectResult, onSelectFeedResult }: Props = $props();
+	type ActionResult = {
+		title: string;
+		description?: string;
+		handleSelectAction: () => void;
+	};
+
+	type CombinedResult =
+		| { kind: 'action'; data: ActionResult }
+		| { kind: 'feed'; data: Feed }
+		| { kind: 'item'; data: FeedListItem };
+
+	let { onOpenDialog, feeds, onSelectResult, onSelectFeedResult, onAddFeed }: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let containerRef = $state<HTMLDivElement | null>(null);
@@ -28,17 +40,46 @@
 	let highlightedIndex = $state(-1);
 	let resultRefs = $state<(HTMLDivElement | null)[]>([]);
 
-	$effect(() => {
-		if (highlightedIndex >= 0 && resultRefs[highlightedIndex]) {
-			resultRefs[highlightedIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+	const isUrl = (input: string): boolean => URL.canParse(input);
+
+	const actionResults = $derived.by<ActionResult[]>(() => {
+		const term = inputValue.trim();
+
+		if (!term || !isUrl(term)) {
+			return [];
 		}
+
+		return [
+			{
+				title: 'Add feed',
+				description: `Add ${term} as a new feed`,
+				handleSelectAction: () => {
+					onAddFeed(term);
+					inputValue = '';
+					isOpen = false;
+					highlightedIndex = -1;
+					searchInputRef?.blur();
+				}
+			}
+		];
 	});
 
-	const feedTitleById = $derived(new Map(feeds.map((f) => [f.id, f.title])));
-	const combinedResults = $derived([
+	const feedTitleById = $derived.by(() => new Map(feeds.map((f) => [f.id, f.title])));
+
+	const combinedResults = $derived.by<CombinedResult[]>(() => [
+		...actionResults.map((a) => ({ kind: 'action' as const, data: a })),
 		...feedResults.map((f) => ({ kind: 'feed' as const, data: f })),
 		...results.map((i) => ({ kind: 'item' as const, data: i }))
 	]);
+
+	$effect(() => {
+		if (highlightedIndex >= 0 && resultRefs[highlightedIndex]) {
+			resultRefs[highlightedIndex]?.scrollIntoView({
+				block: 'nearest',
+				behavior: 'smooth'
+			});
+		}
+	});
 
 	$effect(() => {
 		const term = inputValue.trim();
@@ -46,8 +87,9 @@
 		if (!term) {
 			feedResults = [];
 			results = [];
-			isOpen = false;
 			isLoading = false;
+			isOpen = false;
+			highlightedIndex = -1;
 			return;
 		}
 
@@ -57,14 +99,17 @@
 				(f) => f.title.toLowerCase().includes(lowerTerm) || f.url.toLowerCase().includes(lowerTerm)
 			)
 			.slice(0, 3);
+
 		feedResults = newFeedResults;
-
-		if (newFeedResults.length > 0) {
-			isOpen = true;
-		}
-
+		results = [];
+		highlightedIndex = -1;
 		isLoading = true;
+		isOpen = true;
+
 		const hasFeedResults = newFeedResults.length > 0;
+		const hasActionResults = actionResults.length > 0;
+
+		let cancelled = false;
 
 		const timer = setTimeout(() => {
 			void queryItems({
@@ -75,27 +120,50 @@
 				sortOrder: 'newest_first'
 			})
 				.then((page) => {
-					results = page.items;
-					if (results.length > 0 || hasFeedResults) {
+					if (cancelled) return;
+
+					const nextResults = page.items;
+					results = nextResults;
+
+					if (nextResults.length > 0 || hasFeedResults || hasActionResults) {
 						isOpen = true;
 					}
-					highlightedIndex = -1;
 				})
 				.catch(() => {
+					if (cancelled) return;
 					results = [];
 				})
 				.finally(() => {
+					if (cancelled) return;
 					isLoading = false;
 				});
 		}, 220);
 
-		return () => clearTimeout(timer);
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
+	});
+
+	$effect(() => {
+		let unlistenAddFeed: UnlistenFn | undefined;
+
+		void listen('menu-add-feed', () => {
+			onOpenDialog();
+		}).then((unlisten) => {
+			unlistenAddFeed = unlisten;
+		});
+
+		return () => {
+			unlistenAddFeed?.();
+		};
 	});
 
 	function handleSelect(item: FeedListItem): void {
 		onSelectResult(item);
 		inputValue = '';
 		isOpen = false;
+		highlightedIndex = -1;
 		searchInputRef?.blur();
 	}
 
@@ -103,6 +171,7 @@
 		onSelectFeedResult(feed);
 		inputValue = '';
 		isOpen = false;
+		highlightedIndex = -1;
 		searchInputRef?.blur();
 	}
 
@@ -115,19 +184,28 @@
 			highlightedIndex = Math.max(highlightedIndex - 1, -1);
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
+
 			const entry = highlightedIndex >= 0 ? combinedResults[highlightedIndex] : combinedResults[0];
 			if (!entry) return;
-			if (entry.kind === 'feed') handleSelectFeed(entry.data);
-			else handleSelect(entry.data);
+
+			if (entry.kind === 'action') {
+				entry.data.handleSelectAction();
+			} else if (entry.kind === 'feed') {
+				handleSelectFeed(entry.data);
+			} else {
+				handleSelect(entry.data);
+			}
 		} else if (event.key === 'Escape') {
 			inputValue = '';
 			isOpen = false;
+			highlightedIndex = -1;
 			searchInputRef?.blur();
 		}
 	}
 
 	function handleGlobalKeydown(event: KeyboardEvent): void {
 		const target = event.target as HTMLElement;
+
 		if (
 			target instanceof HTMLInputElement ||
 			target instanceof HTMLTextAreaElement ||
@@ -135,6 +213,7 @@
 		) {
 			return;
 		}
+
 		if (event.key === '/') {
 			event.preventDefault();
 			searchInputRef?.focus();
@@ -144,26 +223,9 @@
 	function handleWindowClick(event: MouseEvent): void {
 		if (containerRef && !containerRef.contains(event.target as Node)) {
 			isOpen = false;
+			highlightedIndex = -1;
 		}
 	}
-
-	let unlistenAddFeed: UnlistenFn | undefined;
-
-	const setupListener = async () => {
-		unlistenAddFeed = await listen('menu-add-feed', () => {
-			onOpenDialog();
-		});
-	};
-
-	void setupListener();
-
-	$effect(() => {
-		return () => {
-			if (unlistenAddFeed) {
-				unlistenAddFeed();
-			}
-		};
-	});
 </script>
 
 <svelte:window onkeydown={handleGlobalKeydown} onclick={handleWindowClick} />
@@ -187,12 +249,36 @@
 
 		{#if isOpen && combinedResults.length > 0}
 			<div
-				class="absolute top-full right-0 left-0 z-50 mt-1 max-h-[calc(100vh-(32*var(--spacing)))] pointer-events-auto overflow-x-hidden rounded-xl border border-border bg-surface-shell-opaque shadow-xl backdrop-blur-xl"
+				class="pointer-events-auto absolute top-full right-0 left-0 z-50 mt-1 max-h-[calc(100vh-(32*var(--spacing)))] overflow-x-hidden rounded-xl border border-border bg-surface-shell-opaque shadow-xl backdrop-blur-xl"
 				role="listbox"
 				aria-label="Search results"
 			>
-				{#each feedResults as feed, i (feed.id)}
+				{#each actionResults as action, i (i)}
 					{@const globalIndex = i}
+					<div
+						bind:this={resultRefs[globalIndex]}
+						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${
+							i > 0 ? 'border-t border-border' : ''
+						} ${globalIndex === highlightedIndex ? 'bg-surface-sidebar-active-opaque' : 'hover:bg-surface-sidebar-hover-opaque'}`}
+						role="option"
+						tabindex="-1"
+						aria-selected={globalIndex === highlightedIndex}
+						onmousedown={(e) => {
+							e.preventDefault();
+							action.handleSelectAction();
+						}}
+						onmouseenter={() => (highlightedIndex = globalIndex)}
+					>
+						<div class="flex items-center gap-2">
+							<span class="truncate text-xs font-medium tracking-widest text-fg-muted uppercase"
+								>{action.title}</span
+							>
+						</div>
+						<p class="truncate text-sm font-medium text-fg">{action.description}</p>
+					</div>
+				{/each}
+				{#each feedResults as feed, i (feed.id)}
+					{@const globalIndex = actionResults.length + i}
 					<div
 						bind:this={resultRefs[globalIndex]}
 						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${
@@ -220,7 +306,7 @@
 					</div>
 				{/each}
 				{#each results as item, i (item.id)}
-					{@const globalIndex = feedResults.length + i}
+					{@const globalIndex = actionResults.length + feedResults.length + i}
 					<div
 						bind:this={resultRefs[globalIndex]}
 						class={`flex cursor-pointer flex-col gap-0.5 px-4 py-3 transition-colors ${
