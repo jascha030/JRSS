@@ -290,6 +290,14 @@
 		scrollToItemRequest = { itemId: item.id, seq: scrollRequestSeq };
 	}
 
+	function handleSelectFeedSearchResult(feed: import('$lib/types/feed').Feed): void {
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
+		closeInspector();
+		selectFeed(feed.id);
+	}
+
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
@@ -478,6 +486,7 @@
 						onOpenDialog={() => (isFeedEditorOpen = true)}
 						{feeds}
 						onSelectResult={handleSelectSearchResult}
+						onSelectFeedResult={handleSelectFeedSearchResult}
 					/>
 				</div>
 			</AppBar.Toolbar>
