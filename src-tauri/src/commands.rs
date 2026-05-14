@@ -10,6 +10,7 @@ use crate::models::{
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
+use crate::theme::{ThemeInfo, cmd_discover_themes, cmd_load_theme};
 use tauri::{Manager, State};
 
 #[cfg(target_os = "macos")]
@@ -135,6 +136,14 @@ pub async fn query_items(
 ) -> Result<ItemPageRecord, String> {
     let db_path = state.db_path();
     blocking(move || db::query_items(&db_path, &query)).await
+}
+
+#[tauri::command]
+pub async fn get_feeds_unread_counts(
+    state: State<'_, DatabaseState>,
+) -> Result<std::collections::HashMap<String, i64>, String> {
+    let db_path = state.db_path();
+    blocking(move || db::get_unread_counts_by_feed(&db_path)).await
 }
 
 #[tauri::command]
@@ -282,6 +291,16 @@ pub async fn save_app_settings(
     let saved = blocking(move || db::save_app_settings(&db_path, &settings)).await?;
     auto_refresh_state.set_interval(saved.auto_refresh_interval_minutes);
     Ok(saved)
+}
+
+#[tauri::command]
+pub async fn discover_themes(app: tauri::AppHandle) -> Result<Vec<ThemeInfo>, String> {
+    cmd_discover_themes(app).await
+}
+
+#[tauri::command]
+pub async fn load_theme(filename: String, app: tauri::AppHandle) -> Result<String, String> {
+    cmd_load_theme(filename, app).await
 }
 
 // ---------------------------------------------------------------------------

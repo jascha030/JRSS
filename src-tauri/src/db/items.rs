@@ -7,6 +7,7 @@ use crate::models::{
 };
 use chrono::Utc;
 use rusqlite::{OptionalExtension, params};
+use std::collections::HashMap;
 use std::path::Path;
 
 const ITEM_SELECT_QUERY: &str =
@@ -413,6 +414,29 @@ pub fn query_items(
         .map_err(|error| format!("Failed to read items: {error}"))?;
 
     Ok(ItemPageRecord { items, total_count })
+}
+
+pub fn get_unread_counts_by_feed(db_path: &Path) -> AppResult<HashMap<String, i64>> {
+    let connection = open_connection(db_path)?;
+    let mut statement = connection
+        .prepare("SELECT feed_id, COUNT(*) FROM items WHERE read = 0 GROUP BY feed_id")
+        .map_err(|error| format!("Failed to prepare unread counts query: {error}"))?;
+
+    let rows = statement
+        .query_map([], |row| {
+            let feed_id: String = row.get(0)?;
+            let count: i64 = row.get(1)?;
+            Ok((feed_id, count))
+        })
+        .map_err(|error| format!("Failed to query unread counts: {error}"))?;
+
+    let mut result = HashMap::new();
+    for row in rows {
+        let (feed_id, count) = row.map_err(|error| format!("Failed to read unread count: {error}"))?;
+        result.insert(feed_id, count);
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]
