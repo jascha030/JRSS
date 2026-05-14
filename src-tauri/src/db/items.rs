@@ -53,6 +53,38 @@ pub fn mark_read(db_path: &Path, item_id: &str, read: bool) -> AppResult<()> {
     Ok(())
 }
 
+pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
+	if item_ids.is_empty() {
+		return Ok(());
+	}
+
+	let mut connection = open_connection(db_path)?;
+	let tx = connection
+		.transaction()
+		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
+
+	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+	let sql = format!(
+		"UPDATE items SET read = ?1 WHERE id IN ({})",
+		placeholders.join(", ")
+	);
+
+	let read_value = if read { 1_i64 } else { 0_i64 };
+	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+	params.push(&read_value as &dyn rusqlite::ToSql);
+	for id in item_ids {
+		params.push(id as &dyn rusqlite::ToSql);
+	}
+
+	tx.execute(&sql, params.as_slice())
+		.map_err(|error| format!("Failed to batch update read state: {error}"))?;
+
+	tx.commit()
+		.map_err(|error| format!("Failed to commit batch read update: {error}"))?;
+
+	Ok(())
+}
+
 pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> AppResult<()> {
     let connection = open_connection(db_path)?;
     let safe_position = position_seconds.max(0);
