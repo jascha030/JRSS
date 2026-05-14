@@ -39,8 +39,11 @@ Metadata (first comment block only):
 	--app-surface-shell: rgb(241 245 249 / 0.72);
 	--app-surface-shell-opaque: rgb(241 245 249);
 	--app-surface-sidebar: rgb(241 245 249 / 0.6);
+	--app-surface-sidebar-opaque: rgb(241 245 249);
 	--app-surface-sidebar-hover: rgb(15 23 42 / 0.06);
+	--app-surface-sidebar-hover-opaque: rgb(226 230 234);
 	--app-surface-sidebar-active: rgb(15 23 42 / 0.12);
+	--app-surface-sidebar-active-opaque: rgb(211 215 219);
 
 	--app-fg: #0f172a;
 	--app-fg-secondary: #334155;
@@ -83,8 +86,11 @@ Metadata (first comment block only):
 	--app-surface-shell: rgb(2 6 23 / 0.72);
 	--app-surface-shell-opaque: rgb(2 6 23);
 	--app-surface-sidebar: rgb(2 6 23 / 0.62);
+	--app-surface-sidebar-opaque: rgb(2 6 23);
 	--app-surface-sidebar-hover: rgb(255 255 255 / 0.08);
+	--app-surface-sidebar-hover-opaque: rgb(22 26 42);
 	--app-surface-sidebar-active: rgb(255 255 255 / 0.14);
+	--app-surface-sidebar-active-opaque: rgb(32 36 52);
 
 	--app-fg: #f8fafc;
 	--app-fg-secondary: #e2e8f0;

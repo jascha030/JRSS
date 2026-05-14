@@ -334,8 +334,11 @@
 	--color-surface-shell: var(--app-surface-shell);
 	--color-surface-shell-opaque: var(--app-surface-shell-opaque);
 	--color-surface-sidebar: var(--app-surface-sidebar);
+	--color-surface-sidebar-opaque: var(--app-surface-sidebar-opaque);
 	--color-surface-sidebar-hover: var(--app-surface-sidebar-hover);
+	--color-surface-sidebar-hover-opaque: var(--app-surface-sidebar-hover-opaque);
 	--color-surface-sidebar-active: var(--app-surface-sidebar-active);
+	--color-surface-sidebar-active-opaque: var(--app-surface-sidebar-active-opaque);
 	--color-fg: var(--app-fg);
 	--color-fg-secondary: var(--app-fg-secondary);
 	--color-fg-muted: var(--app-fg-muted);
