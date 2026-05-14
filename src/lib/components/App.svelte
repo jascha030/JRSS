@@ -70,7 +70,6 @@
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 	import { onMount } from 'svelte';
-	import type { Component } from 'svelte';
 	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -299,15 +298,18 @@
 		}
 
 		const context = getPlaybackContext();
+		const station =
+			context?.contextType === 'station'
+				? stationsState.stations.find((s) => s.id === context.id)
+				: null;
 
 		closeInspector();
 
-		if (context?.contextType === 'station') {
-			selectStation(context.id);
+		if (station && station.feedIds.includes(currentAudioItem.feedId)) {
+			selectStation(station.id);
 			selectItem(currentAudioItem.id);
 		} else {
-			const feedId = context?.contextType === 'feed' ? context.id : currentAudioItem.feedId;
-			selectFeed(feedId);
+			selectFeed(currentAudioItem.feedId);
 			selectItem(currentAudioItem.id);
 		}
 
