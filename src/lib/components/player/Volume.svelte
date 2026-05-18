@@ -4,11 +4,12 @@
 	import RangeInput from '../ui/RangeInput.svelte';
 
 	type Props = {
-		volume: number;
 		class?: string;
+		volume: number;
+		showRange?: boolean;
 	};
 
-	let { volume, class: className = '' }: Props = $props();
+	let { volume, class: className = '', showRange: showRange = true }: Props = $props();
 
 	let volumeOverride = $state<number | null>(null);
 	let previousNonZeroVolume = $state(1);
@@ -56,7 +57,7 @@
 	});
 </script>
 
-<div class={`flex shrink-0 items-center gap-2 ${className}`}>
+<div class={`group flex ${showRange ? '' : 'not-hover:flex-0'} items-center gap-2 ${className}`}>
 	<button
 		class="preset-icon-subtle btn-icon size-5 rounded-xl"
 		type="button"
@@ -74,7 +75,7 @@
 	</button>
 
 	<RangeInput
-		class="w-24"
+		class={showRange ? 'w-24' : 'w-24 translate scale-x-0 origin-left transition-transform duration-150 group-hover:scale-x-100'}
 		value={effectiveVolume}
 		max={1}
 		step={0.01}
