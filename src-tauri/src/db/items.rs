@@ -15,7 +15,8 @@ const ITEM_SELECT_QUERY: &str =
 			 i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
 			 i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
 			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
-			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
+			 i.image_url
 		 FROM items i
 		 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -23,7 +24,8 @@ pub const ITEM_LIST_SELECT_QUERY: &str = "SELECT i.id, i.feed_id, i.title, i.url
 			 i.preview_text,
 			 i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
 			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
-			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
+			 i.image_url
 			 FROM items i
 			 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -509,6 +511,7 @@ mod tests {
                     content_html: None,
                     published_at: "2024-01-01T00:00:00Z".to_string(),
                     media_enclosure: None,
+                    image_url: None,
                 }],
             },
         )

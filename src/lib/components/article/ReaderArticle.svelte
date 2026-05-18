@@ -11,7 +11,7 @@
 	let { item, feedTitle, feedImageUrl }: Props = $props();
 </script>
 
-<ArticleBase {feedTitle} {feedImageUrl} {item}>
+<ArticleBase {feedTitle} imageUrl={feedImageUrl} {item}>
 	{#if item.readerContentHtml}
 		<div class="article-html mt-10">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->

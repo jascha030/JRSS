@@ -570,22 +570,22 @@
 
 								<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 									<div
-										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-widest text-fg-muted uppercase"
+										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide text-fg-muted uppercase"
 									>
 										<span>{feedTitle(item.feedId)}</span>
 										<span>&bull;</span>
 										<span>{formatDate(item.publishedAt)}</span>
 									</div>
 
-									<div class="line-clamp-2">
+									<div class="mt-2 line-clamp-2 4xl:line-clamp-3">
 										<h3
 											id={`feed-item-title-${item.id}`}
-											class="mt-3 text-lg font-semibold text-fg"
+											class="text-md 2xl:text-lg font-semibold text-fg"
 										>
 											{item.title}
 										</h3>
 
-										<p class="mt-2 text-sm leading-6 text-fg-secondary">
+										<p class="text-sm leading-6 text-fg-secondary">
 											{getListPreview(item)}
 										</p>
 									</div>

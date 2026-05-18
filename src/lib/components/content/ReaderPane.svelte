@@ -33,7 +33,9 @@
 	}: Props = $props();
 
 	const podcastImageUrl = $derived(
-		selectedItem && isMediaItem(selectedItem) ? selectedItemFeed?.imageUrl : undefined
+		selectedItem && isMediaItem(selectedItem)
+			? selectedItem?.imageUrl || selectedItemFeed?.imageUrl
+			: undefined
 	);
 </script>
 
@@ -90,7 +92,7 @@
 				<FeedArticle
 					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
-					feedImageUrl={podcastImageUrl}
+					feedOrEpisodeImageUrl={podcastImageUrl}
 				/>
 			{/if}
 		</div>

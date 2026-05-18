@@ -518,7 +518,7 @@
 	{#if playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
-			imageUrl={currentAudioItemFeed?.imageUrl}
+			imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
 			playbackState={currentPlaybackState}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
@@ -653,7 +653,7 @@
 
 					<AudioPlayer
 						item={currentAudioItem}
-						imageUrl={currentAudioItemFeed?.imageUrl}
+						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
 						playbackState={currentPlaybackState}
 						onNavigateToItem={handleNavigateToItem}
 						onShowCover={() => (playerMode = 'cover')}

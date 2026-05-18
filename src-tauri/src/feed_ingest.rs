@@ -364,6 +364,10 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         .map(str::to_string)
         .or_else(|| item.link().map(str::to_string))
         .unwrap_or_else(|| format!("{title}-{published_at}"));
+    let image_url = item
+        .itunes_ext()
+        .and_then(|itunes| itunes.image())
+        .and_then(|url| resolve_optional_url(Some(url), feed_url));
 
     ParsedFeedItem {
         external_id,
@@ -377,6 +381,7 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         content_html,
         published_at,
         media_enclosure: enclosure,
+        image_url,
     }
 }
 
@@ -486,6 +491,7 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         content_html,
         published_at,
         media_enclosure: enclosure,
+        image_url: None,
     }
 }
 
