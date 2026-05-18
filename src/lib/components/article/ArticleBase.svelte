@@ -4,7 +4,7 @@
 
 	type Props = {
 		feedTitle?: string;
-		feedImageUrl?: string;
+		imageUrl?: string;
 		item: FeedItem;
 		surfaceClass?: string;
 		children?: import('svelte').Snippet;
@@ -12,7 +12,7 @@
 
 	let {
 		feedTitle,
-		feedImageUrl,
+		imageUrl: imageUrl,
 		item,
 		surfaceClass = 'article-surface',
 		children
@@ -22,7 +22,7 @@
 <article
 	class={`${surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl`}
 >
-	<ArticleHeader {feedTitle} {feedImageUrl} {item} />
+	<ArticleHeader {feedTitle} {imageUrl} {item} />
 
 	{@render children?.()}
 </article>

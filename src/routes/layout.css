@@ -2,31 +2,50 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
 
-@import '../jrss.css';
-
-/* ──────────────────────────────────────────────
-   Design tokens — single source of truth
-
-   JRSS Theme with custom success/warning/error scales.
-   Typography extended for macOS-style UI.
-   ────────────────────────────────────────────── */
+@import '../lib/themes/default.css';
 
 @theme {
 	--breakpoint-xs: 30rem;
 	--breakpoint-3xl: 120rem;
 	--breakpoint-4xl: 144rem;
-
-	/* ── Typography tokens ─────────────────────── */
-
-	--font-sans:
-		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI',
-		system-ui, sans-serif;
-
-	--font-serif: ui-serif, 'New York', 'Times New Roman', serif;
-
-	--font-mono:
-		ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-		'Courier New', monospace;
+	--spacing: var(--app-spacing);
+	--font-sans: var(--app-font-sans);
+	--font-serif: var(--app-font-serif);
+	--font-mono: var(--app-font-mono);
+	--radius-base: var(--app-radius-base);
+	--radius-container: var(--app-radius-container);
+	--default-border-width: 1px;
+	--default-divide-width: 1px;
+	--default-ring-width: 1px;
+	--text-scaling: 1.067;
+	--base-font-color: var(--color-fg);
+	--base-font-color-dark: var(--color-fg);
+	--base-font-family: var(--font-sans);
+	--base-font-size: inherit;
+	--base-line-height: inherit;
+	--base-font-weight: normal;
+	--base-font-style: normal;
+	--base-letter-spacing: 0.025em;
+	--heading-font-color: var(--color-article-heading);
+	--heading-font-color-dark: var(--color-article-heading);
+	--heading-font-family: var(--font-sans);
+	--heading-font-weight: bold;
+	--heading-font-style: normal;
+	--heading-letter-spacing: -0.025em;
+	--anchor-font-color: var(--color-fg-link);
+	--anchor-font-color-dark: var(--color-fg-link);
+	--anchor-font-family: inherit;
+	--anchor-font-size: inherit;
+	--anchor-line-height: inherit;
+	--anchor-font-weight: inherit;
+	--anchor-font-style: inherit;
+	--anchor-letter-spacing: inherit;
+	--anchor-text-decoration: inherit;
+	--anchor-text-decoration-hover: underline;
+	--anchor-text-decoration-active: none;
+	--anchor-text-decoration-focus: none;
+	--body-background-color: var(--app-bg);
+	--body-background-color-dark: var(--app-bg);
 
 	--font-weight-normal: 400;
 	--font-weight-regular: 400;
@@ -130,46 +149,156 @@
 	--text-large-title--font-weight: 700;
 	--text-large-title--letter-spacing: -0.025em;
 
-	/* ── Success scale (green) ─────────────────── */
-	--color-success-50: oklch(96.02% 0.06 123.44deg);
-	--color-success-100: oklch(92.63% 0.07 125.35deg);
-	--color-success-200: oklch(89.46% 0.09 127.06deg);
-	--color-success-300: oklch(86% 0.11 128.34deg);
-	--color-success-400: oklch(82.86% 0.12 129.39deg);
-	--color-success-500: oklch(79.53% 0.14 130.13deg);
-	--color-success-600: oklch(72.06% 0.14 130.94deg);
-	--color-success-700: oklch(64.68% 0.14 132.06deg);
-	--color-success-800: oklch(56.86% 0.13 133.03deg);
-	--color-success-900: oklch(49.13% 0.13 134.63deg);
-	--color-success-950: oklch(40.92% 0.12 136.44deg);
+	--color-primary-50: color-mix(in oklch, var(--app-color-primary), white 92%);
+	--color-primary-100: color-mix(in oklch, var(--app-color-primary), white 84%);
+	--color-primary-200: color-mix(in oklch, var(--app-color-primary), white 74%);
+	--color-primary-300: color-mix(in oklch, var(--app-color-primary), white 60%);
+	--color-primary-400: color-mix(in oklch, var(--app-color-primary), white 35%);
+	--color-primary-500: var(--app-color-primary);
+	--color-primary-600: color-mix(in oklch, var(--app-color-primary), black 10%);
+	--color-primary-700: color-mix(in oklch, var(--app-color-primary), black 22%);
+	--color-primary-800: color-mix(in oklch, var(--app-color-primary), black 36%);
+	--color-primary-900: color-mix(in oklch, var(--app-color-primary), black 50%);
+	--color-primary-950: color-mix(in oklch, var(--app-color-primary), black 64%);
+	--color-primary-contrast-dark: var(--color-surface-950);
+	--color-primary-contrast-light: var(--color-surface-50);
+	--color-primary-contrast-50: var(--color-primary-contrast-dark);
+	--color-primary-contrast-100: var(--color-primary-contrast-dark);
+	--color-primary-contrast-200: var(--color-primary-contrast-dark);
+	--color-primary-contrast-300: var(--color-primary-contrast-dark);
+	--color-primary-contrast-400: var(--color-primary-contrast-dark);
+	--color-primary-contrast-500: var(--color-primary-contrast-light);
+	--color-primary-contrast-600: var(--color-primary-contrast-light);
+	--color-primary-contrast-700: var(--color-primary-contrast-light);
+	--color-primary-contrast-800: var(--color-primary-contrast-light);
+	--color-primary-contrast-900: var(--color-primary-contrast-light);
+	--color-primary-contrast-950: var(--color-primary-contrast-light);
 
-	/* ── Warning scale (amber/orange) ──────────── */
-	--color-warning-50: oklch(94.95% 0.05 82.79deg);
-	--color-warning-100: oklch(92.97% 0.09 90.4deg);
-	--color-warning-200: oklch(90.99% 0.13 92.33deg);
-	--color-warning-300: oklch(89.39% 0.16 93.26deg);
-	--color-warning-400: oklch(87.78% 0.17 92.22deg);
-	--color-warning-500: oklch(86.52% 0.18 90.37deg);
-	--color-warning-600: oklch(78.49% 0.16 87.67deg);
-	--color-warning-700: oklch(70.38% 0.14 83.69deg);
-	--color-warning-800: oklch(62.15% 0.13 79.7deg);
-	--color-warning-900: oklch(53.6% 0.11 72.84deg);
-	--color-warning-950: oklch(44.65% 0.1 64.13deg);
+	--color-secondary-50: color-mix(in oklch, var(--app-color-secondary), white 92%);
+	--color-secondary-100: color-mix(in oklch, var(--app-color-secondary), white 84%);
+	--color-secondary-200: color-mix(in oklch, var(--app-color-secondary), white 74%);
+	--color-secondary-300: color-mix(in oklch, var(--app-color-secondary), white 60%);
+	--color-secondary-400: color-mix(in oklch, var(--app-color-secondary), white 35%);
+	--color-secondary-500: var(--app-color-secondary);
+	--color-secondary-600: color-mix(in oklch, var(--app-color-secondary), black 10%);
+	--color-secondary-700: color-mix(in oklch, var(--app-color-secondary), black 22%);
+	--color-secondary-800: color-mix(in oklch, var(--app-color-secondary), black 36%);
+	--color-secondary-900: color-mix(in oklch, var(--app-color-secondary), black 50%);
+	--color-secondary-950: color-mix(in oklch, var(--app-color-secondary), black 64%);
+	--color-secondary-contrast-dark: var(--color-surface-950);
+	--color-secondary-contrast-light: var(--color-surface-50);
+	--color-secondary-contrast-50: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-100: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-200: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-300: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-400: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-500: var(--color-secondary-contrast-dark);
+	--color-secondary-contrast-600: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-700: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-800: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-900: var(--color-secondary-contrast-light);
+	--color-secondary-contrast-950: var(--color-secondary-contrast-light);
 
-	/* ── Error scale (red) ─────────────────────── */
-	--color-error-50: oklch(86.55% 0.08 49.75deg);
-	--color-error-100: oklch(81.04% 0.11 39.2deg);
-	--color-error-200: oklch(75.91% 0.13 33.62deg);
-	--color-error-300: oklch(71.18% 0.17 30.46deg);
-	--color-error-400: oklch(67.05% 0.19 29.05deg);
-	--color-error-500: oklch(63.72% 0.22 28.71deg);
-	--color-error-600: oklch(57.69% 0.2 28.5deg);
-	--color-error-700: oklch(51.61% 0.19 28.49deg);
-	--color-error-800: oklch(45.32% 0.17 28.57deg);
-	--color-error-900: oklch(38.98% 0.15 28.66deg);
-	--color-error-950: oklch(32.27% 0.13 29.23deg);
+	--color-tertiary-50: color-mix(in oklch, var(--app-color-tertiary), white 92%);
+	--color-tertiary-100: color-mix(in oklch, var(--app-color-tertiary), white 84%);
+	--color-tertiary-200: color-mix(in oklch, var(--app-color-tertiary), white 74%);
+	--color-tertiary-300: color-mix(in oklch, var(--app-color-tertiary), white 60%);
+	--color-tertiary-400: color-mix(in oklch, var(--app-color-tertiary), white 35%);
+	--color-tertiary-500: var(--app-color-tertiary);
+	--color-tertiary-600: color-mix(in oklch, var(--app-color-tertiary), black 10%);
+	--color-tertiary-700: color-mix(in oklch, var(--app-color-tertiary), black 22%);
+	--color-tertiary-800: color-mix(in oklch, var(--app-color-tertiary), black 36%);
+	--color-tertiary-900: color-mix(in oklch, var(--app-color-tertiary), black 50%);
+	--color-tertiary-950: color-mix(in oklch, var(--app-color-tertiary), black 64%);
+	--color-tertiary-contrast-dark: var(--color-surface-950);
+	--color-tertiary-contrast-light: var(--color-surface-50);
+	--color-tertiary-contrast-50: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-100: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-200: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-300: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-400: var(--color-tertiary-contrast-dark);
+	--color-tertiary-contrast-500: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-600: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-700: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-800: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-900: var(--color-tertiary-contrast-light);
+	--color-tertiary-contrast-950: var(--color-tertiary-contrast-light);
 
-	/* ── Surface scale (neutral gray) ──────────── */
+	--color-success-50: color-mix(in oklch, var(--app-color-success), white 92%);
+	--color-success-100: color-mix(in oklch, var(--app-color-success), white 84%);
+	--color-success-200: color-mix(in oklch, var(--app-color-success), white 74%);
+	--color-success-300: color-mix(in oklch, var(--app-color-success), white 60%);
+	--color-success-400: color-mix(in oklch, var(--app-color-success), white 35%);
+	--color-success-500: var(--app-color-success);
+	--color-success-600: color-mix(in oklch, var(--app-color-success), black 10%);
+	--color-success-700: color-mix(in oklch, var(--app-color-success), black 22%);
+	--color-success-800: color-mix(in oklch, var(--app-color-success), black 36%);
+	--color-success-900: color-mix(in oklch, var(--app-color-success), black 50%);
+	--color-success-950: color-mix(in oklch, var(--app-color-success), black 64%);
+	--color-success-contrast-dark: var(--color-surface-950);
+	--color-success-contrast-light: var(--color-surface-50);
+	--color-success-contrast-50: var(--color-success-contrast-dark);
+	--color-success-contrast-100: var(--color-success-contrast-dark);
+	--color-success-contrast-200: var(--color-success-contrast-dark);
+	--color-success-contrast-300: var(--color-success-contrast-dark);
+	--color-success-contrast-400: var(--color-success-contrast-dark);
+	--color-success-contrast-500: var(--color-success-contrast-dark);
+	--color-success-contrast-600: var(--color-success-contrast-dark);
+	--color-success-contrast-700: var(--color-success-contrast-light);
+	--color-success-contrast-800: var(--color-success-contrast-light);
+	--color-success-contrast-900: var(--color-success-contrast-light);
+	--color-success-contrast-950: var(--color-success-contrast-light);
+
+	--color-warning-50: color-mix(in oklch, var(--app-color-warning), white 92%);
+	--color-warning-100: color-mix(in oklch, var(--app-color-warning), white 84%);
+	--color-warning-200: color-mix(in oklch, var(--app-color-warning), white 74%);
+	--color-warning-300: color-mix(in oklch, var(--app-color-warning), white 60%);
+	--color-warning-400: color-mix(in oklch, var(--app-color-warning), white 35%);
+	--color-warning-500: var(--app-color-warning);
+	--color-warning-600: color-mix(in oklch, var(--app-color-warning), black 10%);
+	--color-warning-700: color-mix(in oklch, var(--app-color-warning), black 22%);
+	--color-warning-800: color-mix(in oklch, var(--app-color-warning), black 36%);
+	--color-warning-900: color-mix(in oklch, var(--app-color-warning), black 50%);
+	--color-warning-950: color-mix(in oklch, var(--app-color-warning), black 64%);
+	--color-warning-contrast-dark: var(--color-surface-950);
+	--color-warning-contrast-light: var(--color-surface-50);
+	--color-warning-contrast-50: var(--color-warning-contrast-dark);
+	--color-warning-contrast-100: var(--color-warning-contrast-dark);
+	--color-warning-contrast-200: var(--color-warning-contrast-dark);
+	--color-warning-contrast-300: var(--color-warning-contrast-dark);
+	--color-warning-contrast-400: var(--color-warning-contrast-dark);
+	--color-warning-contrast-500: var(--color-warning-contrast-dark);
+	--color-warning-contrast-600: var(--color-warning-contrast-dark);
+	--color-warning-contrast-700: var(--color-warning-contrast-dark);
+	--color-warning-contrast-800: var(--color-warning-contrast-light);
+	--color-warning-contrast-900: var(--color-warning-contrast-light);
+	--color-warning-contrast-950: var(--color-warning-contrast-light);
+
+	--color-error-50: color-mix(in oklch, var(--app-color-error), white 92%);
+	--color-error-100: color-mix(in oklch, var(--app-color-error), white 84%);
+	--color-error-200: color-mix(in oklch, var(--app-color-error), white 74%);
+	--color-error-300: color-mix(in oklch, var(--app-color-error), white 60%);
+	--color-error-400: color-mix(in oklch, var(--app-color-error), white 35%);
+	--color-error-500: var(--app-color-error);
+	--color-error-600: color-mix(in oklch, var(--app-color-error), black 10%);
+	--color-error-700: color-mix(in oklch, var(--app-color-error), black 22%);
+	--color-error-800: color-mix(in oklch, var(--app-color-error), black 36%);
+	--color-error-900: color-mix(in oklch, var(--app-color-error), black 50%);
+	--color-error-950: color-mix(in oklch, var(--app-color-error), black 64%);
+	--color-error-contrast-dark: var(--color-surface-950);
+	--color-error-contrast-light: var(--color-surface-50);
+	--color-error-contrast-50: var(--color-error-contrast-dark);
+	--color-error-contrast-100: var(--color-error-contrast-dark);
+	--color-error-contrast-200: var(--color-error-contrast-dark);
+	--color-error-contrast-300: var(--color-error-contrast-dark);
+	--color-error-contrast-400: var(--color-error-contrast-dark);
+	--color-error-contrast-500: var(--color-error-contrast-light);
+	--color-error-contrast-600: var(--color-error-contrast-light);
+	--color-error-contrast-700: var(--color-error-contrast-light);
+	--color-error-contrast-800: var(--color-error-contrast-light);
+	--color-error-contrast-900: var(--color-error-contrast-light);
+	--color-error-contrast-950: var(--color-error-contrast-light);
+
 	--color-surface-50: oklch(98.21% 0 none);
 	--color-surface-100: oklch(93.1% 0 none);
 	--color-surface-200: oklch(84.52% 0 none);
@@ -181,134 +310,83 @@
 	--color-surface-800: oklch(29.58% 0.07 268.61deg);
 	--color-surface-900: oklch(19.96% 0.05 267.11deg);
 	--color-surface-950: oklch(12.88% 0.04 264.7deg);
-
-	/* ── Semantic tokens ───────────────────────── */
-
-	/* Surfaces — opaque */
-	--color-surface: rgb(255 255 255 / 0.55);
-	--color-surface-alt: rgb(241 245 249 / 0.55);
-	--color-surface-card: rgb(255 255 255 / 0.55);
-	--color-surface-active: rgb(241 245 249 / 0.6);
-	--color-surface-hover: rgb(248 250 252 / 0.55);
-	--color-surface-inset: rgb(248 250 252 / 0.8);
-
-	/* Surfaces — semi-transparent (backdrop-blur contexts) */
-	--color-surface-glass: rgb(255 255 255 / 0.5);
-	--color-surface-glass-heavy: rgb(255 255 255 / 0.82);
-	--color-surface-shell: rgb(241 245 249 / 0.6);
-	--color-surface-shell-opaque: rgb(241 245 249);
-
-	/* Surfaces — sidebar vibrancy (Tahoe: transparent to expose NSVisualEffectView) */
-	--color-surface-sidebar: rgb(241 245 249 / 0.45);
-	--color-surface-sidebar-hover: rgb(0 0 0 / 0.05);
-	--color-surface-sidebar-active: rgb(0 0 0 / 0.09);
-
-	/* Foreground (text) */
-	--color-fg: #020617;
-	--color-fg-secondary: #334155;
-	--color-fg-muted: #64748b;
-	--color-fg-subtle: #94a3b8;
-	--color-fg-inverse: #ffffff;
-	--color-fg-link: #2563eb;
-
-	/* Borders */
-	--color-border: #e2e8f0;
-	--color-border-strong: #cbd5e1;
-	--color-border-hover: #94a3b8;
-
-	/* Accent — brand/highlight */
-	--color-accent: #4f46e5;
-	--color-accent-hover: #6366f1;
-	--color-accent-dot: #6366f1;
-
-	/* Interactive — primary button surface */
-	--color-interactive: #020617;
-	--color-interactive-hover: #2e405c;
-	--color-interactive-text: #ffffff;
-
-	/* Focus ring */
-	--color-ring: #cbd5e1;
-
-	/* Skeleton loading */
-	--color-skeleton: #e2e8f0;
-
-	/* Article content (used in ArticleBase <style> block) */
-	--color-article-body: #334155;
-	--color-article-heading: #0f172a;
-	--color-article-link: #2563eb;
-	--color-article-blockquote-border: #cbd5e1;
-	--color-article-blockquote-text: #475569;
-	--color-article-caption: #64748b;
-	--color-article-code-bg: #f1f5f9;
-	--color-article-table-border: #e2e8f0;
-}
-
-/* ── Derived accent vars ──────────────────────
-   accent-hover and accent-dot are derived from --color-accent so that a
-   custom accent set via JS automatically propagates to both.
-   The @theme values above act as Tailwind token registration; these
-   unlayered rules win the cascade and apply at runtime.
-   ───────────────────────────────────────────── */
-
-:root {
+	--color-surface-contrast-dark: var(--color-surface-950);
+	--color-surface-contrast-light: var(--color-surface-50);
+	--color-surface-contrast-50: var(--color-surface-contrast-dark);
+	--color-surface-contrast-100: var(--color-surface-contrast-dark);
+	--color-surface-contrast-200: var(--color-surface-contrast-dark);
+	--color-surface-contrast-300: var(--color-surface-contrast-dark);
+	--color-surface-contrast-400: var(--color-surface-contrast-light);
+	--color-surface-contrast-500: var(--color-surface-contrast-light);
+	--color-surface-contrast-600: var(--color-surface-contrast-light);
+	--color-surface-contrast-700: var(--color-surface-contrast-light);
+	--color-surface-contrast-800: var(--color-surface-contrast-light);
+	--color-surface-contrast-900: var(--color-surface-contrast-light);
+	--color-surface-contrast-950: var(--color-surface-contrast-light);
+	--color-surface: var(--app-surface);
+	--color-surface-alt: var(--app-surface-alt);
+	--color-surface-card: var(--app-surface-card);
+	--color-surface-active: var(--app-surface-active);
+	--color-surface-hover: var(--app-surface-hover);
+	--color-surface-inset: var(--app-surface-inset);
+	--color-surface-glass: var(--app-surface-glass);
+	--color-surface-glass-heavy: var(--app-surface-glass-heavy);
+	--color-surface-shell: var(--app-surface-shell);
+	--color-surface-shell-opaque: var(--app-surface-shell-opaque);
+	--color-surface-sidebar: var(--app-surface-sidebar);
+	--color-surface-sidebar-opaque: var(--app-surface-sidebar-opaque);
+	--color-surface-sidebar-hover: var(--app-surface-sidebar-hover);
+	--color-surface-sidebar-hover-opaque: var(--app-surface-sidebar-hover-opaque);
+	--color-surface-sidebar-active: var(--app-surface-sidebar-active);
+	--color-surface-sidebar-active-opaque: var(--app-surface-sidebar-active-opaque);
+	--color-fg: var(--app-fg);
+	--color-fg-secondary: var(--app-fg-secondary);
+	--color-fg-muted: var(--app-fg-muted);
+	--color-fg-subtle: var(--app-fg-subtle);
+	--color-fg-inverse: var(--app-fg-inverse);
+	--color-fg-link: var(--app-fg-link);
+	--color-border: var(--app-border);
+	--color-border-strong: var(--app-border-strong);
+	--color-border-hover: var(--app-border-hover);
+	--color-accent: var(--app-accent);
+	--color-interactive: var(--app-interactive);
+	--color-interactive-hover: var(--app-interactive-hover);
+	--color-interactive-text: var(--app-interactive-text);
+	--color-ring: var(--app-ring);
+	--color-surface-elevated: color-mix(in oklch, var(--color-surface-card), white 18%);
 	--color-accent-hover: color-mix(in oklch, var(--color-accent), white 20%);
 	--color-accent-dot: var(--color-accent);
+	--color-skeleton: color-mix(in oklch, var(--color-border), var(--color-surface) 35%);
+	--color-success: var(--color-success-700);
+	--color-warning: var(--color-warning-700);
+	--color-error: var(--color-error-700);
+	--color-fg-error: var(--color-error-700);
+	--color-article-body: var(--app-article-body);
+	--color-article-heading: var(--app-article-heading);
+	--color-article-link: var(--app-article-link);
+	--color-article-blockquote-border: var(--app-article-blockquote-border);
+	--color-article-blockquote-text: var(--app-article-blockquote-text);
+	--color-article-caption: var(--app-article-caption);
+	--color-article-code-bg: var(--app-article-code-bg);
+	--color-article-table-border: var(--app-article-table-border);
 }
 
-/* ── Dark overrides ───────────────────────────
-   Toggled by the `.dark` class on <html>, which is managed by
-   src/lib/state/theme.svelte.ts based on the stored color scheme setting.
-   Unlayered rules override @layer theme values.
-   ───────────────────────────────────────────── */
+:root {
+	--color-surface-elevated: color-mix(in oklch, var(--color-surface-card), white 18%);
+	--color-accent-hover: color-mix(in oklch, var(--color-accent), white 20%);
+	--color-accent-dot: var(--color-accent);
+	--color-skeleton: color-mix(in oklch, var(--color-border), var(--color-surface) 35%);
+	--color-success: var(--color-success-700);
+	--color-warning: var(--color-warning-700);
+	--color-error: var(--color-error-700);
+	--color-fg-error: var(--color-error-700);
+}
 
 :root.dark {
-	--color-surface: rgb(2 6 23 / 0.55);
-	--color-surface-alt: rgb(15 23 42 / 0.55);
-	--color-surface-card: rgb(15 23 42 / 0.55);
-	--color-surface-active: rgb(30 41 59 / 0.6);
-	--color-surface-hover: rgb(15 23 42 / 0.55);
-	--color-surface-inset: rgb(15 23 42 / 0.6);
-	--color-surface-glass: rgb(2 6 23 / 0.5);
-	--color-surface-glass-heavy: rgb(2 6 23 / 0.82);
-	--color-surface-shell: rgb(2 6 23 / 0.6);
-	--color-surface-shell-opaque: rgb(2 6 23);
-
-	/* sidebar vibrancy dark overrides */
-	--color-surface-sidebar: rgb(2 6 23 / 0.5);
-	--color-surface-sidebar-hover: rgb(255 255 255 / 0.08);
-	--color-surface-sidebar-active: rgb(255 255 255 / 0.14);
-
-	--color-fg: #ffffff;
-	--color-fg-secondary: #e2e8f0;
-	--color-fg-muted: #94a3b8;
-	--color-fg-subtle: #64748b;
-	--color-fg-inverse: #020617;
-	--color-fg-link: #60a5fa;
-
-	--color-border: #1e293b;
-	--color-border-strong: #334155;
-	--color-border-hover: #64748b;
-
-	/* In dark mode the default accent shifts to a lighter indigo.
-	   accent-hover and accent-dot auto-derive from this via color-mix above. */
-	--color-accent: #6366f1;
-
-	--color-interactive: #e9edf2;
-	--color-interactive-hover: #ffffff;
-	--color-interactive-text: #020617;
-
-	--color-ring: #334155;
-
-	--color-skeleton: #1e293b;
-
-	--color-article-body: #e2e8f0;
-	--color-article-heading: #f8fafc;
-	--color-article-link: #60a5fa;
-	--color-article-blockquote-border: #475569;
-	--color-article-blockquote-text: #cbd5e1;
-	--color-article-caption: #94a3b8;
-	--color-article-code-bg: #0f172a;
-	--color-article-table-border: #334155;
+	--color-success: var(--color-success-400);
+	--color-warning: var(--color-warning-400);
+	--color-error: var(--color-error-400);
+	--color-fg-error: var(--color-error-400);
 }
 
 :root {
@@ -565,21 +643,21 @@
    ───────────────────────────────────────────── */
 
 body {
-	@apply select-none cursor-default;
+	@apply cursor-default select-none;
 }
 
 input,
 textarea,
 [contenteditable] {
-	@apply select-text cursor-auto;
+	@apply cursor-auto select-text;
 }
 
 .article-html {
-	@apply select-text cursor-auto;
+	@apply cursor-auto select-text;
 }
 
 .selectable {
-	@apply select-text cursor-auto;
+	@apply cursor-auto select-text;
 }
 
 /* ── Button component classes ──────────────────

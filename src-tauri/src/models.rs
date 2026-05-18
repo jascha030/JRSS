@@ -121,6 +121,7 @@ pub struct FeedListItemRecord {
     pub read: bool,
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -147,6 +148,7 @@ pub struct FeedItemRecord {
     pub read: bool,
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -172,6 +174,7 @@ pub struct ParsedFeedItem {
     pub content_html: Option<String>,
     pub published_at: String,
     pub media_enclosure: Option<MediaEnclosureRecord>,
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -335,4 +338,7 @@ pub struct AppSettingsRecord {
     pub accent_color: Option<String>,
     pub skip_forward_seconds: i64,
     pub skip_backward_seconds: i64,
+    /// Filename of the active user theme (e.g. `"my-theme.css"`), or `null` to use the built-in
+    /// default.
+    pub theme_name: Option<String>,
 }

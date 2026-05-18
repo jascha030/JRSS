@@ -2,9 +2,9 @@
 	import type { Feed } from '$lib/types/feed';
 	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
-	import { itemsState } from '$lib/state/items.svelte';
+	import { getFeedsUnreadCounts } from '$lib/services/feed';
 	import { selectFeed, selectStation } from '$lib/state';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { onMount } from 'svelte';
 
 	type Props = {
 		feeds: Feed[];
@@ -13,16 +13,14 @@
 
 	let { feeds, stations }: Props = $props();
 
-	const feedsWithUnread = $derived.by(() => {
-		const result = new SvelteSet<string>();
+	let unreadCountsByFeedId = $state<Record<string, number>>({});
 
-		for (const item of Object.values(itemsState.itemSummariesById)) {
-			if (!item.read) {
-				result.add(item.feedId);
-			}
-		}
+	async function loadUnreadCounts() {
+		unreadCountsByFeedId = await getFeedsUnreadCounts();
+	}
 
-		return result;
+	onMount(() => {
+		void loadUnreadCounts();
 	});
 
 	const podcasts = $derived(feeds.filter((f) => f.kind === 'media'));
@@ -63,7 +61,7 @@
 							aria-label={`Open feed ${feed.title}`}
 						>
 							<div
-								class="bg-surface-elevated relative aspect-square w-full overflow-hidden rounded-xl shadow-sm"
+								class="relative aspect-square w-full overflow-hidden rounded-xl bg-surface-elevated shadow-sm"
 							>
 								{#if imageUrl}
 									<img
@@ -83,7 +81,7 @@
 									</span>
 								{/if}
 
-								{#if feedsWithUnread.has(feed.id)}
+								{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
 									<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
 								{/if}
 							</div>
@@ -115,7 +113,7 @@
 							aria-label={`Open feed ${feed.title}`}
 						>
 							<div
-								class="bg-surface-elevated relative aspect-square w-full overflow-hidden rounded-xl shadow-sm"
+								class="relative aspect-square w-full overflow-hidden rounded-xl bg-surface-elevated shadow-sm"
 							>
 								{#if imageUrl}
 									<img
@@ -135,7 +133,7 @@
 									</span>
 								{/if}
 
-								{#if feedsWithUnread.has(feed.id)}
+								{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
 									<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
 								{/if}
 							</div>

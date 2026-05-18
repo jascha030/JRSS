@@ -493,7 +493,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		const item = resolveItem(event.itemId);
 		if (item) {
 			const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-			void precalculateCoverTheme(feed?.imageUrl);
+			void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
 		}
 	}
 
@@ -555,7 +555,7 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 	const currentItem = resolveItem(backendQueueState.current.itemId);
 	if (currentItem) {
 		const feed = feedsState.feeds.find((f) => f.id === currentItem.feedId);
-		void precalculateCoverTheme(feed?.imageUrl);
+		void precalculateCoverTheme(currentItem.imageUrl ?? feed?.imageUrl);
 	}
 }
 
@@ -632,7 +632,7 @@ export function playAudioItem(
 	void persistPlaybackContext();
 
 	const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-	void precalculateCoverTheme(feed?.imageUrl);
+	void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
 
 	void (async () => {
 		try {

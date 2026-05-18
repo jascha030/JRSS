@@ -128,7 +128,9 @@ pub fn get_playback_state(app: &AppHandle) -> Option<PlaybackStateEvent> {
     state
         .send(AudioCommand::GetState { reply: reply_tx })
         .ok()?;
-    match reply_rx.recv_timeout(Duration::from_secs(5)) {
+    // Longer timeout (15s) to accommodate latency when multiple windows are
+    // open and the audio thread is busy emitting events to all of them.
+    match reply_rx.recv_timeout(Duration::from_secs(15)) {
         Ok(state) => state,
         Err(error) => {
             log::warn!("Timed out waiting for audio playback state: {error}");
@@ -200,7 +202,9 @@ pub fn get_queue_state(app: &AppHandle) -> QueueState {
     let state = app.state::<AudioState>();
     let (reply_tx, reply_rx) = mpsc::channel();
     let _ = state.send(AudioCommand::QueueGetState { reply: reply_tx });
-    match reply_rx.recv_timeout(Duration::from_secs(5)) {
+    // Longer timeout (15s) to accommodate latency when multiple windows are
+    // open and the audio thread is busy emitting events to all of them.
+    match reply_rx.recv_timeout(Duration::from_secs(15)) {
         Ok(queue) => queue,
         Err(error) => {
             log::warn!("Timed out waiting for audio queue state: {error}");

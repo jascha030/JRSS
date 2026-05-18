@@ -5,10 +5,10 @@
 	type Props = {
 		item: FeedItem;
 		feedTitle?: string;
-		feedImageUrl?: string;
+		feedOrEpisodeImageUrl?: string;
 	};
 
-	let { item, feedTitle, feedImageUrl }: Props = $props();
+	let { item, feedTitle, feedOrEpisodeImageUrl: imageUrl }: Props = $props();
 
 	const hasHtmlContent = $derived(!!item.contentHtml);
 	const hasTextContent = $derived(!!item.contentText && !hasHtmlContent);
@@ -21,7 +21,7 @@
 	);
 </script>
 
-<ArticleBase {feedTitle} {feedImageUrl} {item}>
+<ArticleBase {feedTitle} {imageUrl} {item}>
 	{#if hasHtmlContent}
 		<div class="article-html mt-10">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->

@@ -14,6 +14,7 @@
 	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
 	import StationEditor from '$lib/components/station/StationEditor.svelte';
+	import CommandPalette from '$lib/components/command/CommandPalette.svelte';
 	import {
 		feedsState,
 		stationsState,
@@ -70,7 +71,6 @@
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 	import { onMount } from 'svelte';
-	import type { Component } from 'svelte';
 	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -81,6 +81,7 @@
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
+	let isCommandPaletteOpen = $state(false);
 	let editingStation = $state<import('$lib/types/station').Station | null>(null);
 	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
 	let scrollRequestSeq = 0;
@@ -291,6 +292,22 @@
 		scrollToItemRequest = { itemId: item.id, seq: scrollRequestSeq };
 	}
 
+	function handleSelectFeedSearchResult(feed: import('$lib/types/feed').Feed): void {
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
+		closeInspector();
+		selectFeed(feed.id);
+	}
+
+	function handleSelectStationSearchResult(station: import('$lib/types/station').Station): void {
+		if (playerMode === 'cover') {
+			playerMode = 'default';
+		}
+		closeInspector();
+		selectStation(station.id);
+	}
+
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
@@ -299,15 +316,18 @@
 		}
 
 		const context = getPlaybackContext();
+		const station =
+			context?.contextType === 'station'
+				? stationsState.stations.find((s) => s.id === context.id)
+				: null;
 
 		closeInspector();
 
-		if (context?.contextType === 'station') {
-			selectStation(context.id);
+		if (station && station.feedIds.includes(currentAudioItem.feedId)) {
+			selectStation(station.id);
 			selectItem(currentAudioItem.id);
 		} else {
-			const feedId = context?.contextType === 'feed' ? context.id : currentAudioItem.feedId;
-			selectFeed(feedId);
+			selectFeed(currentAudioItem.feedId);
 			selectItem(currentAudioItem.id);
 		}
 
@@ -420,10 +440,29 @@
 			requestTogglePlayback();
 		};
 
+		const handleCommandPaletteKeyDown = (e: KeyboardEvent) => {
+			const isMod = e.metaKey || e.ctrlKey;
+			if (!isMod || e.key !== 'k') return;
+
+			const target = e.target;
+			if (
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable)
+			) {
+				return;
+			}
+
+			e.preventDefault();
+			isCommandPaletteOpen = true;
+		};
+
 		document.addEventListener('keydown', handleKeyDown);
+		document.addEventListener('keydown', handleCommandPaletteKeyDown);
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('keydown', handleCommandPaletteKeyDown);
 		};
 	});
 </script>
@@ -446,11 +485,40 @@
 	}}
 />
 
+<CommandPalette
+	open={isCommandPaletteOpen}
+	{feeds}
+	{stations}
+	isPlaying={currentPlaybackState?.isPlaying ?? false}
+	onClose={() => (isCommandPaletteOpen = false)}
+	onToggleCover={() => {
+		playerMode = playerMode === 'cover' ? 'default' : 'cover';
+		isCommandPaletteOpen = false;
+	}}
+	onToggleMiniPlayer={() => {
+		void handlePopOutMiniPlayer();
+		isCommandPaletteOpen = false;
+	}}
+	onToggleSidebar={() => {
+		isSidebarCollapsed = !isSidebarCollapsed;
+		isCommandPaletteOpen = false;
+	}}
+	onAddFeed={() => {
+		isFeedEditorOpen = true;
+		isCommandPaletteOpen = false;
+	}}
+	onAddStation={() => {
+		editingStation = null;
+		isStationEditorOpen = true;
+		isCommandPaletteOpen = false;
+	}}
+/>
+
 <div class="h-screen overflow-hidden bg-surface-shell">
 	{#if playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
-			imageUrl={currentAudioItemFeed?.imageUrl}
+			imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
 			playbackState={currentPlaybackState}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
@@ -475,7 +543,11 @@
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}
 						{feeds}
+						{stations}
 						onSelectResult={handleSelectSearchResult}
+						onSelectFeedResult={handleSelectFeedSearchResult}
+						onSelectStationResult={handleSelectStationSearchResult}
+						onAddFeed={handleAddFeed}
 					/>
 				</div>
 			</AppBar.Toolbar>
@@ -581,7 +653,7 @@
 
 					<AudioPlayer
 						item={currentAudioItem}
-						imageUrl={currentAudioItemFeed?.imageUrl}
+						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
 						playbackState={currentPlaybackState}
 						onNavigateToItem={handleNavigateToItem}
 						onShowCover={() => (playerMode = 'cover')}

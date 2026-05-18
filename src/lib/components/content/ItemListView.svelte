@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
 	import type { SidebarSection } from '$lib/state';
@@ -85,6 +86,8 @@
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let stationSearchInputRef = $state<HTMLInputElement | null>(null);
 	let sectionSearchInputRef = $state<HTMLInputElement | null>(null);
+	let selectedIds = $state<Set<string>>(new Set());
+	let anchorIndex = $state<number | null>(null);
 
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
@@ -113,6 +116,8 @@
 			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
 		})
 	);
+
+	const isMultiSelecting = $derived(selectedIds.size > 0);
 
 	type VisibleRow = {
 		index: number;
@@ -261,6 +266,70 @@
 		const targetScrollTop = index * rowHeight;
 		scrollTop = targetScrollTop;
 		scrollViewport.scrollTop = targetScrollTop;
+	}
+
+	function findItemIndex(element: HTMLElement): number | null {
+		const article = element.closest('[data-item-index]');
+		if (!(article instanceof HTMLElement)) return null;
+		const idx = article.dataset.itemIndex;
+		return idx !== undefined ? Number(idx) : null;
+	}
+
+	function handleItemClick(event: MouseEvent, itemId: string): void {
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLElement)) return;
+		const index = findItemIndex(target);
+		if (index === null) return;
+
+		const cmdOrCtrl = event.metaKey || event.ctrlKey;
+
+		if (cmdOrCtrl) {
+			event.preventDefault();
+			const next = new SvelteSet(selectedIds);
+			if (next.has(itemId)) {
+				next.delete(itemId);
+			} else {
+				next.add(itemId);
+			}
+			selectedIds = next;
+			anchorIndex = index;
+			return;
+		}
+
+		if (event.shiftKey && anchorIndex !== null) {
+			event.preventDefault();
+			const start = Math.min(anchorIndex, index);
+			const end = Math.max(anchorIndex, index);
+			const next = new SvelteSet<string>();
+			for (let i = start; i <= end; i++) {
+				const id = itemIdsByIndex[i];
+				if (id) next.add(id);
+			}
+			selectedIds = next;
+			return;
+		}
+
+		selectedIds = new Set();
+		anchorIndex = index;
+		onSelectItem(itemId);
+	}
+
+	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {
+		if (isMultiSelecting && selectedIds.has(item.id)) {
+			if (isMediaItem(item)) {
+				void openAudioContextMenu(event, item, { selectedIds, itemsById });
+			} else {
+				void openArticleContextMenu(event, item, { selectedIds, itemsById });
+			}
+			return;
+		}
+
+		selectedIds = new Set();
+		if (isMediaItem(item)) {
+			void openAudioContextMenu(event, item);
+		} else {
+			void openArticleContextMenu(event, item);
+		}
 	}
 
 	useMenuShortcuts([
@@ -483,18 +552,17 @@
 						{#if item}
 							<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events -->
 							<article
+								data-item-index={index}
 								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 									index > 0 ? 'border-t border-border' : ''
 								} ${
-									selectedItemId === item.id
+									selectedItemId === item.id || selectedIds.has(item.id)
 										? 'bg-surface-active text-fg'
 										: 'bg-surface text-fg hover:bg-surface-hover'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
-								oncontextmenu={isMediaItem(item)
-									? (event) => void openAudioContextMenu(event, item)
-									: (event) => void openArticleContextMenu(event, item)}
-								onclick={() => onSelectItem(item.id)}
+								oncontextmenu={(event) => handleItemContextMenu(event, item)}
+								onclick={(event) => handleItemClick(event, item.id)}
 							>
 								{#if !item.read}
 									<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>
@@ -502,22 +570,22 @@
 
 								<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 									<div
-										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-widest text-fg-muted uppercase"
+										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide text-fg-muted uppercase"
 									>
 										<span>{feedTitle(item.feedId)}</span>
 										<span>&bull;</span>
 										<span>{formatDate(item.publishedAt)}</span>
 									</div>
 
-									<div class="line-clamp-2">
+									<div class="mt-2 line-clamp-2 4xl:line-clamp-3">
 										<h3
 											id={`feed-item-title-${item.id}`}
-											class="mt-3 text-lg font-semibold text-fg"
+											class="text-md 2xl:text-lg font-semibold text-fg"
 										>
 											{item.title}
 										</h3>
 
-										<p class="mt-2 text-sm leading-6 text-fg-secondary">
+										<p class="text-sm leading-6 text-fg-secondary">
 											{getListPreview(item)}
 										</p>
 									</div>

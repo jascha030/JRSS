@@ -90,6 +90,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 		.map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
     ensure_item_content_columns(&connection)?;
+    ensure_item_image_url_column(&connection)?;
     ensure_feed_sort_order_column(&connection)?;
     ensure_feed_image_url_column(&connection)?;
     backfill_preview_text(&connection)?;
@@ -189,6 +190,17 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             )
             .map_err(|error| {
                 format!("Failed to add SQLite app settings skip_backward_seconds column: {error}")
+            })?;
+    }
+
+    if existing_columns
+        .iter()
+        .all(|column| column != "theme_name")
+    {
+        connection
+            .execute("ALTER TABLE app_settings ADD COLUMN theme_name TEXT", [])
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings theme_name column: {error}")
             })?;
     }
 
@@ -341,6 +353,25 @@ fn ensure_feed_image_url_column(connection: &Connection) -> AppResult<()> {
         connection
             .execute("ALTER TABLE feeds ADD COLUMN image_url TEXT", [])
             .map_err(|error| format!("Failed to add feeds.image_url column: {error}"))?;
+    }
+
+    Ok(())
+}
+
+fn ensure_item_image_url_column(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(items)")
+        .map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "image_url") {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN image_url TEXT", [])
+            .map_err(|error| format!("Failed to add items.image_url column: {error}"))?;
     }
 
     Ok(())

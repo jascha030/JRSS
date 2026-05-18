@@ -48,3 +48,10 @@ export async function fetchFeedRawXml(feedId: string): Promise<string> {
 	}
 	return invokeCommand<string>('fetch_feed_raw', { feedId });
 }
+
+export async function getFeedsUnreadCounts(): Promise<Record<string, number>> {
+	if (!isTauriRuntime()) {
+		return {};
+	}
+	return invokeCommand<Record<string, number>>('get_feeds_unread_counts');
+}

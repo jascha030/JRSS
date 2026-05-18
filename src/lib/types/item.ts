@@ -25,6 +25,7 @@ interface FeedListItemBase {
 	publishedAt: string;
 	read: boolean;
 	playbackPositionSeconds: number;
+	imageUrl?: string;
 }
 
 export interface ArticleListItem extends FeedListItemBase {

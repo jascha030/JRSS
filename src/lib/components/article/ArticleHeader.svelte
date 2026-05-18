@@ -9,11 +9,11 @@
 
 	type Props = {
 		feedTitle?: string;
-		feedImageUrl?: string;
+		imageUrl?: string;
 		item: FeedItem;
 	};
 
-	let { feedTitle, feedImageUrl, item }: Props = $props();
+	let { feedTitle, imageUrl, item }: Props = $props();
 
 	const { readerByline, publishedAt, readerExcerpt } = $derived.by(() => item);
 
@@ -27,11 +27,16 @@
 	<div class="flex gap-6">
 		{#if isMedia}
 			<div class="shrink-0">
-				<Avatar class="size-48 rounded-2xl shadow-sm">
-					{#if feedImageUrl}
-						<Avatar.Image src={feedImageUrl} alt="Podcast cover" class="object-cover" />
+				<Avatar
+					class="h-auto max-h-48 min-h-0 w-48 rounded-2xl shadow-sm"
+					oncontextmenu={isMedia && isMediaItem(item)
+						? (e) => void openAudioContextMenu(e, item)
+						: undefined}
+				>
+					{#if imageUrl}
+						<Avatar.Image src={imageUrl} alt="Podcast cover" class="object-cover" />
 					{/if}
-					<Avatar.Fallback class="grid h-full w-full place-items-center text-3xl font-semibold">
+					<Avatar.Fallback class="grid h-48 w-full place-items-center text-3xl font-semibold">
 						{coverFallback}
 					</Avatar.Fallback>
 				</Avatar>

@@ -54,6 +54,10 @@ export async function markRead(itemId: string, read: boolean): Promise<void> {
 	await invokeCommand('mark_read', { itemId, read });
 }
 
+export async function markReadBatch(itemIds: string[], read: boolean): Promise<void> {
+	await invokeCommand('mark_read_batch', { itemIds, read });
+}
+
 export async function savePlayback(itemId: string, positionSeconds: number): Promise<void> {
 	await invokeCommand('save_playback', {
 		itemId,

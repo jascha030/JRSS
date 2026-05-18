@@ -28,6 +28,7 @@ export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
 export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
 export const DEFAULT_COLOR_SCHEME: ColorScheme = 'system';
 export const DEFAULT_ACCENT_COLOR: string | null = null;
+export const DEFAULT_THEME_NAME: string | null = null;
 export const DEFAULT_SKIP_FORWARD_SECONDS = 15;
 export const DEFAULT_SKIP_BACKWARD_SECONDS = 15;
 
@@ -37,8 +38,15 @@ export interface AppSettings {
 	autoRefreshIntervalMinutes: number;
 	colorScheme: ColorScheme;
 	accentColor: string | null;
+	themeName: string | null;
 	skipForwardSeconds: number;
 	skipBackwardSeconds: number;
+}
+
+/** A discovered user theme file. */
+export interface ThemeInfo {
+	name: string;
+	filename: string;
 }
 
 /** Keys of `Obj` whose values extend `T`. */

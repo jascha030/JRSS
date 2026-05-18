@@ -1,19 +1,27 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	import { clearAudioCache, loadAppSettings, saveAppSettings } from '$lib/services/settings';
+	import {
+		clearAudioCache,
+		discoverThemes,
+		loadAppSettings,
+		loadTheme,
+		saveAppSettings
+	} from '$lib/services/settings';
 	import { isTauriRuntime } from '$lib/services/tauri';
-	import { applyAccentColor, applyColorScheme } from '$lib/state';
+	import { applyAccentColor, applyColorScheme, applyThemeCss } from '$lib/state';
 	import {
 		DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		DEFAULT_COLOR_SCHEME,
 		DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 		DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
 		DEFAULT_ACCENT_COLOR,
+		DEFAULT_THEME_NAME,
 		DEFAULT_SKIP_FORWARD_SECONDS,
 		DEFAULT_SKIP_BACKWARD_SECONDS,
 		type AppSettings,
-		type SettingEntry
+		type SettingEntry,
+		type ThemeInfo
 	} from '$lib/types/settings';
 	import { APP_SETTINGS } from '$lib/constants/settings';
 	import SettingRow from './SettingRow.svelte';
@@ -26,6 +34,8 @@
 	let initialized = $state(false);
 	let isClearingCache = $state(false);
 	let cacheMessage = $state('');
+	let themes = $state<ThemeInfo[]>([]);
+	let isLoadingThemes = $state(false);
 
 	let pending = $state<AppSettings>({
 		maxAudioCacheSizeBytes: DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
@@ -33,6 +43,7 @@
 		autoRefreshIntervalMinutes: DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		colorScheme: DEFAULT_COLOR_SCHEME,
 		accentColor: DEFAULT_ACCENT_COLOR,
+		themeName: DEFAULT_THEME_NAME,
 		skipForwardSeconds: DEFAULT_SKIP_FORWARD_SECONDS,
 		skipBackwardSeconds: DEFAULT_SKIP_BACKWARD_SECONDS
 	});
@@ -57,6 +68,18 @@
 		applyAccentColor(accent);
 	});
 
+	$effect(() => {
+		const name = pending.themeName;
+		if (!initialized) return;
+		if (name) {
+			loadTheme(name)
+				.then((css) => applyThemeCss(css))
+				.catch(() => applyThemeCss(null));
+		} else {
+			applyThemeCss(null);
+		}
+	});
+
 	onMount(async () => {
 		isDesktop = isTauriRuntime();
 
@@ -66,13 +89,16 @@
 			return;
 		}
 
+		isLoadingThemes = true;
 		try {
-			const settings = await loadAppSettings();
+			const [settings, discovered] = await Promise.all([loadAppSettings(), discoverThemes()]);
 			Object.assign(pending, settings);
+			themes = discovered;
 		} catch (error) {
 			errorMessage = `Failed to load settings. ${getErrorMessage(error)}`;
 		} finally {
 			isLoading = false;
+			isLoadingThemes = false;
 			initialized = true;
 		}
 	});
@@ -153,6 +179,39 @@
 						<p class="mt-1 text-sm text-fg-muted">{section.description}</p>
 					{/if}
 					<div class="mt-5 flex flex-col divide-y divide-border">
+						{#if section.title === 'Appearance'}
+							<!-- Theme selector -->
+							<div class="py-5 first:pt-0 last:pb-0">
+								<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+									<div class="max-w-sm">
+										<h4 class="text-sm font-medium text-fg">Theme</h4>
+										<p class="mt-1 text-sm text-fg-muted">
+											Choose a custom CSS theme. Place `.css` files in the themes directory to add
+											more options.
+										</p>
+									</div>
+									<div class="flex w-full max-w-xs flex-col gap-2">
+										<select
+											class="w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+											disabled={isLoading || isSaving || isLoadingThemes}
+											value={pending.themeName ?? ''}
+											onchange={(e) => {
+												const value = e.currentTarget.value;
+												pending.themeName = value === '' ? null : value;
+											}}
+										>
+											<option value="">Default</option>
+											{#each themes as theme (theme.filename)}
+												<option value={theme.filename}>{theme.name}</option>
+											{/each}
+										</select>
+										{#if isLoadingThemes}
+											<p class="text-sm text-fg-muted">Loading themes…</p>
+										{/if}
+									</div>
+								</div>
+							</div>
+						{/if}
 						{#each section.entries as entry (entry.key)}
 							<div class="py-5 first:pt-0 last:pb-0">
 								<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
@@ -198,9 +257,9 @@
 				{#if isLoading}
 					<p class="text-sm text-fg-muted">Loading settings…</p>
 				{:else if successMessage}
-					<p class="text-success text-sm">{successMessage}</p>
+					<p class="text-sm text-success">{successMessage}</p>
 				{:else if errorMessage}
-					<p class="text-error text-sm">{errorMessage}</p>
+					<p class="text-sm text-error">{errorMessage}</p>
 				{/if}
 			</div>
 		</form>

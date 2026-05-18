@@ -11,6 +11,7 @@ mod models;
 mod queue;
 mod rate_limit;
 mod reader_extract;
+mod theme;
 
 use audio::AudioState;
 use db::DatabaseState;
@@ -58,6 +59,8 @@ pub fn run() {
                 .unwrap_or(db::DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES);
             app.manage(database_state);
 
+            theme::ensure_default_theme(app.handle())?;
+
             let auto_refresh_state = auto_refresh::spawn(app.handle().clone(), initial_interval);
             app.manage(auto_refresh_state);
 
@@ -89,6 +92,7 @@ pub fn run() {
             commands::query_items_page,
             commands::get_item_details,
             commands::mark_read,
+            commands::mark_read_batch,
             commands::save_playback,
             commands::load_reader_content,
             commands::get_items_by_ids,
@@ -97,6 +101,8 @@ pub fn run() {
             commands::clear_playback_session,
             commands::load_app_settings,
             commands::save_app_settings,
+            commands::discover_themes,
+            commands::load_theme,
             commands::set_feed_sort_order,
             commands::list_stations,
             commands::create_station,
@@ -104,6 +110,7 @@ pub fn run() {
             commands::delete_station,
             commands::query_station_episodes,
             commands::query_items,
+            commands::get_feeds_unread_counts,
             commands::audio_play,
             commands::audio_pause,
             commands::audio_resume,

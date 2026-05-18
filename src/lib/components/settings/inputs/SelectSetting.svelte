@@ -1,11 +1,11 @@
-<script lang="ts">
+<script lang="ts" generics="V extends string | number">
 	import type { SelectDef } from '$lib/types/settings';
 
 	interface Props {
-		def: SelectDef<number>;
-		value: number;
+		def: SelectDef<V>;
+		value: V;
 		disabled: boolean;
-		onchange: (value: number) => void;
+		onchange: (value: V) => void;
 	}
 
 	let { def, value, disabled, onchange }: Props = $props();

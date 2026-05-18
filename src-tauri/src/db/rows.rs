@@ -56,6 +56,7 @@ pub fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         read: row.get::<_, i64>(18)? != 0,
         playback_position_seconds: row.get(23)?,
         media_enclosure,
+        image_url: row.get(24)?,
     })
 }
 
@@ -91,6 +92,7 @@ pub fn map_item_list_row(row: &Row<'_>) -> rusqlite::Result<FeedListItemRecord> 
         read: row.get::<_, i64>(12)? != 0,
         playback_position_seconds: row.get(17)?,
         media_enclosure,
+        image_url: row.get(18)?,
     })
 }
 

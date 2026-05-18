@@ -28,6 +28,12 @@
 		backdrop-filter: blur(18px);
 	}
 
+	:global(.cover-theme .volume-range-container) {
+		background: var(--cover-button-bg) !important;
+		backdrop-filter: blur(28px) saturate(180%);
+		-webkit-backdrop-filter: blur(28px) saturate(180%);
+	}
+
 	:global(.cover-theme .preset-icon-subtle:hover) {
 		background: var(--cover-button-bg-hover) !important;
 	}

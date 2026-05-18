@@ -2,6 +2,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewW
 import { loadAppSettings } from '$lib/services/settings';
 import { invokeCommand } from '$lib/services/tauri';
 import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/settings';
+import type { LogicalPosition } from '@tauri-apps/api/window';
 
 export const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';
@@ -31,16 +32,21 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			url: MINI_WINDOW_URL,
 			center: true,
 			decorations: true,
-			height: 400,
+			height: 440,
 			maximizable: false,
 			maxHeight: 800,
 			maxWidth: 800,
 			minHeight: 340,
 			minWidth: 340,
 			alwaysOnTop: miniPlayerAlwaysOnTop,
-			width: 400,
+			width: 440,
+            trafficLightPosition: {
+                x: 16,
+                y: 28
+            } as LogicalPosition,
 			resizable: true,
 			title: 'JRSS Mini Player',
+            hiddenTitle: true,
 			titleBarStyle: 'overlay',
 			visible: false
 		});

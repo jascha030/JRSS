@@ -178,9 +178,10 @@ pub fn upsert_feed_snapshot(
 					enclosure_url,
 					enclosure_mime_type,
 					enclosure_size_bytes,
-					enclosure_duration_seconds
+					enclosure_duration_seconds,
+					image_url
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title,
 					url = excluded.url,
@@ -194,7 +195,8 @@ pub fn upsert_feed_snapshot(
 					enclosure_url = excluded.enclosure_url,
 					enclosure_mime_type = excluded.enclosure_mime_type,
 					enclosure_size_bytes = excluded.enclosure_size_bytes,
-					enclosure_duration_seconds = excluded.enclosure_duration_seconds",
+					enclosure_duration_seconds = excluded.enclosure_duration_seconds,
+					image_url = excluded.image_url",
                 params![
                     item_id,
                     next_feed.id,
@@ -219,7 +221,8 @@ pub fn upsert_feed_snapshot(
                         .and_then(|enclosure| enclosure.size_bytes),
                     media_enclosure
                         .as_ref()
-                        .and_then(|enclosure| enclosure.duration_seconds)
+                        .and_then(|enclosure| enclosure.duration_seconds),
+                    parsed_item.image_url
                 ],
             )
             .map_err(|error| format!("Failed to upsert feed item: {error}"))?;
@@ -264,19 +267,20 @@ mod tests {
             site_url: None,
             image_url: None,
             kind: "article".to_string(),
-            items: vec![ParsedFeedItem {
-                external_id: external_id.to_string(),
-                title: "Item".to_string(),
-                url: "https://example.com/item".to_string(),
-                summary: String::new(),
-                preview_text: String::new(),
-                summary_text: None,
-                summary_html: None,
-                content_text: None,
-                content_html: None,
-                published_at: "2024-01-01T00:00:00Z".to_string(),
-                media_enclosure: None,
-            }],
+                items: vec![ParsedFeedItem {
+                    external_id: external_id.to_string(),
+                    title: "Item".to_string(),
+                    url: "https://example.com/item".to_string(),
+                    summary: String::new(),
+                    preview_text: String::new(),
+                    summary_text: None,
+                    summary_html: None,
+                    content_text: None,
+                    content_html: None,
+                    published_at: "2024-01-01T00:00:00Z".to_string(),
+                    media_enclosure: None,
+                    image_url: None,
+                }],
         }
     }
 

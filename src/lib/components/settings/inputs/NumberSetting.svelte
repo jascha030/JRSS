@@ -58,6 +58,6 @@
 		{/if}
 	</div>
 	{#if validationError}
-		<p class="text-error mt-1 text-xs">{validationError}</p>
+		<p class="mt-1 text-xs text-error">{validationError}</p>
 	{/if}
 </div>

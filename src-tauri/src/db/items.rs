@@ -7,6 +7,7 @@ use crate::models::{
 };
 use chrono::Utc;
 use rusqlite::{OptionalExtension, params};
+use std::collections::HashMap;
 use std::path::Path;
 
 const ITEM_SELECT_QUERY: &str =
@@ -14,7 +15,8 @@ const ITEM_SELECT_QUERY: &str =
 			 i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
 			 i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
 			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
-			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
+			 i.image_url
 		 FROM items i
 		 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -22,7 +24,8 @@ pub const ITEM_LIST_SELECT_QUERY: &str = "SELECT i.id, i.feed_id, i.title, i.url
 			 i.preview_text,
 			 i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
 			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
-			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0)
+			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
+			 i.image_url
 			 FROM items i
 			 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -50,6 +53,38 @@ pub fn mark_read(db_path: &Path, item_id: &str, read: bool) -> AppResult<()> {
         .map_err(|error| format!("Failed to update read state: {error}"))?;
 
     Ok(())
+}
+
+pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
+	if item_ids.is_empty() {
+		return Ok(());
+	}
+
+	let mut connection = open_connection(db_path)?;
+	let tx = connection
+		.transaction()
+		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
+
+	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+	let sql = format!(
+		"UPDATE items SET read = ?1 WHERE id IN ({})",
+		placeholders.join(", ")
+	);
+
+	let read_value = if read { 1_i64 } else { 0_i64 };
+	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+	params.push(&read_value as &dyn rusqlite::ToSql);
+	for id in item_ids {
+		params.push(id as &dyn rusqlite::ToSql);
+	}
+
+	tx.execute(&sql, params.as_slice())
+		.map_err(|error| format!("Failed to batch update read state: {error}"))?;
+
+	tx.commit()
+		.map_err(|error| format!("Failed to commit batch read update: {error}"))?;
+
+	Ok(())
 }
 
 pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> AppResult<()> {
@@ -415,6 +450,29 @@ pub fn query_items(
     Ok(ItemPageRecord { items, total_count })
 }
 
+pub fn get_unread_counts_by_feed(db_path: &Path) -> AppResult<HashMap<String, i64>> {
+    let connection = open_connection(db_path)?;
+    let mut statement = connection
+        .prepare("SELECT feed_id, COUNT(*) FROM items WHERE read = 0 GROUP BY feed_id")
+        .map_err(|error| format!("Failed to prepare unread counts query: {error}"))?;
+
+    let rows = statement
+        .query_map([], |row| {
+            let feed_id: String = row.get(0)?;
+            let count: i64 = row.get(1)?;
+            Ok((feed_id, count))
+        })
+        .map_err(|error| format!("Failed to query unread counts: {error}"))?;
+
+    let mut result = HashMap::new();
+    for row in rows {
+        let (feed_id, count) = row.map_err(|error| format!("Failed to read unread count: {error}"))?;
+        result.insert(feed_id, count);
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -453,6 +511,7 @@ mod tests {
                     content_html: None,
                     published_at: "2024-01-01T00:00:00Z".to_string(),
                     media_enclosure: None,
+                    image_url: None,
                 }],
             },
         )
