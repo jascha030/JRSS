@@ -20,9 +20,9 @@
 	import Controls from './Controls.svelte';
 	import Info from './Info.svelte';
 	import SeekBar from './SeekBar.svelte';
-	import Volume from './Volume.svelte';
 	import QueueList from './QueueList.svelte';
 	import CoverThemeStyles from './CoverThemeStyles.svelte';
+	import VerticalVolume from './VerticalVolume.svelte';
 
 	type Props = {
 		item: MediaListItem | null;
@@ -126,6 +126,27 @@
 	]);
 
 	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
+
+	let artworkElement: HTMLImageElement | HTMLDivElement | null = $state(null);
+	let artworkSize = $state('auto');
+
+	$effect(() => {
+		if (!artworkElement) return;
+
+		const updateSize = () => {
+			const width = (artworkElement as HTMLElement)?.offsetWidth;
+			if (width) {
+				artworkSize = `${width}px`;
+			}
+		};
+
+		updateSize();
+
+		const observer = new ResizeObserver(updateSize);
+		observer.observe(artworkElement);
+
+		return () => observer.disconnect();
+	});
 </script>
 
 <CoverThemeStyles />
@@ -191,58 +212,65 @@
 			class="relative z-10 grid h-full min-h-140 grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-stretch justify-center gap-16 px-8 py-16"
 		>
 			<div class="flex h-full min-h-100 min-w-0 flex-col justify-center gap-16 overflow-hidden">
-				<div class="mx-auto flex min-h-0 w-full max-w-6xl items-center justify-center p-4">
-					{#if imageUrl}
-						<img
-							src={imageUrl}
-							alt=""
-							class="cover-view-artwork mx-auto aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
-						/>
-					{:else}
-						<div
-							class="cover-view-artwork mx-auto grid aspect-square w-auto max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
-							style:background-color={coverTheme.panelBg}
-						>
-							<Icon icon="lucide:disc-3" class="size-16" />
-						</div>
-					{/if}
-				</div>
+				<div
+					class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4"
+					style:--artwork-size={artworkSize}
+				>
+					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
+						{#if imageUrl}
+							<img
+								bind:this={artworkElement}
+								src={imageUrl}
+								alt=""
+								class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
+							/>
+						{:else}
+							<div
+								bind:this={artworkElement}
+								class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
+								style:background-color={coverTheme.panelBg}
+							>
+								<Icon icon="lucide:disc-3" class="size-16" />
+							</div>
+						{/if}
+					</div>
 
-				<div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4">
 					<div
-						class="mx-auto grid w-full max-w-6xl min-w-150 grid-cols-[minmax(200px,1fr)_auto_minmax(150px,1fr)] items-center gap-4 4xl:max-w-400"
+						class="controls-row grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 4xl:max-w-400"
 					>
+
 						<div class="min-w-0">
 							<Info {item} showCover={false} onNavigate={onNavigateToItem} />
 						</div>
 					</div>
 
-					<div class="flex min-w-0 flex-row gap-4">
+					<div class="controls-row flex min-w-0 flex-row gap-4">
 						<SeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
+						<VerticalVolume volume={playbackState.volume} />
 					</div>
 
-					<div class="grid grid-cols-2 xs:grid-cols-3">
-						<div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center">
-							<Controls
-								durationSeconds={playbackState.durationSeconds ||
-									item.mediaEnclosure.durationSeconds ||
-									0}
-								isPlaying={playbackState.isPlaying}
-								skipForwardSeconds={playbackSettings.skipForwardSeconds}
-								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
-								onTogglePlayback={requestTogglePlayback}
-								onSkip={handleSkip}
-								onPreviousEpisode={previousEpisode}
-								onNextEpisode={nextEpisode}
-								{canSkipPrevious}
-								{canSkipNext}
-							/>
-						</div>
+					<div class="controls-row mx:auto">
+						<Controls
+							durationSeconds={playbackState.durationSeconds ||
+								item.mediaEnclosure.durationSeconds ||
+								0}
+							isPlaying={playbackState.isPlaying}
+							skipForwardSeconds={playbackSettings.skipForwardSeconds}
+							skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
+							onTogglePlayback={requestTogglePlayback}
+							onSkip={handleSkip}
+							onPreviousEpisode={previousEpisode}
+							onNextEpisode={nextEpisode}
+							{canSkipPrevious}
+							{canSkipNext}
+						/>
 
-						<div class="flex min-w-0 items-center justify-end gap-2 self-end">
-							<Volume volume={playbackState.volume} />
-						</div>
 					</div>
+
+					<!-- <div class="controls-row grid grid-cols-2 xs:grid-cols-3"> -->
+					<!-- <div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center"></div> -->
+					<!-- <div class="flex min-w-0 items-center justify-end gap-2 self-end"></div> -->
+					<!-- </div> -->
 				</div>
 			</div>
 
@@ -367,5 +395,17 @@
 
 	.cover-view-side-panel > :global(div:first-child) {
 		border-color: rgba(255, 255, 255, 0.14);
+	}
+
+	.controls-row {
+		width: var(--artwork-size);
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	@media (max-width: 400px) {
+		.controls-row {
+			width: 100%;
+		}
 	}
 </style>
