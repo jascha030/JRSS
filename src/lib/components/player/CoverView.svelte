@@ -238,7 +238,6 @@
 					<div
 						class="controls-row grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 4xl:max-w-400"
 					>
-
 						<div class="min-w-0">
 							<Info {item} showCover={false} onNavigate={onNavigateToItem} />
 						</div>
@@ -264,7 +263,6 @@
 							{canSkipPrevious}
 							{canSkipNext}
 						/>
-
 					</div>
 
 					<!-- <div class="controls-row grid grid-cols-2 xs:grid-cols-3"> -->

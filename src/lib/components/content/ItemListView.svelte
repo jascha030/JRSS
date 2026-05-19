@@ -580,7 +580,7 @@
 									<div class="mt-2 line-clamp-2 4xl:line-clamp-3">
 										<h3
 											id={`feed-item-title-${item.id}`}
-											class="text-md 2xl:text-lg font-semibold text-fg"
+											class="text-md font-semibold text-fg 2xl:text-lg"
 										>
 											{item.title}
 										</h3>
