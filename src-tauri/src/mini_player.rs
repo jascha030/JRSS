@@ -38,14 +38,17 @@ impl MiniPlayerTransitionState {
 
 impl InnerState {
 	fn begin_open(&mut self) -> Result<(), String> {
-		if self.phase != TransitionPhase::Normal {
-			return Err(format!(
+		match self.phase {
+			TransitionPhase::Normal => {
+				self.phase = TransitionPhase::OpeningMini;
+				Ok(())
+			}
+			TransitionPhase::Mini => Ok(()),
+			_ => Err(format!(
 				"Mini-player transition already in progress ({:?}).",
 				self.phase
-			));
+			)),
 		}
-		self.phase = TransitionPhase::OpeningMini;
-		Ok(())
 	}
 
 	fn finish_open(&mut self, was_fullscreen: bool) {
@@ -54,14 +57,17 @@ impl InnerState {
 	}
 
 	fn begin_restore(&mut self) -> Result<bool, String> {
-		if self.phase != TransitionPhase::Mini {
-			return Err(format!(
+		match self.phase {
+			TransitionPhase::Mini => {
+				self.phase = TransitionPhase::RestoringMain;
+				Ok(self.main_was_fullscreen)
+			}
+			TransitionPhase::Normal => Ok(false),
+			_ => Err(format!(
 				"Cannot restore main window from phase {:?}.",
 				self.phase
-			));
+			)),
 		}
-		self.phase = TransitionPhase::RestoringMain;
-		Ok(self.main_was_fullscreen)
 	}
 
 	fn finish_restore(&mut self) {
@@ -70,10 +76,8 @@ impl InnerState {
 	}
 
 	fn reset_if_transitioning(&mut self) {
-		if self.phase == TransitionPhase::OpeningMini || self.phase == TransitionPhase::RestoringMain
-		{
-			self.phase = TransitionPhase::Normal;
-		}
+		self.phase = TransitionPhase::Normal;
+		self.main_was_fullscreen = false;
 	}
 }
 
@@ -188,7 +192,7 @@ pub async fn restore_main_window_native(
 			.get_webview_window(&mini_label)
 			.ok_or_else(|| format!("Window '{mini_label}' not found."))?;
 		main.show().map_err(|e| e.to_string())?;
-		mini.hide().map_err(|e| e.to_string())?;
+		let _ = mini.destroy().map_err(|e| e.to_string());
 		Ok(())
 	}
 }
@@ -342,6 +346,8 @@ fn restore_main_window_native_macos(
 
 	rx.recv_timeout(std::time::Duration::from_secs(10))
 		.map_err(|e| format!("Timed out waiting for window restore: {e}"))?;
+
+	let _ = mini_window.destroy().map_err(|e| e.to_string());
 
 	Ok(())
 }

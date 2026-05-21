@@ -336,12 +336,12 @@
 	}
 
 	async function handlePopOutMiniPlayer() {
-		const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
-		if (miniWindow && (await miniWindow.isVisible())) {
-			return;
-		}
-
 		try {
+			const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
+			if (miniWindow && (await miniWindow.isVisible())) {
+				return;
+			}
+
 			await openMiniPlayer();
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : 'Unable to open mini player.';
