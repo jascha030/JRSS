@@ -4,7 +4,7 @@
 	import type { Station } from '$lib/types/station';
 	import type { CommandPaletteItem } from '$lib/types/command';
 	import { getCommandPaletteItems, shouldShowCommandCategory } from '$lib/services/command';
-	import { createCommandPaletteNavigation } from '$lib/services/command-palette-navigation.svelte';
+	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
 	import CommandRow from './CommandRow.svelte';
 
 	type Props = {
@@ -54,7 +54,7 @@
 
 	const isEmpty = $derived(items.length === 0 && inputValue.trim() !== '');
 
-	const navigation = createCommandPaletteNavigation({
+	const navigation = createKeyboardListNavigation<HTMLDivElement, HTMLButtonElement>({
 		getItemCount: () => items.length,
 		onRequestClose: () => onClose(),
 		scrollPadding: 8

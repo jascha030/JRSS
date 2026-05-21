@@ -1,12 +1,13 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import type { IndexedElementAction } from '$lib/services/keyboard-list-navigation.svelte.js';
 	import type { CommandPaletteItem } from '$lib/types/command';
 
 	interface Props {
 		item: CommandPaletteItem;
 		isHighlighted: boolean;
 		index: number;
-		setRef: (node: HTMLButtonElement, index: number) => { destroy(): void };
+		setRef: IndexedElementAction<HTMLButtonElement>;
 		onClick: (item: CommandPaletteItem) => void;
 		onHover: (index: number) => void;
 	}
