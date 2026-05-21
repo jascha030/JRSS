@@ -344,7 +344,11 @@
 		try {
 			await openMiniPlayer();
 		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to open mini player.');
+			const message = error instanceof Error ? error.message : 'Unable to open mini player.';
+			if (message.includes('already in progress')) {
+				return;
+			}
+			toast.error(message);
 		}
 	}
 

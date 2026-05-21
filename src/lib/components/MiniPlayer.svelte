@@ -78,7 +78,6 @@
 		const unlisten = miniWindow.onCloseRequested(async (event) => {
 			event.preventDefault();
 			await restoreMainWindow();
-			await miniWindow.destroy();
 		});
 
 		let unlistenSkipForward: EventUnlistenFn | undefined;
@@ -117,12 +116,10 @@
 
 			unlistenSettings = await listen('menu-settings', async () => {
 				await restoreMainWindow();
-				await miniWindow.destroy();
 			});
 
 			unlistenToggleMiniPlayer = await listen('menu-toggle-mini-player', async () => {
 				await restoreMainWindow();
-				await miniWindow.destroy();
 			});
 		};
 

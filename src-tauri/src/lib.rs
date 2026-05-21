@@ -7,6 +7,7 @@ mod cover_art;
 mod db;
 mod feed_ingest;
 mod menu;
+mod mini_player;
 mod models;
 mod queue;
 mod rate_limit;
@@ -67,6 +68,9 @@ pub fn run() {
             let audio_state = AudioState::new(app.handle().clone())
                 .map_err(Box::<dyn std::error::Error>::from)?;
             app.manage(audio_state);
+
+            let mini_player_state = mini_player::MiniPlayerTransitionState::new();
+            app.manage(mini_player_state);
 
             #[cfg(not(target_os = "macos"))]
             media_controls::install(app)?;
@@ -139,7 +143,9 @@ pub fn run() {
             commands::load_playback_context,
             commands::extract_cover_palette,
             commands::clear_audio_cache,
-            commands::set_window_content_aspect_ratio
+            commands::set_window_content_aspect_ratio,
+            mini_player::open_mini_player_native,
+            mini_player::restore_main_window_native
         ]);
 
     let app = builder
