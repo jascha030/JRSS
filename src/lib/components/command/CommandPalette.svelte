@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import type { Feed } from '$lib/types/feed';
 	import type { Station } from '$lib/types/station';
 	import type { CommandPaletteItem } from '$lib/types/command';
@@ -40,6 +41,7 @@
 	let highlightedIndex = $state(-1);
 	let inputRef: HTMLInputElement | undefined = $state();
 	let wasOpen = false;
+	let itemRefs = new SvelteMap<number, HTMLButtonElement>();
 
 	const items = $derived(
 		getCommandPaletteItems({
@@ -81,6 +83,13 @@
 		highlightedIndex = clampHighlightedIndex(highlightedIndex, items.length);
 	});
 
+	$effect(() => {
+		if (highlightedIndex < 0) return;
+		const element = itemRefs.get(highlightedIndex);
+		if (!element) return;
+		element.scrollIntoView({ block: 'center' });
+	});
+
 	function handleKeydown(event: KeyboardEvent) {
 		handleCommandPaletteKeydown(event, {
 			items,
@@ -108,6 +117,15 @@
 
 	function handleItemHover(index: number) {
 		highlightedIndex = index;
+	}
+
+	function setItemRef(node: HTMLButtonElement, index: number) {
+		itemRefs.set(index, node);
+		return {
+			destroy() {
+				itemRefs.delete(index);
+			}
+		};
 	}
 
 	function handleRootKeydown(event: KeyboardEvent) {
@@ -160,7 +178,7 @@
 				{/if}
 			</div>
 
-			<div class="max-h-80 overflow-y-auto p-2">
+			<div class="max-h-80 overflow-y-auto scrollbar-none p-2">
 				{#if isEmpty}
 					<div class="px-4 py-8 text-center text-sm text-fg-muted">No results found</div>
 				{:else if items.length > 0}
@@ -174,10 +192,11 @@
 						{/if}
 
 						<button
+							use:setItemRef={index}
 							type="button"
 							class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-							class:bg-surface-raised={index === highlightedIndex}
-							class:text-fg={index === highlightedIndex}
+							class:bg-accent={index === highlightedIndex}
+							class:text-white={index === highlightedIndex}
 							class:text-fg-muted={index !== highlightedIndex}
 							onclick={() => handleItemClick(item)}
 							onmouseenter={() => handleItemHover(index)}
