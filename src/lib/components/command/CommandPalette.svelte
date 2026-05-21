@@ -5,9 +5,9 @@
 	import type { CommandPaletteItem } from '$lib/types/command';
 	import {
 		getCommandPaletteItems,
-		getNextHighlightedIndex,
 		clampHighlightedIndex,
-		shouldShowCommandCategory
+		shouldShowCommandCategory,
+		handleCommandPaletteKeydown
 	} from '$lib/services/command';
 
 	type Props = {
@@ -82,32 +82,14 @@
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
-		switch (event.key) {
-			case 'ArrowDown':
-			case 'Tab': {
-				event.preventDefault();
-				const step: 1 | -1 = event.key === 'Tab' && event.shiftKey ? -1 : 1;
-				highlightedIndex = getNextHighlightedIndex(highlightedIndex, items.length, step);
-				break;
+		handleCommandPaletteKeydown(event, {
+			items,
+			highlightedIndex,
+			onClose,
+			setHighlightedIndex: (index: number) => {
+				highlightedIndex = index;
 			}
-
-			case 'ArrowUp':
-				event.preventDefault();
-				highlightedIndex = getNextHighlightedIndex(highlightedIndex, items.length, -1);
-				break;
-
-			case 'Enter':
-				event.preventDefault();
-				if (highlightedIndex >= 0 && highlightedIndex < items.length) {
-					items[highlightedIndex].action();
-				}
-				break;
-
-			case 'Escape':
-				event.preventDefault();
-				onClose();
-				break;
-		}
+		});
 	}
 
 	function handleClear() {
