@@ -2,79 +2,43 @@
 
 ## Snapshot
 
-- Tauri v2 desktop RSS/podcast reader. SvelteKit 2 + Svelte 5 frontend, Rust backend, local SQLite at Tauri app-data `jrss.sqlite3`.
+- Tauri 2 desktop RSS/podcast reader. Frontend is SvelteKit 2 + Svelte 5 in SPA mode (`src/routes/+layout.ts`: `prerender = true`, `ssr = false`); backend is Rust; persistent data lives in Tauri app-data `jrss.sqlite3`.
+- Use Bun only. Lockfile is `bun.lock`.
 
 ## Commands
 
-- Install: `bun install` (repo uses `bun.lock`; do not switch package managers).
-- Full app dev: `bun run tauri:dev`.
-- Frontend-only dev: `bun run dev` serves `http://127.0.0.1:1420`.
-- Typecheck: `bun run check`.
-- Lint: `bun run lint` (`prettier --check . && eslint .`).
-- Format: `bun run format`.
-- Frontend build: `bun run build`.
-- Native packaged build: `bun run tauri:build`.
-- Rust-only check/test: `cargo check --manifest-path src-tauri/Cargo.toml` and `cargo test --manifest-path src-tauri/Cargo.toml`.
-- `bun run tauri:dev` already starts `bun run dev` via `src-tauri/tauri.conf.json`; do not start a second Vite server.
-- Outside Tauri, `invokeCommand` throws and some services deliberately return empty/default data; use `bun run tauri:dev` for backend features.
-- No JS test runner, CI workflow, task runner, or pre-commit config is present. Rust unit tests exist in `feed_ingest.rs` and `reader_extract.rs`.
-- Validation order: `bun run check` -> `bun run lint` -> `bun run build`; use `bun run tauri:build` when Rust/Tauri packaging matters.
+- Install: `bun install`
+- Full app dev: `bun run tauri:dev`
+- Frontend-only dev: `bun run dev` on `http://127.0.0.1:1420`
+- Frontend validation order: `bun run check && bun run lint && bun run build`
+- Frontend tests: `bun run test`
+- Single frontend test: `bun run test -- src/lib/services/feed.test.ts`
+- Rust validation: `cargo check --manifest-path src-tauri/Cargo.toml && cargo test --manifest-path src-tauri/Cargo.toml`
+- Single Rust test: `cargo test --manifest-path src-tauri/Cargo.toml <filter>`
+- Format: `bun run format`
+- `bun run tauri:dev` already starts Vite via `src-tauri/tauri.conf.json`; do not run a second dev server.
+- Outside Tauri, `src/lib/services/tauri.ts` throws on `invokeCommand`; desktop-backed services either fail or return empty/default data. Use `bun run tauri:dev` for backend behavior.
+- No CI workflows or pre-commit config are in this repo; local verification is the source of truth.
 
 ## Architecture
 
-- SPA only: `src/routes/+layout.ts` sets `prerender = true` and `ssr = false`; `adapter-static` uses `build/index.html` fallback.
-- Client startup is `src/hooks.client.ts`, which calls `initializeApp()` from `src/lib/state/index.ts`.
-- Main UI composition is `src/routes/+page.svelte`; most components import state/actions from the `src/lib/state/index.ts` facade.
-- Domain state lives in `src/lib/state/*.svelte.ts`; service boundary is `src/lib/services/feedService.ts`.
-- Frontend/backend path: state/actions -> `feedService.ts` -> `src/lib/services/tauriClient.ts` -> Tauri commands in `src-tauri/src/commands.rs`, registered in `src-tauri/src/lib.rs`.
-- `src/lib/types/rss.ts` holds frontend domain types plus raw IPC shapes; `feedService.ts` maps flat Rust payloads into discriminated unions.
-- SQLite is under `src-tauri/src/db/`: `schema.rs` creates/migrates tables, domain files (`feeds.rs`, `items.rs`, `stations.rs`, etc.) hold queries.
-- Playback and queue are backend-owned on the Rust audio thread (`src-tauri/src/audio/`, `src-tauri/src/queue.rs`) and mirrored by `src/lib/state/playback.svelte.ts` via Tauri events/commands.
+- Client boot is `src/hooks.client.ts` -> `initializeApp()` in `src/lib/state/index.ts`.
+- `src/routes/+page.svelte` swaps between the main app and the mini-player window via `?window=mini`.
+- Frontend state/actions live in `src/lib/state/*.svelte.ts`; import through `$lib/state` unless a domain file is required.
+- Frontend services are split by domain in `src/lib/services/{feed,item,station,settings,tauri}.ts`; `tauri.ts` is the runtime gate.
+- Backend entry is `src-tauri/src/lib.rs`; Tauri commands live in `src-tauri/src/commands.rs`; SQLite code lives in `src-tauri/src/db/`; playback and queue logic live in `src-tauri/src/audio/` and `src-tauri/src/queue.rs`.
+- Frontend types are split across `src/lib/types/*.ts`, not a single shared `rss.ts`.
 
 ## Change Traps
 
-- Schema changes must be additive/migrating in `src-tauri/src/db/schema.rs`; no external migration tool exists and user databases must keep working.
-- Keep `src/lib/types/rss.ts` and `src-tauri/src/models.rs` in sync for IPC fields, serde casing, and discriminants.
-- New Tauri commands need both `src-tauri/src/commands.rs` and registration in `src-tauri/src/lib.rs`, plus frontend wrapper/types if called from Svelte.
-- Keep Vite/Tauri URLs aligned: `bun run dev` serves `127.0.0.1:1420`; `src-tauri/tauri.conf.json` points `devUrl` there and `frontendDist` to `../build`.
-- Svelte 5 runes mode is forced for project files outside `node_modules` in `svelte.config.js`; state/store modules use `.svelte.ts`.
-- Repo-local OpenCode config loads `@sveltejs/opencode`; use Svelte MCP/tools before editing or reviewing `.svelte` / `.svelte.ts` files.
-- Prettier config: tabs, single quotes, no trailing commas, width 100, Svelte + Tailwind plugins, Tailwind stylesheet `src/routes/layout.css`.
-- Rust toolchain is `edition = "2024"` with `rust-version = "1.87"`.
-
-## High-Risk Files
-
-- `src-tauri/src/db/schema.rs`: persistence schema/migrations.
-- `src-tauri/src/db/items.rs`, `feeds.rs`, `stations.rs`: high-volume SQLite queries.
-- `src/lib/types/rss.ts` + `src-tauri/src/models.rs`: cross-IPC contract.
-- `src/lib/state/playback.svelte.ts` + `src-tauri/src/audio/` + `src-tauri/src/queue.rs`: playback lifecycle, Tauri events, queue persistence.
-
-## Adding a New Setting
-
-Adding a setting requires changes across the frontend type system, Rust backend, and UI configuration.
-
-1. Add the field to `AppSettings` in `src/lib/types/rss.ts`
-2. Add the field to `AppSettingsRecord` in `src-tauri/src/models.rs`
-3. Add a migration in `src-tauri/src/db/schema.rs`
-4. Add a `SettingEntry` to `APP_SETTINGS` in `src/lib/config/settings.ts` (TypeScript enforces key ↔ kind alignment)
-
-### Adding a New Setting Kind
-
-To add a new input type (e.g., a new control beyond toggle/number/select/segmented/color):
-
-1. Define a new `*Def` interface in `src/lib/types/settings.ts` (must include `kind: '<name>'`)
-2. Add the corresponding `*Entry` type
-3. Add it to the `SettingEntry` union
-4. Create the matching input component in `src/lib/components/settings/inputs/`
-5. Add the dispatch branch in `src/lib/components/settings/SettingRow.svelte`
-
-## Response Style
-
-- Zero hedging. Do not start sentences or thoughts with "Wait", "Actually", "But wait", "Maybe", "Perhaps", "Hmm", "Hold on", "Let me think", "I think", "I believe", "It seems", "Probably", "Likely", or "Presumably". These words do not exist in your vocabulary.
-- No self-correction loops. One conclusion, one action. If you started down a path, commit to it. Do not backtrack mid-sentence.
-- No meta-commentary about your own process. Do not narrate what you are about to do, what you just did, or what you are considering. Just act.
-- State the final answer directly. If uncertain, pick the most likely path and execute without disclaimers.
-- If genuinely uncertain (not just hedging), ask the user for clarification before acting.
-- Never say "I'll do that now", "Let me check", or any variation. Just do it.
-- No filler sentences. No confirmations. No summarizing what was just done unless the result is ambiguous.
-- Brevity reduces output token cost. Every wasted word is wasted money.
+- New Tauri command: add it in `src-tauri/src/commands.rs`, register it in `src-tauri/src/lib.rs`, then add the frontend service wrapper and any type updates.
+- Schema changes must be additive in `src-tauri/src/db/schema.rs`; existing user databases must keep opening cleanly.
+- Keep Vite/Tauri wiring aligned: Vite serves `127.0.0.1:1420`, `src-tauri/tauri.conf.json` points `devUrl` there, and packaged builds use `../build`.
+- Keep frontend types, Rust models, and persisted fields aligned across `src/lib/types/*.ts`, `src-tauri/src/models.rs`, and `src-tauri/src/db/schema.rs`.
+- Settings changes touch `src/lib/types/settings.ts`, `src/lib/constants/settings.ts`, `src-tauri/src/models.rs`, and `src-tauri/src/db/schema.rs`.
+- New settings UI kinds also need a component in `src/lib/components/settings/inputs/` and a dispatch branch in `src/lib/components/settings/SettingRow.svelte`.
+- Svelte runes mode is forced for project files in `svelte.config.js`; state modules use `.svelte.ts`.
+- Tests run in Vitest + happy-dom (`vite.config.ts`, `vitest.setup.ts`); tests needing Tauri IPC should use `@tauri-apps/api/mocks` per test/file.
+- Prettier uses tabs, single quotes, no trailing commas, `prettier-plugin-svelte`, and `prettier-plugin-tailwindcss` with `src/routes/layout.css`.
+- Repo-local OpenCode config loads `@sveltejs/opencode` and `.opencode/instructions/*.md`; follow `.opencode/instructions/comment-policy.md` for comment/suppression rules and Rust `SAFETY:` comments.
+- PR flow from `CONTRIBUTING.md`: push from a fork, not directly to this repo; maintainer approval required.
