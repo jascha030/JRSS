@@ -3,12 +3,9 @@
 	import type { Feed } from '$lib/types/feed';
 	import type { Station } from '$lib/types/station';
 	import type { CommandPaletteItem } from '$lib/types/command';
-	import {
-		getCommandPaletteItems,
-		getNextHighlightedIndex,
-		clampHighlightedIndex,
-		shouldShowCommandCategory
-	} from '$lib/services/command';
+	import { getCommandPaletteItems, shouldShowCommandCategory } from '$lib/services/command';
+	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
+	import CommandRow from './CommandRow.svelte';
 
 	type Props = {
 		open: boolean;
@@ -37,8 +34,7 @@
 	}: Props = $props();
 
 	let inputValue = $state('');
-	let highlightedIndex = $state(-1);
-	let inputRef: HTMLInputElement | undefined = $state();
+	let inputRef = $state<HTMLInputElement | undefined>(undefined);
 	let wasOpen = false;
 
 	const items = $derived(
@@ -58,19 +54,32 @@
 
 	const isEmpty = $derived(items.length === 0 && inputValue.trim() !== '');
 
+	const navigation = createKeyboardListNavigation<HTMLDivElement, HTMLButtonElement>({
+		getItemCount: () => items.length,
+		onRequestClose: () => onClose(),
+		scrollPadding: 8
+	});
+
+	function resetPalette() {
+		inputValue = '';
+		navigation.reset();
+	}
+
+	function focusInput() {
+		requestAnimationFrame(() => {
+			inputRef?.focus();
+			inputRef?.select();
+		});
+	}
+
 	$effect(() => {
 		if (open && !wasOpen) {
-			requestAnimationFrame(() => {
-				inputRef?.focus();
-				inputRef?.select();
-			});
-
-			highlightedIndex = items.length > 0 ? 0 : -1;
+			navigation.open();
+			focusInput();
 		}
 
 		if (!open && wasOpen) {
-			inputValue = '';
-			highlightedIndex = -1;
+			resetPalette();
 		}
 
 		wasOpen = open;
@@ -78,42 +87,33 @@
 
 	$effect(() => {
 		if (!open) return;
-		highlightedIndex = clampHighlightedIndex(highlightedIndex, items.length);
+		navigation.sync();
 	});
 
-	function handleKeydown(event: KeyboardEvent) {
-		switch (event.key) {
-			case 'ArrowDown':
-			case 'Tab': {
-				event.preventDefault();
-				const step: 1 | -1 = event.key === 'Tab' && event.shiftKey ? -1 : 1;
-				highlightedIndex = getNextHighlightedIndex(highlightedIndex, items.length, step);
-				break;
+	$effect(() => {
+		if (!open) return;
+		navigation.ensureSelectedVisible();
+	});
+
+	function handleInputKeydown(event: KeyboardEvent) {
+		navigation.handleKeydown({
+			event,
+			items,
+			onExecute: (item) => {
+				item.action();
 			}
-
-			case 'ArrowUp':
-				event.preventDefault();
-				highlightedIndex = getNextHighlightedIndex(highlightedIndex, items.length, -1);
-				break;
-
-			case 'Enter':
-				event.preventDefault();
-				if (highlightedIndex >= 0 && highlightedIndex < items.length) {
-					items[highlightedIndex].action();
-				}
-				break;
-
-			case 'Escape':
-				event.preventDefault();
-				onClose();
-				break;
-		}
+		});
 	}
 
 	function handleClear() {
 		inputValue = '';
-		highlightedIndex = clampHighlightedIndex(0, items.length);
-		inputRef?.focus();
+		navigation.clearHover();
+
+		requestAnimationFrame(() => {
+			navigation.selectFirst();
+			inputRef?.focus();
+			inputRef?.select();
+		});
 	}
 
 	function handleBackdropClick() {
@@ -124,10 +124,6 @@
 		event.stopPropagation();
 	}
 
-	function handleItemHover(index: number) {
-		highlightedIndex = index;
-	}
-
 	function handleRootKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
@@ -135,7 +131,17 @@
 		}
 	}
 
-	function handleItemClick(item: CommandPaletteItem) {
+	function handleItemHover(index: number) {
+		navigation.hover(index);
+	}
+
+	function handleListPointerLeave() {
+		navigation.leaveList();
+	}
+
+	function handleItemClick(item: CommandPaletteItem, index: number) {
+		navigation.select(index);
+		navigation.clearHover();
 		item.action();
 	}
 </script>
@@ -150,8 +156,7 @@
 		role="dialog"
 		aria-label="Command palette"
 	>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 		<div
 			class="w-full max-w-lg rounded-xl border border-border bg-surface-shell-opaque shadow-2xl"
 			onclick={handlePanelClick}
@@ -164,7 +169,7 @@
 					type="text"
 					class="w-full bg-transparent text-sm text-fg placeholder:text-fg-muted focus:outline-none"
 					placeholder="Type a command..."
-					onkeydown={handleKeydown}
+					onkeydown={handleInputKeydown}
 				/>
 				{#if inputValue}
 					<button
@@ -178,7 +183,11 @@
 				{/if}
 			</div>
 
-			<div class="max-h-80 overflow-y-auto p-2">
+			<div
+				use:navigation.setListRef
+				class="scrollbar-none max-h-80 overflow-y-auto p-2"
+				onpointerleave={handleListPointerLeave}
+			>
 				{#if isEmpty}
 					<div class="px-4 py-8 text-center text-sm text-fg-muted">No results found</div>
 				{:else if items.length > 0}
@@ -191,26 +200,14 @@
 							</div>
 						{/if}
 
-						<button
-							type="button"
-							class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-							class:bg-surface-raised={index === highlightedIndex}
-							class:text-fg={index === highlightedIndex}
-							class:text-fg-muted={index !== highlightedIndex}
-							onclick={() => handleItemClick(item)}
-							onmouseenter={() => handleItemHover(index)}
-						>
-							<Icon icon={item.icon} class="size-4 shrink-0" />
-							<span class="truncate">{item.title}</span>
-
-							{#if item.badge}
-								<span
-									class="ml-auto shrink-0 text-[10px] font-medium tracking-wider text-fg-muted uppercase"
-								>
-									{item.badge}
-								</span>
-							{/if}
-						</button>
+						<CommandRow
+							{item}
+							isHighlighted={index === navigation.highlightedIndex}
+							{index}
+							setRef={navigation.setItemRef}
+							onClick={(item) => handleItemClick(item, index)}
+							onHover={handleItemHover}
+						/>
 					{/each}
 				{/if}
 			</div>
@@ -218,17 +215,13 @@
 			<div class="border-t border-border px-4 py-2">
 				<div class="flex items-center gap-4 text-[10px] text-fg-muted">
 					<span class="flex items-center gap-1">
-						<span class="bg-surface-raised rounded px-1 py-0.5 font-mono text-[10px]"> ↑↓ </span>
-						<span class="bg-surface-raised rounded px-1 py-0.5 font-mono text-[10px]"> ⇥ </span>
-						Navigate
+						<kbd class="kbd text-xs">↑↓</kbd> <kbd class="kbd text-xs">⇥</kbd> Navigate
 					</span>
 					<span class="flex items-center gap-1">
-						<span class="bg-surface-raised rounded px-1 py-0.5 font-mono text-[10px]"> ↵ </span>
-						Execute
+						<kbd class="kbd text-xs">↵</kbd> Execute
 					</span>
 					<span class="flex items-center gap-1">
-						<span class="bg-surface-raised rounded px-1 py-0.5 font-mono text-[10px]"> Esc </span>
-						Close
+						<kbd class="kbd text-xs">Esc</kbd> Close
 					</span>
 				</div>
 			</div>

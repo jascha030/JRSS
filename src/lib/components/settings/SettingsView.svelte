@@ -26,6 +26,11 @@
 	import { APP_SETTINGS } from '$lib/constants/settings';
 	import SettingRow from './SettingRow.svelte';
 
+	const allEntries: SettingEntry[] = [];
+	for (const section of APP_SETTINGS) {
+		allEntries.push(...section.entries);
+	}
+
 	let isDesktop = $state(false);
 	let isLoading = $state(true);
 	let isSaving = $state(false);
@@ -47,14 +52,6 @@
 		skipForwardSeconds: DEFAULT_SKIP_FORWARD_SECONDS,
 		skipBackwardSeconds: DEFAULT_SKIP_BACKWARD_SECONDS
 	});
-
-	function flatEntries(): SettingEntry[] {
-		const result: SettingEntry[] = [];
-		for (const section of APP_SETTINGS) {
-			result.push(...section.entries);
-		}
-		return result;
-	}
 
 	$effect(() => {
 		const scheme = pending.colorScheme;
@@ -104,7 +101,7 @@
 	});
 
 	let isFormValid = $derived(
-		flatEntries().every((entry) => {
+		allEntries.every((entry) => {
 			if (entry.kind !== 'number') return true;
 			if (!entry.validate || !entry.toDisplay) return true;
 			const displayVal = entry.toDisplay(pending[entry.key]);
@@ -122,7 +119,7 @@
 			return;
 		}
 
-		for (const entry of flatEntries()) {
+		for (const entry of allEntries) {
 			if (entry.kind !== 'number') continue;
 			if (!entry.validate || !entry.toDisplay) continue;
 			const displayVal = entry.toDisplay(pending[entry.key]);

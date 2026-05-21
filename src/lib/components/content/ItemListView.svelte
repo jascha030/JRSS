@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
 	import type { SidebarSection } from '$lib/state';
@@ -9,11 +9,7 @@
 	import type { Station } from '$lib/types/station';
 	import { isMediaItem } from '$lib/types/item';
 	import { formatDate } from '$lib/utils/format';
-	import {
-		openArticleContextMenu,
-		openAudioContextMenu,
-		openFeedContextMenu
-	} from '$lib/utils/tauri-menu';
+	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
@@ -86,8 +82,6 @@
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let stationSearchInputRef = $state<HTMLInputElement | null>(null);
 	let sectionSearchInputRef = $state<HTMLInputElement | null>(null);
-	let selectedIds = $state<Set<string>>(new Set());
-	let anchorIndex = $state<number | null>(null);
 
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
@@ -117,7 +111,11 @@
 		})
 	);
 
-	const isMultiSelecting = $derived(selectedIds.size > 0);
+	const selection = useItemSelection({
+		getItemIdsByIndex: () => itemIdsByIndex,
+		getItemsById: () => itemsById,
+		onSelectItem: (itemId) => onSelectItem(itemId)
+	});
 
 	type VisibleRow = {
 		index: number;
@@ -217,7 +215,7 @@
 	$effect(() => {
 		const request = scrollToItemRequest;
 		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
-			const index = getItemIndexById(request.itemId);
+			const index = selection.getItemIndexById(request.itemId);
 
 			if (index !== null) {
 				setInitialScrollPosition(request.itemId);
@@ -248,88 +246,15 @@
 		void onVisibleRangeChange(visibleRange.startIndex, visibleRange.endIndex - 1);
 	});
 
-	function getItemIndexById(itemId: string): number | null {
-		for (const [index, id] of Object.entries(itemIdsByIndex)) {
-			if (id === itemId) {
-				return Number(index);
-			}
-		}
-		return null;
-	}
-
 	function setInitialScrollPosition(itemId: string): void {
 		if (!scrollViewport) return;
 
-		const index = getItemIndexById(itemId);
+		const index = selection.getItemIndexById(itemId);
 		if (index === null) return;
 
 		const targetScrollTop = index * rowHeight;
 		scrollTop = targetScrollTop;
 		scrollViewport.scrollTop = targetScrollTop;
-	}
-
-	function findItemIndex(element: HTMLElement): number | null {
-		const article = element.closest('[data-item-index]');
-		if (!(article instanceof HTMLElement)) return null;
-		const idx = article.dataset.itemIndex;
-		return idx !== undefined ? Number(idx) : null;
-	}
-
-	function handleItemClick(event: MouseEvent, itemId: string): void {
-		const target = event.currentTarget;
-		if (!(target instanceof HTMLElement)) return;
-		const index = findItemIndex(target);
-		if (index === null) return;
-
-		const cmdOrCtrl = event.metaKey || event.ctrlKey;
-
-		if (cmdOrCtrl) {
-			event.preventDefault();
-			const next = new SvelteSet(selectedIds);
-			if (next.has(itemId)) {
-				next.delete(itemId);
-			} else {
-				next.add(itemId);
-			}
-			selectedIds = next;
-			anchorIndex = index;
-			return;
-		}
-
-		if (event.shiftKey && anchorIndex !== null) {
-			event.preventDefault();
-			const start = Math.min(anchorIndex, index);
-			const end = Math.max(anchorIndex, index);
-			const next = new SvelteSet<string>();
-			for (let i = start; i <= end; i++) {
-				const id = itemIdsByIndex[i];
-				if (id) next.add(id);
-			}
-			selectedIds = next;
-			return;
-		}
-
-		selectedIds = new Set();
-		anchorIndex = index;
-		onSelectItem(itemId);
-	}
-
-	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {
-		if (isMultiSelecting && selectedIds.has(item.id)) {
-			if (isMediaItem(item)) {
-				void openAudioContextMenu(event, item, { selectedIds, itemsById });
-			} else {
-				void openArticleContextMenu(event, item, { selectedIds, itemsById });
-			}
-			return;
-		}
-
-		selectedIds = new Set();
-		if (isMediaItem(item)) {
-			void openAudioContextMenu(event, item);
-		} else {
-			void openArticleContextMenu(event, item);
-		}
 	}
 
 	useMenuShortcuts([
@@ -556,13 +481,13 @@
 								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 									index > 0 ? 'border-t border-border' : ''
 								} ${
-									selectedItemId === item.id || selectedIds.has(item.id)
+									selectedItemId === item.id || selection.selectedIds.has(item.id)
 										? 'bg-surface-active text-fg'
 										: 'bg-surface text-fg hover:bg-surface-hover'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
-								oncontextmenu={(event) => handleItemContextMenu(event, item)}
-								onclick={(event) => handleItemClick(event, item.id)}
+								oncontextmenu={(event) => selection.handleItemContextMenu(event, item)}
+								onclick={(event) => selection.handleItemClick(event, item.id)}
 							>
 								{#if !item.read}
 									<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>

@@ -340,3 +340,64 @@ export function shouldShowCommandCategory(items: CommandPaletteItem[], index: nu
 	if (index === 0) return true;
 	return items[index - 1]?.category !== items[index]?.category;
 }
+
+type KeyIntent = 'close' | 'activate' | 'next' | 'previous';
+
+export type CommandKeydownContext = {
+	items: { action: () => void }[];
+	highlightedIndex: number;
+	onClose: () => void;
+	setHighlightedIndex: (index: number) => void;
+};
+
+const KEY_INTENTS: Record<string, KeyIntent> = {
+	Escape: 'close',
+	Enter: 'activate',
+	ArrowDown: 'next',
+	ArrowUp: 'previous',
+	Tab: 'next',
+	'Shift+Tab': 'previous'
+};
+
+function toKeyCombo(event: KeyboardEvent): string {
+	return event.shiftKey && event.key === 'Tab' ? 'Shift+Tab' : event.key;
+}
+
+function getKeyIntent(event: KeyboardEvent): KeyIntent | null {
+	return KEY_INTENTS[toKeyCombo(event)] ?? null;
+}
+
+function getMovedHighlightedIndex(
+	highlightedIndex: number,
+	itemCount: number,
+	direction: 'next' | 'previous'
+): number {
+	return getNextHighlightedIndex(highlightedIndex, itemCount, direction === 'previous' ? -1 : 1);
+}
+
+export function handleCommandPaletteKeydown(
+	event: KeyboardEvent,
+	context: CommandKeydownContext
+): void {
+	const intent = getKeyIntent(event);
+	if (!intent) return;
+
+	event.preventDefault();
+
+	if (intent === 'close') {
+		context.onClose();
+		return;
+	}
+
+	if (intent === 'activate') {
+		const { items, highlightedIndex } = context;
+		if (highlightedIndex >= 0 && highlightedIndex < items.length) {
+			items[highlightedIndex].action();
+		}
+		return;
+	}
+
+	context.setHighlightedIndex(
+		getMovedHighlightedIndex(context.highlightedIndex, context.items.length, intent)
+	);
+}
