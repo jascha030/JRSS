@@ -47,8 +47,18 @@
 	let sortOrder = $state<ItemSortOrder>('newest_first');
 	let gradient = $state<StationGradient>('emerald');
 	let selectedFeedValues = $state<string[]>([]);
-	let filteredPodcastOptions = $state<FeedOption[]>([]);
+	let podcastQuery = $state('');
 	let nameInputRef = $state<HTMLInputElement | null>(null);
+
+	const filteredPodcastOptions = $derived.by(() => {
+		const query = podcastQuery.toLowerCase().trim();
+
+		if (!query) {
+			return allPodcastOptions;
+		}
+
+		return allPodcastOptions.filter((item) => item.label.toLowerCase().includes(query));
+	});
 
 	const collection = $derived(
 		useListCollection({
@@ -78,17 +88,13 @@
 	const isValid = $derived(name.trim().length > 0 && selectedFeedValues.length > 0);
 
 	$effect(() => {
-		filteredPodcastOptions = allPodcastOptions;
-	});
-
-	$effect(() => {
 		if (open) {
 			name = station?.name ?? '';
 			episodeFilter = station?.episodeFilter ?? 'all';
 			sortOrder = station?.sortOrder ?? 'newest_first';
 			gradient = station?.gradient ?? 'emerald';
 			selectedFeedValues = station?.feedIds ?? [];
-			filteredPodcastOptions = allPodcastOptions;
+			podcastQuery = '';
 			queueMicrotask(() => {
 				nameInputRef?.focus();
 			});
@@ -96,20 +102,11 @@
 	});
 
 	const onComboboxOpenChange = () => {
-		filteredPodcastOptions = allPodcastOptions;
+		podcastQuery = '';
 	};
 
 	const onComboboxInputValueChange: ComboboxRootProps['onInputValueChange'] = (event) => {
-		const query = event.inputValue.toLowerCase().trim();
-
-		if (!query) {
-			filteredPodcastOptions = allPodcastOptions;
-			return;
-		}
-
-		filteredPodcastOptions = allPodcastOptions.filter((item) =>
-			item.label.toLowerCase().includes(query)
-		);
+		podcastQuery = event.inputValue;
 	};
 
 	const onComboboxValueChange: ComboboxRootProps['onValueChange'] = (event) => {

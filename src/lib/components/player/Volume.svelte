@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { requestSetVolume } from '$lib/state';
+	import { useVolumeControl } from '$lib/hooks/useVolumeControl.svelte';
 	import Icon from '@iconify/svelte';
 	import RangeInput from '../ui/RangeInput.svelte';
 
@@ -11,49 +12,9 @@
 
 	let { volume, class: className = '', showRange: showRange = true }: Props = $props();
 
-	let volumeOverride = $state<number | null>(null);
-	let previousNonZeroVolume = $state(1);
-
-	let effectiveVolume = $derived(volumeOverride ?? volume);
-	let isMuted = $derived(effectiveVolume === 0);
-
-	function handleVolumeInput(event: Event & { currentTarget: HTMLInputElement }) {
-		const nextVolume = Number(event.currentTarget.value);
-		volumeOverride = nextVolume;
-
-		if (nextVolume > 0) {
-			previousNonZeroVolume = nextVolume;
-		}
-	}
-
-	function toggleMute() {
-		if (effectiveVolume === 0) {
-			volumeOverride = previousNonZeroVolume > 0 ? previousNonZeroVolume : 1;
-			return;
-		}
-
-		previousNonZeroVolume = effectiveVolume;
-		volumeOverride = 0;
-	}
-
-	$effect(() => {
-		if (volume > 0) {
-			previousNonZeroVolume = volume;
-		}
-	});
-
-	$effect(() => {
-		if (volumeOverride !== null && Math.abs(volumeOverride - volume) < 0.001) {
-			volumeOverride = null;
-		}
-	});
-
-	$effect(() => {
-		if (Math.abs(effectiveVolume - volume) < 0.001) {
-			return;
-		}
-
-		requestSetVolume(effectiveVolume);
+	const volumeControl = useVolumeControl({
+		getVolume: () => volume,
+		setVolume: requestSetVolume
 	});
 </script>
 
@@ -61,13 +22,13 @@
 	<button
 		class="preset-icon-subtle btn-icon size-5 rounded-xl"
 		type="button"
-		onclick={toggleMute}
-		aria-label={isMuted ? 'Unmute' : 'Mute'}
-		aria-pressed={isMuted}
+		onclick={volumeControl.toggleMute}
+		aria-label={volumeControl.isMuted ? 'Unmute' : 'Mute'}
+		aria-pressed={volumeControl.isMuted}
 	>
-		{#if isMuted || effectiveVolume === 0}
+		{#if volumeControl.isMuted || volumeControl.effectiveVolume === 0}
 			<Icon icon="lucide:volume-x" class="size-5" />
-		{:else if effectiveVolume < 0.5}
+		{:else if volumeControl.effectiveVolume < 0.5}
 			<Icon icon="lucide:volume-1" class="size-5" />
 		{:else}
 			<Icon icon="lucide:volume-2" class="size-5" />
@@ -78,10 +39,10 @@
 		class={showRange
 			? 'w-24'
 			: 'translate w-24 origin-left scale-x-0 transition-transform duration-150 group-hover:scale-x-100'}
-		value={effectiveVolume}
+		value={volumeControl.effectiveVolume}
 		max={1}
 		step={0.01}
 		ariaLabel="Volume"
-		oninput={handleVolumeInput}
+		oninput={volumeControl.handleVolumeInput}
 	/>
 </div>
