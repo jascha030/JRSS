@@ -75,7 +75,9 @@
 	</button>
 
 	<RangeInput
-		class={showRange ? 'w-24' : 'w-24 translate scale-x-0 origin-left transition-transform duration-150 group-hover:scale-x-100'}
+		class={showRange
+			? 'w-24'
+			: 'translate w-24 origin-left scale-x-0 transition-transform duration-150 group-hover:scale-x-100'}
 		value={effectiveVolume}
 		max={1}
 		step={0.01}

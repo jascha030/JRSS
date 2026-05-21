@@ -2463,6 +2463,7 @@ dependencies = [
  "block2",
  "chrono",
  "color-thief",
+ "core-graphics 0.25.0",
  "html-escape",
  "image",
  "libc",

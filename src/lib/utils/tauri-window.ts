@@ -1,4 +1,4 @@
-import { WebviewWindow, getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { loadAppSettings } from '$lib/services/settings';
 import { invokeCommand } from '$lib/services/tauri';
 import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/settings';
@@ -40,13 +40,13 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			minWidth: 340,
 			alwaysOnTop: miniPlayerAlwaysOnTop,
 			width: 440,
-            trafficLightPosition: {
-                x: 16,
-                y: 28
-            } as LogicalPosition,
+			trafficLightPosition: {
+				x: 16,
+				y: 28
+			} as LogicalPosition,
 			resizable: true,
 			title: 'JRSS Mini Player',
-            hiddenTitle: true,
+			hiddenTitle: true,
 			titleBarStyle: 'overlay',
 			visible: false
 		});
@@ -78,30 +78,23 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 }
 
 export async function openMiniPlayer(): Promise<void> {
-	const miniWindow = await ensureMiniPlayerWindow();
+	await ensureMiniPlayerWindow();
 	await invokeCommand('set_window_content_aspect_ratio', {
 		label: MINI_WINDOW_LABEL,
 		width: 1,
 		height: 1
 	});
-	await miniWindow.show();
-
-	const mainWindow = getCurrentWebviewWindow();
-	await mainWindow.hide();
+	await invokeCommand('open_mini_player_native', {
+		mainLabel: MAIN_WINDOW_LABEL,
+		miniLabel: MINI_WINDOW_LABEL
+	});
 }
 
 export async function restoreMainWindow(): Promise<void> {
-	const mainWindow = await WebviewWindow.getByLabel(MAIN_WINDOW_LABEL);
-	if (!mainWindow) {
-		throw new Error('Main window not found.');
-	}
-
-	await mainWindow.show();
-
-	const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
-	if (miniWindow) {
-		await miniWindow.destroy();
-	}
+	await invokeCommand('restore_main_window_native', {
+		mainLabel: MAIN_WINDOW_LABEL,
+		miniLabel: MINI_WINDOW_LABEL
+	});
 }
 
 export { ensureMiniPlayerWindow };

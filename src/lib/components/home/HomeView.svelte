@@ -5,6 +5,7 @@
 	import { getFeedsUnreadCounts } from '$lib/services/feed';
 	import { selectFeed, selectStation } from '$lib/state';
 	import { onMount } from 'svelte';
+	import FeedCardImage from './FeedCardImage.svelte';
 
 	type Props = {
 		feeds: Feed[];
@@ -60,31 +61,15 @@
 							title={feed.title}
 							aria-label={`Open feed ${feed.title}`}
 						>
-							<div
-								class="relative aspect-square w-full overflow-hidden rounded-xl bg-surface-elevated shadow-sm"
-							>
-								{#if imageUrl}
-									<img
-										src={imageUrl}
-										alt={feed.title}
-										loading="lazy"
-										decoding="async"
-										fetchpriority="low"
-										draggable="false"
-										class="size-full object-cover"
-									/>
-								{:else}
-									<span
-										class="flex size-full items-center justify-center bg-linear-to-br from-primary-400 to-primary-600 text-2xl font-bold text-fg-inverse"
-									>
-										{(feed.title?.trim()?.[0] ?? '?').toUpperCase()}
-									</span>
-								{/if}
+							<FeedCardImage
+								{imageUrl}
+								alt={feed.title}
+								letter={(feed.title?.trim()?.[0] ?? '?').toUpperCase()}
+							/>
 
-								{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
-									<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
-								{/if}
-							</div>
+							{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
+								<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
+							{/if}
 
 							<span class="line-clamp-2 w-full text-center text-xs font-medium text-fg">
 								{feed.title}
@@ -112,31 +97,15 @@
 							title={feed.title}
 							aria-label={`Open feed ${feed.title}`}
 						>
-							<div
-								class="relative aspect-square w-full overflow-hidden rounded-xl bg-surface-elevated shadow-sm"
-							>
-								{#if imageUrl}
-									<img
-										src={imageUrl}
-										alt={feed.title}
-										loading="lazy"
-										decoding="async"
-										fetchpriority="low"
-										draggable="false"
-										class="size-full object-cover"
-									/>
-								{:else}
-									<span
-										class="flex size-full items-center justify-center bg-linear-to-br from-primary-400 to-primary-600 text-2xl font-bold text-fg-inverse"
-									>
-										{(feed.title?.trim()?.[0] ?? '?').toUpperCase()}
-									</span>
-								{/if}
+							<FeedCardImage
+								{imageUrl}
+								alt={feed.title}
+								letter={(feed.title?.trim()?.[0] ?? '?').toUpperCase()}
+							/>
 
-								{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
-									<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
-								{/if}
-							</div>
+							{#if (unreadCountsByFeedId[feed.id] ?? 0) > 0}
+								<div class="absolute top-2 right-2 size-3 rounded-full bg-accent shadow-sm"></div>
+							{/if}
 
 							<span class="line-clamp-2 w-full text-center text-xs font-medium text-fg">
 								{feed.title}
