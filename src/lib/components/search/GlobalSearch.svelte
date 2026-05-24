@@ -7,7 +7,7 @@
 		createGlobalSearch,
 		type SearchResultEntry
 	} from '$lib/services/global-search.svelte.js';
-    import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
+	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
 	import SearchResultRow from './SearchResultRow.svelte';
 
 	type Props = {
@@ -158,7 +158,6 @@
 		bind:inputRef={searchInputRef}
 		kbdShortcuts={['/']}
 		isLoading={search.isLoading}
-		bgClass="bg-surface-shell"
 		onkeydown={handleInputKeydown}
 		onfocus={handleInputFocus}
 	/>

@@ -1,7 +1,7 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/forms';
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-
 @import '../lib/themes/default.css';
 
 @theme {
@@ -12,6 +12,7 @@
 	--font-sans: var(--app-font-sans);
 	--font-serif: var(--app-font-serif);
 	--font-mono: var(--app-font-mono);
+    --font-system: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
 	--radius-base: var(--app-radius-base);
 	--radius-container: var(--app-radius-container);
 	--default-border-width: 1px;
@@ -538,15 +539,13 @@
 	}
 
 	code,
-	kbd,
 	samp,
 	pre {
 		font-family: var(--font-mono);
 		font-size: 0.875em;
 	}
 
-	code,
-	kbd {
+	code {
 		background: var(--color-article-code-bg);
 		padding: 0.125rem 0.375rem;
 		border-radius: 0.375rem;
@@ -628,10 +627,10 @@
 		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
 	}
 
-	button,
-	input,
-	textarea,
-	select {
+	button
+	/* input, */
+	/* textarea, */
+	/* select */ {
 		@apply outline-none;
 		font: inherit;
 	}
@@ -750,6 +749,11 @@ textarea,
 /* Small round button size (32px) */
 .btn-round.btn-sm {
 	@apply size-8;
+}
+
+kbd {
+    /* @apply border-surface-400; */
+    @apply border-border;
 }
 
 @layer components {

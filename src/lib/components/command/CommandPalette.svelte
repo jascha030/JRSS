@@ -161,20 +161,24 @@
 			class="w-full max-w-lg rounded-xl border border-border bg-surface-shell-opaque shadow-2xl"
 			onclick={handlePanelClick}
 		>
-			<div class="flex items-center gap-3 border-b border-border px-4 py-3">
-				<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
+			<div
+				class="input-group grid grid-cols-[auto_1fr_auto] border-none bg-none px-4 py-3 ring-0 outline-0 focus-within:border-b-border"
+			>
+				<div class="ig-cell">
+					<Icon icon="lucide:search" class="size-4" />
+				</div>
 				<input
 					bind:this={inputRef}
 					bind:value={inputValue}
 					type="text"
-					class="w-full bg-transparent text-sm text-fg placeholder:text-fg-muted focus:outline-none"
+					class="ig-input border-none ring-0 outline-0"
 					placeholder="Type a command..."
 					onkeydown={handleInputKeydown}
 				/>
 				{#if inputValue}
 					<button
 						type="button"
-						class="cursor-pointer text-xs text-fg-muted hover:text-fg"
+						class="ig-cell border-none"
 						onclick={handleClear}
 						aria-label="Clear search"
 					>
@@ -194,7 +198,7 @@
 					{#each items as item, index (item.id)}
 						{#if shouldShowCommandCategory(items, index)}
 							<div
-								class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
+								class="px-3 py-1 mt-2 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
 							>
 								{item.category}
 							</div>
@@ -213,15 +217,19 @@
 			</div>
 
 			<div class="border-t border-border px-4 py-2">
-				<div class="flex items-center gap-4 text-[10px] text-fg-muted">
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">↑↓</kbd> <kbd class="kbd text-xs">⇥</kbd> Navigate
+				<div class="flex items-center gap-4 text-xs text-fg-muted">
+					<span class="flex items-center gap-2">
+						<span class="flex items-center gap-1">
+							<kbd class="kbd">↑↓</kbd>
+							<kbd class="kbd">⇥</kbd>
+						</span>
+						Navigate
 					</span>
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">↵</kbd> Execute
+					<span class="flex items-center gap-2">
+						<kbd class="kbd">⏎</kbd> Execute
 					</span>
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">Esc</kbd> Close
+					<span class="flex items-center gap-2">
+						<kbd class="kbd">esc</kbd> Close
 					</span>
 				</div>
 			</div>

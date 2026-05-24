@@ -18,7 +18,7 @@
 <button
 	use:setRef={index}
 	type="button"
-	class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
+	class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors"
 	class:bg-accent={isHighlighted}
 	class:text-white={isHighlighted}
 	class:text-fg-muted={!isHighlighted}
@@ -26,10 +26,10 @@
 	onmouseenter={() => onHover(index)}
 >
 	<Icon icon={item.icon} class="size-4 shrink-0" />
-	<span class="truncate">{item.title}</span>
+	<span class="truncate text-sm">{item.title}</span>
 
 	{#if item.badge}
-		<span class="ml-auto shrink-0 text-[10px] font-medium tracking-wider text-fg-muted uppercase">
+		<span class="ml-auto shrink-0 text-xs font-medium tracking-wider text-fg-muted uppercase">
 			{item.badge}
 		</span>
 	{/if}
