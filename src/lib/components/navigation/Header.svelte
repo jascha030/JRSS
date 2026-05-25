@@ -9,8 +9,6 @@
 
 	type Props = {
 		onOpenDialog: () => void;
-		feeds: Feed[];
-		stations: Station[];
 		onSelectResult: (item: FeedListItem) => void;
 		onSelectFeedResult: (feed: Feed) => void;
 		onSelectStationResult: (station: Station) => void;
@@ -19,8 +17,6 @@
 
 	let {
 		onOpenDialog,
-		feeds,
-		stations,
 		onSelectResult,
 		onSelectFeedResult,
 		onSelectStationResult,
@@ -43,13 +39,6 @@
 </script>
 
 <div class="pointer-events-none flex w-full items-center gap-4 px-2">
-	<GlobalSearch
-		{feeds}
-		{stations}
-		{onSelectResult}
-		{onSelectFeedResult}
-		{onSelectStationResult}
-		{onAddFeed}
-	/>
+	<GlobalSearch {onSelectResult} {onSelectFeedResult} {onSelectStationResult} {onAddFeed} />
 	<IconButton icon="lucide:plus" title="Add feed" variant="accent" onclick={onOpenDialog} />
 </div>

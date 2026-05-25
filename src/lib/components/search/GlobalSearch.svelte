@@ -1,32 +1,23 @@
 <script lang="ts">
-	import type { Feed } from '$lib/types/feed';
 	import type { FeedListItem } from '$lib/types/item';
-	import type { Station } from '$lib/types/station';
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
 	import {
 		createGlobalSearch,
 		type SearchResultEntry
 	} from '$lib/services/global-search.svelte.js';
 	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
+	import { feedsState } from '$lib/state/feeds.svelte';
+	import { stationsState } from '$lib/state/stations.svelte';
 	import SearchResultRow from './SearchResultRow.svelte';
 
 	type Props = {
-		feeds: Feed[];
-		stations: Station[];
 		onSelectResult: (item: FeedListItem) => void;
-		onSelectFeedResult: (feed: Feed) => void;
-		onSelectStationResult: (station: Station) => void;
+		onSelectFeedResult: (feed: (typeof feedsState.feeds)[number]) => void;
+		onSelectStationResult: (station: (typeof stationsState.stations)[number]) => void;
 		onAddFeed: (url: string) => void;
 	};
 
-	let {
-		feeds,
-		stations,
-		onSelectResult,
-		onSelectFeedResult,
-		onSelectStationResult,
-		onAddFeed
-	}: Props = $props();
+	let { onSelectResult, onSelectFeedResult, onSelectStationResult, onAddFeed }: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let containerRef = $state<HTMLDivElement | null>(null);
@@ -34,8 +25,8 @@
 
 	const search = createGlobalSearch({
 		getTerm: () => inputValue.trim(),
-		getFeeds: () => feeds,
-		getStations: () => stations
+		getFeeds: () => feedsState.feeds,
+		getStations: () => stationsState.stations
 	});
 
 	const navigation = createKeyboardListNavigation<HTMLDivElement, HTMLDivElement>({

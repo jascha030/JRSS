@@ -1,9 +1,12 @@
 <script lang="ts">
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
-
-	import type { SidebarSection } from '$lib/state';
-	import type { Feed } from '$lib/types/feed';
-	import type { Station } from '$lib/types/station';
+	import {
+		selection,
+		setFeedSearchTerm,
+		setSectionSearchTerm,
+		setStationSearchTerm
+	} from '$lib/state/selection.svelte';
+	import { getSelectedFeed, getSelectedStation } from '$lib/state/selectors.svelte';
 
 	type SearchContext = {
 		id: string;
@@ -14,32 +17,14 @@
 	};
 
 	type Props = {
-		selectedFeed: Feed | null;
-		selectedStation: Station | null;
-		selectedSection: SidebarSection;
-		searchTerm: string;
-		onSearchChange: (term: string) => void;
-		stationSearchTerm: string;
-		onStationSearchChange: (term: string) => void;
-		sectionSearchTerm: string;
-		onSectionSearchChange: (term: string) => void;
 		inputRef?: HTMLInputElement | null;
 	};
 
-	let {
-		selectedFeed,
-		selectedStation,
-		selectedSection,
-		searchTerm,
-		onSearchChange,
-		stationSearchTerm,
-		onStationSearchChange,
-		sectionSearchTerm,
-		onSectionSearchChange,
-		inputRef = $bindable(null)
-	}: Props = $props();
+	let { inputRef = $bindable(null) }: Props = $props();
 
 	let localSearchValue = $state('');
+	const selectedFeed = $derived(getSelectedFeed());
+	const selectedStation = $derived(getSelectedStation());
 
 	const searchContext = $derived.by((): SearchContext | null => {
 		if (selectedFeed) {
@@ -47,8 +32,8 @@
 				id: 'feed-search',
 				label: 'Search this feed',
 				placeholder: 'Search this feed',
-				term: searchTerm,
-				onChange: onSearchChange
+				term: selection.feedSearchTerm,
+				onChange: setFeedSearchTerm
 			};
 		}
 
@@ -57,18 +42,18 @@
 				id: 'station-search',
 				label: 'Search this station',
 				placeholder: 'Search this station',
-				term: stationSearchTerm,
-				onChange: onStationSearchChange
+				term: selection.stationSearchTerm,
+				onChange: setStationSearchTerm
 			};
 		}
 
-		if (selectedSection === 'unread' || selectedSection === 'media') {
+		if (selection.selectedSection === 'unread' || selection.selectedSection === 'media') {
 			return {
 				id: 'section-search',
-				label: `Search ${selectedSection === 'unread' ? 'unread' : 'media'}`,
-				placeholder: `Search ${selectedSection === 'unread' ? 'unread' : 'media'}`,
-				term: sectionSearchTerm,
-				onChange: onSectionSearchChange
+				label: `Search ${selection.selectedSection === 'unread' ? 'unread' : 'media'}`,
+				placeholder: `Search ${selection.selectedSection === 'unread' ? 'unread' : 'media'}`,
+				term: selection.sectionSearchTerm,
+				onChange: setSectionSearchTerm
 			};
 		}
 
