@@ -171,7 +171,7 @@
 					bind:this={inputRef}
 					bind:value={inputValue}
 					type="text"
-					class="ig-input border-none ring-0 outline-0"
+					class="ig-input"
 					placeholder="Type a command..."
 					onkeydown={handleInputKeydown}
 				/>

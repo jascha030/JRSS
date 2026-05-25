@@ -32,9 +32,9 @@
 {/if}
 
 <div
-	class="pointer-events-auto input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border border-border transition-colors focus-within:ring-2"
+	class="pointer-events-auto input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border input-group-integrated border-border transition-colors focus-within:ring-2"
 >
-	<div class="ig-cell">
+	<div class="flex items-center justify-center px-3">
 		{#if isLoading}
 			<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
 		{:else}
@@ -46,7 +46,7 @@
 		{id}
 		bind:this={inputRef}
 		bind:value
-		class="ig-input placeholder:text-fg-muted focus:ring-0"
+		class="ig-input placeholder:text-fg-muted"
 		{placeholder}
 		type="search"
 		autocomplete="off"
@@ -54,7 +54,7 @@
 	/>
 
 	{#if kbdShortcuts && kbdShortcuts.length > 0}
-		<div class="ig-cell flex gap-1 border-none">
+		<div class="flex items-center gap-1 px-3">
 			{#each kbdShortcuts as key (key)}
 				<kbd class="kbd">
 					{key}
