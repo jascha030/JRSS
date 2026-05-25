@@ -18,41 +18,25 @@
 	import {
 		feedsState,
 		stationsState,
-		itemsState,
 		playbackState,
-		readerState,
 		selection,
 		getActiveQueryKey,
 		clearQueue,
 		createFeed,
 		createStation,
-		deleteExistingStation,
-		ensureItemLoaded,
-		ensureVisibleRangeLoaded,
-		getActiveItemIdsByIndex,
-		getActiveTotalCount,
 		getCurrentAudioItem,
 		getCurrentAudioItemFeed,
-		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getPlaybackContext,
-		getPlaybackHistory,
 		getReaderRequestItemId,
 		getReaderRequestSeq,
-		getSelectedFeed,
-		getSelectedItem,
-		getSelectedStation,
 		inspectorState,
-		openInspector,
 		getUpcomingQueue,
 		loadInitialItemsPage,
 		loadItemDetails,
 		loadReaderView,
-		markItemRead,
 		moveQueuedItemDown,
 		moveQueuedItemUp,
-		playStation,
-		refreshExistingFeed,
 		removeQueuedItem,
 		requestTogglePlayback,
 		selectFeed,
@@ -60,15 +44,10 @@
 		selectSection,
 		selectStation,
 		closeInspector,
-		setFeedSearchTerm,
-		setStationSearchTerm,
-		setSectionSearchTerm,
-		setFeedSortOrder,
 		updateExistingStation
 	} from '$lib/state';
-	import { isMediaItem } from '$lib/types/item';
-	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
-	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
+	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 
 	import { onMount } from 'svelte';
 	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
@@ -77,61 +56,28 @@
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let FeedInspector = $state<typeof FeedInspectorComponent | null>(null);
-	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
-	let isCommandPaletteOpen = $state(false);
 	let editingStation = $state<import('$lib/types/station').Station | null>(null);
-	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
-	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
 	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
 	const syncingFeedIds = $derived(feedsState.syncingFeedIds);
-	const readerLoadingItemIds = $derived(readerState.readerLoadingItemIds);
 	const selectedFeedId = $derived(selection.selectedFeedId);
 	const selectedItemId = $derived(selection.selectedItemId);
 	const selectedSection = $derived(selection.selectedSection);
 	const selectedStationId = $derived(selection.selectedStationId);
-	const currentPlaybackState = $derived(playbackState.currentPlaybackState);
-	const itemSummariesById = $derived(itemsState.itemSummariesById);
-	const feedSearchTerm = $derived(selection.feedSearchTerm);
-	const stationSearchTerm = $derived(selection.stationSearchTerm);
-	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
-
-	const selectedFeed = $derived(getSelectedFeed(feeds));
-	const selectedStation = $derived(getSelectedStation(stations));
-	const selectedItem = $derived(getSelectedItem());
-	const selectedItemFeed = $derived(
-		selectedItem ? (feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
-	);
 	const currentAudioItem = $derived(getCurrentAudioItem());
 	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
-	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
-	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const itemSortOrder = $derived(getEffectiveSortOrder());
-	const playbackHistory = $derived(getPlaybackHistory());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const readerRequestSeq = $derived(getReaderRequestSeq());
 
-	const isSelectedFeedRefreshing = $derived(
-		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
-	);
-
 	const isInspectorActive = $derived(inspectorState.activeFeedId !== null);
-
-	const isSelectedItemReaderLoading = $derived(
-		selectedItem ? readerLoadingItemIds.includes(selectedItem.id) : false
-	);
-
-	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
-	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
-	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
 	$effect(() => {
 		if (isInspectorActive && FeedInspector === null) {
@@ -153,7 +99,7 @@
 
 	$effect(() => {
 		if (selectedItemId) {
-			readerPaneMode = 'feed';
+			appUi.readerPaneMode = 'feed';
 		}
 	});
 
@@ -184,24 +130,15 @@
 		}
 	}
 
-	async function handleRefreshFeed(feedId: string) {
-		try {
-			await refreshExistingFeed(feedId);
-			toast.success('Feed refreshed.');
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to refresh that feed.');
-		}
-	}
-
 	async function handleLoadReaderView(itemId: string) {
 		try {
 			const updatedItem = await loadReaderView(itemId);
-			readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
+			appUi.readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
 			if (updatedItem.readerStatus !== 'ready') {
 				toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 			}
 		} catch (error: unknown) {
-			readerPaneMode = 'feed';
+			appUi.readerPaneMode = 'feed';
 			toast.error(
 				error instanceof Error ? error.message : 'Unable to load reader view for this item.'
 			);
@@ -231,36 +168,6 @@
 		}
 	}
 
-	async function handleStationDelete() {
-		if (!selectedStationId) return;
-
-		try {
-			await deleteExistingStation(selectedStationId);
-			toast.success('Station deleted.');
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-		}
-	}
-
-	async function handlePlayStation() {
-		if (!selectedStationId) return;
-
-		try {
-			await playStation(selectedStationId);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-		}
-	}
-
-	function handleEditStation() {
-		editingStation = selectedStation;
-		isStationEditorOpen = true;
-	}
-
-	async function handleOpenInspector(feedId: string) {
-		await openInspector(feedId);
-	}
-
 	function handleCreateStation() {
 		editingStation = null;
 		isStationEditorOpen = true;
@@ -288,8 +195,7 @@
 		closeInspector();
 		selectFeed(item.feedId);
 		selectItem(item.id);
-		scrollRequestSeq += 1;
-		scrollToItemRequest = { itemId: item.id, seq: scrollRequestSeq };
+		requestScrollToItem(item.id);
 	}
 
 	function handleSelectFeedSearchResult(feed: import('$lib/types/feed').Feed): void {
@@ -331,25 +237,7 @@
 			selectItem(currentAudioItem.id);
 		}
 
-		scrollRequestSeq += 1;
-		scrollToItemRequest = { itemId: currentAudioItem.id, seq: scrollRequestSeq };
-	}
-
-	async function handlePopOutMiniPlayer() {
-		try {
-			const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
-			if (miniWindow && (await miniWindow.isVisible())) {
-				return;
-			}
-
-			await openMiniPlayer();
-		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : 'Unable to open mini player.';
-			if (message.includes('already in progress')) {
-				return;
-			}
-			toast.error(message);
-		}
+		requestScrollToItem(currentAudioItem.id);
 	}
 
 	function handleCycleSource(direction: 1 | -1) {
@@ -418,7 +306,7 @@
 		{
 			event: 'menu-toggle-mini-player',
 			handler: async () => {
-				await handlePopOutMiniPlayer();
+				await popOutMiniPlayer();
 			}
 		}
 	]);
@@ -458,7 +346,7 @@
 			}
 
 			e.preventDefault();
-			isCommandPaletteOpen = true;
+			appUi.isCommandPaletteOpen = true;
 		};
 
 		document.addEventListener('keydown', handleKeyDown);
@@ -489,47 +377,15 @@
 	}}
 />
 
-<CommandPalette
-	open={isCommandPaletteOpen}
-	{feeds}
-	{stations}
-	isPlaying={currentPlaybackState?.isPlaying ?? false}
-	onClose={() => (isCommandPaletteOpen = false)}
-	onToggleCover={() => {
-		playerMode = playerMode === 'cover' ? 'default' : 'cover';
-		isCommandPaletteOpen = false;
-	}}
-	onToggleMiniPlayer={() => {
-		void handlePopOutMiniPlayer();
-		isCommandPaletteOpen = false;
-	}}
-	onToggleSidebar={() => {
-		isSidebarCollapsed = !isSidebarCollapsed;
-		isCommandPaletteOpen = false;
-	}}
-	onAddFeed={() => {
-		isFeedEditorOpen = true;
-		isCommandPaletteOpen = false;
-	}}
-	onAddStation={() => {
-		editingStation = null;
-		isStationEditorOpen = true;
-		isCommandPaletteOpen = false;
-	}}
-/>
+<CommandPalette />
 
 <div class="h-screen overflow-hidden bg-surface-shell">
 	{#if playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
 			imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
-			playbackState={currentPlaybackState}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
-			onPopOut={handlePopOutMiniPlayer}
-			historyItems={playbackHistory}
-			queueItems={upcomingQueue}
-			{feeds}
 			onRemoveQueueItem={removeQueuedItem}
 			onMoveQueueItemUp={moveQueuedItemUp}
 			onMoveQueueItemDown={moveQueuedItemDown}
@@ -546,8 +402,6 @@
 				>
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}
-						{feeds}
-						{stations}
 						onSelectResult={handleSelectSearchResult}
 						onSelectFeedResult={handleSelectFeedSearchResult}
 						onSelectStationResult={handleSelectStationSearchResult}
@@ -559,9 +413,6 @@
 
 		<QueueDrawer
 			open={isQueueDrawerOpen}
-			historyItems={playbackHistory}
-			queueItems={upcomingQueue}
-			{feeds}
 			onRemoveItem={removeQueuedItem}
 			onMoveItemUp={moveQueuedItemUp}
 			onMoveItemDown={moveQueuedItemDown}
@@ -608,49 +459,10 @@
 								<div
 									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
 								>
-									<ItemListView
-										{feeds}
-										{itemIdsByIndex}
-										itemsById={itemSummariesById}
-										isRefreshing={isSelectedFeedRefreshing}
-										onDeleteStation={handleStationDelete}
-										onEditStation={handleEditStation}
-										onEnsureItemLoaded={ensureItemLoaded}
-										onInspect={handleOpenInspector}
-										onMarkRead={markItemRead}
-										onPlayStation={handlePlayStation}
-										onRefresh={handleRefreshFeed}
-										onSearchChange={setFeedSearchTerm}
-										onStationSearchChange={setStationSearchTerm}
-										onSectionSearchChange={setSectionSearchTerm}
-										onSelectItem={selectItem}
-										onSortOrderChange={setFeedSortOrder}
-										onVisibleRangeChange={ensureVisibleRangeLoaded}
-										searchTerm={feedSearchTerm}
-										{stationSearchTerm}
-										{sectionSearchTerm}
-										{isInitialLoading}
-										{itemSortOrder}
-										{selectedFeed}
-										{selectedItemId}
-										{selectedSection}
-										{selectedStation}
-										{totalCount}
-										{scrollToItemRequest}
-									/>
+									<ItemListView />
 								</div>
 
-								<ReaderPane
-									{selectedItem}
-									{selectedItemFeed}
-									{readerPaneMode}
-									{isSelectedItemReaderLoading}
-									{hasSelectedItemReaderContent}
-									{isReaderPaneActive}
-									{canUseReaderMode}
-									onLoadReaderView={handleLoadReaderView}
-									onReaderPaneModeChange={(mode) => (readerPaneMode = mode)}
-								/>
+								<ReaderPane />
 							</div>
 						{/if}
 					</main>
@@ -658,7 +470,6 @@
 					<AudioPlayer
 						item={currentAudioItem}
 						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
-						playbackState={currentPlaybackState}
 						onNavigateToItem={handleNavigateToItem}
 						onShowCover={() => (playerMode = 'cover')}
 					>
