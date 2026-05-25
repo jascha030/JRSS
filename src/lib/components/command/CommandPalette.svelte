@@ -1,41 +1,69 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import type { Feed } from '$lib/types/feed';
-	import type { Station } from '$lib/types/station';
 	import type { CommandPaletteItem } from '$lib/types/command';
 	import { getCommandPaletteItems, shouldShowCommandCategory } from '$lib/services/command';
 	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
+	import { feedsState } from '$lib/state/feeds.svelte';
+	import { stationsState } from '$lib/state/stations.svelte';
+	import { playbackState } from '$lib/state/playback.svelte';
+	import {
+		appUi,
+		togglePlayerMode,
+		toggleSidebar,
+		openFeedEditor,
+		openStationEditor,
+		closeCommandPalette
+	} from '$lib/hooks/useAppUi.svelte';
+	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 	import CommandRow from './CommandRow.svelte';
 
 	type Props = {
-		open: boolean;
-		feeds: Feed[];
-		stations: Station[];
-		isPlaying: boolean;
-		onClose: () => void;
-		onToggleCover: () => void;
-		onToggleMiniPlayer: () => void;
-		onToggleSidebar: () => void;
-		onAddFeed: () => void;
-		onAddStation: () => void;
+		onToggleMiniPlayer?: () => void;
 	};
 
-	let {
-		open,
-		feeds,
-		stations,
-		isPlaying,
-		onClose,
-		onToggleCover,
-		onToggleMiniPlayer,
-		onToggleSidebar,
-		onAddFeed,
-		onAddStation
-	}: Props = $props();
+	let { onToggleMiniPlayer }: Props = $props();
 
 	let inputValue = $state('');
 	let inputRef = $state<HTMLInputElement | undefined>(undefined);
 	let wasOpen = false;
+
+	const open = $derived(appUi.isCommandPaletteOpen);
+	const feeds = $derived(feedsState.feeds);
+	const stations = $derived(stationsState.stations);
+	const isPlaying = $derived(playbackState.currentPlaybackState?.isPlaying ?? false);
+
+	function closePalette() {
+		closeCommandPalette();
+	}
+
+	function toggleCover() {
+		togglePlayerMode();
+		closePalette();
+	}
+
+	function toggleMiniPlayer() {
+		if (onToggleMiniPlayer) {
+			onToggleMiniPlayer();
+		} else {
+			void popOutMiniPlayer();
+		}
+		closePalette();
+	}
+
+	function toggleSidebarAndClose() {
+		toggleSidebar();
+		closePalette();
+	}
+
+	function addFeed() {
+		openFeedEditor();
+		closePalette();
+	}
+
+	function addStation() {
+		openStationEditor();
+		closePalette();
+	}
 
 	const items = $derived(
 		getCommandPaletteItems({
@@ -43,12 +71,12 @@
 			stations,
 			isPlaying,
 			term: inputValue,
-			onClose,
-			onToggleCover,
-			onToggleMiniPlayer,
-			onToggleSidebar,
-			onAddFeed,
-			onAddStation
+			onClose: closePalette,
+			onToggleCover: toggleCover,
+			onToggleMiniPlayer: toggleMiniPlayer,
+			onToggleSidebar: toggleSidebarAndClose,
+			onAddFeed: addFeed,
+			onAddStation: addStation
 		})
 	);
 
@@ -56,7 +84,7 @@
 
 	const navigation = createKeyboardListNavigation<HTMLDivElement, HTMLButtonElement>({
 		getItemCount: () => items.length,
-		onRequestClose: () => onClose(),
+		onRequestClose: () => closePalette(),
 		scrollPadding: 8
 	});
 
@@ -117,7 +145,7 @@
 	}
 
 	function handleBackdropClick() {
-		onClose();
+		closePalette();
 	}
 
 	function handlePanelClick(event: MouseEvent) {
@@ -127,7 +155,7 @@
 	function handleRootKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
-			onClose();
+			closePalette();
 		}
 	}
 
