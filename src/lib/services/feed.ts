@@ -1,5 +1,5 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauri';
-import type { Feed } from '$lib/types/feed';
+import type { Feed, PodcastSearchResult } from '$lib/types/feed';
 import type { ItemSortOrder } from '$lib/types/item';
 
 function normalizeFeedInput(url: string): string {
@@ -54,4 +54,8 @@ export async function getFeedsUnreadCounts(): Promise<Record<string, number>> {
 		return {};
 	}
 	return invokeCommand<Record<string, number>>('get_feeds_unread_counts');
+}
+
+export async function searchPodcasts(term: string): Promise<PodcastSearchResult[]> {
+	return invokeCommand<PodcastSearchResult[]>('search_podcasts', { term });
 }

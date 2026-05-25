@@ -6,7 +6,7 @@ use crate::feed_ingest;
 use crate::models::{
     AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
     ItemPageQueryRecord, ItemPageRecord, PlaybackContextRecord, PlaybackSessionRecord,
-    StationWithFeedsRecord, UpdateStationInput,
+    PodcastSearchResultRecord, StationWithFeedsRecord, UpdateStationInput,
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
@@ -103,6 +103,11 @@ pub async fn refresh_feed(
 pub async fn remove_feed(id: String, state: State<'_, DatabaseState>) -> Result<(), String> {
     let db_path = state.db_path();
     blocking(move || db::remove_feed(&db_path, &id)).await
+}
+
+#[tauri::command]
+pub async fn search_podcasts(term: String) -> Result<Vec<PodcastSearchResultRecord>, String> {
+    blocking(move || feed_ingest::search_podcasts(&term)).await
 }
 
 #[tauri::command]

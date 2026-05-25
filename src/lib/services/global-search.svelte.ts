@@ -1,12 +1,15 @@
+import { searchPodcasts } from '$lib/services/feed';
 import { queryItems } from '$lib/services/item';
-import type { Feed } from '$lib/types/feed';
+import type { Feed, PodcastSearchResult } from '$lib/types/feed';
 import type { FeedListItem } from '$lib/types/item';
 import type { Station } from '$lib/types/station';
+import { SvelteMap } from 'svelte/reactivity';
 
 const SEARCH_DEBOUNCE_MS = 220;
 const MAX_FEED_RESULTS = 3;
 const MAX_STATION_RESULTS = 3;
 const MAX_ITEM_RESULTS = 8;
+const MAX_PODCAST_RESULTS = 5;
 
 type Options = {
 	getTerm: () => string;
@@ -40,6 +43,11 @@ export type SearchResultEntry =
 			id: string;
 			kind: 'item';
 			data: FeedListItem;
+	  }
+	| {
+			id: string;
+			kind: 'podcast';
+			data: PodcastSearchResult;
 	  };
 
 function canParseUrl(input: string) {
@@ -59,6 +67,7 @@ export function createGlobalSearch(options: Options) {
 	let feedResults = $state<Feed[]>([]);
 	let stationResults = $state<Station[]>([]);
 	let itemResults = $state<FeedListItem[]>([]);
+	let podcastResults = $state<PodcastSearchResult[]>([]);
 	let isLoading = $state(false);
 	let isOpen = $state(false);
 
@@ -79,7 +88,7 @@ export function createGlobalSearch(options: Options) {
 	});
 
 	const feedTitleById = $derived.by(() => {
-		return new Map(options.getFeeds().map((feed) => [feed.id, feed.title]));
+		return new SvelteMap(options.getFeeds().map((feed) => [feed.id, feed.title]));
 	});
 
 	const entries = $derived.by<SearchResultEntry[]>(() => [
@@ -102,6 +111,11 @@ export function createGlobalSearch(options: Options) {
 			id: `item:${item.id}`,
 			kind: 'item' as const,
 			data: item
+		})),
+		...podcastResults.map((podcast) => ({
+			id: `podcast:${podcast.feedUrl}`,
+			kind: 'podcast' as const,
+			data: podcast
 		}))
 	]);
 
@@ -109,6 +123,7 @@ export function createGlobalSearch(options: Options) {
 		feedResults = [];
 		stationResults = [];
 		itemResults = [];
+		podcastResults = [];
 	}
 
 	function clear() {
@@ -162,25 +177,34 @@ export function createGlobalSearch(options: Options) {
 		let cancelled = false;
 
 		const timer = setTimeout(() => {
-			void queryItems({
+			const itemsPromise = queryItems({
 				section: 'all',
 				offset: 0,
 				limit: MAX_ITEM_RESULTS,
 				search: term,
 				sortOrder: 'newest_first'
-			})
-				.then((page) => {
+			});
+			const podcastsPromise = searchPodcasts(term);
+
+			Promise.allSettled([itemsPromise, podcastsPromise])
+				.then(([itemsResult, podcastsResult]) => {
 					if (cancelled) return;
 
-					itemResults = page.items;
+					if (itemsResult.status === 'fulfilled') {
+						itemResults = itemsResult.value.items;
+					} else {
+						itemResults = [];
+					}
 
-					if (page.items.length > 0 || hasImmediateResults) {
+					if (podcastsResult.status === 'fulfilled') {
+						podcastResults = podcastsResult.value.slice(0, MAX_PODCAST_RESULTS);
+					} else {
+						podcastResults = [];
+					}
+
+					if (itemResults.length > 0 || podcastResults.length > 0 || hasImmediateResults) {
 						isOpen = true;
 					}
-				})
-				.catch(() => {
-					if (cancelled) return;
-					itemResults = [];
 				})
 				.finally(() => {
 					if (cancelled) return;

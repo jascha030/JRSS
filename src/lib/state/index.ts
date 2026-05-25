@@ -157,7 +157,7 @@ import {
 	syncAudioSessionFromBackend,
 	restorePlaybackContext
 } from './playback.svelte';
-import { initTheme, resetThemeState, applyThemeCss } from './theme.svelte';
+import { initTheme, resetThemeState } from './theme.svelte';
 import { playbackSettings } from './settings.svelte';
 import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
 

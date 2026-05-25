@@ -62,7 +62,15 @@
 			{entry.data.feedIds.length}
 			{entry.data.feedIds.length === 1 ? 'podcast' : 'podcasts'}
 		</p>
-	{:else}
+	{:else if entry.kind === 'podcast'}
+		<div class="flex items-center gap-2">
+			<span class="truncate text-xs font-medium tracking-widest text-fg-muted uppercase"
+				>iTunes</span
+			>
+		</div>
+		<p class="truncate text-sm font-medium text-fg">{entry.data.name}</p>
+		<p class="truncate text-xs text-fg-secondary">{entry.data.artist}</p>
+	{:else if entry.kind === 'item'}
 		<div class="flex items-center gap-2">
 			<span class="truncate text-xs font-medium tracking-widest text-fg-muted uppercase">
 				{feedTitleById.get(entry.data.feedId) ?? 'Unknown feed'}

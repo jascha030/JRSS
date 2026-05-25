@@ -90,6 +90,12 @@
 			return;
 		}
 
+		if (entry.kind === 'podcast') {
+			onAddFeed(entry.data.feedUrl);
+			resetAndBlur();
+			return;
+		}
+
 		onSelectResult(entry.data);
 		resetAndBlur();
 	}
