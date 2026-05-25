@@ -457,7 +457,7 @@
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
 								<div
-									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
+									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border 3xl:basis-4/10"
 								>
 									<ItemListView />
 								</div>

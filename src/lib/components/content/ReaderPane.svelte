@@ -37,7 +37,7 @@
 </script>
 
 <aside
-	class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-surface-glass p-8 backdrop-blur-md lg:flex lg:flex-1"
+	class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-surface-glass p-8 backdrop-blur-md lg:flex lg:flex-1 3xl:basis-4/10"
 >
 	{#if selectedItem}
 		<div class="space-y-9">
