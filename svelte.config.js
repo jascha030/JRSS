@@ -13,6 +13,13 @@ const config = {
 			return isExternalLibrary ? undefined : true;
 		}
 	},
+	vitePlugin: {
+		inspector: {
+			holdMode: true,
+			showToggleButton: 'active',
+			toggleButtonPos: 'bottom-right'
+		}
+	},
 	kit: {
 		adapter: adapter()
 	}
