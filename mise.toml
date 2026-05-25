@@ -1,0 +1,15 @@
+[tools]
+bun = "latest"
+rust = "stable"
+
+[tasks.install]
+description = "Install frontend dependencies"
+run = "bun install --frozen-lockfile"
+
+[tasks.dev]
+description = "Start Tauri development server"
+run = "bun run tauri dev"
+
+[tasks.build]
+description = "Build Tauri application for release"
+run = "bun run tauri build"
