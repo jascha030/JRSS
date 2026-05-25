@@ -3,21 +3,19 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedListItem } from '$lib/types/item';
 import { isMediaItem } from '$lib/types/item';
 import { openArticleContextMenu, openAudioContextMenu } from '$lib/utils/tauri-menu';
+import { getActiveItemIdsByIndex } from '$lib/state/items.svelte';
+import { itemsState } from '$lib/state/items.svelte';
+import { selectItem } from '$lib/state/selection.svelte';
 
-type Options = {
-	getItemIdsByIndex: () => Record<number, string>;
-	getItemsById: () => Record<string, FeedListItem>;
-	onSelectItem: (itemId: string) => void;
-};
-
-export function useItemSelection({ getItemIdsByIndex, getItemsById, onSelectItem }: Options) {
+export function useItemSelection() {
 	const selectedIds = new SvelteSet<string>();
 	let anchorIndex = $state<number | null>(null);
 
 	const itemIndexById = $derived.by(() => {
 		const indexById = new SvelteMap<string, number>();
+		const itemIdsByIndex = getActiveItemIdsByIndex();
 
-		for (const [index, itemId] of Object.entries(getItemIdsByIndex())) {
+		for (const [index, itemId] of Object.entries(itemIdsByIndex)) {
 			indexById.set(itemId, Number(index));
 		}
 
@@ -71,6 +69,8 @@ export function useItemSelection({ getItemIdsByIndex, getItemsById, onSelectItem
 			return;
 		}
 
+		const itemIdsByIndex = getActiveItemIdsByIndex();
+
 		if (event.shiftKey && anchorIndex !== null) {
 			event.preventDefault();
 			const start = Math.min(anchorIndex, index);
@@ -78,7 +78,7 @@ export function useItemSelection({ getItemIdsByIndex, getItemsById, onSelectItem
 			clearSelection();
 
 			for (let currentIndex = start; currentIndex <= end; currentIndex += 1) {
-				const nextItemId = getItemIdsByIndex()[currentIndex];
+				const nextItemId = itemIdsByIndex[currentIndex];
 
 				if (nextItemId) {
 					selectedIds.add(nextItemId);
@@ -90,15 +90,21 @@ export function useItemSelection({ getItemIdsByIndex, getItemsById, onSelectItem
 
 		clearSelection();
 		anchorIndex = index;
-		onSelectItem(itemId);
+		selectItem(itemId);
 	}
 
 	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {
 		if (isMultiSelecting && selectedIds.has(item.id)) {
 			if (isMediaItem(item)) {
-				void openAudioContextMenu(event, item, { selectedIds, itemsById: getItemsById() });
+				void openAudioContextMenu(event, item, {
+					selectedIds,
+					itemsById: itemsState.itemSummariesById
+				});
 			} else {
-				void openArticleContextMenu(event, item, { selectedIds, itemsById: getItemsById() });
+				void openArticleContextMenu(event, item, {
+					selectedIds,
+					itemsById: itemsState.itemSummariesById
+				});
 			}
 
 			return;
