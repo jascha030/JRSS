@@ -1,15 +1,10 @@
 <script lang="ts">
-	import type { Feed } from '$lib/types/feed';
-	import type { MediaListItem } from '$lib/types/item';
-
+	import { getPlaybackHistory, getUpcomingQueue } from '$lib/state/playback.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import QueueList from './QueueList.svelte';
 
 	type Props = {
 		open: boolean;
-		historyItems: MediaListItem[];
-		queueItems: MediaListItem[];
-		feeds: Feed[];
 		onRemoveItem: (itemId: string) => void;
 		onMoveItemUp: (itemId: string) => void;
 		onMoveItemDown: (itemId: string) => void;
@@ -17,17 +12,10 @@
 		onClose: () => void;
 	};
 
-	let {
-		open,
-		historyItems,
-		queueItems,
-		feeds,
-		onRemoveItem,
-		onMoveItemUp,
-		onMoveItemDown,
-		onClearQueue,
-		onClose
-	}: Props = $props();
+	let { open, onRemoveItem, onMoveItemUp, onMoveItemDown, onClearQueue, onClose }: Props = $props();
+
+	const historyItems = $derived(getPlaybackHistory());
+	const queueItems = $derived(getUpcomingQueue());
 </script>
 
 {#if open}
@@ -68,7 +56,7 @@
 	</div>
 
 	<div class="flex-1 overflow-y-auto">
-		<QueueList {historyItems} {queueItems} {feeds} {onRemoveItem} {onMoveItemUp} {onMoveItemDown} />
+		<QueueList {onRemoveItem} {onMoveItemUp} {onMoveItemDown} />
 	</div>
 
 	{#if queueItems.length > 0}
