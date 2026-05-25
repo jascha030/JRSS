@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
-	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
 	import {
 		feedsState,
@@ -12,76 +11,41 @@
 		getIsActiveInitialLoading,
 		ensureVisibleRangeLoaded,
 		ensureItemLoaded,
-		markItemRead,
-		refreshExistingFeed,
-		openInspector,
-		setFeedSortOrder,
-		getEffectiveSortOrder,
-		playStation,
-		deleteExistingStation
+		markItemRead
 	} from '$lib/state';
-	import {
-		getSelectedFeed,
-		getSelectedStation,
-		getIsSelectedFeedRefreshing
-	} from '$lib/state/selectors.svelte';
-	import { appUi, openStationEditor } from '$lib/hooks/useAppUi.svelte';
+	import { appUi } from '$lib/hooks/useAppUi.svelte';
 	import { isMediaItem } from '$lib/types/item';
-	import type { SidebarSection } from '$lib/state';
 	import { formatDate } from '$lib/utils/format';
-	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
-	import { toast } from 'svelte-sonner';
 
-	import SearchBar from '$lib/components/content/SearchBar.svelte';
+	import ItemListHeader from '$lib/components/content/ItemListHeader.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import PlayButton from '../playback/PlayButton.svelte';
 
-	let searchInputRef = $state<HTMLInputElement | null>(null);
-
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
 	const OVERSCAN_ROWS = 1;
-
-	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
-		home: 'Home',
-		all: 'All feeds',
-		unread: 'Unread',
-		media: 'Media',
-		settings: 'Settings'
-	};
 
 	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const itemsById = $derived(itemsState.itemSummariesById);
 	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const isRefreshing = $derived(getIsSelectedFeedRefreshing());
 	const selectedItemId = $derived(selection.selectedItemId);
-	const selectedSection = $derived(selection.selectedSection);
 	const searchTerm = $derived(selection.feedSearchTerm);
 	const stationSearchTerm = $derived(selection.stationSearchTerm);
 	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
-	const itemSortOrder = $derived(getEffectiveSortOrder());
 	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
-	const selectedFeed = $derived(getSelectedFeed());
-	const selectedStation = $derived(getSelectedStation());
 
-	const { hasActiveSearch, pageHeading, feedTitleById, rowHeight, totalHeight } = $derived.by(
-		() => ({
-			hasActiveSearch:
-				searchTerm.trim().length > 0 ||
-				stationSearchTerm.trim().length > 0 ||
-				sectionSearchTerm.trim().length > 0,
-			pageHeading:
-				selectedStation?.name ??
-				selectedFeed?.title ??
-				(selectedSection ? sectionHeadings[selectedSection] : 'All feeds'),
-			feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
-			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
-			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
-		})
-	);
+	const { hasActiveSearch, feedTitleById, rowHeight, totalHeight } = $derived.by(() => ({
+		hasActiveSearch:
+			searchTerm.trim().length > 0 ||
+			stationSearchTerm.trim().length > 0 ||
+			sectionSearchTerm.trim().length > 0,
+		feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
+		rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
+		totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
+	}));
 
 	const itemSelection = useItemSelection();
 
@@ -225,50 +189,6 @@
 		scrollViewport.scrollTop = targetScrollTop;
 	}
 
-	async function handlePlayStation() {
-		if (!selectedStation) return;
-		try {
-			await playStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-		}
-	}
-
-	async function handleDeleteStation() {
-		if (!selectedStation) return;
-		try {
-			await deleteExistingStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-		}
-	}
-
-	function handleEditStation() {
-		if (!selectedStation) return;
-		openStationEditor({
-			id: selectedStation.id,
-			name: selectedStation.name,
-			feedIds: selectedStation.feedIds
-		});
-	}
-
-	useMenuShortcuts([
-		{
-			event: 'menu-search-feed',
-			handler: () => {
-				searchInputRef?.focus();
-			}
-		},
-		{
-			event: 'menu-refresh-feed',
-			handler: () => {
-				if (selectedFeed && !isRefreshing) {
-					void refreshExistingFeed(selectedFeed.id);
-				}
-			}
-		}
-	]);
-
 	onMount(() => {
 		return () => {
 			if (scrollFrame !== 0) {
@@ -281,104 +201,7 @@
 <svelte:window bind:innerWidth={windowWidth} />
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md">
-	<div class="shrink-0 border-b border-border px-6 py-8 pb-7.75 lg:px-8">
-		<div class="flex flex-col gap-4">
-			<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-				<div>
-					<h2
-						class="mt-2 text-2xl font-semibold tracking-tight text-fg"
-						class:select-none={selectedFeed}
-						oncontextmenu={(() => {
-							const feed = selectedFeed;
-							return feed
-								? (event: MouseEvent) => void openFeedContextMenu(event, feed)
-								: undefined;
-						})()}
-					>
-						{pageHeading}
-					</h2>
-
-					{#if selectedFeed && selectedFeed.lastFetchedAt}
-						<p class="mt-1 text-xs text-fg-subtle">
-							Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
-						</p>
-					{/if}
-				</div>
-			</div>
-
-			<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
-
-			<div class="flex flex-row flex-wrap items-center justify-end gap-3 align-bottom">
-				{#if selectedStation}
-					<IconButton
-						icon="lucide:play"
-						title="Play station"
-						label="Play station"
-						variant="accent"
-						onclick={handlePlayStation}
-					/>
-
-					<IconButton
-						icon="lucide:pencil"
-						title="Edit station"
-						label="Edit station"
-						onclick={handleEditStation}
-					/>
-
-					<IconButton
-						icon="lucide:trash-2"
-						title="Delete station"
-						label="Delete station"
-						variant="error"
-						onclick={handleDeleteStation}
-					/>
-				{:else if selectedFeed}
-					<div class="flex flex-col">
-						<select
-							id="feed-sort-order"
-							class="preset-outlined-subtle select flex h-9 min-w-0 grow rounded-xl border border-border placeholder:text-fg-muted"
-							aria-label="Sort order"
-							value={itemSortOrder}
-							onchange={(event) => {
-								const target = event.currentTarget;
-								if (target instanceof HTMLSelectElement) {
-									const value = target.value;
-									if (value === 'newest_first' || value === 'oldest_first') {
-										void setFeedSortOrder(value);
-									}
-								}
-							}}
-						>
-							<option value="newest_first">Newest first</option>
-							<option value="oldest_first">Oldest first</option>
-						</select>
-					</div>
-					<div class="">
-						{#key isRefreshing}
-							<IconButton
-								icon="lucide:refresh-cw"
-								title="Refresh feed"
-								label="Refresh feed"
-								iconClass="size-5 {isRefreshing ? 'animate-spin' : ''}"
-								disabled={isRefreshing}
-								onclick={() => void refreshExistingFeed(selectedFeed?.id ?? '')}
-							/>
-						{/key}
-
-						<IconButton
-							icon="lucide:scan-search"
-							title="Inspect feed XML"
-							label="Inspect feed XML"
-							iconClass="size-5"
-							onclick={() => selectedFeed && openInspector(selectedFeed.id)}
-						/>
-					</div>
-				{/if}
-			</div>
-
-			<SearchBar bind:inputRef={searchInputRef} />
-		</div>
-	</div>
+	<ItemListHeader />
 
 	<div
 		bind:this={scrollViewport}
