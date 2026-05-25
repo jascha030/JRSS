@@ -41,7 +41,7 @@
 </script>
 
 <div class="flex flex-col gap-1">
-	<div class="flex items-center gap-2">
+	<div class="input-group h-9 grid-cols-[1fr_auto] rounded-xl border border-border">
 		<input
 			type="number"
 			{disabled}
@@ -51,10 +51,10 @@
 			step={def.step}
 			oninput={handleInput}
 			onblur={handleBlur}
-			class="w-full rounded-xl px-4 py-2.5"
+			class="ig-input"
 		/>
 		{#if def.unit}
-			<span class="text-xs text-fg-muted">{def.unit}</span>
+			<div class="ig-cell preset-tonal text-xs text-fg-muted">{def.unit}</div>
 		{/if}
 	</div>
 	{#if validationError}

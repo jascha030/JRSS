@@ -553,12 +553,18 @@ select {
 	}
 }
 
-input[type='checkbox'] {
-	@apply size-4 rounded border-border bg-surface text-accent;
+/* Inputs inside Skeleton input-groups should be transparent and borderless.
+   The input-group utility provides its own container styling and focus ring. */
+.input-group input:not([type='checkbox']):not([type='range']),
+.input-group select {
+	background-color: transparent;
+	border-width: 0;
+	box-shadow: none;
+}
 
-	&:disabled {
-		@apply cursor-not-allowed;
-	}
+.input-group input:not([type='checkbox']):not([type='range']):focus,
+.input-group select:focus {
+	box-shadow: none;
 }
 
 .article-html {
@@ -797,5 +803,11 @@ kbd {
 
 	&::-webkit-scrollbar {
 		display: none;
+	}
+}
+
+@utility input-group-integrated {
+	& > * + * {
+		border-left-width: 0 !important;
 	}
 }

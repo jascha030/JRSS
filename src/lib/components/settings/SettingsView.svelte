@@ -189,7 +189,7 @@
 									</div>
 									<div class="flex w-full max-w-xs flex-col gap-2">
 										<select
-											class="w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+											class="preset-outlined-subtle select h-9 w-full rounded-xl border border-border"
 											disabled={isLoading || isSaving || isLoadingThemes}
 											value={pending.themeName ?? ''}
 											onchange={(e) => {
