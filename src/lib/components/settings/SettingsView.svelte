@@ -170,7 +170,7 @@
 
 		<form class="mt-8 flex flex-col gap-6" onsubmit={handleSave}>
 			{#each APP_SETTINGS as section (section.title)}
-				<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+				<div class="card preset-filled-surface-100-900 p-6 shadow-sm">
 					<h3 class="text-lg font-semibold text-fg">{section.title}</h3>
 					{#if section.description}
 						<p class="mt-1 text-sm text-fg-muted">{section.description}</p>
@@ -218,7 +218,7 @@
 				</div>
 			{/each}
 
-			<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+			<div class="card preset-filled-surface-100-900 p-6 shadow-sm">
 				<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 					<div class="max-w-2xl">
 						<h2 class="text-base font-semibold text-fg">Clear audio cache</h2>
