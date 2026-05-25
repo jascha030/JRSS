@@ -198,7 +198,7 @@
 					{#each items as item, index (item.id)}
 						{#if shouldShowCommandCategory(items, index)}
 							<div
-								class="px-3 py-1 mt-2 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
+								class="mt-2 px-3 py-1 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
 							>
 								{item.category}
 							</div>

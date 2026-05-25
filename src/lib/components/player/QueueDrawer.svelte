@@ -14,7 +14,6 @@
 		onMoveItemUp: (itemId: string) => void;
 		onMoveItemDown: (itemId: string) => void;
 		onClearQueue: () => void;
-		onClearHistory?: () => void;
 		onClose: () => void;
 	};
 

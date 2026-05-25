@@ -3,7 +3,6 @@
 	import Icon from '@iconify/svelte';
 
 	type Props = {
-		durationSeconds: number;
 		isPlaying: boolean;
 		onTogglePlayback: () => void;
 		onSkip: (deltaSeconds: number) => void;

@@ -19,7 +19,7 @@
 		checked={value}
 		{disabled}
 		onchange={(e) => onchange(e.currentTarget.checked)}
-		class="size-4 rounded border-border bg-surface disabled:cursor-not-allowed"
+		class="checkbox"
 	/>
 	<span class="font-medium">{def.checkboxLabel ?? def.label}</span>
 </label>

@@ -32,9 +32,9 @@
 {/if}
 
 <div
-	class="input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border border-border bg-surface-shell-opaque pointer-events-auto transition-colors focus-within:border-border-hover focus-within:ring-2"
+	class="pointer-events-auto input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border border-border transition-colors focus-within:ring-2"
 >
-	<div class="ig-cell preset-tonal">
+	<div class="ig-cell">
 		{#if isLoading}
 			<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
 		{:else}
@@ -54,7 +54,7 @@
 	/>
 
 	{#if kbdShortcuts && kbdShortcuts.length > 0}
-		<div class="ig-cell border-none flex gap-1">
+		<div class="ig-cell flex gap-1 border-none">
 			{#each kbdShortcuts as key (key)}
 				<kbd class="kbd">
 					{key}

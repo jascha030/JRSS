@@ -45,21 +45,17 @@
 	}}
 >
 	<div class={isLoading ? 'opacity-50' : ''}>
-		<div>
-			<label for="feed-url" class="block text-sm font-medium text-fg-secondary">
-				RSS URL, Apple Podcasts URL, or Apple ID
-			</label>
-
+		<label class="label">
+			<span class="label-text">RSS URL, Apple Podcasts URL, or Apple ID</span>
 			<input
-				id="feed-url"
 				type="text"
 				bind:this={inputRef}
 				bind:value={url}
 				disabled={isLoading}
 				placeholder="https://example.com/feed.xml"
-				class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
+				class="input"
 			/>
-		</div>
+		</label>
 	</div>
 
 	{#snippet actions()}

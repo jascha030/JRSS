@@ -114,7 +114,6 @@
 
 			<div class="flex min-w-0 flex-1 items-center gap-4">
 				<Controls
-					durationSeconds={durationForPlayer()}
 					isPlaying={playbackState.isPlaying}
 					onTogglePlayback={handleTogglePlayback}
 					onSkip={handleSkip}

@@ -16,7 +16,7 @@
 		isDesktop: boolean;
 	}
 
-	let { entry, pending, disabled, isDesktop }: Props = $props();
+	let { entry, pending = $bindable(), disabled, isDesktop }: Props = $props();
 
 	const isDisabled = $derived(disabled || Boolean(entry.desktopOnly && !isDesktop));
 

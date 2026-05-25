@@ -211,7 +211,7 @@
 						{/if}
 						{#each section.entries as entry (entry.key)}
 							<div class="py-5 first:pt-0 last:pb-0">
-								<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
+								<SettingRow {entry} bind:pending disabled={isLoading || isSaving} {isDesktop} />
 							</div>
 						{/each}
 					</div>

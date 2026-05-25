@@ -250,9 +250,6 @@
 
 					<div class="controls-row mx:auto">
 						<Controls
-							durationSeconds={playbackState.durationSeconds ||
-								item.mediaEnclosure.durationSeconds ||
-								0}
 							isPlaying={playbackState.isPlaying}
 							skipForwardSeconds={playbackSettings.skipForwardSeconds}
 							skipBackwardSeconds={playbackSettings.skipBackwardSeconds}

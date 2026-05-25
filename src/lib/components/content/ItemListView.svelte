@@ -11,7 +11,7 @@
 	import { formatDate } from '$lib/utils/format';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 
-	import SearchInput from '$lib/components/ui/SearchInput.svelte';
+	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -80,8 +80,6 @@
 	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
-	let stationSearchInputRef = $state<HTMLInputElement | null>(null);
-	let sectionSearchInputRef = $state<HTMLInputElement | null>(null);
 
 	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
@@ -261,13 +259,7 @@
 		{
 			event: 'menu-search-feed',
 			handler: () => {
-				if (selectedFeed) {
-					searchInputRef?.focus();
-				} else if (selectedStation) {
-					stationSearchInputRef?.focus();
-				} else if (selectedSection === 'unread' || selectedSection === 'media') {
-					sectionSearchInputRef?.focus();
-				}
+				searchInputRef?.focus();
 			}
 		},
 		{
@@ -293,152 +285,112 @@
 
 <section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md">
 	<div class="shrink-0 border-b border-border px-6 py-8 pb-7.75 lg:px-8">
-		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-			<div>
-				<h2
-					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
-					class:select-none={selectedFeed}
-					oncontextmenu={selectedFeed
-						? (event) => void openFeedContextMenu(event, selectedFeed)
-						: undefined}
-				>
-					{pageHeading}
-				</h2>
+		<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+				<div>
+					<h2
+						class="mt-2 text-2xl font-semibold tracking-tight text-fg"
+						class:select-none={selectedFeed}
+						oncontextmenu={selectedFeed
+							? (event) => void openFeedContextMenu(event, selectedFeed)
+							: undefined}
+					>
+						{pageHeading}
+					</h2>
 
-				{#if selectedFeed && selectedFeed.lastFetchedAt}
-					<p class="mt-1 text-xs text-fg-subtle">
-						Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
-					</p>
+					{#if selectedFeed && selectedFeed.lastFetchedAt}
+						<p class="mt-1 text-xs text-fg-subtle">
+							Last refreshed {formatDate(selectedFeed.lastFetchedAt)}
+						</p>
+					{/if}
+				</div>
+			</div>
+
+			<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
+
+			<div class="flex flex-row flex-wrap items-center justify-end gap-3 align-bottom">
+				{#if selectedStation}
+					<IconButton
+						icon="lucide:play"
+						title="Play station"
+						label="Play station"
+						variant="accent"
+						onclick={onPlayStation}
+					/>
+
+					<IconButton
+						icon="lucide:pencil"
+						title="Edit station"
+						label="Edit station"
+						onclick={onEditStation}
+					/>
+
+					<IconButton
+						icon="lucide:trash-2"
+						title="Delete station"
+						label="Delete station"
+						variant="error"
+						onclick={onDeleteStation}
+					/>
+				{:else if selectedFeed}
+					<div class="flex flex-col">
+						<select
+							id="feed-sort-order"
+							class="preset-outlined-subtle select flex h-9 min-w-0 grow rounded-xl border border-border placeholder:text-fg-muted"
+							aria-label="Sort order"
+							value={itemSortOrder}
+							onchange={(event) => {
+								const target = event.currentTarget;
+								if (target instanceof HTMLSelectElement) {
+									const value = target.value;
+									if (value === 'newest_first' || value === 'oldest_first') {
+										onSortOrderChange(value);
+									}
+								}
+							}}
+						>
+							<option value="newest_first">Newest first</option>
+							<option value="oldest_first">Oldest first</option>
+						</select>
+					</div>
+					<div class="">
+						{#key isRefreshing}
+							<IconButton
+								icon="lucide:refresh-cw"
+								title="Refresh feed"
+								label="Refresh feed"
+								iconClass="size-5 {isRefreshing ? 'animate-spin' : ''}"
+								disabled={isRefreshing}
+								onclick={() => void onRefresh(selectedFeed.id)}
+							/>
+						{/key}
+
+						{#if onInspect}
+							<IconButton
+								icon="lucide:scan-search"
+								title="Inspect feed XML"
+								label="Inspect feed XML"
+								iconClass="size-5"
+								onclick={() => onInspect(selectedFeed.id)}
+							/>
+						{/if}
+					</div>
 				{/if}
 			</div>
+
+			<SearchBar
+				{selectedFeed}
+				{selectedStation}
+				{selectedSection}
+				{searchTerm}
+				{onSearchChange}
+				{stationSearchTerm}
+				{onStationSearchChange}
+				{sectionSearchTerm}
+				{onSectionSearchChange}
+				bind:inputRef={searchInputRef}
+			/>
 		</div>
-
-		<p class="text-sm whitespace-nowrap text-fg-muted">{totalCount} episodes</p>
-
-		<div class="flex flex-wrap items-center justify-end gap-3 align-top">
-			{#if selectedStation}
-				<IconButton
-					icon="lucide:play"
-					title="Play station"
-					label="Play station"
-					variant="accent"
-					onclick={onPlayStation}
-				/>
-
-				<IconButton
-					icon="lucide:pencil"
-					title="Edit station"
-					label="Edit station"
-					onclick={onEditStation}
-				/>
-
-				<IconButton
-					icon="lucide:trash-2"
-					title="Delete station"
-					label="Delete station"
-					variant="error"
-					onclick={onDeleteStation}
-				/>
-			{:else if selectedFeed}
-				<div class="flex shrink-0 items-center gap-2">
-					<label class="sr-only" for="feed-sort-order">Sort order</label>
-					<select
-						id="feed-sort-order"
-						class="min-w-36"
-						aria-label="Sort order"
-						value={itemSortOrder}
-						onchange={(event) => {
-							const target = event.currentTarget;
-							if (target instanceof HTMLSelectElement) {
-								const value = target.value;
-								if (value === 'newest_first' || value === 'oldest_first') {
-									onSortOrderChange(value);
-								}
-							}
-						}}
-					>
-						<option value="newest_first">Newest first</option>
-						<option value="oldest_first">Oldest first</option>
-					</select>
-
-					{#key isRefreshing}
-						<IconButton
-							icon="lucide:refresh-cw"
-							title="Refresh feed"
-							label="Refresh feed"
-							iconClass="size-4 {isRefreshing ? 'animate-spin' : ''}"
-							disabled={isRefreshing}
-							onclick={() => void onRefresh(selectedFeed.id)}
-						/>
-					{/key}
-
-					{#if onInspect}
-						<IconButton
-							icon="lucide:scan-search"
-							title="Inspect feed XML"
-							label="Inspect feed XML"
-							onclick={() => onInspect(selectedFeed.id)}
-						/>
-					{/if}
-				</div>
-			{/if}
-		</div>
-
-		{#if selectedFeed || selectedStation || selectedSection}
-			<div class="mt-4 flex w-full flex-row flex-wrap items-center justify-between gap-4">
-				<div class="flex-1">
-					{#if selectedFeed}
-						<SearchInput
-							id="feed-search"
-							label="Search this feed"
-							placeholder="Search this feed"
-							bind:value={searchTerm}
-							bind:inputRef={searchInputRef}
-							kbdShortcuts={['⌘', 'F']}
-							oninput={(event) => onSearchChange(event.currentTarget.value)}
-							onkeydown={(event) => {
-								if (event.key === 'Escape') {
-									onSearchChange('');
-									searchInputRef?.blur();
-								}
-							}}
-						/>
-					{:else if selectedStation}
-						<SearchInput
-							id="station-search"
-							label="Search this station"
-							placeholder="Search this station"
-							bind:value={stationSearchTerm}
-							bind:inputRef={stationSearchInputRef}
-							kbdShortcuts={['⌘', 'F']}
-							oninput={(event) => onStationSearchChange(event.currentTarget.value)}
-							onkeydown={(event) => {
-								if (event.key === 'Escape') {
-									onStationSearchChange('');
-									stationSearchInputRef?.blur();
-								}
-							}}
-						/>
-					{:else if selectedSection === 'unread' || selectedSection === 'media'}
-						<SearchInput
-							id="section-search"
-							label="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
-							placeholder="Search {selectedSection === 'unread' ? 'unread' : 'media'}"
-							bind:value={sectionSearchTerm}
-							bind:inputRef={sectionSearchInputRef}
-							kbdShortcuts={['⌘', 'F']}
-							oninput={(event) => onSectionSearchChange(event.currentTarget.value)}
-							onkeydown={(event) => {
-								if (event.key === 'Escape') {
-									onSectionSearchChange('');
-									sectionSearchInputRef?.blur();
-								}
-							}}
-						/>
-					{/if}
-				</div>
-			</div>
-		{/if}
 	</div>
 
 	<div

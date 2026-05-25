@@ -51,7 +51,7 @@
 			step={def.step}
 			oninput={handleInput}
 			onblur={handleBlur}
-			class="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+			class="w-full rounded-xl px-4 py-2.5"
 		/>
 		{#if def.unit}
 			<span class="text-xs text-fg-muted">{def.unit}</span>

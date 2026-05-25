@@ -35,7 +35,7 @@
 			checked={value !== null}
 			{disabled}
 			onchange={handleToggle}
-			class="size-4 rounded border-border bg-surface disabled:cursor-not-allowed"
+			class="checkbox"
 		/>
 		<span class="font-medium">Use custom {def.label.toLowerCase()}</span>
 	</label>
@@ -47,7 +47,7 @@
 				value={pickerHex}
 				oninput={(e) => onchange(e.currentTarget.value)}
 				{disabled}
-				class="size-10 cursor-pointer rounded-lg border border-border bg-surface p-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+				class="size-10 cursor-pointer rounded-lg p-0.5"
 			/>
 			<span class="font-mono text-sm text-fg-secondary">{pickerHex}</span>
 			<button

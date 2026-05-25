@@ -18,7 +18,7 @@
 	} from '$lib/utils/xml-inspector';
 
 	let treeQuery = $state('');
-	let expandedIds = $state(new SvelteSet<string>());
+	let expandedIds = new SvelteSet<string>();
 	let selectedNodeId = $state<string | null>(null);
 	let lastFeedId = $state<string | null>(null);
 

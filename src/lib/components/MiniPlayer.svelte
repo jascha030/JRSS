@@ -251,9 +251,6 @@
 					<div class="grid grid-cols-3">
 						<div class="col-start-2 flex items-center justify-center gap-4">
 							<Controls
-								durationSeconds={playbackState.durationSeconds ||
-									item.mediaEnclosure.durationSeconds ||
-									0}
 								isPlaying={playbackState.isPlaying}
 								skipForwardSeconds={playbackSettings.skipForwardSeconds}
 								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
