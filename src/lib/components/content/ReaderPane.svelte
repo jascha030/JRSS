@@ -1,40 +1,37 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
-	import type { Feed } from '$lib/types/feed';
-	import type { FeedItem } from '$lib/types/item';
+	import { feedsState } from '$lib/state';
+	import {
+		getSelectedItemOrNull,
+		getIsSelectedItemReaderLoading,
+		getHasSelectedItemReaderContent,
+		getCanUseReaderMode
+	} from '$lib/state/selectors.svelte';
+	import { appUi } from '$lib/hooks/useAppUi.svelte';
+	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	type ReaderPaneMode = 'feed' | 'reader';
 
-	type Props = {
-		selectedItem: FeedItem | null;
-		selectedItemFeed: Feed | null;
-		readerPaneMode: ReaderPaneMode;
-		isSelectedItemReaderLoading: boolean;
-		hasSelectedItemReaderContent: boolean;
-		isReaderPaneActive: boolean;
-		canUseReaderMode: boolean;
-		onLoadReaderView: (itemId: string) => Promise<void>;
-		onReaderPaneModeChange: (mode: ReaderPaneMode) => void;
-	};
+	const selectedItem = $derived(getSelectedItemOrNull());
+	const isSelectedItemReaderLoading = $derived(getIsSelectedItemReaderLoading());
+	const hasSelectedItemReaderContent = $derived(getHasSelectedItemReaderContent());
+	const canUseReaderMode = $derived(getCanUseReaderMode());
 
-	let {
-		selectedItem,
-		selectedItemFeed,
-		readerPaneMode,
-		isSelectedItemReaderLoading,
-		hasSelectedItemReaderContent,
-		isReaderPaneActive,
-		canUseReaderMode,
-		onLoadReaderView,
-		onReaderPaneModeChange
-	}: Props = $props();
+	const selectedItemFeed = $derived.by(() => {
+		const item = selectedItem;
+		return item !== null ? (feedsState.feeds.find((f) => f.id === item.feedId) ?? null) : null;
+	});
+
+	const isReaderPaneActive = $derived(
+		appUi.readerPaneMode === 'reader' && hasSelectedItemReaderContent
+	);
 
 	const podcastImageUrl = $derived(
-		selectedItem && isMediaItem(selectedItem)
-			? selectedItem?.imageUrl || selectedItemFeed?.imageUrl
+		selectedItem !== null && isMediaItem(selectedItem)
+			? selectedItem.imageUrl || selectedItemFeed?.imageUrl
 			: undefined
 	);
 </script>
@@ -50,8 +47,8 @@
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
 						<SegmentedControl
-							value={readerPaneMode}
-							onValueChange={(details) => onReaderPaneModeChange(details.value as ReaderPaneMode)}
+							value={appUi.readerPaneMode}
+							onValueChange={(details) => (appUi.readerPaneMode = details.value as ReaderPaneMode)}
 						>
 							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 
@@ -74,11 +71,11 @@
 							class="preset-outlined-subtle btn rounded-xl"
 							disabled={isSelectedItemReaderLoading}
 							type="button"
-							onclick={() => onLoadReaderView(selectedItem.id)}
+							onclick={() => selectedItem && void loadReaderView(selectedItem.id)}
 						>
 							{isSelectedItemReaderLoading
 								? 'Loading reader view...'
-								: selectedItem.readerStatus === 'failed'
+								: selectedItem?.readerStatus === 'failed'
 									? 'Retry Reader View'
 									: 'Load Reader View'}
 						</button>

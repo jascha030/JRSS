@@ -3,81 +3,40 @@
 	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 
-	import type { SidebarSection } from '$lib/state';
-	import type { Feed } from '$lib/types/feed';
-	import type { FeedListItem, ItemSortOrder } from '$lib/types/item';
-	import type { Station } from '$lib/types/station';
+	import {
+		feedsState,
+		itemsState,
+		selection,
+		getActiveItemIdsByIndex,
+		getActiveTotalCount,
+		getIsActiveInitialLoading,
+		ensureVisibleRangeLoaded,
+		ensureItemLoaded,
+		markItemRead,
+		refreshExistingFeed,
+		openInspector,
+		setFeedSortOrder,
+		getEffectiveSortOrder,
+		playStation,
+		deleteExistingStation
+	} from '$lib/state';
+	import {
+		getSelectedFeed,
+		getSelectedStation,
+		getIsSelectedFeedRefreshing
+	} from '$lib/state/selectors.svelte';
+	import { appUi, openStationEditor } from '$lib/hooks/useAppUi.svelte';
 	import { isMediaItem } from '$lib/types/item';
+	import type { SidebarSection } from '$lib/state';
 	import { formatDate } from '$lib/utils/format';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
+	import { toast } from 'svelte-sonner';
 
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import PlayButton from '../playback/PlayButton.svelte';
-
-	type Props = {
-		feeds: Feed[];
-		itemIdsByIndex: Record<number, string>;
-		itemsById: Record<string, FeedListItem>;
-		isRefreshing: boolean;
-		isInitialLoading: boolean;
-		onRefresh: (feedId: string) => Promise<void>;
-		onVisibleRangeChange: (startIndex: number, endIndex: number) => Promise<void> | void;
-		onSelectItem: (itemId: string) => void;
-		selectedFeed: Feed | null;
-		selectedStation: Station | null;
-		selectedItemId: string | null;
-		selectedSection: SidebarSection;
-		onMarkRead: (itemId: string, read: boolean) => Promise<void>;
-		onInspect?: (feedId: string) => void;
-		totalCount: number;
-		searchTerm: string;
-		onSearchChange: (term: string) => void;
-		stationSearchTerm: string;
-		onStationSearchChange: (term: string) => void;
-		sectionSearchTerm: string;
-		onSectionSearchChange: (term: string) => void;
-		itemSortOrder: ItemSortOrder;
-		onSortOrderChange: (order: ItemSortOrder) => void;
-		onPlayStation?: () => void;
-		onEditStation?: () => void;
-		onDeleteStation?: () => void;
-		scrollToItemRequest?: { itemId: string; seq: number } | null;
-		onEnsureItemLoaded?: (itemId: string) => Promise<void>;
-	};
-
-	let {
-		feeds,
-		itemIdsByIndex,
-		itemsById,
-		isRefreshing,
-		isInitialLoading,
-		onRefresh,
-		onVisibleRangeChange,
-		onSelectItem,
-		selectedFeed,
-		selectedStation,
-		selectedItemId,
-		selectedSection,
-		onMarkRead,
-		onInspect,
-		totalCount,
-		searchTerm,
-		onSearchChange,
-		stationSearchTerm,
-		onStationSearchChange,
-		sectionSearchTerm,
-		onSectionSearchChange,
-		itemSortOrder,
-		onSortOrderChange,
-		onPlayStation,
-		onEditStation,
-		onDeleteStation,
-		scrollToItemRequest = null,
-		onEnsureItemLoaded
-	}: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 
@@ -93,6 +52,21 @@
 		settings: 'Settings'
 	};
 
+	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
+	const itemsById = $derived(itemsState.itemSummariesById);
+	const totalCount = $derived(getActiveTotalCount());
+	const isInitialLoading = $derived(getIsActiveInitialLoading());
+	const isRefreshing = $derived(getIsSelectedFeedRefreshing());
+	const selectedItemId = $derived(selection.selectedItemId);
+	const selectedSection = $derived(selection.selectedSection);
+	const searchTerm = $derived(selection.feedSearchTerm);
+	const stationSearchTerm = $derived(selection.stationSearchTerm);
+	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
+	const itemSortOrder = $derived(getEffectiveSortOrder());
+	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
+	const selectedFeed = $derived(getSelectedFeed());
+	const selectedStation = $derived(getSelectedStation());
+
 	const { hasActiveSearch, pageHeading, feedTitleById, rowHeight, totalHeight } = $derived.by(
 		() => ({
 			hasActiveSearch:
@@ -103,21 +77,17 @@
 				selectedStation?.name ??
 				selectedFeed?.title ??
 				(selectedSection ? sectionHeadings[selectedSection] : 'All feeds'),
-			feedTitleById: new Map(feeds.map((feed) => [feed.id, feed.title])),
+			feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
 			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
 			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
 		})
 	);
 
-	const selection = useItemSelection({
-		getItemIdsByIndex: () => itemIdsByIndex,
-		getItemsById: () => itemsById,
-		onSelectItem: (itemId) => onSelectItem(itemId)
-	});
+	const itemSelection = useItemSelection();
 
 	type VisibleRow = {
 		index: number;
-		item: FeedListItem | null;
+		item: import('$lib/types/item').FeedListItem | null;
 		top: number;
 	};
 
@@ -137,7 +107,7 @@
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
 	}
 
-	function getListPreview(item: FeedListItem) {
+	function getListPreview(item: import('$lib/types/item').FeedListItem) {
 		return item.previewText;
 	}
 
@@ -213,13 +183,13 @@
 	$effect(() => {
 		const request = scrollToItemRequest;
 		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
-			const index = selection.getItemIndexById(request.itemId);
+			const index = itemSelection.getItemIndexById(request.itemId);
 
 			if (index !== null) {
 				setInitialScrollPosition(request.itemId);
 				hasAppliedInitialScroll = true;
-			} else if (onEnsureItemLoaded) {
-				void onEnsureItemLoaded(request.itemId).then(() => {
+			} else {
+				void ensureItemLoaded(request.itemId).then(() => {
 					void tick().then(() => {
 						setInitialScrollPosition(request.itemId);
 					});
@@ -241,18 +211,45 @@
 			return;
 		}
 
-		void onVisibleRangeChange(visibleRange.startIndex, visibleRange.endIndex - 1);
+		void ensureVisibleRangeLoaded(visibleRange.startIndex, visibleRange.endIndex - 1);
 	});
 
 	function setInitialScrollPosition(itemId: string): void {
 		if (!scrollViewport) return;
 
-		const index = selection.getItemIndexById(itemId);
+		const index = itemSelection.getItemIndexById(itemId);
 		if (index === null) return;
 
 		const targetScrollTop = index * rowHeight;
 		scrollTop = targetScrollTop;
 		scrollViewport.scrollTop = targetScrollTop;
+	}
+
+	async function handlePlayStation() {
+		if (!selectedStation) return;
+		try {
+			await playStation(selectedStation.id);
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
+		}
+	}
+
+	async function handleDeleteStation() {
+		if (!selectedStation) return;
+		try {
+			await deleteExistingStation(selectedStation.id);
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
+		}
+	}
+
+	function handleEditStation() {
+		if (!selectedStation) return;
+		openStationEditor({
+			id: selectedStation.id,
+			name: selectedStation.name,
+			feedIds: selectedStation.feedIds
+		});
 	}
 
 	useMenuShortcuts([
@@ -266,7 +263,7 @@
 			event: 'menu-refresh-feed',
 			handler: () => {
 				if (selectedFeed && !isRefreshing) {
-					void onRefresh(selectedFeed.id);
+					void refreshExistingFeed(selectedFeed.id);
 				}
 			}
 		}
@@ -291,9 +288,12 @@
 					<h2
 						class="mt-2 text-2xl font-semibold tracking-tight text-fg"
 						class:select-none={selectedFeed}
-						oncontextmenu={selectedFeed
-							? (event) => void openFeedContextMenu(event, selectedFeed)
-							: undefined}
+						oncontextmenu={(() => {
+							const feed = selectedFeed;
+							return feed
+								? (event: MouseEvent) => void openFeedContextMenu(event, feed)
+								: undefined;
+						})()}
 					>
 						{pageHeading}
 					</h2>
@@ -315,14 +315,14 @@
 						title="Play station"
 						label="Play station"
 						variant="accent"
-						onclick={onPlayStation}
+						onclick={handlePlayStation}
 					/>
 
 					<IconButton
 						icon="lucide:pencil"
 						title="Edit station"
 						label="Edit station"
-						onclick={onEditStation}
+						onclick={handleEditStation}
 					/>
 
 					<IconButton
@@ -330,7 +330,7 @@
 						title="Delete station"
 						label="Delete station"
 						variant="error"
-						onclick={onDeleteStation}
+						onclick={handleDeleteStation}
 					/>
 				{:else if selectedFeed}
 					<div class="flex flex-col">
@@ -344,7 +344,7 @@
 								if (target instanceof HTMLSelectElement) {
 									const value = target.value;
 									if (value === 'newest_first' || value === 'oldest_first') {
-										onSortOrderChange(value);
+										void setFeedSortOrder(value);
 									}
 								}
 							}}
@@ -361,35 +361,22 @@
 								label="Refresh feed"
 								iconClass="size-5 {isRefreshing ? 'animate-spin' : ''}"
 								disabled={isRefreshing}
-								onclick={() => void onRefresh(selectedFeed.id)}
+								onclick={() => void refreshExistingFeed(selectedFeed?.id ?? '')}
 							/>
 						{/key}
 
-						{#if onInspect}
-							<IconButton
-								icon="lucide:scan-search"
-								title="Inspect feed XML"
-								label="Inspect feed XML"
-								iconClass="size-5"
-								onclick={() => onInspect(selectedFeed.id)}
-							/>
-						{/if}
+						<IconButton
+							icon="lucide:scan-search"
+							title="Inspect feed XML"
+							label="Inspect feed XML"
+							iconClass="size-5"
+							onclick={() => selectedFeed && openInspector(selectedFeed.id)}
+						/>
 					</div>
 				{/if}
 			</div>
 
-			<SearchBar
-				{selectedFeed}
-				{selectedStation}
-				{selectedSection}
-				{searchTerm}
-				{onSearchChange}
-				{stationSearchTerm}
-				{onStationSearchChange}
-				{sectionSearchTerm}
-				{onSectionSearchChange}
-				bind:inputRef={searchInputRef}
-			/>
+			<SearchBar bind:inputRef={searchInputRef} />
 		</div>
 	</div>
 
@@ -433,13 +420,13 @@
 								class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 									index > 0 ? 'border-t border-border' : ''
 								} ${
-									selectedItemId === item.id || selection.selectedIds.has(item.id)
+									selectedItemId === item.id || itemSelection.selectedIds.has(item.id)
 										? 'bg-surface-active text-fg'
 										: 'bg-surface text-fg hover:bg-surface-hover'
 								}`}
 								aria-labelledby={`feed-item-title-${item.id}`}
-								oncontextmenu={(event) => selection.handleItemContextMenu(event, item)}
-								onclick={(event) => selection.handleItemClick(event, item.id)}
+								oncontextmenu={(event) => itemSelection.handleItemContextMenu(event, item)}
+								onclick={(event) => itemSelection.handleItemClick(event, item.id)}
 							>
 								{#if !item.read}
 									<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>
@@ -490,7 +477,7 @@
 													: 'heroicons:envelope-solid'}
 												label={item.read ? 'Mark as unread' : 'Mark as read'}
 												iconClass="size-5"
-												onclick={() => void onMarkRead(item.id, !item.read)}
+												onclick={() => void markItemRead(item.id, !item.read)}
 											/>
 										{/if}
 									</div>
