@@ -11,6 +11,7 @@ pub struct PlaybackStateEvent {
     pub position_seconds: f64,
     pub duration_seconds: f64,
     pub is_playing: bool,
+    pub is_buffering: bool,
     pub volume: f64,
     pub speed: f64,
 }

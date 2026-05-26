@@ -7,8 +7,18 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 	minute: '2-digit'
 });
 
+const dateOnlyFormatter = new Intl.DateTimeFormat(undefined, {
+	month: 'short',
+	day: 'numeric',
+	year: 'numeric'
+});
+
 export function formatDate(dateLike: string): string {
 	return dateFormatter.format(new Date(dateLike));
+}
+
+export function formatDateOnly(dateLike: string): string {
+	return dateOnlyFormatter.format(new Date(dateLike));
 }
 
 export function formatDuration(totalSeconds: number): string {

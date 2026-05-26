@@ -101,12 +101,13 @@ pub fn is_cache_complete(path: &Path) -> bool {
 pub fn enforce_cache_size_limit(
     cache_dir: &Path,
     current_download_path: &Path,
+    protected_paths: &[PathBuf],
     new_file_bytes: u64,
     max_cache_size_bytes: u64,
 ) -> Result<(), String> {
     let mut files: Vec<CacheFile> = Vec::new();
-    let mut other_files_size: u64 = 0;
-    let mut current_download_size: u64 = 0;
+    let mut evictable_files_size: u64 = 0;
+    let mut retained_files_size: u64 = 0;
 
     // Read directory and collect all cached audio files
     let entries = match std::fs::read_dir(cache_dir) {
@@ -140,12 +141,12 @@ pub fn enforce_cache_size_limit(
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
         });
 
-        if path == current_download_path {
-            current_download_size = size;
+        if path == current_download_path || protected_paths.iter().any(|protected| protected == &path) {
+            retained_files_size = retained_files_size.saturating_add(size);
             continue;
         }
 
-        other_files_size = other_files_size.saturating_add(size);
+        evictable_files_size = evictable_files_size.saturating_add(size);
         files.push(CacheFile {
             path,
             size,
@@ -156,7 +157,7 @@ pub fn enforce_cache_size_limit(
     let projected_download_size = if new_file_bytes > 0 {
         new_file_bytes
     } else {
-        current_download_size
+        retained_files_size
     };
 
     if projected_download_size > max_cache_size_bytes {
@@ -167,7 +168,9 @@ pub fn enforce_cache_size_limit(
         );
     }
 
-    let projected_size = other_files_size.saturating_add(projected_download_size);
+    let projected_size = evictable_files_size
+        .saturating_add(retained_files_size)
+        .saturating_add(projected_download_size);
 
     if projected_size <= max_cache_size_bytes {
         log::debug!(
@@ -183,10 +186,12 @@ pub fn enforce_cache_size_limit(
 
     let mut freed: u64 = 0;
     let mut removed_count: usize = 0;
-    let target_size = max_cache_size_bytes.saturating_sub(projected_download_size);
+    let target_size = max_cache_size_bytes
+        .saturating_sub(retained_files_size)
+        .saturating_sub(projected_download_size);
 
     for file in files {
-        if other_files_size.saturating_sub(freed) <= target_size {
+        if evictable_files_size.saturating_sub(freed) <= target_size {
             break;
         }
 
@@ -219,6 +224,36 @@ pub fn enforce_cache_size_limit(
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::enforce_cache_size_limit;
+    use std::fs;
+
+    #[test]
+    fn cleanup_keeps_protected_cache_files() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let cache_dir = temp_dir.path();
+        let active_path = cache_dir.join("active.mp3");
+        let old_path = cache_dir.join("old.mp3");
+        let incoming_path = cache_dir.join("incoming.mp3");
+
+        fs::write(&active_path, vec![0_u8; 4]).expect("write active");
+        fs::write(&old_path, vec![0_u8; 4]).expect("write old");
+
+        enforce_cache_size_limit(
+            cache_dir,
+            &incoming_path,
+            std::slice::from_ref(&active_path),
+            4,
+            8,
+        )
+        .expect("cleanup succeeds");
+
+        assert!(active_path.exists(), "protected file should remain");
+        assert!(!old_path.exists(), "unprotected file should be evicted");
+    }
 }
 
 /// Generate a stable hash for cache filenames using SHA1.
