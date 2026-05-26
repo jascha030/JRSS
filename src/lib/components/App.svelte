@@ -383,7 +383,7 @@
 	{#if playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
-			imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
+			imageUrl={currentAudioItem?.imageUrl}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
 			onRemoveQueueItem={removeQueuedItem}
@@ -456,13 +456,16 @@
 							<FeedInspector />
 						{:else}
 							<div class="flex min-h-0 flex-1 overflow-hidden">
-								<div
-									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border 3xl:basis-4/10"
-								>
-									<ItemListView />
-								</div>
-
-								<ReaderPane />
+								<ItemListView
+									class="min-h-0 min-w-0 grow border-r border-border xl:basis-1/2 2xl:shrink-0 2xl:grow-0 4xl:basis-4/10 {appUi.isReaderMaximized
+										? 'hidden'
+										: ''}"
+								/>
+								<ReaderPane
+									class="min-h-0 min-w-0 {appUi.isReaderMaximized
+										? 'grow'
+										: 'xl:basis-1/2 2xl:flex 2xl:flex-1 4xl:basis-4/10'}"
+								/>
 							</div>
 						{/if}
 					</main>

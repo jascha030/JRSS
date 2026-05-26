@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
-	import { requestTogglePlayback } from '$lib/state';
+	import { getFeedById, requestTogglePlayback } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -43,6 +43,16 @@
 	const player = usePlayerControls(() => item);
 	const playbackState = $derived(globalPlaybackState.currentPlaybackState);
 	const coverTheme = $derived(getCoverTheme());
+	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
+
+	type ImageDimensions = {
+		width: number;
+		height: number;
+	};
+
+	const ARTWORK_RESOLUTION_TOLERANCE = 0.85;
+	const imageDimensionsCache: Record<string, ImageDimensions | null | undefined> = {};
+	const brokenImageUrls = $state<Record<string, true>>({});
 
 	useMenuShortcuts([
 		{
@@ -93,26 +103,59 @@
 
 	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
 
-	let artworkElement: HTMLImageElement | HTMLDivElement | null = $state(null);
-	let artworkSize = $state('auto');
+	function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
+		if (url in imageDimensionsCache) {
+			return Promise.resolve(imageDimensionsCache[url] ?? null);
+		}
 
-	$effect(() => {
-		if (!artworkElement) return;
+		return new Promise((resolve) => {
+			const image = new Image();
 
-		const updateSize = () => {
-			const width = (artworkElement as HTMLElement)?.offsetWidth;
-			if (width) {
-				artworkSize = `${width}px`;
-			}
-		};
+			image.onload = () => {
+				const dimensions = {
+					width: image.naturalWidth,
+					height: image.naturalHeight
+				};
+				imageDimensionsCache[url] = dimensions;
+				resolve(dimensions);
+			};
 
-		updateSize();
+			image.onerror = () => {
+				imageDimensionsCache[url] = null;
+				resolve(null);
+			};
 
-		const observer = new ResizeObserver(updateSize);
-		observer.observe(artworkElement);
+			image.src = url;
+		});
+	}
 
-		return () => observer.disconnect();
-	});
+	function getRequiredPixels(length: number): number {
+		const devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+		return Math.max(1, Math.round(length * devicePixelRatio * ARTWORK_RESOLUTION_TOLERANCE));
+	}
+
+	let artworkFrameWidth = $state(0);
+	let artworkFrameHeight = $state(0);
+	let renderedArtworkWidth = $state(0);
+	const artworkSize = $derived(renderedArtworkWidth ? `${renderedArtworkWidth}px` : 'auto');
+	const episodeImageUrl = $derived(
+		imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined
+	);
+	const fallbackImageUrl = $derived(
+		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
+	);
+	const requiredArtworkWidth = $derived(getRequiredPixels(artworkFrameWidth));
+	const requiredArtworkHeight = $derived(getRequiredPixels(artworkFrameHeight || artworkFrameWidth));
+
+	function handleArtworkError(event: Event) {
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLImageElement)) return;
+
+		const failedUrl = target.currentSrc || target.src;
+		if (!failedUrl) return;
+
+		brokenImageUrls[failedUrl] = true;
+	}
 </script>
 
 <CoverThemeStyles />
@@ -180,23 +223,56 @@
 					class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4"
 					style:--artwork-size={artworkSize}
 				>
+					{#snippet artworkImage(src: string)}
+						<img
+							src={src}
+							alt=""
+							onerror={handleArtworkError}
+							bind:offsetWidth={renderedArtworkWidth}
+							class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
+						/>
+					{/snippet}
+
+					{#snippet artworkPlaceholder()}
+						<div
+							bind:offsetWidth={renderedArtworkWidth}
+							class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
+							style:background-color={coverTheme.panelBg}
+						>
+							<Icon icon="lucide:disc-3" class="size-16" />
+						</div>
+					{/snippet}
+
 					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
-						{#if imageUrl}
-							<img
-								bind:this={artworkElement}
-								src={imageUrl}
-								alt=""
-								class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
-							/>
-						{:else}
-							<div
-								bind:this={artworkElement}
-								class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
-								style:background-color={coverTheme.panelBg}
-							>
-								<Icon icon="lucide:disc-3" class="size-16" />
-							</div>
-						{/if}
+						<div
+							class="flex min-h-0 w-full items-center justify-center"
+							bind:offsetWidth={artworkFrameWidth}
+							bind:offsetHeight={artworkFrameHeight}
+						>
+							{#if episodeImageUrl}
+								{#if !fallbackImageUrl || fallbackImageUrl === episodeImageUrl}
+									{@render artworkImage(episodeImageUrl)}
+								{:else if !artworkFrameWidth || !artworkFrameHeight}
+									{@render artworkImage(fallbackImageUrl)}
+								{:else}
+									{#await loadImageDimensions(episodeImageUrl)}
+										{@render artworkImage(fallbackImageUrl)}
+									{:then dimensions}
+										{#if dimensions && dimensions.width >= requiredArtworkWidth && dimensions.height >= requiredArtworkHeight}
+											{@render artworkImage(episodeImageUrl)}
+										{:else}
+											{@render artworkImage(fallbackImageUrl)}
+										{/if}
+									{:catch}
+										{@render artworkImage(fallbackImageUrl)}
+									{/await}
+								{/if}
+							{:else if fallbackImageUrl}
+								{@render artworkImage(fallbackImageUrl)}
+							{:else}
+								{@render artworkPlaceholder()}
+							{/if}
+						</div>
 					</div>
 
 					<div

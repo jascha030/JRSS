@@ -19,7 +19,7 @@
 {#if isMiniWindow}
 	<MiniPlayer
 		item={currentAudioItem}
-		imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
+		imageUrl={currentAudioItem?.imageUrl}
 		playbackState={currentPlaybackState}
 	/>
 {:else}
