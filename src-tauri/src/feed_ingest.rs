@@ -1,5 +1,5 @@
 use crate::db::AppResult;
-use crate::models::{MediaEnclosureRecord, ParsedFeed, ParsedFeedItem};
+use crate::models::{MediaEnclosureRecord, ParsedFeed, ParsedFeedItem, PodcastSearchResultRecord};
 use ammonia::Builder;
 use atom_syndication::{Entry as AtomEntry, Feed as AtomFeed, Link as AtomLink, Text, TextType};
 use chrono::{DateTime, Utc};
@@ -14,6 +14,7 @@ use std::time::Duration;
 use url::Url;
 
 const APPLE_LOOKUP_URL: &str = "https://itunes.apple.com/lookup";
+const APPLE_SEARCH_URL: &str = "https://itunes.apple.com/search";
 const APPLE_LOOKUP_ACCEPT_HEADER: &str = "application/json";
 const FEED_ACCEPT_HEADER: &str =
     "application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8";
@@ -59,6 +60,86 @@ struct AppleLookupResponse {
 struct AppleLookupResult {
     kind: Option<String>,
     feed_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AppleSearchResponse {
+	results: Vec<AppleSearchResult>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppleSearchResult {
+	collection_name: Option<String>,
+	artist_name: Option<String>,
+	feed_url: Option<String>,
+	artwork_url_100: Option<String>,
+	artwork_url_600: Option<String>,
+	kind: Option<String>,
+}
+
+pub fn search_podcasts(term: &str) -> AppResult<Vec<PodcastSearchResultRecord>> {
+	crate::rate_limit::throttle_request(APPLE_SEARCH_URL);
+
+	let client = build_http_client()?;
+	let search_url = Url::parse_with_params(
+		APPLE_SEARCH_URL,
+		&[
+			("term", term),
+			("media", "podcast"),
+			("entity", "podcast"),
+			("limit", "20"),
+		],
+	)
+	.map_err(|error| format!("Failed to build podcast search URL: {error}"))?;
+
+	let response = client
+		.get(search_url)
+		.header(reqwest::header::ACCEPT, APPLE_LOOKUP_ACCEPT_HEADER)
+		.send()
+		.map_err(|error| format!("Podcast search request failed: {error}"))?;
+
+	let status = response.status();
+
+	if !status.is_success() {
+		return Err(format!("Podcast search request failed with status {status}."));
+	}
+
+	let bytes = response
+		.bytes()
+		.map_err(|error| format!("Failed to read podcast search response: {error}"))?;
+
+	let search_response =
+		serde_json::from_slice::<AppleSearchResponse>(&bytes).map_err(|error| {
+			format!("Podcast search returned an unreadable response: {error}")
+		})?;
+
+	Ok(search_response
+		.results
+		.into_iter()
+		.filter(|result| result.kind.as_deref() == Some("podcast"))
+		.filter_map(|result| {
+			let name = result.collection_name?.trim().to_string();
+			let artist = result.artist_name?.trim().to_string();
+			let feed_url = result.feed_url?.trim().to_string();
+
+			if name.is_empty() || feed_url.is_empty() {
+				return None;
+			}
+
+			let artwork_url = result
+				.artwork_url_600
+				.filter(|url| !url.trim().is_empty())
+				.or_else(|| result.artwork_url_100.filter(|url| !url.trim().is_empty()));
+
+			Some(PodcastSearchResultRecord {
+				name,
+				artist,
+				feed_url,
+				artwork_url,
+			})
+		})
+		.collect())
 }
 
 pub fn resolve_feed_input(input: &str) -> AppResult<ResolvedFeedInput> {

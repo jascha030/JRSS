@@ -57,6 +57,7 @@ pub struct AudioThread {
     app: AppHandle,
     prefetch: Option<PrefetchState>,
     duration_probe_done: bool,
+    stalled_at_download_edge: bool,
     /// Set to true when the user explicitly pauses. Used to distinguish
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
@@ -82,6 +83,7 @@ impl AudioThread {
             app,
             prefetch: None,
             duration_probe_done: false,
+            stalled_at_download_edge: false,
             manual_pause: false,
             cached_engine_snapshot: PlaybackSnapshot::default(),
         }
@@ -95,6 +97,7 @@ impl AudioThread {
         duration_hint_seconds: f64,
     ) -> Result<(), String> {
         self.manual_pause = false;
+        self.stalled_at_download_edge = false;
 
         let play_start = Instant::now();
 
@@ -182,6 +185,7 @@ impl AudioThread {
                             &dl_path,
                             &dl_meta,
                             &dl_cache_dir,
+                            &Vec::new(),
                             dl_cache_limit_bytes,
                         ) {
                             log::error!("Audio download failed: {}", e);
@@ -217,7 +221,7 @@ impl AudioThread {
         // Only pass the hint when the cache is complete — using a partial file
         // size causes the decoder to calculate a truncated duration and stop
         // decoding early while the download is still in progress.
-        let byte_len_hint = if meta.complete.load(Ordering::Acquire) {
+        let byte_len_hint = if is_cache_complete(&cache_path) {
             std::fs::metadata(&cache_path).map(|m| m.len()).ok()
         } else {
             None
@@ -306,6 +310,7 @@ impl AudioThread {
         self.current_feed_title.clear();
         self.stored_position_seconds = 0.0;
         self.duration_seconds = 0.0;
+        self.stalled_at_download_edge = false;
         self.manual_pause = false;
     }
 
@@ -360,6 +365,7 @@ impl AudioThread {
                 position_seconds,
                 duration_seconds: effective_duration,
                 is_playing,
+                is_buffering: self.stalled_at_download_edge,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -393,6 +399,7 @@ impl AudioThread {
                 position_seconds,
                 duration_seconds: effective_duration,
                 is_playing,
+                is_buffering: self.stalled_at_download_edge,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -405,8 +412,7 @@ impl AudioThread {
             return None;
         }
 
-        let meta = self.download_meta.as_ref()?;
-        if !meta.complete.load(Ordering::Acquire) {
+        if !self.current_download_is_complete() {
             return None;
         }
 
@@ -430,6 +436,12 @@ impl AudioThread {
             byte_len
         );
         duration
+    }
+
+    fn current_download_is_complete(&self) -> bool {
+        self.temp_path
+            .as_ref()
+            .is_some_and(|path| is_cache_complete(path))
     }
 
     fn sync_cached_position(&mut self) {
@@ -551,12 +563,20 @@ impl AudioThread {
         let cache_limit_bytes = get_audio_cache_size_limit_bytes(&self.app);
 
         let cache_dir_for_prefetch = cache_path.parent().map(|p| p.to_path_buf());
+        let protected_paths = self.temp_path.iter().cloned().collect::<Vec<_>>();
         let handle = std::thread::Builder::new()
             .name("jrss-prefetch".into())
             .spawn(move || {
                 let cache_dir = cache_dir_for_prefetch.as_deref().unwrap_or(Path::new(""));
                 if let Err(e) =
-                    download_to_file(&dl_url, &dl_path, &dl_meta, cache_dir, cache_limit_bytes)
+                    download_to_file(
+                        &dl_url,
+                        &dl_path,
+                        &dl_meta,
+                        cache_dir,
+                        &protected_paths,
+                        cache_limit_bytes,
+                    )
                 {
                     log::error!("Prefetch download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
@@ -1039,6 +1059,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 let _ = app.emit("playback-state-changed", &snapshot);
             }
 
+            let download_complete = state.current_download_is_complete();
+
             if let Some(actual) = state.try_probe_complete_file_duration() {
                 if actual > 0.0 && actual != state.duration_seconds {
                     log::info!(
@@ -1070,6 +1092,25 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
             }
 
+            if state.stalled_at_download_edge && download_complete {
+                log::info!("Download completed after stall; resuming current item");
+                match resume_current_item(&mut state) {
+                    Ok(()) => {
+                        emit_playback_snapshot(
+                            &app,
+                            &state,
+                            &mut last_emit,
+                            &mut last_emitted_state,
+                        );
+                    }
+                    Err(error) => {
+                        log::error!("Auto-resume after stall failed: {error}");
+                    }
+                }
+                was_playing = state.snapshot().is_some_and(|snapshot| snapshot.is_playing);
+                continue;
+            }
+
             if snapshot.is_playing && last_persist.elapsed() >= persist_interval {
                 last_persist = Instant::now();
                 let db = app.state::<crate::db::DatabaseState>();
@@ -1081,8 +1122,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 state.persist_session();
             }
 
-            // Auto-advance: fire when the stream was playing but has now ended naturally.
-            if was_playing && !snapshot.is_playing && eng_snap.is_finished {
+            // Auto-advance only after a true natural end on a fully cached file.
+            if was_playing && !snapshot.is_playing && eng_snap.is_finished && download_complete {
                 let finished_item_id = snapshot.item_id.clone();
                 let db = app.state::<crate::db::DatabaseState>();
                 let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
@@ -1129,6 +1170,17 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
                 state.persist_session();
                 let _ = app.emit("queue-changed", state.queue.to_event());
+            } else if was_playing
+                && !snapshot.is_playing
+                && eng_snap.is_finished
+                && !download_complete
+            {
+                state.stalled_at_download_edge = true;
+                state.stored_position_seconds = snapshot.position_seconds;
+                state.engine.stop();
+                log::info!(
+                    "Playback reached the downloaded edge before cache completion; waiting for more data"
+                );
             }
 
             // Log unexpected stops (route changes, errors) so they show up in

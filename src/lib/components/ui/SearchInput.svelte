@@ -9,7 +9,6 @@
 		inputRef?: HTMLInputElement | null;
 		kbdShortcuts?: string[];
 		isLoading?: boolean;
-		bgClass?: string;
 		oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
 		onkeydown?: (event: KeyboardEvent & { currentTarget: HTMLInputElement }) => void;
 		onfocus?: (event: FocusEvent & { currentTarget: HTMLInputElement }) => void;
@@ -24,7 +23,6 @@
 		inputRef = $bindable(null),
 		kbdShortcuts,
 		isLoading = false,
-		bgClass = 'bg-surface-sidebar',
 		...rest
 	}: Props = $props();
 </script>
@@ -34,19 +32,21 @@
 {/if}
 
 <div
-	class="flex h-9 items-center gap-2 rounded-xl border border-border {bgClass} pointer-events-auto px-3 transition-colors focus-within:border-border-hover focus-within:ring-2 focus-within:ring-ring"
+	class="pointer-events-auto input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border input-group-integrated border-border transition-colors focus-within:ring-2"
 >
-	{#if isLoading}
-		<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
-	{:else}
-		<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
-	{/if}
+	<div class="flex items-center justify-center px-3">
+		{#if isLoading}
+			<Icon icon="lucide:loader-circle" class="size-4 shrink-0 animate-spin text-fg-muted" />
+		{:else}
+			<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
+		{/if}
+	</div>
 
 	<input
 		{id}
 		bind:this={inputRef}
 		bind:value
-		class="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
+		class="ig-input placeholder:text-fg-muted"
 		{placeholder}
 		type="search"
 		autocomplete="off"
@@ -54,14 +54,13 @@
 	/>
 
 	{#if kbdShortcuts && kbdShortcuts.length > 0}
-		<div class="flex items-center gap-1">
+		<div class="flex items-center gap-1 px-3">
 			{#each kbdShortcuts as key (key)}
-				<kbd
-					class="rounded border border-border bg-surface-sidebar-hover px-1.5 py-0.5 text-xs font-medium text-fg-muted select-none"
-				>
+				<kbd class="kbd">
 					{key}
 				</kbd>
 			{/each}
 		</div>
 	{/if}
 </div>
+<!-- </div> -->

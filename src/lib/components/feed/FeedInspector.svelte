@@ -18,7 +18,7 @@
 	} from '$lib/utils/xml-inspector';
 
 	let treeQuery = $state('');
-	let expandedIds = $state(new SvelteSet<string>());
+	let expandedIds = new SvelteSet<string>();
 	let selectedNodeId = $state<string | null>(null);
 	let lastFeedId = $state<string | null>(null);
 
@@ -211,7 +211,7 @@
 									bind:value={treeQuery}
 									type="search"
 									placeholder="Filter by tag, attribute, text, or path"
-									class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-fg outline-none placeholder:text-fg-muted"
+									class="input w-full"
 								/>
 
 								{#if treeQuery}

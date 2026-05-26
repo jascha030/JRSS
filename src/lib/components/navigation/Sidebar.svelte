@@ -212,6 +212,7 @@
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
 			title={section.label}
+			aria-label={section.label}
 			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
 				isActive
 					? 'bg-surface-sidebar-active text-fg'
@@ -230,6 +231,7 @@
 			onclick={() => onSelectFeed(feed.id)}
 			oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 			title={feed.title}
+			aria-label={feed.title}
 			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 				selectedFeedId === feed.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent' : ''
 			}`}
@@ -257,6 +259,7 @@
 			type="button"
 			onclick={() => onSelectStation(station.id)}
 			title={station.name}
+			aria-label={station.name}
 			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
 				selectedStationId === station.id
 					? 'ring-2 ring-accent ring-offset-2 ring-offset-transparent'
@@ -299,6 +302,7 @@
 		<button
 			type="button"
 			onclick={() => onSelectSection(section.id as SidebarSection)}
+			aria-label={section.label}
 			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
 				isActive
 					? 'bg-surface-sidebar-active text-fg'
@@ -324,6 +328,7 @@
 				type="button"
 				onclick={() => onSelectFeed(feed.id)}
 				oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
+				aria-label={feed.title}
 				class="flex h-10 min-w-0 flex-1 items-center px-3 py-2 text-left"
 			>
 				<span class="min-w-0 flex-1">
@@ -357,6 +362,7 @@
 		<button
 			type="button"
 			onclick={() => onSelectStation(station.id)}
+			aria-label={station.name}
 			class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
 				selectedStationId === station.id
 					? 'bg-surface-sidebar-active text-fg'

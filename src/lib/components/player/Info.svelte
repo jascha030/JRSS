@@ -35,22 +35,24 @@
 {#if item}
 	<div class={`flex min-w-0 items-center gap-3 ${className}`}>
 		{#if showCover}
+			<!-- <div class="min-h-12 max-h-12 w-auto flex"> -->
 			<button
-				class="shrink-0 overflow-hidden rounded-xl"
+				class="shrink-0"
 				type="button"
 				onclick={onShowCover}
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 				aria-label="Show cover art"
 			>
-				<Avatar class="size-12 rounded-xl shadow-sm">
+				<Avatar class="h-12 w-auto rounded-md shadow-sm">
 					{#if imageUrl}
-						<Avatar.Image src={imageUrl} alt="" class="hover: object-cover" />
+						<Avatar.Image src={imageUrl} alt="" class="h-full max-h-12 w-full hover:object-cover" />
 					{/if}
-					<Avatar.Fallback class="grid h-full w-full place-items-center text-xs font-semibold">
+					<Avatar.Fallback class="grid size-12 h-full w-full place-items-center text-xs font-semibold">
 						♪
 					</Avatar.Fallback>
 				</Avatar>
 			</button>
+			<!-- </div> -->
 		{/if}
 
 		<div class="min-w-0 flex-1">

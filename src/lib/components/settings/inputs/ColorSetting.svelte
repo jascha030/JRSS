@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Switch } from '@skeletonlabs/skeleton-svelte';
 	import type { ColorDef } from '$lib/types/settings';
 
 	interface Props {
@@ -10,15 +11,10 @@
 
 	let { def, value, disabled, onchange }: Props = $props();
 
-	/**
-	 * The hex shown in the color picker. When an override is active (`value !== null`),
-	 * it tracks the prop; otherwise it holds the last-used color so the picker remembers
-	 * its position if the user re-enables the override.
-	 */
 	const pickerHex = $derived(value ?? def.fallbackHex);
 
-	function handleToggle(e: Event & { currentTarget: HTMLInputElement }) {
-		if (e.currentTarget.checked) {
+	function handleToggle(checked: boolean) {
+		if (checked) {
 			onchange(pickerHex);
 		} else {
 			onchange(null);
@@ -27,18 +23,18 @@
 </script>
 
 <div class="flex flex-col gap-2">
-	<label
-		class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-fg"
+	<Switch
+		class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-fg"
+		checked={value !== null}
+		{disabled}
+		onCheckedChange={(e) => handleToggle(e.checked)}
 	>
-		<input
-			type="checkbox"
-			checked={value !== null}
-			{disabled}
-			onchange={handleToggle}
-			class="size-4 rounded border-border bg-surface disabled:cursor-not-allowed"
-		/>
-		<span class="font-medium">Use custom {def.label.toLowerCase()}</span>
-	</label>
+		<Switch.Label class="font-medium">Use custom {def.label.toLowerCase()}</Switch.Label>
+		<Switch.HiddenInput />
+		<Switch.Control>
+			<Switch.Thumb />
+		</Switch.Control>
+	</Switch>
 
 	{#if value !== null}
 		<div class="flex items-center gap-3">
@@ -47,7 +43,7 @@
 				value={pickerHex}
 				oninput={(e) => onchange(e.currentTarget.value)}
 				{disabled}
-				class="size-10 cursor-pointer rounded-lg border border-border bg-surface p-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+				class="size-10 cursor-pointer rounded-lg p-0.5"
 			/>
 			<span class="font-mono text-sm text-fg-secondary">{pickerHex}</span>
 			<button

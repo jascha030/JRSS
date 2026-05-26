@@ -5,7 +5,7 @@
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/types/playback';
-	import { requestTogglePlayback } from '$lib/state';
+	import { getFeedById, requestTogglePlayback } from '$lib/state';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import {
 		VOLUME_STEP,
@@ -34,10 +34,72 @@
 
 	let { item, imageUrl, playbackState }: Props = $props();
 
-	const coverImage = $derived(imageUrl ? `url(${JSON.stringify(imageUrl)})` : 'none');
+	type ImageDimensions = {
+		width: number;
+		height: number;
+	};
+
+	const ARTWORK_RESOLUTION_TOLERANCE = 0.85;
+	const imageDimensionsCache: Record<string, ImageDimensions | null | undefined> = {};
+	const brokenImageUrls = $state<Record<string, true>>({});
+	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
+	const episodeImageUrl = $derived(
+		imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined
+	);
+	const fallbackImageUrl = $derived(
+		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
+	);
+
+	function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
+		if (url in imageDimensionsCache) {
+			return Promise.resolve(imageDimensionsCache[url] ?? null);
+		}
+
+		return new Promise((resolve) => {
+			const image = new Image();
+
+			image.onload = () => {
+				const dimensions = {
+					width: image.naturalWidth,
+					height: image.naturalHeight
+				};
+				imageDimensionsCache[url] = dimensions;
+				resolve(dimensions);
+			};
+
+			image.onerror = () => {
+				imageDimensionsCache[url] = null;
+				resolve(null);
+			};
+
+			image.src = url;
+		});
+	}
+
+	function getRequiredPixels(length: number): number {
+		const devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+		return Math.max(1, Math.round(length * devicePixelRatio * ARTWORK_RESOLUTION_TOLERANCE));
+	}
+
+	function handleArtworkError(event: Event) {
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLImageElement)) return;
+
+		const failedUrl = target.currentSrc || target.src;
+		if (!failedUrl) return;
+
+		brokenImageUrls[failedUrl] = true;
+	}
 
 	let cardHeight = $state(0);
 	let controlsHeight = $state(0);
+	let artworkWidth = $state(0);
+	let artworkHeight = $state(0);
+
+	const coverImageUrl = $derived(fallbackImageUrl ?? episodeImageUrl);
+	const coverImage = $derived(coverImageUrl ? `url(${JSON.stringify(coverImageUrl)})` : 'none');
+	const requiredArtworkWidth = $derived(getRequiredPixels(artworkWidth));
+	const requiredArtworkHeight = $derived(getRequiredPixels(artworkHeight));
 
 	const effectiveCardHeight = $derived(cardHeight > 0 ? cardHeight : 320);
 	const effectiveControlsHeight = $derived(controlsHeight > 0 ? controlsHeight : 150);
@@ -178,6 +240,7 @@
 		{#if item && playbackState}
 			<div
 				bind:clientHeight={cardHeight}
+				bind:clientWidth={artworkWidth}
 				class="group/container cover-card relative inset-0 isolate aspect-square w-full overflow-hidden rounded-lg bg-surface-elevated shadow-lg"
 				style:--cover-image={coverImage}
 				style:--controls-height={`${effectiveControlsHeight}px`}
@@ -189,10 +252,83 @@
 				style:--controls-blur-feather-25={`${controlsBlurFeather25}px`}
 				style:--controls-blur-feather-12={`${controlsBlurFeather12}px`}
 			>
-				{#if imageUrl}
+				{#if episodeImageUrl}
+					{#if !fallbackImageUrl || fallbackImageUrl === episodeImageUrl}
+						<img
+							src={episodeImageUrl}
+							alt=""
+							onerror={handleArtworkError}
+							bind:clientHeight={artworkHeight}
+							class="relative z-0 h-full w-full object-cover"
+							draggable="false"
+							data-tauri-drag-region
+						/>
+					{:else if !artworkWidth || !artworkHeight}
+						<img
+							src={fallbackImageUrl}
+							alt=""
+							onerror={handleArtworkError}
+							bind:clientHeight={artworkHeight}
+							class="relative z-0 h-full w-full object-cover"
+							draggable="false"
+							data-tauri-drag-region
+						/>
+					{:else}
+						{#await loadImageDimensions(episodeImageUrl)}
+							<img
+								src={fallbackImageUrl}
+								alt=""
+								onerror={handleArtworkError}
+								bind:clientHeight={artworkHeight}
+								class="relative z-0 h-full w-full object-cover"
+								draggable="false"
+								data-tauri-drag-region
+							/>
+						{:then dimensions}
+							{#if dimensions && dimensions.width >= requiredArtworkWidth && dimensions.height >= requiredArtworkHeight}
+								<img
+									src={episodeImageUrl}
+									alt=""
+									onerror={handleArtworkError}
+									bind:clientHeight={artworkHeight}
+									class="relative z-0 h-full w-full object-cover"
+									draggable="false"
+									data-tauri-drag-region
+								/>
+							{:else}
+								<img
+									src={fallbackImageUrl}
+									alt=""
+									onerror={handleArtworkError}
+									bind:clientHeight={artworkHeight}
+									class="relative z-0 h-full w-full object-cover"
+									draggable="false"
+									data-tauri-drag-region
+								/>
+							{/if}
+						{:catch}
+							<img
+								src={fallbackImageUrl}
+								alt=""
+								onerror={handleArtworkError}
+								bind:clientHeight={artworkHeight}
+								class="relative z-0 h-full w-full object-cover"
+								draggable="false"
+								data-tauri-drag-region
+							/>
+						{/await}
+					{/if}
+
+					<div
+						class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+						aria-hidden="true"
+					></div>
+				{:else if fallbackImageUrl}
 					<img
-						src={imageUrl}
+						src={fallbackImageUrl}
 						alt=""
+						onerror={handleArtworkError}
+						bind:clientHeight={artworkHeight}
 						class="relative z-0 h-full w-full object-cover"
 						draggable="false"
 						data-tauri-drag-region
@@ -232,7 +368,12 @@
 					style:--cover-seek-fill={coverTheme.accent}
 				>
 					<div class="flex flex-row gap-2">
-						<Info {item} {imageUrl} showCover={false} class="mb-4 w-full justify-center" />
+						<Info
+							{item}
+							imageUrl={coverImageUrl}
+							showCover={false}
+							class="mb-4 w-full justify-center"
+						/>
 
 						<div class="min-w-0">
 							<VerticalVolume volume={playbackState.volume} />
@@ -251,9 +392,6 @@
 					<div class="grid grid-cols-3">
 						<div class="col-start-2 flex items-center justify-center gap-4">
 							<Controls
-								durationSeconds={playbackState.durationSeconds ||
-									item.mediaEnclosure.durationSeconds ||
-									0}
 								isPlaying={playbackState.isPlaying}
 								skipForwardSeconds={playbackSettings.skipForwardSeconds}
 								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}

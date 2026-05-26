@@ -1,21 +1,13 @@
 <script lang="ts">
-	import type { Feed } from '$lib/types/feed';
 	import type { MediaListItem } from '$lib/types/item';
-	import type { PlaybackState } from '$lib/types/playback';
-	import { requestTogglePlayback } from '$lib/state';
+	import { getFeedById, requestTogglePlayback } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
-	import {
-		VOLUME_STEP,
-		adjustVolume,
-		nextEpisode,
-		previousEpisode,
-		skip,
-		togglePlayback
-	} from '$lib/utils/player-controls';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
+	import { usePlayerControls } from '$lib/hooks/usePlayerControls.svelte';
 	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
+	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 	import Icon from '@iconify/svelte';
 	import Controls from './Controls.svelte';
 	import Info from './Info.svelte';
@@ -27,14 +19,9 @@
 	type Props = {
 		item: MediaListItem | null;
 		imageUrl?: string;
-		playbackState: PlaybackState | null;
 		onNavigateToItem?: () => void;
 		onClose?: () => void;
-		onPopOut?: () => void;
 		class?: string;
-		historyItems?: MediaListItem[];
-		queueItems?: MediaListItem[];
-		feeds?: Feed[];
 		onRemoveQueueItem?: (itemId: string) => void;
 		onMoveQueueItemUp?: (itemId: string) => void;
 		onMoveQueueItemDown?: (itemId: string) => void;
@@ -44,79 +31,68 @@
 	let {
 		item,
 		imageUrl,
-		playbackState,
 		onNavigateToItem,
 		onClose,
-		onPopOut,
 		class: className = '',
-		historyItems = [],
-		queueItems = [],
-		feeds = [],
 		onRemoveQueueItem,
 		onMoveQueueItemUp,
 		onMoveQueueItemDown,
 		onClearQueue
 	}: Props = $props();
 
-	let coverTheme = $derived(getCoverTheme());
+	const player = usePlayerControls(() => item);
+	const playbackState = $derived(globalPlaybackState.currentPlaybackState);
+	const coverTheme = $derived(getCoverTheme());
+	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
 
-	function durationForPlayer(): number {
-		if (playbackState && playbackState.durationSeconds > 0) {
-			return playbackState.durationSeconds;
-		}
-		return item?.mediaEnclosure.durationSeconds ?? 0;
-	}
+	type ImageDimensions = {
+		width: number;
+		height: number;
+	};
 
-	function handleSkip(deltaSeconds: number) {
-		skip(playbackState, item?.mediaEnclosure.durationSeconds, deltaSeconds);
-	}
-
-	function handleTogglePlayback() {
-		togglePlayback();
-	}
-
-	function handleAdjustVolume(delta: number) {
-		adjustVolume(playbackState, delta);
-	}
-
-	const canSkipPrevious = $derived(globalPlaybackState.playbackHistory.length > 0);
-	const canSkipNext = $derived(
-		globalPlaybackState.manualQueue.length > 0 || globalPlaybackState.autoQueue.length > 0
-	);
+	const ARTWORK_RESOLUTION_TOLERANCE = 0.85;
+	const imageDimensionsCache: Record<string, ImageDimensions | null | undefined> = {};
+	const brokenImageUrls = $state<Record<string, true>>({});
 
 	useMenuShortcuts([
 		{
 			event: 'menu-play-pause',
 			handler: () => {
-				if (item) handleTogglePlayback();
+				if (item) player.handleTogglePlayback();
 			}
 		},
 		{
 			event: 'menu-skip-forward',
 			handler: () => {
-				if (item) handleSkip(playbackSettings.skipForwardSeconds);
+				if (item) player.handleSkip(playbackSettings.skipForwardSeconds);
 			}
 		},
 		{
 			event: 'menu-skip-backward',
 			handler: () => {
-				if (item) handleSkip(-playbackSettings.skipBackwardSeconds);
+				if (item) player.handleSkip(-playbackSettings.skipBackwardSeconds);
 			}
 		},
 		{
 			event: 'menu-next-episode',
 			handler: () => {
-				if (canSkipNext) nextEpisode();
+				if (player.canSkipNext) player.nextEpisode();
 			}
 		},
 		{
 			event: 'menu-prev-episode',
 			handler: () => {
-				if (canSkipPrevious) previousEpisode();
+				if (player.canSkipPrevious) player.previousEpisode();
 			}
 		},
-		{ event: 'menu-volume-up', handler: () => handleAdjustVolume(VOLUME_STEP) },
-		{ event: 'menu-volume-down', handler: () => handleAdjustVolume(-VOLUME_STEP) },
+		{
+			event: 'menu-volume-up',
+			handler: () => player.handleAdjustVolume(0.1)
+		},
+		{
+			event: 'menu-volume-down',
+			handler: () => player.handleAdjustVolume(-0.1)
+		},
 		{
 			event: 'menu-go-to-feed',
 			handler: () => {
@@ -125,28 +101,61 @@
 		}
 	]);
 
-	useMediaSession(() => item, handleSkip, previousEpisode, nextEpisode);
+	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
 
-	let artworkElement: HTMLImageElement | HTMLDivElement | null = $state(null);
-	let artworkSize = $state('auto');
+	function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
+		if (url in imageDimensionsCache) {
+			return Promise.resolve(imageDimensionsCache[url] ?? null);
+		}
 
-	$effect(() => {
-		if (!artworkElement) return;
+		return new Promise((resolve) => {
+			const image = new Image();
 
-		const updateSize = () => {
-			const width = (artworkElement as HTMLElement)?.offsetWidth;
-			if (width) {
-				artworkSize = `${width}px`;
-			}
-		};
+			image.onload = () => {
+				const dimensions = {
+					width: image.naturalWidth,
+					height: image.naturalHeight
+				};
+				imageDimensionsCache[url] = dimensions;
+				resolve(dimensions);
+			};
 
-		updateSize();
+			image.onerror = () => {
+				imageDimensionsCache[url] = null;
+				resolve(null);
+			};
 
-		const observer = new ResizeObserver(updateSize);
-		observer.observe(artworkElement);
+			image.src = url;
+		});
+	}
 
-		return () => observer.disconnect();
-	});
+	function getRequiredPixels(length: number): number {
+		const devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+		return Math.max(1, Math.round(length * devicePixelRatio * ARTWORK_RESOLUTION_TOLERANCE));
+	}
+
+	let artworkFrameWidth = $state(0);
+	let artworkFrameHeight = $state(0);
+	let renderedArtworkWidth = $state(0);
+	const artworkSize = $derived(renderedArtworkWidth ? `${renderedArtworkWidth}px` : 'auto');
+	const episodeImageUrl = $derived(
+		imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined
+	);
+	const fallbackImageUrl = $derived(
+		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
+	);
+	const requiredArtworkWidth = $derived(getRequiredPixels(artworkFrameWidth));
+	const requiredArtworkHeight = $derived(getRequiredPixels(artworkFrameHeight || artworkFrameWidth));
+
+	function handleArtworkError(event: Event) {
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLImageElement)) return;
+
+		const failedUrl = target.currentSrc || target.src;
+		if (!failedUrl) return;
+
+		brokenImageUrls[failedUrl] = true;
+	}
 </script>
 
 <CoverThemeStyles />
@@ -197,16 +206,14 @@
 			</button>
 		{/if}
 
-		{#if onPopOut}
-			<button
-				type="button"
-				class="cover-view-popout absolute top-18 left-28 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
-				aria-label="Open mini player"
-				onclick={onPopOut}
-			>
-				<Icon icon="lucide:picture-in-picture-2" class="size-6" />
-			</button>
-		{/if}
+		<button
+			type="button"
+			class="cover-view-popout absolute top-18 left-28 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
+			aria-label="Open mini player"
+			onclick={() => void popOutMiniPlayer()}
+		>
+			<Icon icon="lucide:picture-in-picture-2" class="size-6" />
+		</button>
 
 		<div
 			class="relative z-10 grid h-full min-h-140 grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.9fr)] items-stretch justify-center gap-16 px-8 py-16"
@@ -216,23 +223,56 @@
 					class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4"
 					style:--artwork-size={artworkSize}
 				>
+					{#snippet artworkImage(src: string)}
+						<img
+							src={src}
+							alt=""
+							onerror={handleArtworkError}
+							bind:offsetWidth={renderedArtworkWidth}
+							class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
+						/>
+					{/snippet}
+
+					{#snippet artworkPlaceholder()}
+						<div
+							bind:offsetWidth={renderedArtworkWidth}
+							class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
+							style:background-color={coverTheme.panelBg}
+						>
+							<Icon icon="lucide:disc-3" class="size-16" />
+						</div>
+					{/snippet}
+
 					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
-						{#if imageUrl}
-							<img
-								bind:this={artworkElement}
-								src={imageUrl}
-								alt=""
-								class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
-							/>
-						{:else}
-							<div
-								bind:this={artworkElement}
-								class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
-								style:background-color={coverTheme.panelBg}
-							>
-								<Icon icon="lucide:disc-3" class="size-16" />
-							</div>
-						{/if}
+						<div
+							class="flex min-h-0 w-full items-center justify-center"
+							bind:offsetWidth={artworkFrameWidth}
+							bind:offsetHeight={artworkFrameHeight}
+						>
+							{#if episodeImageUrl}
+								{#if !fallbackImageUrl || fallbackImageUrl === episodeImageUrl}
+									{@render artworkImage(episodeImageUrl)}
+								{:else if !artworkFrameWidth || !artworkFrameHeight}
+									{@render artworkImage(fallbackImageUrl)}
+								{:else}
+									{#await loadImageDimensions(episodeImageUrl)}
+										{@render artworkImage(fallbackImageUrl)}
+									{:then dimensions}
+										{#if dimensions && dimensions.width >= requiredArtworkWidth && dimensions.height >= requiredArtworkHeight}
+											{@render artworkImage(episodeImageUrl)}
+										{:else}
+											{@render artworkImage(fallbackImageUrl)}
+										{/if}
+									{:catch}
+										{@render artworkImage(fallbackImageUrl)}
+									{/await}
+								{/if}
+							{:else if fallbackImageUrl}
+								{@render artworkImage(fallbackImageUrl)}
+							{:else}
+								{@render artworkPlaceholder()}
+							{/if}
+						</div>
 					</div>
 
 					<div
@@ -244,31 +284,23 @@
 					</div>
 
 					<div class="controls-row flex min-w-0 flex-row gap-4">
-						<SeekBar {playbackState} durationSeconds={durationForPlayer()} class="mt-1" />
+						<SeekBar {playbackState} durationSeconds={player.durationForPlayer()} class="mt-1" />
 						<VerticalVolume volume={playbackState.volume} />
 					</div>
 
 					<div class="controls-row mx:auto">
 						<Controls
-							durationSeconds={playbackState.durationSeconds ||
-								item.mediaEnclosure.durationSeconds ||
-								0}
 							isPlaying={playbackState.isPlaying}
 							skipForwardSeconds={playbackSettings.skipForwardSeconds}
 							skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
 							onTogglePlayback={requestTogglePlayback}
-							onSkip={handleSkip}
-							onPreviousEpisode={previousEpisode}
-							onNextEpisode={nextEpisode}
-							{canSkipPrevious}
-							{canSkipNext}
+							onSkip={player.handleSkip}
+							onPreviousEpisode={player.previousEpisode}
+							onNextEpisode={player.nextEpisode}
+							canSkipPrevious={player.canSkipPrevious}
+							canSkipNext={player.canSkipNext}
 						/>
 					</div>
-
-					<!-- <div class="controls-row grid grid-cols-2 xs:grid-cols-3"> -->
-					<!-- <div class="flex gap-4 xs:col-start-2 xs:items-center xs:justify-center"></div> -->
-					<!-- <div class="flex min-w-0 items-center justify-end gap-2 self-end"></div> -->
-					<!-- </div> -->
 				</div>
 			</div>
 
@@ -277,12 +309,19 @@
 					<div>
 						<h2 class="text-sm font-semibold text-white">Playing next</h2>
 						<p class="text-xs text-white/60">
-							{historyItems.length + queueItems.length}
-							{historyItems.length + queueItems.length === 1 ? 'episode' : 'episodes'}
+							{globalPlaybackState.playbackHistory.length +
+								globalPlaybackState.manualQueue.length +
+								globalPlaybackState.autoQueue.length}
+							{globalPlaybackState.playbackHistory.length +
+								globalPlaybackState.manualQueue.length +
+								globalPlaybackState.autoQueue.length ===
+							1
+								? 'episode'
+								: 'episodes'}
 						</p>
 					</div>
 
-					{#if queueItems.length > 0 && onClearQueue}
+					{#if globalPlaybackState.manualQueue.length > 0 && onClearQueue}
 						<button
 							type="button"
 							class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
@@ -295,9 +334,6 @@
 
 				<div class="flex-1 overflow-y-auto">
 					<QueueList
-						{historyItems}
-						{queueItems}
-						{feeds}
 						appearance="inverse"
 						rowPaddingClass="px-4"
 						separatorPaddingClass="px-4"

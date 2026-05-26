@@ -143,18 +143,16 @@
 		handleSubmit();
 	}}
 >
-	<div>
-		<label for="station-name" class="block text-sm font-medium text-fg-secondary"> Name </label>
-
+	<label class="label">
+		<span class="label-text">Name</span>
 		<input
-			id="station-name"
 			type="text"
 			bind:this={nameInputRef}
 			bind:value={name}
 			placeholder="My station"
-			class="mt-1.5 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-fg transition outline-none placeholder:text-fg-muted focus:border-border-hover focus:ring-2 focus:ring-ring"
+			class="input"
 		/>
-	</div>
+	</label>
 
 	<div>
 		<p class="mb-2 text-sm font-medium text-fg-secondary">Icon color</p>

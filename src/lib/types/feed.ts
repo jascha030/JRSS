@@ -12,3 +12,10 @@ export interface Feed {
 	lastFetchedAt?: string;
 	sortOrder?: import('./item').ItemSortOrder;
 }
+
+export interface PodcastSearchResult {
+	name: string;
+	artist: string;
+	feedUrl: string;
+	artworkUrl?: string;
+}

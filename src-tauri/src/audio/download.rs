@@ -33,9 +33,12 @@ pub fn download_to_file(
     path: &Path,
     meta: &DownloadMeta,
     cache_dir: &Path,
+    protected_paths: &[std::path::PathBuf],
     max_cache_size_bytes: u64,
 ) -> Result<(), String> {
-    if let Err(e) = enforce_cache_size_limit(cache_dir, path, 0, max_cache_size_bytes) {
+    if let Err(e) =
+        enforce_cache_size_limit(cache_dir, path, protected_paths, 0, max_cache_size_bytes)
+    {
         log::warn!("Failed to enforce cache size limit: {e}");
     }
 
@@ -98,7 +101,13 @@ pub fn download_to_file(
         log::debug!("Download content-length: {} bytes", content_length);
 
         if let Err(e) =
-            enforce_cache_size_limit(cache_dir, path, content_length, max_cache_size_bytes)
+            enforce_cache_size_limit(
+                cache_dir,
+                path,
+                protected_paths,
+                content_length,
+                max_cache_size_bytes,
+            )
         {
             log::warn!("Failed to enforce cache size limit with content length: {e}");
         }

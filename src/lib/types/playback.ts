@@ -3,6 +3,7 @@ export interface PlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+	isBuffering: boolean;
 	volume: number;
 }
 
@@ -26,6 +27,7 @@ export interface BackendPlaybackState {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+	isBuffering: boolean;
 	volume: number;
 }
 

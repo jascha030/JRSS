@@ -3,7 +3,6 @@
 	import Icon from '@iconify/svelte';
 
 	type Props = {
-		durationSeconds: number;
 		isPlaying: boolean;
 		onTogglePlayback: () => void;
 		onSkip: (deltaSeconds: number) => void;
@@ -33,7 +32,7 @@
 <div class={`flex items-center justify-center gap-2 ${className}`}>
 	{#if onPreviousEpisode}
 		<button
-			class="text-fg-subtle hover:text-white disabled:opacity-30"
+			class="text-fg-subtle transition-colors hover:text-white disabled:opacity-30"
 			type="button"
 			aria-label="Previous episode"
 			disabled={!canSkipPrevious}
@@ -44,7 +43,7 @@
 	{/if}
 
 	<button
-		class="text-fg-subtle hover:text-white"
+		class="text-fg-subtle transition-colors hover:text-white"
 		type="button"
 		aria-label={`Back ${skipBackwardSeconds} seconds`}
 		onclick={() => onSkip(-skipBackwardSeconds)}
@@ -72,7 +71,7 @@
 	</button>
 
 	<button
-		class="text-fg-subtle hover:text-white"
+		class="text-fg-subtle transition-colors hover:text-white"
 		type="button"
 		aria-label={`Forward ${skipForwardSeconds} seconds`}
 		onclick={() => onSkip(skipForwardSeconds)}
@@ -82,7 +81,7 @@
 
 	{#if onNextEpisode}
 		<button
-			class="text-fg-subtle hover:text-white disabled:opacity-30"
+			class="text-fg-subtle transition-colors hover:text-white disabled:opacity-30"
 			type="button"
 			aria-label="Next episode"
 			disabled={!canSkipNext}

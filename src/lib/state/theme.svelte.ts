@@ -15,7 +15,6 @@ import type { AppSettings, ColorScheme } from '$lib/types/settings';
 
 let _colorScheme = $state<ColorScheme>('system');
 let _accentColor = $state<string | null>(null);
-let _themeCss = $state<string | null>(null);
 
 /** Read-only view of the active theme settings. */
 export const themeState = {
@@ -95,7 +94,6 @@ const THEME_STYLE_ID = 'user-theme-css';
 
 /** Inject or remove a `<style>` tag with custom theme CSS. */
 export function applyThemeCss(css: string | null): void {
-	_themeCss = css;
 	let style = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null;
 
 	if (css === null || css.trim() === '') {

@@ -44,6 +44,7 @@ function makeBackendState(overrides: Partial<BackendPlaybackState> = {}): Backen
 		positionSeconds: 30,
 		durationSeconds: 120,
 		isPlaying: true,
+		isBuffering: false,
 		volume: 1,
 		...overrides
 	};
@@ -76,6 +77,7 @@ describe('playback-stopped event', () => {
 			positionSeconds: 30,
 			durationSeconds: 120,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 
@@ -121,6 +123,7 @@ describe('playback-state-changed event', () => {
 		expect(playbackState.currentPlaybackState?.positionSeconds).toBe(45);
 		expect(playbackState.currentPlaybackState?.durationSeconds).toBe(120);
 		expect(playbackState.currentPlaybackState?.isPlaying).toBe(true);
+		expect(playbackState.currentPlaybackState?.isBuffering).toBe(false);
 	});
 
 	it('syncs position back to item cache when playback stops', async () => {
@@ -134,6 +137,21 @@ describe('playback-state-changed event', () => {
 		await vi.waitFor(() => {
 			expect(itemsState.itemSummariesById['item-1']?.playbackPositionSeconds).toBe(38);
 		});
+	});
+
+	it('marks audio as loading again while buffering at the download edge', async () => {
+		registerItem(mapRawFeedListItem(makeMediaItem('item-1', 0)));
+
+		await emit(
+			'playback-state-changed',
+			makeBackendState({ isPlaying: false, isBuffering: true, positionSeconds: 38 })
+		);
+
+		await vi.waitFor(() => {
+			expect(playbackState.currentPlaybackState?.isBuffering).toBe(true);
+		});
+
+		expect(playbackState.isAudioLoading).toBe(true);
 	});
 });
 
@@ -161,6 +179,7 @@ describe('queue-changed event', () => {
 			positionSeconds: 10,
 			durationSeconds: 120,
 			isPlaying: false,
+			isBuffering: false,
 			volume: 1
 		};
 

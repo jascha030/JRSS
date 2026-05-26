@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { Feed } from '$lib/types/feed';
 	import type { MediaListItem } from '$lib/types/item';
+	import { feedsState } from '$lib/state/feeds.svelte';
+	import { getPlaybackHistory, getUpcomingQueue } from '$lib/state/playback.svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
@@ -9,9 +10,6 @@
 	type QueueListAppearance = 'default' | 'inverse';
 
 	type Props = {
-		historyItems?: MediaListItem[];
-		queueItems: MediaListItem[];
-		feeds?: Feed[];
 		appearance?: QueueListAppearance;
 		rowPaddingClass?: string;
 		separatorPaddingClass?: string;
@@ -21,9 +19,6 @@
 	};
 
 	let {
-		historyItems = [],
-		queueItems,
-		feeds = [],
 		appearance = 'default',
 		rowPaddingClass = 'px-5',
 		separatorPaddingClass = 'px-5',
@@ -32,19 +27,21 @@
 		onMoveItemDown
 	}: Props = $props();
 
+	const historyItems = $derived(getPlaybackHistory());
+	const queueItems = $derived(getUpcomingQueue());
 	const hasHistory = $derived(historyItems.length > 0);
 	const hasQueue = $derived(queueItems.length > 0);
 	const hasAnyItems = $derived(hasHistory || hasQueue);
 
-	let feedTitleById = $derived.by(() => {
+	const feedTitleById = $derived.by(() => {
 		const map: Record<string, string> = {};
-		for (const feed of feeds) {
+		for (const feed of feedsState.feeds) {
 			map[feed.id] = feed.title;
 		}
 		return map;
 	});
 
-	let classes = $derived.by(() => {
+	const classes = $derived.by(() => {
 		if (appearance === 'inverse') {
 			return {
 				divider: 'bg-white/20',

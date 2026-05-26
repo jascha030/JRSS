@@ -92,6 +92,7 @@ pub fn run() {
             commands::add_feed,
             commands::refresh_feed,
             commands::remove_feed,
+            commands::search_podcasts,
             commands::fetch_feed_raw,
             commands::query_items_page,
             commands::get_item_details,

@@ -81,6 +81,15 @@ pub struct ItemPageRecord {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PodcastSearchResultRecord {
+    pub name: String,
+    pub artist: String,
+    pub feed_url: String,
+    pub artwork_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FeedRecord {
     pub id: String,
     pub title: String,

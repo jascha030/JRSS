@@ -18,7 +18,7 @@
 		const found = def.options.find((o) => String(o.value) === e.currentTarget.value);
 		if (found !== undefined) onchange(found.value);
 	}}
-	class="w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+	class="preset-outlined-subtle select h-9 w-full rounded-xl border border-border"
 >
 	{#each def.options as opt (opt.value)}
 		<option value={String(opt.value)}>{opt.label}</option>

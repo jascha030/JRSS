@@ -1,41 +1,69 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import type { Feed } from '$lib/types/feed';
-	import type { Station } from '$lib/types/station';
 	import type { CommandPaletteItem } from '$lib/types/command';
 	import { getCommandPaletteItems, shouldShowCommandCategory } from '$lib/services/command';
 	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
+	import { feedsState } from '$lib/state/feeds.svelte';
+	import { stationsState } from '$lib/state/stations.svelte';
+	import { playbackState } from '$lib/state/playback.svelte';
+	import {
+		appUi,
+		togglePlayerMode,
+		toggleSidebar,
+		openFeedEditor,
+		openStationEditor,
+		closeCommandPalette
+	} from '$lib/hooks/useAppUi.svelte';
+	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 	import CommandRow from './CommandRow.svelte';
 
 	type Props = {
-		open: boolean;
-		feeds: Feed[];
-		stations: Station[];
-		isPlaying: boolean;
-		onClose: () => void;
-		onToggleCover: () => void;
-		onToggleMiniPlayer: () => void;
-		onToggleSidebar: () => void;
-		onAddFeed: () => void;
-		onAddStation: () => void;
+		onToggleMiniPlayer?: () => void;
 	};
 
-	let {
-		open,
-		feeds,
-		stations,
-		isPlaying,
-		onClose,
-		onToggleCover,
-		onToggleMiniPlayer,
-		onToggleSidebar,
-		onAddFeed,
-		onAddStation
-	}: Props = $props();
+	let { onToggleMiniPlayer }: Props = $props();
 
 	let inputValue = $state('');
 	let inputRef = $state<HTMLInputElement | undefined>(undefined);
 	let wasOpen = false;
+
+	const open = $derived(appUi.isCommandPaletteOpen);
+	const feeds = $derived(feedsState.feeds);
+	const stations = $derived(stationsState.stations);
+	const isPlaying = $derived(playbackState.currentPlaybackState?.isPlaying ?? false);
+
+	function closePalette() {
+		closeCommandPalette();
+	}
+
+	function toggleCover() {
+		togglePlayerMode();
+		closePalette();
+	}
+
+	function toggleMiniPlayer() {
+		if (onToggleMiniPlayer) {
+			onToggleMiniPlayer();
+		} else {
+			void popOutMiniPlayer();
+		}
+		closePalette();
+	}
+
+	function toggleSidebarAndClose() {
+		toggleSidebar();
+		closePalette();
+	}
+
+	function addFeed() {
+		openFeedEditor();
+		closePalette();
+	}
+
+	function addStation() {
+		openStationEditor();
+		closePalette();
+	}
 
 	const items = $derived(
 		getCommandPaletteItems({
@@ -43,12 +71,12 @@
 			stations,
 			isPlaying,
 			term: inputValue,
-			onClose,
-			onToggleCover,
-			onToggleMiniPlayer,
-			onToggleSidebar,
-			onAddFeed,
-			onAddStation
+			onClose: closePalette,
+			onToggleCover: toggleCover,
+			onToggleMiniPlayer: toggleMiniPlayer,
+			onToggleSidebar: toggleSidebarAndClose,
+			onAddFeed: addFeed,
+			onAddStation: addStation
 		})
 	);
 
@@ -56,7 +84,7 @@
 
 	const navigation = createKeyboardListNavigation<HTMLDivElement, HTMLButtonElement>({
 		getItemCount: () => items.length,
-		onRequestClose: () => onClose(),
+		onRequestClose: () => closePalette(),
 		scrollPadding: 8
 	});
 
@@ -117,7 +145,7 @@
 	}
 
 	function handleBackdropClick() {
-		onClose();
+		closePalette();
 	}
 
 	function handlePanelClick(event: MouseEvent) {
@@ -127,7 +155,7 @@
 	function handleRootKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
-			onClose();
+			closePalette();
 		}
 	}
 
@@ -161,20 +189,24 @@
 			class="w-full max-w-lg rounded-xl border border-border bg-surface-shell-opaque shadow-2xl"
 			onclick={handlePanelClick}
 		>
-			<div class="flex items-center gap-3 border-b border-border px-4 py-3">
-				<Icon icon="lucide:search" class="size-4 shrink-0 text-fg-muted" />
+			<div
+				class="input-group grid grid-cols-[auto_1fr_auto] border-none bg-none px-4 py-3 ring-0 outline-0 focus-within:border-b-border"
+			>
+				<div class="ig-cell">
+					<Icon icon="lucide:search" class="size-4" />
+				</div>
 				<input
 					bind:this={inputRef}
 					bind:value={inputValue}
 					type="text"
-					class="w-full bg-transparent text-sm text-fg placeholder:text-fg-muted focus:outline-none"
+					class="ig-input"
 					placeholder="Type a command..."
 					onkeydown={handleInputKeydown}
 				/>
 				{#if inputValue}
 					<button
 						type="button"
-						class="cursor-pointer text-xs text-fg-muted hover:text-fg"
+						class="ig-cell border-none"
 						onclick={handleClear}
 						aria-label="Clear search"
 					>
@@ -194,7 +226,7 @@
 					{#each items as item, index (item.id)}
 						{#if shouldShowCommandCategory(items, index)}
 							<div
-								class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
+								class="mt-2 px-3 py-1 text-[10px] font-semibold tracking-wider text-fg-muted uppercase"
 							>
 								{item.category}
 							</div>
@@ -213,15 +245,19 @@
 			</div>
 
 			<div class="border-t border-border px-4 py-2">
-				<div class="flex items-center gap-4 text-[10px] text-fg-muted">
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">↑↓</kbd> <kbd class="kbd text-xs">⇥</kbd> Navigate
+				<div class="flex items-center gap-4 text-xs text-fg-muted">
+					<span class="flex items-center gap-2">
+						<span class="flex items-center gap-1">
+							<kbd class="kbd">↑↓</kbd>
+							<kbd class="kbd">⇥</kbd>
+						</span>
+						Navigate
 					</span>
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">↵</kbd> Execute
+					<span class="flex items-center gap-2">
+						<kbd class="kbd">⏎</kbd> Execute
 					</span>
-					<span class="flex items-center gap-1">
-						<kbd class="kbd text-xs">Esc</kbd> Close
+					<span class="flex items-center gap-2">
+						<kbd class="kbd">esc</kbd> Close
 					</span>
 				</div>
 			</div>

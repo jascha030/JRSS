@@ -50,6 +50,7 @@ export type PlaybackState = {
 	positionSeconds: number;
 	durationSeconds: number;
 	isPlaying: boolean;
+	isBuffering: boolean;
 	volume: number;
 };
 
@@ -299,6 +300,7 @@ export async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenStopped = await listen('playback-stopped', () => {
 		playbackState.currentPlaybackState = null;
+		playbackState.isAudioLoading = false;
 	});
 
 	const unlistenQueueChanged = await listen<BackendQueueState>('queue-changed', (event) => {
@@ -441,6 +443,7 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 			positionSeconds: fallbackPosition,
 			durationSeconds: queueState.current.durationSeconds,
 			isPlaying: false,
+			isBuffering: false,
 			volume: playbackState.currentPlaybackState?.volume ?? 1
 		};
 	}
@@ -477,6 +480,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		previous.positionSeconds === positionSeconds &&
 		previous.durationSeconds === durationSeconds &&
 		previous.isPlaying === event.isPlaying &&
+		previous.isBuffering === event.isBuffering &&
 		previous.volume === event.volume;
 
 	if (playbackUnchanged) {
@@ -502,6 +506,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		positionSeconds,
 		durationSeconds,
 		isPlaying: event.isPlaying,
+		isBuffering: event.isBuffering,
 		volume: event.volume
 	};
 
@@ -515,7 +520,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 	}
 
 	if (fromEvent) {
-		playbackState.isAudioLoading = false;
+		playbackState.isAudioLoading = event.isBuffering;
 	}
 
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
@@ -624,6 +629,7 @@ export function playAudioItem(
 		positionSeconds: startPositionSeconds,
 		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
 		isPlaying: false,
+		isBuffering: false,
 		volume: playbackState.currentPlaybackState?.volume ?? 1
 	};
 
@@ -977,7 +983,7 @@ export function isAudioPlaying(): boolean {
 }
 
 export function isAudioLoading(): boolean {
-	return playbackState.isAudioLoading;
+	return playbackState.isAudioLoading || playbackState.currentPlaybackState?.isBuffering === true;
 }
 
 export function getPlaybackPositionForItem(

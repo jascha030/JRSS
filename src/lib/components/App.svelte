@@ -18,41 +18,25 @@
 	import {
 		feedsState,
 		stationsState,
-		itemsState,
 		playbackState,
-		readerState,
 		selection,
 		getActiveQueryKey,
 		clearQueue,
 		createFeed,
 		createStation,
-		deleteExistingStation,
-		ensureItemLoaded,
-		ensureVisibleRangeLoaded,
-		getActiveItemIdsByIndex,
-		getActiveTotalCount,
 		getCurrentAudioItem,
 		getCurrentAudioItemFeed,
-		getEffectiveSortOrder,
 		getIsActiveInitialLoading,
 		getPlaybackContext,
-		getPlaybackHistory,
 		getReaderRequestItemId,
 		getReaderRequestSeq,
-		getSelectedFeed,
-		getSelectedItem,
-		getSelectedStation,
 		inspectorState,
-		openInspector,
 		getUpcomingQueue,
 		loadInitialItemsPage,
 		loadItemDetails,
 		loadReaderView,
-		markItemRead,
 		moveQueuedItemDown,
 		moveQueuedItemUp,
-		playStation,
-		refreshExistingFeed,
 		removeQueuedItem,
 		requestTogglePlayback,
 		selectFeed,
@@ -60,15 +44,10 @@
 		selectSection,
 		selectStation,
 		closeInspector,
-		setFeedSearchTerm,
-		setStationSearchTerm,
-		setSectionSearchTerm,
-		setFeedSortOrder,
 		updateExistingStation
 	} from '$lib/state';
-	import { isMediaItem } from '$lib/types/item';
-	import { openMiniPlayer, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
-	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
+	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 
 	import { onMount } from 'svelte';
 	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
@@ -77,61 +56,135 @@
 	let isSidebarCollapsed = $state(true);
 	let isQueueDrawerOpen = $state(false);
 	let FeedInspector = $state<typeof FeedInspectorComponent | null>(null);
-	let readerPaneMode = $state<'feed' | 'reader'>('feed');
 	let playerMode = $state<'default' | 'cover'>('default');
 	let isFeedEditorOpen = $state(false);
 	let isStationEditorOpen = $state(false);
-	let isCommandPaletteOpen = $state(false);
 	let editingStation = $state<import('$lib/types/station').Station | null>(null);
-	let scrollToItemRequest = $state<{ itemId: string; seq: number } | null>(null);
-	let scrollRequestSeq = 0;
 	let lastQueryKey = $state<string | null>(null);
+	let renderedShellViewKey = $state('library');
+	let renderedTransitionKey = $state('library');
+	let isShellOverlayVisible = $state(false);
+	let isShellContentVisible = $state(true);
+	let isLibraryViewReady = $state(false);
+	let shellSwapFrame = 0;
+	let shellSwapTimer = 0;
+	let shellRevealTimer = 0;
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
 	const isCreatingFeed = $derived(feedsState.isCreatingFeed);
 	const syncingFeedIds = $derived(feedsState.syncingFeedIds);
-	const readerLoadingItemIds = $derived(readerState.readerLoadingItemIds);
 	const selectedFeedId = $derived(selection.selectedFeedId);
 	const selectedItemId = $derived(selection.selectedItemId);
 	const selectedSection = $derived(selection.selectedSection);
 	const selectedStationId = $derived(selection.selectedStationId);
-	const currentPlaybackState = $derived(playbackState.currentPlaybackState);
-	const itemSummariesById = $derived(itemsState.itemSummariesById);
-	const feedSearchTerm = $derived(selection.feedSearchTerm);
-	const stationSearchTerm = $derived(selection.stationSearchTerm);
-	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
-
-	const selectedFeed = $derived(getSelectedFeed(feeds));
-	const selectedStation = $derived(getSelectedStation(stations));
-	const selectedItem = $derived(getSelectedItem());
-	const selectedItemFeed = $derived(
-		selectedItem ? (feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
-	);
 	const currentAudioItem = $derived(getCurrentAudioItem());
 	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
-	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
-	const totalCount = $derived(getActiveTotalCount());
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const itemSortOrder = $derived(getEffectiveSortOrder());
-	const playbackHistory = $derived(getPlaybackHistory());
 	const upcomingQueue = $derived(getUpcomingQueue());
 	const queueLength = $derived(upcomingQueue.length);
 	const readerRequestSeq = $derived(getReaderRequestSeq());
-
-	const isSelectedFeedRefreshing = $derived(
-		selectedFeed ? syncingFeedIds.includes(selectedFeed.id) : false
-	);
+	const activeQueryKey = $derived(getActiveQueryKey());
 
 	const isInspectorActive = $derived(inspectorState.activeFeedId !== null);
+	const activeShellViewKey = $derived.by(() => {
+		if (feeds.length === 0 && !isInitialLoading) {
+			return 'empty';
+		}
 
-	const isSelectedItemReaderLoading = $derived(
-		selectedItem ? readerLoadingItemIds.includes(selectedItem.id) : false
-	);
+		if (selectedSection === 'settings') {
+			return 'settings';
+		}
 
-	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
-	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
-	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
+		if (selectedSection === 'home') {
+			return 'home';
+		}
+
+		if (isInspectorActive) {
+			return inspectorState.activeFeedId ? `inspector:${inspectorState.activeFeedId}` : 'inspector';
+		}
+
+		return 'library';
+	});
+	const activeTransitionKey = $derived.by(() => {
+		if (activeShellViewKey !== 'library') {
+			return activeShellViewKey;
+		}
+
+		return `library:${activeQueryKey ?? 'none'}`;
+	});
+	const isRenderedShellReady = $derived.by(() => {
+		if (renderedShellViewKey === 'library') {
+			return isLibraryViewReady;
+		}
+
+		if (renderedShellViewKey.startsWith('inspector:')) {
+			return FeedInspector !== null && !inspectorState.loading;
+		}
+
+		return true;
+	});
+
+	$effect(() => {
+		if (activeTransitionKey === renderedTransitionKey) {
+			return;
+		}
+
+		if (shellRevealTimer !== 0) {
+			clearTimeout(shellRevealTimer);
+			shellRevealTimer = 0;
+		}
+
+		if (shellSwapTimer !== 0) {
+			clearTimeout(shellSwapTimer);
+			shellSwapTimer = 0;
+		}
+
+		if (shellSwapFrame !== 0) {
+			cancelAnimationFrame(shellSwapFrame);
+			shellSwapFrame = 0;
+		}
+
+		isShellOverlayVisible = true;
+		isShellContentVisible = false;
+
+		if (activeShellViewKey === renderedShellViewKey) {
+			return;
+		}
+
+		shellSwapTimer = window.setTimeout(() => {
+			renderedShellViewKey = activeShellViewKey;
+			shellSwapTimer = 0;
+		}, 170);
+	});
+
+	$effect(() => {
+		if (!isShellOverlayVisible) {
+			return;
+		}
+
+		if (renderedShellViewKey !== activeShellViewKey) {
+			return;
+		}
+
+		if (!isRenderedShellReady) {
+			return;
+		}
+
+		if (shellRevealTimer !== 0) {
+			clearTimeout(shellRevealTimer);
+		}
+
+		shellRevealTimer = window.setTimeout(() => {
+			renderedTransitionKey = activeTransitionKey;
+			isShellContentVisible = true;
+			shellRevealTimer = 0;
+			shellSwapFrame = requestAnimationFrame(() => {
+				isShellOverlayVisible = false;
+				shellSwapFrame = 0;
+			});
+		}, 120);
+	});
 
 	$effect(() => {
 		if (isInspectorActive && FeedInspector === null) {
@@ -153,7 +206,7 @@
 
 	$effect(() => {
 		if (selectedItemId) {
-			readerPaneMode = 'feed';
+			appUi.readerPaneMode = 'feed';
 		}
 	});
 
@@ -184,24 +237,15 @@
 		}
 	}
 
-	async function handleRefreshFeed(feedId: string) {
-		try {
-			await refreshExistingFeed(feedId);
-			toast.success('Feed refreshed.');
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to refresh that feed.');
-		}
-	}
-
 	async function handleLoadReaderView(itemId: string) {
 		try {
 			const updatedItem = await loadReaderView(itemId);
-			readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
+			appUi.readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
 			if (updatedItem.readerStatus !== 'ready') {
 				toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 			}
 		} catch (error: unknown) {
-			readerPaneMode = 'feed';
+			appUi.readerPaneMode = 'feed';
 			toast.error(
 				error instanceof Error ? error.message : 'Unable to load reader view for this item.'
 			);
@@ -231,36 +275,6 @@
 		}
 	}
 
-	async function handleStationDelete() {
-		if (!selectedStationId) return;
-
-		try {
-			await deleteExistingStation(selectedStationId);
-			toast.success('Station deleted.');
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-		}
-	}
-
-	async function handlePlayStation() {
-		if (!selectedStationId) return;
-
-		try {
-			await playStation(selectedStationId);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-		}
-	}
-
-	function handleEditStation() {
-		editingStation = selectedStation;
-		isStationEditorOpen = true;
-	}
-
-	async function handleOpenInspector(feedId: string) {
-		await openInspector(feedId);
-	}
-
 	function handleCreateStation() {
 		editingStation = null;
 		isStationEditorOpen = true;
@@ -288,8 +302,7 @@
 		closeInspector();
 		selectFeed(item.feedId);
 		selectItem(item.id);
-		scrollRequestSeq += 1;
-		scrollToItemRequest = { itemId: item.id, seq: scrollRequestSeq };
+		requestScrollToItem(item.id);
 	}
 
 	function handleSelectFeedSearchResult(feed: import('$lib/types/feed').Feed): void {
@@ -331,25 +344,7 @@
 			selectItem(currentAudioItem.id);
 		}
 
-		scrollRequestSeq += 1;
-		scrollToItemRequest = { itemId: currentAudioItem.id, seq: scrollRequestSeq };
-	}
-
-	async function handlePopOutMiniPlayer() {
-		try {
-			const miniWindow = await WebviewWindow.getByLabel(MINI_WINDOW_LABEL);
-			if (miniWindow && (await miniWindow.isVisible())) {
-				return;
-			}
-
-			await openMiniPlayer();
-		} catch (error: unknown) {
-			const message = error instanceof Error ? error.message : 'Unable to open mini player.';
-			if (message.includes('already in progress')) {
-				return;
-			}
-			toast.error(message);
-		}
+		requestScrollToItem(currentAudioItem.id);
 	}
 
 	function handleCycleSource(direction: 1 | -1) {
@@ -418,7 +413,7 @@
 		{
 			event: 'menu-toggle-mini-player',
 			handler: async () => {
-				await handlePopOutMiniPlayer();
+				await popOutMiniPlayer();
 			}
 		}
 	]);
@@ -458,15 +453,29 @@
 			}
 
 			e.preventDefault();
-			isCommandPaletteOpen = true;
+			appUi.isCommandPaletteOpen = true;
 		};
 
 		document.addEventListener('keydown', handleKeyDown);
 		document.addEventListener('keydown', handleCommandPaletteKeyDown);
+		renderedShellViewKey = activeShellViewKey;
+		renderedTransitionKey = activeTransitionKey;
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
 			document.removeEventListener('keydown', handleCommandPaletteKeyDown);
+
+			if (shellRevealTimer !== 0) {
+				clearTimeout(shellRevealTimer);
+			}
+
+			if (shellSwapTimer !== 0) {
+				clearTimeout(shellSwapTimer);
+			}
+
+			if (shellSwapFrame !== 0) {
+				cancelAnimationFrame(shellSwapFrame);
+			}
 		};
 	});
 </script>
@@ -489,47 +498,15 @@
 	}}
 />
 
-<CommandPalette
-	open={isCommandPaletteOpen}
-	{feeds}
-	{stations}
-	isPlaying={currentPlaybackState?.isPlaying ?? false}
-	onClose={() => (isCommandPaletteOpen = false)}
-	onToggleCover={() => {
-		playerMode = playerMode === 'cover' ? 'default' : 'cover';
-		isCommandPaletteOpen = false;
-	}}
-	onToggleMiniPlayer={() => {
-		void handlePopOutMiniPlayer();
-		isCommandPaletteOpen = false;
-	}}
-	onToggleSidebar={() => {
-		isSidebarCollapsed = !isSidebarCollapsed;
-		isCommandPaletteOpen = false;
-	}}
-	onAddFeed={() => {
-		isFeedEditorOpen = true;
-		isCommandPaletteOpen = false;
-	}}
-	onAddStation={() => {
-		editingStation = null;
-		isStationEditorOpen = true;
-		isCommandPaletteOpen = false;
-	}}
-/>
+<CommandPalette />
 
 <div class="h-screen overflow-hidden bg-surface-shell">
 	{#if playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
-			imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
-			playbackState={currentPlaybackState}
+			imageUrl={currentAudioItem?.imageUrl}
 			onNavigateToItem={handleNavigateToItem}
 			onClose={() => (playerMode = 'default')}
-			onPopOut={handlePopOutMiniPlayer}
-			historyItems={playbackHistory}
-			queueItems={upcomingQueue}
-			{feeds}
 			onRemoveQueueItem={removeQueuedItem}
 			onMoveQueueItemUp={moveQueuedItemUp}
 			onMoveQueueItemDown={moveQueuedItemDown}
@@ -546,8 +523,6 @@
 				>
 					<Header
 						onOpenDialog={() => (isFeedEditorOpen = true)}
-						{feeds}
-						{stations}
 						onSelectResult={handleSelectSearchResult}
 						onSelectFeedResult={handleSelectFeedSearchResult}
 						onSelectStationResult={handleSelectStationSearchResult}
@@ -559,9 +534,6 @@
 
 		<QueueDrawer
 			open={isQueueDrawerOpen}
-			historyItems={playbackHistory}
-			queueItems={upcomingQueue}
-			{feeds}
 			onRemoveItem={removeQueuedItem}
 			onMoveItemUp={moveQueuedItemUp}
 			onMoveItemDown={moveQueuedItemDown}
@@ -594,71 +566,57 @@
 
 			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-					<main class="flex min-h-0 flex-1 flex-col">
-						{#if feeds.length === 0 && !isInitialLoading}
-							<EmptyFeedView />
-						{:else if selectedSection === 'settings'}
-							<SettingsView />
-						{:else if selectedSection === 'home'}
-							<HomeView {feeds} {stations} />
-						{:else if isInspectorActive && FeedInspector !== null}
-							<FeedInspector />
-						{:else}
-							<div class="flex min-h-0 flex-1 overflow-hidden">
-								<div
-									class="min-h-0 min-w-0 grow lg:shrink-0 lg:grow-0 lg:basis-1/3 lg:border-r lg:border-border"
-								>
+					<main class="relative flex min-h-0 flex-1 flex-col">
+						<div
+							class="flex min-h-0 flex-1 flex-col transition-[opacity,transform,filter] duration-220 ease-out motion-reduce:transition-none"
+							class:translate-y-1={!isShellContentVisible}
+							class:opacity-0={!isShellContentVisible}
+							class:blur-[3px]={!isShellContentVisible}
+						>
+							{#if renderedShellViewKey === 'empty'}
+								<EmptyFeedView />
+							{:else if renderedShellViewKey === 'settings'}
+								<SettingsView />
+							{:else if renderedShellViewKey === 'home'}
+								<HomeView {feeds} {stations} />
+							{:else if renderedShellViewKey.startsWith('inspector:') && FeedInspector !== null}
+								<FeedInspector />
+							{:else if renderedShellViewKey.startsWith('inspector:')}
+								<div class="flex min-h-0 flex-1 bg-surface"></div>
+							{:else}
+								<div class="flex min-h-0 flex-1 overflow-hidden">
 									<ItemListView
-										{feeds}
-										{itemIdsByIndex}
-										itemsById={itemSummariesById}
-										isRefreshing={isSelectedFeedRefreshing}
-										onDeleteStation={handleStationDelete}
-										onEditStation={handleEditStation}
-										onEnsureItemLoaded={ensureItemLoaded}
-										onInspect={handleOpenInspector}
-										onMarkRead={markItemRead}
-										onPlayStation={handlePlayStation}
-										onRefresh={handleRefreshFeed}
-										onSearchChange={setFeedSearchTerm}
-										onStationSearchChange={setStationSearchTerm}
-										onSectionSearchChange={setSectionSearchTerm}
-										onSelectItem={selectItem}
-										onSortOrderChange={setFeedSortOrder}
-										onVisibleRangeChange={ensureVisibleRangeLoaded}
-										searchTerm={feedSearchTerm}
-										{stationSearchTerm}
-										{sectionSearchTerm}
-										{isInitialLoading}
-										{itemSortOrder}
-										{selectedFeed}
-										{selectedItemId}
-										{selectedSection}
-										{selectedStation}
-										{totalCount}
-										{scrollToItemRequest}
+										onReadyStateChange={(ready) => (isLibraryViewReady = ready)}
+										class="min-h-0 min-w-0 grow border-r border-border xl:basis-1/2 2xl:shrink-0 2xl:grow-0 4xl:basis-4/10 {appUi.isReaderMaximized
+											? 'hidden'
+											: ''}"
+									/>
+									<ReaderPane
+										class="min-h-0 min-w-0 {appUi.isReaderMaximized
+											? 'grow'
+											: 'xl:basis-1/2 2xl:flex 2xl:flex-1 4xl:basis-4/10'}"
 									/>
 								</div>
+							{/if}
+						</div>
 
-								<ReaderPane
-									{selectedItem}
-									{selectedItemFeed}
-									{readerPaneMode}
-									{isSelectedItemReaderLoading}
-									{hasSelectedItemReaderContent}
-									{isReaderPaneActive}
-									{canUseReaderMode}
-									onLoadReaderView={handleLoadReaderView}
-									onReaderPaneModeChange={(mode) => (readerPaneMode = mode)}
-								/>
+						<div
+							aria-hidden={!isShellOverlayVisible}
+							class={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-220 ease-out motion-reduce:transition-none ${
+								isShellOverlayVisible ? 'opacity-100' : 'opacity-0'
+							}`}
+						>
+							<div class="absolute inset-0 bg-surface/72 backdrop-blur-md"></div>
+							<div class="relative flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg">
+								<div class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"></div>
+								<span class="text-sm font-medium text-fg-secondary">Loading view</span>
 							</div>
-						{/if}
+						</div>
 					</main>
 
 					<AudioPlayer
 						item={currentAudioItem}
 						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
-						playbackState={currentPlaybackState}
 						onNavigateToItem={handleNavigateToItem}
 						onShowCover={() => (playerMode = 'cover')}
 					>

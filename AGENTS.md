@@ -17,6 +17,7 @@
 - Single Rust test: `cargo test --manifest-path src-tauri/Cargo.toml <filter>`
 - Format: `bun run format`
 - `bun run tauri:dev` already starts Vite via `src-tauri/tauri.conf.json`; do not run a second dev server.
+- Svelte Inspector is enabled in `svelte.config.js`. In the Tauri WebView, hold `Alt-X` (or click the bottom-right toggle) to inspect components. To jump to source in Neovim via `nvr`, start nvim with `nvim --listen /tmp/nvim-socket`, then launch the app with `LAUNCH_EDITOR=scripts/open-editor.sh bun run tauri:dev`.
 - Outside Tauri, `src/lib/services/tauri.ts` throws on `invokeCommand`; desktop-backed services either fail or return empty/default data. Use `bun run tauri:dev` for backend behavior.
 - No CI workflows or pre-commit config are in this repo; local verification is the source of truth.
 

@@ -170,7 +170,7 @@
 
 		<form class="mt-8 flex flex-col gap-6" onsubmit={handleSave}>
 			{#each APP_SETTINGS as section (section.title)}
-				<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+				<div class="card border border-border bg-surface p-6 shadow-sm">
 					<h3 class="text-lg font-semibold text-fg">{section.title}</h3>
 					{#if section.description}
 						<p class="mt-1 text-sm text-fg-muted">{section.description}</p>
@@ -189,7 +189,7 @@
 									</div>
 									<div class="flex w-full max-w-xs flex-col gap-2">
 										<select
-											class="w-full rounded-xl border border-border bg-surface text-sm text-fg transition focus:border-border-hover focus:ring-2 focus:ring-ring disabled:opacity-60"
+											class="preset-outlined-subtle select h-9 w-full rounded-xl border border-border"
 											disabled={isLoading || isSaving || isLoadingThemes}
 											value={pending.themeName ?? ''}
 											onchange={(e) => {
@@ -211,14 +211,14 @@
 						{/if}
 						{#each section.entries as entry (entry.key)}
 							<div class="py-5 first:pt-0 last:pb-0">
-								<SettingRow {entry} {pending} disabled={isLoading || isSaving} {isDesktop} />
+								<SettingRow {entry} bind:pending disabled={isLoading || isSaving} {isDesktop} />
 							</div>
 						{/each}
 					</div>
 				</div>
 			{/each}
 
-			<div class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+			<div class="card border border-border bg-surface p-6 shadow-sm">
 				<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 					<div class="max-w-2xl">
 						<h2 class="text-base font-semibold text-fg">Clear audio cache</h2>
