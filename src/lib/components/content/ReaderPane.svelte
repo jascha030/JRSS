@@ -8,10 +8,13 @@
 		getHasSelectedItemReaderContent,
 		getCanUseReaderMode
 	} from '$lib/state/selectors.svelte';
-	import { appUi } from '$lib/hooks/useAppUi.svelte';
+	import { appUi, toggleReaderMaximized } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import Icon from '@iconify/svelte';
+
+	let { class: className = '' }: { class?: string } = $props();
 
 	type ReaderPaneMode = 'feed' | 'reader';
 
@@ -37,12 +40,12 @@
 </script>
 
 <aside
-	class="hidden min-h-0 min-w-0 flex-col justify-between overflow-y-auto bg-surface-glass p-8 backdrop-blur-md lg:flex lg:flex-1 3xl:basis-4/10"
+	class="flex-col justify-between overflow-y-auto bg-surface-glass p-8 backdrop-blur-md {className}"
 >
 	{#if selectedItem}
 		<div class="space-y-9">
 			<div
-				class="mx-auto w-full max-w-xl min-w-lg 2xl:max-w-3xl 2xl:min-w-3xl 3xl:max-w-4xl 3xl:min-w-4xl"
+				class="mx-auto w-full max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl"
 			>
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
@@ -56,12 +59,16 @@
 								<SegmentedControl.Indicator />
 
 								<SegmentedControl.Item value="feed">
-									<SegmentedControl.ItemText>Feed view</SegmentedControl.ItemText>
+									<SegmentedControl.ItemText>
+										<Icon icon="lucide:file-text" class="size-4" />
+									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 
 								<SegmentedControl.Item value="reader">
-									<SegmentedControl.ItemText>Reader view</SegmentedControl.ItemText>
+									<SegmentedControl.ItemText>
+										<Icon icon="lucide:book-open-text" class="size-4" />
+									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 							</SegmentedControl.Control>
@@ -80,6 +87,19 @@
 									: 'Load Reader View'}
 						</button>
 					{/if}
+
+					<button
+						class="preset-outlined-subtle ml-auto flex aspect-square items-center justify-center rounded-xl"
+						style="width: 2.875rem; height: 2.875rem;"
+						type="button"
+						aria-label={appUi.isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
+						onclick={toggleReaderMaximized}
+					>
+						<Icon
+							icon={appUi.isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
+							class="size-4"
+						/>
+					</button>
 				</div>
 			</div>
 

@@ -4,6 +4,7 @@
 
 	import {
 		feedsState,
+		stationsState,
 		itemsState,
 		selection,
 		getActiveItemIdsByIndex,
@@ -15,7 +16,9 @@
 	} from '$lib/state';
 	import { appUi } from '$lib/hooks/useAppUi.svelte';
 	import { isMediaItem } from '$lib/types/item';
-	import { formatDate } from '$lib/utils/format';
+
+	let { class: className = '' }: { class?: string } = $props();
+	import { formatDateOnly } from '$lib/utils/format';
 
 	import ItemListHeader from '$lib/components/content/ItemListHeader.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
@@ -37,15 +40,22 @@
 	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
 	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
 
-	const { hasActiveSearch, feedTitleById, rowHeight, totalHeight } = $derived.by(() => ({
-		hasActiveSearch:
-			searchTerm.trim().length > 0 ||
-			stationSearchTerm.trim().length > 0 ||
-			sectionSearchTerm.trim().length > 0,
-		feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
-		rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
-		totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT)
-	}));
+	const { hasActiveSearch, feedTitleById, rowHeight, totalHeight, showFeedTitle } = $derived.by(
+		() => ({
+			hasActiveSearch:
+				searchTerm.trim().length > 0 ||
+				stationSearchTerm.trim().length > 0 ||
+				sectionSearchTerm.trim().length > 0,
+			feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
+			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
+			totalHeight: totalCount * (windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT),
+			showFeedTitle:
+				selection.selectedFeedId === null &&
+				(selection.selectedStationId === null ||
+					stationsState.stations.find((s) => s.id === selection.selectedStationId)?.feedIds
+						.length !== 1)
+		})
+	);
 
 	const itemSelection = useItemSelection();
 
@@ -200,7 +210,9 @@
 
 <svelte:window bind:innerWidth={windowWidth} />
 
-<section class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md">
+<section
+	class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md {className}"
+>
 	<ItemListHeader />
 
 	<div
@@ -259,9 +271,11 @@
 									<div
 										class="flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide text-fg-muted uppercase"
 									>
-										<span>{feedTitle(item.feedId)}</span>
-										<span>&bull;</span>
-										<span>{formatDate(item.publishedAt)}</span>
+										{#if showFeedTitle}
+											<span>{feedTitle(item.feedId)}</span>
+											<span>&bull;</span>
+										{/if}
+										<span>{formatDateOnly(item.publishedAt)}</span>
 									</div>
 
 									<div class="mt-2 line-clamp-2 4xl:line-clamp-3">

@@ -8,6 +8,9 @@
 	--breakpoint-xs: 30rem;
 	--breakpoint-3xl: 120rem;
 	--breakpoint-4xl: 144rem;
+	--breakpoint-5xl: 180rem;
+	--breakpoint-6xl: 240rem;
+	--breakpoint-7xl: 320rem;
 	--spacing: var(--app-spacing);
 	--font-sans: var(--app-font-sans);
 	--font-serif: var(--app-font-serif);

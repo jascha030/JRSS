@@ -10,6 +10,7 @@ export const appUi = $state({
 	isCommandPaletteOpen: false,
 	editingStation: null as { id: string; name: string; feedIds: string[] } | null,
 	readerPaneMode: 'feed' as 'feed' | 'reader',
+	isReaderMaximized: false,
 	scrollToItemRequest: null as { itemId: string; seq: number } | null,
 	scrollRequestSeq: 0
 });
@@ -66,6 +67,10 @@ export function clearScrollToItem() {
 export function resetScrollState() {
 	appUi.scrollRequestSeq = 0;
 	appUi.scrollToItemRequest = null;
+}
+
+export function toggleReaderMaximized() {
+	appUi.isReaderMaximized = !appUi.isReaderMaximized;
 }
 
 export async function switchToReaderView(itemId: string): Promise<void> {
