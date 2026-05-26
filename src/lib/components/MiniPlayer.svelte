@@ -23,6 +23,7 @@
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import CoverThemeStyles from './player/CoverThemeStyles.svelte';
 	import VerticalVolume from './player/VerticalVolume.svelte';
+	import { pickBestArtworkUrl } from '$lib/utils/artwork';
 
 	let coverTheme = $derived(getCoverTheme());
 
@@ -34,13 +35,6 @@
 
 	let { item, imageUrl, playbackState }: Props = $props();
 
-	type ImageDimensions = {
-		width: number;
-		height: number;
-	};
-
-	const ARTWORK_RESOLUTION_TOLERANCE = 0.85;
-	const imageDimensionsCache: Record<string, ImageDimensions | null | undefined> = {};
 	const brokenImageUrls = $state<Record<string, true>>({});
 	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
 	const episodeImageUrl = $derived(
@@ -49,37 +43,8 @@
 	const fallbackImageUrl = $derived(
 		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
 	);
-
-	function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
-		if (url in imageDimensionsCache) {
-			return Promise.resolve(imageDimensionsCache[url] ?? null);
-		}
-
-		return new Promise((resolve) => {
-			const image = new Image();
-
-			image.onload = () => {
-				const dimensions = {
-					width: image.naturalWidth,
-					height: image.naturalHeight
-				};
-				imageDimensionsCache[url] = dimensions;
-				resolve(dimensions);
-			};
-
-			image.onerror = () => {
-				imageDimensionsCache[url] = null;
-				resolve(null);
-			};
-
-			image.src = url;
-		});
-	}
-
-	function getRequiredPixels(length: number): number {
-		const devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-		return Math.max(1, Math.round(length * devicePixelRatio * ARTWORK_RESOLUTION_TOLERANCE));
-	}
+	const previewImageUrl = $derived(episodeImageUrl ?? fallbackImageUrl);
+	const artworkChoice = $derived(pickBestArtworkUrl(episodeImageUrl, fallbackImageUrl));
 
 	function handleArtworkError(event: Event) {
 		const target = event.currentTarget;
@@ -93,13 +58,6 @@
 
 	let cardHeight = $state(0);
 	let controlsHeight = $state(0);
-	let artworkWidth = $state(0);
-	let artworkHeight = $state(0);
-
-	const coverImageUrl = $derived(fallbackImageUrl ?? episodeImageUrl);
-	const coverImage = $derived(coverImageUrl ? `url(${JSON.stringify(coverImageUrl)})` : 'none');
-	const requiredArtworkWidth = $derived(getRequiredPixels(artworkWidth));
-	const requiredArtworkHeight = $derived(getRequiredPixels(artworkHeight));
 
 	const effectiveCardHeight = $derived(cardHeight > 0 ? cardHeight : 320);
 	const effectiveControlsHeight = $derived(controlsHeight > 0 ? controlsHeight : 150);
@@ -238,174 +196,313 @@
 <div class="flex aspect-square h-full w-full flex-col overflow-hidden bg-surface-shell">
 	<div class="flex aspect-square h-full w-full flex-1 flex-col items-center justify-center">
 		{#if item && playbackState}
-			<div
-				bind:clientHeight={cardHeight}
-				bind:clientWidth={artworkWidth}
-				class="group/container cover-card relative inset-0 isolate aspect-square w-full overflow-hidden rounded-lg bg-surface-elevated shadow-lg"
-				style:--cover-image={coverImage}
-				style:--controls-height={`${effectiveControlsHeight}px`}
-				style:--controls-blur-feather={`${controlsBlurFeather}px`}
-				style:--controls-blur-feather-85={`${controlsBlurFeather85}px`}
-				style:--controls-blur-feather-70={`${controlsBlurFeather70}px`}
-				style:--controls-blur-feather-55={`${controlsBlurFeather55}px`}
-				style:--controls-blur-feather-40={`${controlsBlurFeather40}px`}
-				style:--controls-blur-feather-25={`${controlsBlurFeather25}px`}
-				style:--controls-blur-feather-12={`${controlsBlurFeather12}px`}
-			>
-				{#if episodeImageUrl}
-					{#if !fallbackImageUrl || fallbackImageUrl === episodeImageUrl}
+			{#await artworkChoice}
+				<div
+					bind:clientHeight={cardHeight}
+					class="group/container cover-card relative inset-0 isolate aspect-square w-full overflow-hidden rounded-lg bg-surface-elevated shadow-lg"
+					style:--cover-image={previewImageUrl ? `url(${JSON.stringify(previewImageUrl)})` : 'none'}
+					style:--controls-height={`${effectiveControlsHeight}px`}
+					style:--controls-blur-feather={`${controlsBlurFeather}px`}
+					style:--controls-blur-feather-85={`${controlsBlurFeather85}px`}
+					style:--controls-blur-feather-70={`${controlsBlurFeather70}px`}
+					style:--controls-blur-feather-55={`${controlsBlurFeather55}px`}
+					style:--controls-blur-feather-40={`${controlsBlurFeather40}px`}
+					style:--controls-blur-feather-25={`${controlsBlurFeather25}px`}
+					style:--controls-blur-feather-12={`${controlsBlurFeather12}px`}
+				>
+					{#if episodeImageUrl}
 						<img
 							src={episodeImageUrl}
 							alt=""
 							onerror={handleArtworkError}
-							bind:clientHeight={artworkHeight}
 							class="relative z-0 h-full w-full object-cover"
 							draggable="false"
 							data-tauri-drag-region
 						/>
-					{:else if !artworkWidth || !artworkHeight}
+					{:else if fallbackImageUrl}
 						<img
 							src={fallbackImageUrl}
 							alt=""
 							onerror={handleArtworkError}
-							bind:clientHeight={artworkHeight}
 							class="relative z-0 h-full w-full object-cover"
 							draggable="false"
 							data-tauri-drag-region
 						/>
 					{:else}
-						{#await loadImageDimensions(episodeImageUrl)}
-							<img
-								src={fallbackImageUrl}
-								alt=""
-								onerror={handleArtworkError}
-								bind:clientHeight={artworkHeight}
-								class="relative z-0 h-full w-full object-cover"
-								draggable="false"
-								data-tauri-drag-region
-							/>
-						{:then dimensions}
-							{#if dimensions && dimensions.width >= requiredArtworkWidth && dimensions.height >= requiredArtworkHeight}
-								<img
-									src={episodeImageUrl}
-									alt=""
-									onerror={handleArtworkError}
-									bind:clientHeight={artworkHeight}
-									class="relative z-0 h-full w-full object-cover"
-									draggable="false"
-									data-tauri-drag-region
-								/>
-							{:else}
-								<img
-									src={fallbackImageUrl}
-									alt=""
-									onerror={handleArtworkError}
-									bind:clientHeight={artworkHeight}
-									class="relative z-0 h-full w-full object-cover"
-									draggable="false"
-									data-tauri-drag-region
-								/>
-							{/if}
-						{:catch}
-							<img
-								src={fallbackImageUrl}
-								alt=""
-								onerror={handleArtworkError}
-								bind:clientHeight={artworkHeight}
-								class="relative z-0 h-full w-full object-cover"
-								draggable="false"
-								data-tauri-drag-region
-							/>
-						{/await}
+						<div
+							class="relative z-0 flex h-full w-full items-center justify-center bg-surface-elevated"
+							data-tauri-drag-region
+						>
+							<Icon icon="lucide:disc-3" class="size-16 text-fg-muted" />
+						</div>
+					{/if}
+
+					{#if previewImageUrl}
+						<div
+							class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
+					{:else}
+						<div
+							class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
 					{/if}
 
 					<div
-						class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
-						aria-hidden="true"
-					></div>
-				{:else if fallbackImageUrl}
-					<img
-						src={fallbackImageUrl}
-						alt=""
-						onerror={handleArtworkError}
-						bind:clientHeight={artworkHeight}
-						class="relative z-0 h-full w-full object-cover"
-						draggable="false"
-						data-tauri-drag-region
-					/>
-
-					<div
-						class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
-						aria-hidden="true"
-					></div>
-				{:else}
-					<div
-						class="relative z-0 flex h-full w-full items-center justify-center bg-surface-elevated"
-						data-tauri-drag-region
+						bind:clientHeight={controlsHeight}
+						class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
+						style:--cover-fg={coverTheme.fg}
+						style:--cover-fg-muted={coverTheme.fgMuted}
+						style:--cover-fg-subtle={coverTheme.fgSubtle}
+						style:--cover-accent={coverTheme.accent}
+						style:--cover-accent-contrast={coverTheme.accentContrast}
+						style:--cover-panel-bg={coverTheme.panelBg}
+						style:--cover-panel-border={coverTheme.panelBorder}
+						style:--cover-button-bg={coverTheme.buttonBg}
+						style:--cover-button-bg-hover={coverTheme.buttonBgHover}
+						style:--color-fg-muted={coverTheme.fgMuted}
+						style:--cover-seek-fill={coverTheme.accent}
 					>
-						<Icon icon="lucide:disc-3" class="size-16 text-fg-muted" />
-					</div>
-
-					<div
-						class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
-						aria-hidden="true"
-					></div>
-				{/if}
-
-				<div
-					bind:clientHeight={controlsHeight}
-					class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
-					style:--cover-fg={coverTheme.fg}
-					style:--cover-fg-muted={coverTheme.fgMuted}
-					style:--cover-fg-subtle={coverTheme.fgSubtle}
-					style:--cover-accent={coverTheme.accent}
-					style:--cover-accent-contrast={coverTheme.accentContrast}
-					style:--cover-panel-bg={coverTheme.panelBg}
-					style:--cover-panel-border={coverTheme.panelBorder}
-					style:--cover-button-bg={coverTheme.buttonBg}
-					style:--cover-button-bg-hover={coverTheme.buttonBgHover}
-					style:--color-fg-muted={coverTheme.fgMuted}
-					style:--cover-seek-fill={coverTheme.accent}
-				>
-					<div class="flex flex-row gap-2">
-						<Info
-							{item}
-							imageUrl={coverImageUrl}
-							showCover={false}
-							class="mb-4 w-full justify-center"
-						/>
-
-						<div class="min-w-0">
-							<VerticalVolume volume={playbackState.volume} />
-						</div>
-					</div>
-
-					<div class="w-full">
-						<SeekBar
-							{playbackState}
-							durationSeconds={playbackState.durationSeconds ||
-								item.mediaEnclosure.durationSeconds ||
-								0}
-						/>
-					</div>
-
-					<div class="grid grid-cols-3">
-						<div class="col-start-2 flex items-center justify-center gap-4">
-							<Controls
-								isPlaying={playbackState.isPlaying}
-								skipForwardSeconds={playbackSettings.skipForwardSeconds}
-								skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
-								onTogglePlayback={requestTogglePlayback}
-								onSkip={handleSkip}
-								onPreviousEpisode={previousEpisode}
-								onNextEpisode={nextEpisode}
-								{canSkipPrevious}
-								{canSkipNext}
+						<div class="flex flex-row gap-2">
+							<Info
+								{item}
+								imageUrl={previewImageUrl}
+								showCover={false}
+								class="mb-4 w-full justify-center"
 							/>
+
+							<div class="min-w-0">
+								<VerticalVolume volume={playbackState.volume} />
+							</div>
+						</div>
+
+						<div class="w-full">
+							<SeekBar
+								{playbackState}
+								durationSeconds={playbackState.durationSeconds || item.mediaEnclosure.durationSeconds || 0}
+							/>
+						</div>
+
+						<div class="grid grid-cols-3">
+							<div class="col-start-2 flex items-center justify-center gap-4">
+								<Controls
+									isPlaying={playbackState.isPlaying}
+									skipForwardSeconds={playbackSettings.skipForwardSeconds}
+									skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
+									onTogglePlayback={requestTogglePlayback}
+									onSkip={handleSkip}
+									onPreviousEpisode={previousEpisode}
+									onNextEpisode={nextEpisode}
+									{canSkipPrevious}
+									{canSkipNext}
+								/>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			{:then selectedImageUrl}
+				<div
+					bind:clientHeight={cardHeight}
+					class="group/container cover-card relative inset-0 isolate aspect-square w-full overflow-hidden rounded-lg bg-surface-elevated shadow-lg"
+					style:--cover-image={selectedImageUrl ? `url(${JSON.stringify(selectedImageUrl)})` : 'none'}
+					style:--controls-height={`${effectiveControlsHeight}px`}
+					style:--controls-blur-feather={`${controlsBlurFeather}px`}
+					style:--controls-blur-feather-85={`${controlsBlurFeather85}px`}
+					style:--controls-blur-feather-70={`${controlsBlurFeather70}px`}
+					style:--controls-blur-feather-55={`${controlsBlurFeather55}px`}
+					style:--controls-blur-feather-40={`${controlsBlurFeather40}px`}
+					style:--controls-blur-feather-25={`${controlsBlurFeather25}px`}
+					style:--controls-blur-feather-12={`${controlsBlurFeather12}px`}
+				>
+					{#if selectedImageUrl}
+						<img
+							src={selectedImageUrl}
+							alt=""
+							onerror={handleArtworkError}
+							class="relative z-0 h-full w-full object-cover"
+							draggable="false"
+							data-tauri-drag-region
+						/>
+					{:else}
+						<div
+							class="relative z-0 flex h-full w-full items-center justify-center bg-surface-elevated"
+							data-tauri-drag-region
+						>
+							<Icon icon="lucide:disc-3" class="size-16 text-fg-muted" />
+						</div>
+					{/if}
+
+					{#if selectedImageUrl}
+						<div
+							class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
+					{:else}
+						<div
+							class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
+					{/if}
+
+					<div
+						bind:clientHeight={controlsHeight}
+						class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
+						style:--cover-fg={coverTheme.fg}
+						style:--cover-fg-muted={coverTheme.fgMuted}
+						style:--cover-fg-subtle={coverTheme.fgSubtle}
+						style:--cover-accent={coverTheme.accent}
+						style:--cover-accent-contrast={coverTheme.accentContrast}
+						style:--cover-panel-bg={coverTheme.panelBg}
+						style:--cover-panel-border={coverTheme.panelBorder}
+						style:--cover-button-bg={coverTheme.buttonBg}
+						style:--cover-button-bg-hover={coverTheme.buttonBgHover}
+						style:--color-fg-muted={coverTheme.fgMuted}
+						style:--cover-seek-fill={coverTheme.accent}
+					>
+						<div class="flex flex-row gap-2">
+							<Info
+								{item}
+								imageUrl={selectedImageUrl}
+								showCover={false}
+								class="mb-4 w-full justify-center"
+							/>
+
+							<div class="min-w-0">
+								<VerticalVolume volume={playbackState.volume} />
+							</div>
+						</div>
+
+						<div class="w-full">
+							<SeekBar
+								{playbackState}
+								durationSeconds={playbackState.durationSeconds || item.mediaEnclosure.durationSeconds || 0}
+							/>
+						</div>
+
+						<div class="grid grid-cols-3">
+							<div class="col-start-2 flex items-center justify-center gap-4">
+								<Controls
+									isPlaying={playbackState.isPlaying}
+									skipForwardSeconds={playbackSettings.skipForwardSeconds}
+									skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
+									onTogglePlayback={requestTogglePlayback}
+									onSkip={handleSkip}
+									onPreviousEpisode={previousEpisode}
+									onNextEpisode={nextEpisode}
+									{canSkipPrevious}
+									{canSkipNext}
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+			{:catch}
+				<div
+					bind:clientHeight={cardHeight}
+					class="group/container cover-card relative inset-0 isolate aspect-square w-full overflow-hidden rounded-lg bg-surface-elevated shadow-lg"
+					style:--cover-image={previewImageUrl ? `url(${JSON.stringify(previewImageUrl)})` : 'none'}
+					style:--controls-height={`${effectiveControlsHeight}px`}
+					style:--controls-blur-feather={`${controlsBlurFeather}px`}
+					style:--controls-blur-feather-85={`${controlsBlurFeather85}px`}
+					style:--controls-blur-feather-70={`${controlsBlurFeather70}px`}
+					style:--controls-blur-feather-55={`${controlsBlurFeather55}px`}
+					style:--controls-blur-feather-40={`${controlsBlurFeather40}px`}
+					style:--controls-blur-feather-25={`${controlsBlurFeather25}px`}
+					style:--controls-blur-feather-12={`${controlsBlurFeather12}px`}
+				>
+					{#if episodeImageUrl}
+						<img
+							src={episodeImageUrl}
+							alt=""
+							onerror={handleArtworkError}
+							class="relative z-0 h-full w-full object-cover"
+							draggable="false"
+							data-tauri-drag-region
+						/>
+					{:else if fallbackImageUrl}
+						<img
+							src={fallbackImageUrl}
+							alt=""
+							onerror={handleArtworkError}
+							class="relative z-0 h-full w-full object-cover"
+							draggable="false"
+							data-tauri-drag-region
+						/>
+					{:else}
+						<div
+							class="relative z-0 flex h-full w-full items-center justify-center bg-surface-elevated"
+							data-tauri-drag-region
+						>
+							<Icon icon="lucide:disc-3" class="size-16 text-fg-muted" />
+						</div>
+					{/if}
+
+					{#if previewImageUrl}
+						<div
+							class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
+					{:else}
+						<div
+							class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+							aria-hidden="true"
+						></div>
+					{/if}
+
+					<div
+						bind:clientHeight={controlsHeight}
+						class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
+						style:--cover-fg={coverTheme.fg}
+						style:--cover-fg-muted={coverTheme.fgMuted}
+						style:--cover-fg-subtle={coverTheme.fgSubtle}
+						style:--cover-accent={coverTheme.accent}
+						style:--cover-accent-contrast={coverTheme.accentContrast}
+						style:--cover-panel-bg={coverTheme.panelBg}
+						style:--cover-panel-border={coverTheme.panelBorder}
+						style:--cover-button-bg={coverTheme.buttonBg}
+						style:--cover-button-bg-hover={coverTheme.buttonBgHover}
+						style:--color-fg-muted={coverTheme.fgMuted}
+						style:--cover-seek-fill={coverTheme.accent}
+					>
+						<div class="flex flex-row gap-2">
+							<Info
+								{item}
+								imageUrl={previewImageUrl}
+								showCover={false}
+								class="mb-4 w-full justify-center"
+							/>
+
+							<div class="min-w-0">
+								<VerticalVolume volume={playbackState.volume} />
+							</div>
+						</div>
+
+						<div class="w-full">
+							<SeekBar
+								{playbackState}
+								durationSeconds={playbackState.durationSeconds || item.mediaEnclosure.durationSeconds || 0}
+							/>
+						</div>
+
+						<div class="grid grid-cols-3">
+							<div class="col-start-2 flex items-center justify-center gap-4">
+								<Controls
+									isPlaying={playbackState.isPlaying}
+									skipForwardSeconds={playbackSettings.skipForwardSeconds}
+									skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
+									onTogglePlayback={requestTogglePlayback}
+									onSkip={handleSkip}
+									onPreviousEpisode={previousEpisode}
+									onNextEpisode={nextEpisode}
+									{canSkipPrevious}
+									{canSkipNext}
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/await}
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center text-fg-muted">
 				<Icon icon="lucide:disc-3" class="mb-4 size-16" />

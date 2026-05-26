@@ -15,6 +15,7 @@
 	import QueueList from './QueueList.svelte';
 	import CoverThemeStyles from './CoverThemeStyles.svelte';
 	import VerticalVolume from './VerticalVolume.svelte';
+	import { pickBestArtworkUrl } from '$lib/utils/artwork';
 
 	type Props = {
 		item: MediaListItem | null;
@@ -45,13 +46,6 @@
 	const coverTheme = $derived(getCoverTheme());
 	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
 
-	type ImageDimensions = {
-		width: number;
-		height: number;
-	};
-
-	const ARTWORK_RESOLUTION_TOLERANCE = 0.85;
-	const imageDimensionsCache: Record<string, ImageDimensions | null | undefined> = {};
 	const brokenImageUrls = $state<Record<string, true>>({});
 
 	useMenuShortcuts([
@@ -103,49 +97,15 @@
 
 	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
 
-	function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
-		if (url in imageDimensionsCache) {
-			return Promise.resolve(imageDimensionsCache[url] ?? null);
-		}
-
-		return new Promise((resolve) => {
-			const image = new Image();
-
-			image.onload = () => {
-				const dimensions = {
-					width: image.naturalWidth,
-					height: image.naturalHeight
-				};
-				imageDimensionsCache[url] = dimensions;
-				resolve(dimensions);
-			};
-
-			image.onerror = () => {
-				imageDimensionsCache[url] = null;
-				resolve(null);
-			};
-
-			image.src = url;
-		});
-	}
-
-	function getRequiredPixels(length: number): number {
-		const devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-		return Math.max(1, Math.round(length * devicePixelRatio * ARTWORK_RESOLUTION_TOLERANCE));
-	}
-
 	let artworkFrameWidth = $state(0);
-	let artworkFrameHeight = $state(0);
-	let renderedArtworkWidth = $state(0);
-	const artworkSize = $derived(renderedArtworkWidth ? `${renderedArtworkWidth}px` : 'auto');
+	const artworkSize = $derived(artworkFrameWidth ? `${artworkFrameWidth}px` : '100%');
 	const episodeImageUrl = $derived(
 		imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined
 	);
 	const fallbackImageUrl = $derived(
 		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
 	);
-	const requiredArtworkWidth = $derived(getRequiredPixels(artworkFrameWidth));
-	const requiredArtworkHeight = $derived(getRequiredPixels(artworkFrameHeight || artworkFrameWidth));
+	const artworkChoice = $derived(pickBestArtworkUrl(episodeImageUrl, fallbackImageUrl));
 
 	function handleArtworkError(event: Event) {
 		const target = event.currentTarget;
@@ -228,14 +188,12 @@
 							src={src}
 							alt=""
 							onerror={handleArtworkError}
-							bind:offsetWidth={renderedArtworkWidth}
 							class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
 						/>
 					{/snippet}
 
 					{#snippet artworkPlaceholder()}
 						<div
-							bind:offsetWidth={renderedArtworkWidth}
 							class="cover-view-artwork grid aspect-square max-w-full place-items-center rounded-lg text-(--cover-fg-subtle)"
 							style:background-color={coverTheme.panelBg}
 						>
@@ -245,33 +203,32 @@
 
 					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
 						<div
-							class="flex min-h-0 w-full items-center justify-center"
+							class="cover-view-artwork-frame flex min-h-0 items-center justify-center"
 							bind:offsetWidth={artworkFrameWidth}
-							bind:offsetHeight={artworkFrameHeight}
 						>
-							{#if episodeImageUrl}
-								{#if !fallbackImageUrl || fallbackImageUrl === episodeImageUrl}
+							{#await artworkChoice}
+								{#if episodeImageUrl}
 									{@render artworkImage(episodeImageUrl)}
-								{:else if !artworkFrameWidth || !artworkFrameHeight}
+								{:else if fallbackImageUrl}
 									{@render artworkImage(fallbackImageUrl)}
 								{:else}
-									{#await loadImageDimensions(episodeImageUrl)}
-										{@render artworkImage(fallbackImageUrl)}
-									{:then dimensions}
-										{#if dimensions && dimensions.width >= requiredArtworkWidth && dimensions.height >= requiredArtworkHeight}
-											{@render artworkImage(episodeImageUrl)}
-										{:else}
-											{@render artworkImage(fallbackImageUrl)}
-										{/if}
-									{:catch}
-										{@render artworkImage(fallbackImageUrl)}
-									{/await}
+									{@render artworkPlaceholder()}
 								{/if}
-							{:else if fallbackImageUrl}
-								{@render artworkImage(fallbackImageUrl)}
-							{:else}
-								{@render artworkPlaceholder()}
-							{/if}
+							{:then selectedImageUrl}
+								{#if selectedImageUrl}
+									{@render artworkImage(selectedImageUrl)}
+								{:else}
+									{@render artworkPlaceholder()}
+								{/if}
+							{:catch}
+								{#if episodeImageUrl}
+									{@render artworkImage(episodeImageUrl)}
+								{:else if fallbackImageUrl}
+									{@render artworkImage(fallbackImageUrl)}
+								{:else}
+									{@render artworkPlaceholder()}
+								{/if}
+							{/await}
 						</div>
 					</div>
 
@@ -424,7 +381,13 @@
 	}
 
 	.cover-view-artwork {
-		max-height: min(60vh, calc(100dvh - 22rem));
+		width: 100%;
+		height: 100%;
+	}
+
+	.cover-view-artwork-frame {
+		width: min(100%, min(60vh, calc(100dvh - 22rem)));
+		aspect-ratio: 1;
 	}
 
 	.cover-view-side-panel > :global(div:first-child) {
