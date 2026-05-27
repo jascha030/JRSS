@@ -1,44 +1,31 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-	import type { Feed } from '$lib/types/feed';
-	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import type { SidebarSection } from '$lib/state';
+	import { feedsState, stationsState, selection } from '$lib/state';
+	import {
+		appUi,
+		toggleSidebar,
+		openFeedEditor,
+		openStationEditor
+	} from '$lib/hooks/useAppUi.svelte';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
+	import {
+		navigateToHome,
+		navigateToSettings,
+		navigateToSection,
+		navigateToFeed,
+		navigateToStation,
+		isAppListSection
+	} from '$lib/navigation/app-router';
 	import Icon from '@iconify/svelte';
 
-	type Props = {
-		feeds: Feed[];
-		stations: Station[];
-		selectedFeedId: string | null;
-		selectedStationId: string | null;
-		selectedSection: SidebarSection;
-		onSelectFeed: (feedId: string | null) => void;
-		onSelectSection: (section: SidebarSection) => void;
-		onSelectStation: (stationId: string) => void;
-		onToggleCollapse: () => void;
-		onCreateStation: () => void;
-		onAddFeed: () => void;
-		refreshingFeedIds: string[];
-		isCollapsed: boolean;
-	};
-
-	let {
-		feeds,
-		stations,
-		selectedFeedId,
-		selectedStationId,
-		selectedSection,
-		onSelectFeed,
-		onSelectSection,
-		onSelectStation,
-		onToggleCollapse,
-		onCreateStation,
-		onAddFeed,
-		refreshingFeedIds,
-		isCollapsed
-	}: Props = $props();
+	const feeds = $derived(feedsState.feeds);
+	const stations = $derived(stationsState.stations);
+	const selectedFeedId = $derived(selection.selectedFeedId);
+	const selectedStationId = $derived(selection.selectedStationId);
+	const selectedSection = $derived(selection.selectedSection);
+	const refreshingFeedIds = $derived(feedsState.syncingFeedIds);
+	const isCollapsed = $derived(appUi.isSidebarCollapsed);
 
 	type SidebarNavSection = Exclude<SidebarSection, null>;
 
@@ -52,23 +39,31 @@
 
 	const sidebarPanelNavSections = sidebarSections.map(({ id, label }) => ({ id, label }));
 
-	onMount(() => {
-		let unlistenNewStation: UnlistenFn | undefined;
+	function handleSelectSection(section: SidebarSection) {
+		if (section === 'home') {
+			void navigateToHome();
+			return;
+		}
+		if (section === 'settings') {
+			void navigateToSettings();
+			return;
+		}
+		if (section && isAppListSection(section)) {
+			void navigateToSection(section);
+		}
+	}
 
-		const setupListeners = async () => {
-			unlistenNewStation = await listen('menu-new-station', () => {
-				onCreateStation();
-			});
-		};
+	function handleSelectFeed(feedId: string | null) {
+		if (feedId === null) {
+			void navigateToSection('all');
+			return;
+		}
+		void navigateToFeed(feedId);
+	}
 
-		void setupListeners();
-
-		return () => {
-			if (unlistenNewStation) {
-				unlistenNewStation();
-			}
-		};
-	});
+	function handleSelectStation(stationId: string) {
+		void navigateToStation(stationId);
+	}
 </script>
 
 <div class="h-full w-full">
@@ -80,7 +75,7 @@
 				>
 					<button
 						type="button"
-						onclick={onToggleCollapse}
+						onclick={toggleSidebar}
 						title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						class="flex size-9 items-center justify-center rounded-xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
@@ -155,7 +150,7 @@
 								title="Add feed"
 								aria-label="Add new feed"
 								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-								onclick={onAddFeed}
+								onclick={openFeedEditor}
 							>
 								<Icon icon="lucide:plus" class="size-3.5" />
 							</button>
@@ -180,7 +175,7 @@
 								title="New station"
 								aria-label="Create new station"
 								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-								onclick={onCreateStation}
+								onclick={() => openStationEditor()}
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -214,7 +209,7 @@
 		{@const isActive = selectedSection === section.id && selectedFeedId === null}
 		<button
 			type="button"
-			onclick={() => onSelectSection(section.id)}
+			onclick={() => handleSelectSection(section.id)}
 			title={section.label}
 			aria-label={section.label}
 			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
@@ -232,7 +227,7 @@
 	{#each feeds as feed (feed.id)}
 		<button
 			type="button"
-			onclick={() => onSelectFeed(feed.id)}
+			onclick={() => handleSelectFeed(feed.id)}
 			oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 			title={feed.title}
 			aria-label={feed.title}
@@ -261,7 +256,7 @@
 	{#each stations as station (station.id)}
 		<button
 			type="button"
-			onclick={() => onSelectStation(station.id)}
+			onclick={() => handleSelectStation(station.id)}
 			title={station.name}
 			aria-label={station.name}
 			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
@@ -297,7 +292,7 @@
 		{@const isActive = selectedSection === section.id && selectedFeedId === null}
 		<button
 			type="button"
-			onclick={() => onSelectSection(section.id)}
+			onclick={() => handleSelectSection(section.id)}
 			aria-label={section.label}
 			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
 				isActive
@@ -322,7 +317,7 @@
 		>
 			<button
 				type="button"
-				onclick={() => onSelectFeed(feed.id)}
+				onclick={() => handleSelectFeed(feed.id)}
 				oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 				aria-label={feed.title}
 				class="flex h-10 min-w-0 flex-1 items-center px-3 py-2 text-left"
@@ -357,7 +352,7 @@
 	{#each stations as station (station.id)}
 		<button
 			type="button"
-			onclick={() => onSelectStation(station.id)}
+			onclick={() => handleSelectStation(station.id)}
 			aria-label={station.name}
 			class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
 				selectedStationId === station.id
