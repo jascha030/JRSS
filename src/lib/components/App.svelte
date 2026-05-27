@@ -4,12 +4,11 @@
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
 	import EmptyFeedView from '$lib/components/home/EmptyFeedView.svelte';
-	import ItemListView from '$lib/components/content/ItemListView.svelte';
 	import HomeView from '$lib/components/home/HomeView.svelte';
+	import LibraryTransitionHost from '$lib/components/content/LibraryTransitionHost.svelte';
 	import Header from '$lib/components/navigation/Header.svelte';
 	import QueueDrawer from '$lib/components/player/QueueDrawer.svelte';
 	import QueueToggleButton from '$lib/components/player/QueueToggleButton.svelte';
-	import ReaderPane from '$lib/components/content/ReaderPane.svelte';
 	import SettingsView from '$lib/components/settings/SettingsView.svelte';
 	import Sidebar from '$lib/components/navigation/Sidebar.svelte';
 	import FeedEditor from '$lib/components/feed/FeedEditor.svelte';
@@ -157,6 +156,17 @@
 		if (shellSwapFrame !== 0) {
 			cancelAnimationFrame(shellSwapFrame);
 			shellSwapFrame = 0;
+		}
+
+		if (
+			activeShellViewKey === 'library' &&
+			renderedShellViewKey === 'library' &&
+			activeQueryKey !== null &&
+			lastQueryKey !== null &&
+			activeQueryKey !== lastQueryKey
+		) {
+			renderedTransitionKey = activeTransitionKey;
+			return;
 		}
 
 		isShellOverlayVisible = true;
@@ -578,19 +588,10 @@
 							{:else if renderedShellViewKey.startsWith('inspector:')}
 								<div class="flex min-h-0 flex-1 bg-surface"></div>
 							{:else}
-								<div class="flex min-h-0 flex-1 overflow-hidden">
-									<ItemListView
-										onReadyStateChange={(ready) => (isLibraryViewReady = ready)}
-										class="min-h-0 min-w-0 grow border-r border-border xl:basis-1/2 2xl:shrink-0 2xl:grow-0 4xl:basis-4/10 {appUi.isReaderMaximized
-											? 'hidden'
-											: ''}"
-									/>
-									<ReaderPane
-										class="min-h-0 min-w-0 {appUi.isReaderMaximized
-											? 'grow'
-											: 'xl:basis-1/2 2xl:flex 2xl:flex-1 4xl:basis-4/10'}"
-									/>
-								</div>
+								<LibraryTransitionHost
+									transitionKey={activeQueryKey ?? 'none'}
+									onReadyStateChange={(ready) => (isLibraryViewReady = ready)}
+								/>
 							{/if}
 						</div>
 

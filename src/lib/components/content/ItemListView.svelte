@@ -9,9 +9,6 @@
 		itemsState,
 		selection,
 		getActiveQueryKey,
-		getActiveItemIdsByIndex,
-		getActiveTotalCount,
-		getIsActiveInitialLoading,
 		ensureVisibleRangeLoaded,
 		ensureItemLoaded,
 		markItemRead
@@ -38,32 +35,42 @@
 	const MOBILE_ROW_HEIGHT = 304;
 	const OVERSCAN_ROWS = 1;
 
-	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
 	const itemsById = $derived(itemsState.itemSummariesById);
 	const activeQueryKey = $derived(getActiveQueryKey());
-	const totalCount = $derived(getActiveTotalCount());
-	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const selectedItemId = $derived(selection.selectedItemId);
+	const resolvedQueryKey = $derived(activeQueryKey);
+	const resolvedItemIdsByIndex = $derived(
+		resolvedQueryKey ? (itemsState.itemIdsByIndexByQueryKey[resolvedQueryKey] ?? {}) : {}
+	);
+	const resolvedTotalCount = $derived(
+		resolvedQueryKey ? (itemsState.totalCountByQueryKey[resolvedQueryKey] ?? 0) : 0
+	);
+	const resolvedIsInitialLoading = $derived(
+		resolvedQueryKey
+			? !itemsState.initialLoadDoneByQueryKey[resolvedQueryKey] &&
+					Object.keys(itemsState.loadingPageOffsetsByQueryKey[resolvedQueryKey] ?? {}).length > 0
+			: false
+	);
+	const resolvedSelectedItemId = $derived(selection.selectedItemId);
+	const resolvedSelectedFeedId = $derived(selection.selectedFeedId);
+	const resolvedSelectedStationId = $derived(selection.selectedStationId);
 	const searchTerm = $derived(selection.feedSearchTerm);
 	const stationSearchTerm = $derived(selection.stationSearchTerm);
 	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
 	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
 
-	const { hasActiveSearch, feedTitleById, rowHeight, showFeedTitle } = $derived.by(
-		() => ({
-			hasActiveSearch:
-				searchTerm.trim().length > 0 ||
-				stationSearchTerm.trim().length > 0 ||
-				sectionSearchTerm.trim().length > 0,
-			feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
-			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
-			showFeedTitle:
-				selection.selectedFeedId === null &&
-				(selection.selectedStationId === null ||
-					stationsState.stations.find((s) => s.id === selection.selectedStationId)?.feedIds
-						.length !== 1)
-		})
-	);
+	const { hasActiveSearch, feedTitleById, rowHeight, showFeedTitle } = $derived.by(() => ({
+		hasActiveSearch:
+			searchTerm.trim().length > 0 ||
+			stationSearchTerm.trim().length > 0 ||
+			sectionSearchTerm.trim().length > 0,
+		feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
+		rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
+		showFeedTitle:
+			resolvedSelectedFeedId === null &&
+			(resolvedSelectedStationId === null ||
+				stationsState.stations.find((s) => s.id === resolvedSelectedStationId)?.feedIds.length !==
+					1)
+	}));
 
 	const itemSelection = useItemSelection();
 
@@ -90,12 +97,12 @@
 	let scrollFrame = 0;
 
 	const totalHeight = $derived(displayedTotalCount * rowHeight);
-	const showInitialSkeleton = $derived(isInitialLoading && displayedQueryKey === null);
+	const showInitialSkeleton = $derived(resolvedIsInitialLoading && displayedQueryKey === null);
 	const isViewReady = $derived.by(
 		() =>
-			activeQueryKey !== null &&
-			displayedQueryKey === activeQueryKey &&
-			!isInitialLoading &&
+			resolvedQueryKey !== null &&
+			displayedQueryKey === resolvedQueryKey &&
+			!resolvedIsInitialLoading &&
 			!isQueryTransitioning
 	);
 
@@ -104,7 +111,7 @@
 	});
 
 	$effect(() => {
-		if (!activeQueryKey) {
+		if (!resolvedQueryKey) {
 			displayedQueryKey = null;
 			displayedItemIdsByIndex = {};
 			displayedTotalCount = 0;
@@ -113,28 +120,28 @@
 		}
 
 		if (displayedQueryKey === null) {
-			displayedQueryKey = activeQueryKey;
-			displayedItemIdsByIndex = itemIdsByIndex;
-			displayedTotalCount = totalCount;
+			displayedQueryKey = resolvedQueryKey;
+			displayedItemIdsByIndex = resolvedItemIdsByIndex;
+			displayedTotalCount = resolvedTotalCount;
 			isQueryTransitioning = false;
 			return;
 		}
 
-		if (displayedQueryKey === activeQueryKey) {
-			displayedItemIdsByIndex = itemIdsByIndex;
-			displayedTotalCount = totalCount;
+		if (displayedQueryKey === resolvedQueryKey) {
+			displayedItemIdsByIndex = resolvedItemIdsByIndex;
+			displayedTotalCount = resolvedTotalCount;
 			isQueryTransitioning = false;
 			return;
 		}
 
-		if (isInitialLoading) {
+		if (resolvedIsInitialLoading) {
 			isQueryTransitioning = true;
 			return;
 		}
 
-		displayedQueryKey = activeQueryKey;
-		displayedItemIdsByIndex = itemIdsByIndex;
-		displayedTotalCount = totalCount;
+		displayedQueryKey = resolvedQueryKey;
+		displayedItemIdsByIndex = resolvedItemIdsByIndex;
+		displayedTotalCount = resolvedTotalCount;
 		isQueryTransitioning = false;
 	});
 
@@ -217,7 +224,7 @@
 
 	$effect(() => {
 		const request = scrollToItemRequest;
-		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
+		if (!hasAppliedInitialScroll && scrollViewport && request && resolvedTotalCount > 0) {
 			const index = itemSelection.getItemIndexById(request.itemId);
 
 			if (index !== null) {
@@ -302,11 +309,15 @@
 					description="This view is wired up, but there are no matching items right now. Add more feeds or switch filters to keep exploring the shell."
 				/>
 			{/if}
-			{:else}
-			<div class="relative min-h-full transition-[opacity,filter] duration-220 ease-out motion-reduce:transition-none">
+		{:else}
+			<div
+				class="relative min-h-full transition-[opacity,filter] duration-220 ease-out motion-reduce:transition-none"
+			>
 				<div
 					class={`transition-[opacity,filter,transform] duration-220 ease-out motion-reduce:transition-none ${
-						isQueryTransitioning ? 'scale-[0.995] opacity-55 blur-[1px]' : 'scale-100 opacity-100 blur-0'
+						isQueryTransitioning
+							? 'scale-[0.995] opacity-55 blur-[1px]'
+							: 'blur-0 scale-100 opacity-100'
 					}`}
 				>
 					{#key displayedQueryKey}
@@ -324,7 +335,8 @@
 												class={`feed-row relative flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 transition-colors duration-150 lg:px-8 ${
 													index > 0 ? 'border-t border-border' : ''
 												} ${
-													selectedItemId === item.id || itemSelection.selectedIds.has(item.id)
+													resolvedSelectedItemId === item.id ||
+													itemSelection.selectedIds.has(item.id)
 														? 'bg-surface-active text-fg'
 														: 'bg-surface text-fg hover:bg-surface-hover'
 												}`}
@@ -333,7 +345,9 @@
 												onclick={(event) => itemSelection.handleItemClick(event, item.id)}
 											>
 												{#if !item.read}
-													<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>
+													<div
+														class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"
+													></div>
 												{/if}
 
 												<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -406,7 +420,9 @@
 				</div>
 
 				{#if isQueryTransitioning}
-					<div class="pointer-events-none absolute inset-0 bg-linear-to-b from-surface/35 via-surface/12 to-surface/35 opacity-100 backdrop-blur-[1px] transition-opacity duration-220 ease-out motion-reduce:transition-none"></div>
+					<div
+						class="pointer-events-none absolute inset-0 bg-linear-to-b from-surface/35 via-surface/12 to-surface/35 opacity-100 backdrop-blur-[1px] transition-opacity duration-220 ease-out motion-reduce:transition-none"
+					></div>
 				{/if}
 			</div>
 		{/if}

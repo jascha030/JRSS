@@ -7,7 +7,8 @@
 	import type { SidebarSection } from '$lib/state';
 	import {
 		selection,
-		getEffectiveSortOrder,
+		feedsState,
+		stationsState,
 		getActiveTotalCount,
 		refreshExistingFeed,
 		openInspector,
@@ -15,11 +16,6 @@
 		playStation,
 		deleteExistingStation
 	} from '$lib/state';
-	import {
-		getSelectedFeed,
-		getSelectedStation,
-		getIsSelectedFeedRefreshing
-	} from '$lib/state/selectors.svelte';
 
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -32,17 +28,28 @@
 		settings: 'Settings'
 	};
 
-	const selectedFeed = $derived(getSelectedFeed());
-	const selectedStation = $derived(getSelectedStation());
-	const isRefreshing = $derived(getIsSelectedFeedRefreshing());
-	const itemSortOrder = $derived(getEffectiveSortOrder());
-	const selectedSection = $derived(selection.selectedSection);
+	const resolvedSelectedFeedId = $derived(selection.selectedFeedId);
+	const resolvedSelectedStationId = $derived(selection.selectedStationId);
+	const resolvedSelectedSection = $derived(selection.selectedSection);
+
+	const selectedFeed = $derived(
+		feedsState.feeds.find((f) => f.id === resolvedSelectedFeedId) ?? null
+	);
+	const selectedStation = $derived(
+		stationsState.stations.find((s) => s.id === resolvedSelectedStationId) ?? null
+	);
+	const isRefreshing = $derived(
+		selectedFeed ? feedsState.syncingFeedIds.includes(selectedFeed.id) : false
+	);
+	const itemSortOrder = $derived(
+		selectedStation?.sortOrder ?? selectedFeed?.sortOrder ?? 'newest_first'
+	);
 	const totalCount = $derived(getActiveTotalCount());
 
 	const pageHeading = $derived(
 		selectedStation?.name ??
 			selectedFeed?.title ??
-			(selectedSection ? sectionHeadings[selectedSection] : 'All feeds')
+			(resolvedSelectedSection ? sectionHeadings[resolvedSelectedSection] : 'All feeds')
 	);
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
