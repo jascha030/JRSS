@@ -2,13 +2,12 @@
 	import { page } from '$app/state';
 	import App from '$lib/components/App.svelte';
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte';
-	import { playbackState, getCurrentAudioItem, getCurrentAudioItemFeed } from '$lib/state';
+	import { playbackState, getCurrentAudioItem } from '$lib/state';
 
 	const isMiniWindow = $derived(page.url.searchParams.get('window') === 'mini');
 
 	const currentPlaybackState = $derived(playbackState.currentPlaybackState);
 	const currentAudioItem = $derived(getCurrentAudioItem());
-	const currentAudioItemFeed = $derived(getCurrentAudioItemFeed());
 </script>
 
 <svelte:head>

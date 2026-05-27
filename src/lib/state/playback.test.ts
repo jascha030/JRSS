@@ -29,6 +29,7 @@ describe('resetPlaybackState', () => {
 			positionSeconds: 30,
 			durationSeconds: 300,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 		resetPlaybackState();
@@ -104,6 +105,7 @@ describe('isItemCurrentAudio', () => {
 			positionSeconds: 0,
 			durationSeconds: 100,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 		expect(isItemCurrentAudio('i1')).toBe(false);
@@ -115,6 +117,7 @@ describe('isItemCurrentAudio', () => {
 			positionSeconds: 0,
 			durationSeconds: 100,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 		expect(isItemCurrentAudio('i1')).toBe(true);
@@ -132,6 +135,7 @@ describe('getPlaybackPositionForItem', () => {
 			positionSeconds: 99,
 			durationSeconds: 100,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 		expect(getPlaybackPositionForItem('i1', 42)).toBe(42);
@@ -143,6 +147,7 @@ describe('getPlaybackPositionForItem', () => {
 			positionSeconds: 55,
 			durationSeconds: 100,
 			isPlaying: true,
+			isBuffering: false,
 			volume: 1
 		};
 		expect(getPlaybackPositionForItem('i1', 42)).toBe(55);

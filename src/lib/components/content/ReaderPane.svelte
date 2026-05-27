@@ -8,7 +8,7 @@
 		getHasSelectedItemReaderContent,
 		getCanUseReaderMode
 	} from '$lib/state/selectors.svelte';
-	import { appUi, toggleReaderMaximized } from '$lib/hooks/useAppUi.svelte';
+	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
@@ -16,7 +16,9 @@
 
 	let { class: className = '' }: { class?: string } = $props();
 
-	type ReaderPaneMode = 'feed' | 'reader';
+	function isReaderPaneMode(value: string | null): value is ReaderPaneMode {
+		return value === 'feed' || value === 'reader';
+	}
 
 	const selectedItem = $derived(getSelectedItemOrNull());
 	const isSelectedItemReaderLoading = $derived(getIsSelectedItemReaderLoading());
@@ -51,7 +53,11 @@
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
 						<SegmentedControl
 							value={appUi.readerPaneMode}
-							onValueChange={(details) => (appUi.readerPaneMode = details.value as ReaderPaneMode)}
+							onValueChange={(details) => {
+								if (isReaderPaneMode(details.value)) {
+									appUi.readerPaneMode = details.value;
+								}
+							}}
 						>
 							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 

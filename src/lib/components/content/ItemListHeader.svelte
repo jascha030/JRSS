@@ -68,9 +68,7 @@
 	function handleEditStation() {
 		if (!selectedStation) return;
 		openStationEditor({
-			id: selectedStation.id,
-			name: selectedStation.name,
-			feedIds: selectedStation.feedIds
+			id: selectedStation.id
 		});
 	}
 

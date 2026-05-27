@@ -14,16 +14,41 @@ interface RawStationWithFeeds {
 	gradient: string;
 }
 
+function isEpisodeFilter(value: string): value is Station['episodeFilter'] {
+	return value === 'all' || value === 'unplayed';
+}
+
+function isSortOrder(value: string): value is Station['sortOrder'] {
+	return value === 'newest_first' || value === 'oldest_first';
+}
+
+function isStationGradient(value: string): value is Station['gradient'] {
+	return (
+		value === 'emerald' ||
+		value === 'violet' ||
+		value === 'rose' ||
+		value === 'amber' ||
+		value === 'cyan' ||
+		value === 'fuchsia' ||
+		value === 'slate' ||
+		value === 'orange'
+	);
+}
+
 function mapRawStation(raw: RawStationWithFeeds): Station {
+	const episodeFilter = isEpisodeFilter(raw.episodeFilter) ? raw.episodeFilter : 'all';
+	const sortOrder = isSortOrder(raw.sortOrder) ? raw.sortOrder : 'newest_first';
+	const gradient = isStationGradient(raw.gradient) ? raw.gradient : 'emerald';
+
 	return {
 		id: raw.id,
 		name: raw.name,
-		episodeFilter: raw.episodeFilter as Station['episodeFilter'],
-		sortOrder: raw.sortOrder as Station['sortOrder'],
+		episodeFilter,
+		sortOrder,
 		sortOrderPosition: raw.sortOrderPosition,
 		createdAt: raw.createdAt,
 		feedIds: raw.feedIds,
-		gradient: raw.gradient as Station['gradient']
+		gradient
 	};
 }
 

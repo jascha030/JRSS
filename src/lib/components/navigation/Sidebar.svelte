@@ -40,6 +40,18 @@
 		isCollapsed
 	}: Props = $props();
 
+	type SidebarNavSection = Exclude<SidebarSection, null>;
+
+	const sidebarSections: Array<{ id: SidebarNavSection; label: string; icon: string }> = [
+		{ id: 'home', label: 'Home', icon: 'heroicons:home' },
+		{ id: 'all', label: 'All feeds', icon: 'heroicons:squares-2x2' },
+		{ id: 'unread', label: 'Unread', icon: 'heroicons:inbox' },
+		{ id: 'media', label: 'Media', icon: 'heroicons:microphone' },
+		{ id: 'settings', label: 'Settings', icon: 'heroicons:cog-6-tooth' }
+	];
+
+	const sidebarPanelNavSections = sidebarSections.map(({ id, label }) => ({ id, label }));
+
 	onMount(() => {
 		let unlistenNewStation: UnlistenFn | undefined;
 
@@ -198,19 +210,11 @@
 </div>
 
 {#snippet sidebarRailSections()}
-	{@const sections = [
-		{ id: 'home', label: 'Home', icon: 'heroicons:home' },
-		{ id: 'all', label: 'All feeds', icon: 'heroicons:squares-2x2' },
-		{ id: 'unread', label: 'Unread', icon: 'heroicons:inbox' },
-		{ id: 'media', label: 'Media', icon: 'heroicons:microphone' },
-		{ id: 'settings', label: 'Settings', icon: 'heroicons:cog-6-tooth' }
-	]}
-
-	{#each sections as section (section.id)}
+	{#each sidebarSections as section (section.id)}
 		{@const isActive = selectedSection === section.id && selectedFeedId === null}
 		<button
 			type="button"
-			onclick={() => onSelectSection(section.id as SidebarSection)}
+			onclick={() => onSelectSection(section.id)}
 			title={section.label}
 			aria-label={section.label}
 			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
@@ -289,19 +293,11 @@
 {/snippet}
 
 {#snippet sidebarPanelSections()}
-	{@const sections = [
-		{ id: 'home', label: 'Home' },
-		{ id: 'all', label: 'All feeds' },
-		{ id: 'unread', label: 'Unread' },
-		{ id: 'media', label: 'Media' },
-		{ id: 'settings', label: 'Settings' }
-	]}
-
-	{#each sections as section (section.id)}
+	{#each sidebarPanelNavSections as section (section.id)}
 		{@const isActive = selectedSection === section.id && selectedFeedId === null}
 		<button
 			type="button"
-			onclick={() => onSelectSection(section.id as SidebarSection)}
+			onclick={() => onSelectSection(section.id)}
 			aria-label={section.label}
 			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
 				isActive

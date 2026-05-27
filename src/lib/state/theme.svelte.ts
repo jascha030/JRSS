@@ -92,9 +92,14 @@ export function applyAccentColor(color: string | null): void {
 
 const THEME_STYLE_ID = 'user-theme-css';
 
+function getThemeStyleElement(): HTMLStyleElement | null {
+	const element = document.getElementById(THEME_STYLE_ID);
+	return element instanceof HTMLStyleElement ? element : null;
+}
+
 /** Inject or remove a `<style>` tag with custom theme CSS. */
 export function applyThemeCss(css: string | null): void {
-	let style = document.getElementById(THEME_STYLE_ID) as HTMLStyleElement | null;
+	let style = getThemeStyleElement();
 
 	if (css === null || css.trim() === '') {
 		if (style) {

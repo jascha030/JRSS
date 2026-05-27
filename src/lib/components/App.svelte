@@ -34,7 +34,6 @@
 		getUpcomingQueue,
 		loadInitialItemsPage,
 		loadItemDetails,
-		loadReaderView,
 		moveQueuedItemDown,
 		moveQueuedItemUp,
 		removeQueuedItem,
@@ -46,20 +45,26 @@
 		closeInspector,
 		updateExistingStation
 	} from '$lib/state';
-	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
+	import {
+		appUi,
+		closeFeedEditor,
+		closeStationEditor,
+		openCommandPalette,
+		openFeedEditor,
+		openStationEditor,
+		requestScrollToItem,
+		switchToReaderView,
+		togglePlayerMode,
+		toggleQueue,
+		toggleSidebar
+	} from '$lib/hooks/useAppUi.svelte';
 	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 
 	import { onMount } from 'svelte';
 	import type FeedInspectorComponent from '$lib/components/feed/FeedInspector.svelte';
 	import { toast } from 'svelte-sonner';
 
-	let isSidebarCollapsed = $state(true);
-	let isQueueDrawerOpen = $state(false);
 	let FeedInspector = $state<typeof FeedInspectorComponent | null>(null);
-	let playerMode = $state<'default' | 'cover'>('default');
-	let isFeedEditorOpen = $state(false);
-	let isStationEditorOpen = $state(false);
-	let editingStation = $state<import('$lib/types/station').Station | null>(null);
 	let lastQueryKey = $state<string | null>(null);
 	let renderedShellViewKey = $state('library');
 	let renderedTransitionKey = $state('library');
@@ -85,6 +90,15 @@
 	const queueLength = $derived(upcomingQueue.length);
 	const readerRequestSeq = $derived(getReaderRequestSeq());
 	const activeQueryKey = $derived(getActiveQueryKey());
+	const isFeedEditorOpen = $derived(appUi.dialog.kind === 'feed-editor');
+	const stationEditorId = $derived(
+		appUi.dialog.kind === 'station-editor' ? appUi.dialog.stationId : null
+	);
+	const editingStation = $derived(
+		stationEditorId !== null
+			? (stations.find((station) => station.id === stationEditorId) ?? null)
+			: null
+	);
 
 	const isInspectorActive = $derived(inspectorState.activeFeedId !== null);
 	const activeShellViewKey = $derived.by(() => {
@@ -223,32 +237,17 @@
 		if (readerRequestSeq > lastConsumedReaderSeq) {
 			lastConsumedReaderSeq = readerRequestSeq;
 			const itemId = getReaderRequestItemId();
-			if (itemId) void handleLoadReaderView(itemId);
+			if (itemId) void switchToReaderView(itemId);
 		}
 	});
 
 	async function handleAddFeed(url: string) {
 		try {
 			await createFeed(url);
-			isFeedEditorOpen = false;
+			closeFeedEditor();
 			toast.success('Feed loaded and saved locally.');
 		} catch (error: unknown) {
 			toast.error(error instanceof Error ? error.message : 'Unable to add that feed.');
-		}
-	}
-
-	async function handleLoadReaderView(itemId: string) {
-		try {
-			const updatedItem = await loadReaderView(itemId);
-			appUi.readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
-			if (updatedItem.readerStatus !== 'ready') {
-				toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
-			}
-		} catch (error: unknown) {
-			appUi.readerPaneMode = 'feed';
-			toast.error(
-				error instanceof Error ? error.message : 'Unable to load reader view for this item.'
-			);
 		}
 	}
 
@@ -268,16 +267,18 @@
 				await createStation(input);
 				toast.success('Station created.');
 			}
-			isStationEditorOpen = false;
-			editingStation = null;
+			closeStationEditor();
 		} catch (error: unknown) {
 			toast.error(error instanceof Error ? error.message : 'Unable to save station.');
 		}
 	}
 
 	function handleCreateStation() {
-		editingStation = null;
-		isStationEditorOpen = true;
+		openStationEditor();
+	}
+
+	function handleCloseQueue() {
+		appUi.isQueueDrawerOpen = false;
 	}
 
 	function handleSelectFeed(feedId: string | null) {
@@ -296,8 +297,8 @@
 	}
 
 	function handleSelectSearchResult(item: import('$lib/types/item').FeedListItem): void {
-		if (playerMode === 'cover') {
-			playerMode = 'default';
+		if (appUi.playerMode === 'cover') {
+			appUi.playerMode = 'default';
 		}
 		closeInspector();
 		selectFeed(item.feedId);
@@ -306,16 +307,16 @@
 	}
 
 	function handleSelectFeedSearchResult(feed: import('$lib/types/feed').Feed): void {
-		if (playerMode === 'cover') {
-			playerMode = 'default';
+		if (appUi.playerMode === 'cover') {
+			appUi.playerMode = 'default';
 		}
 		closeInspector();
 		selectFeed(feed.id);
 	}
 
 	function handleSelectStationSearchResult(station: import('$lib/types/station').Station): void {
-		if (playerMode === 'cover') {
-			playerMode = 'default';
+		if (appUi.playerMode === 'cover') {
+			appUi.playerMode = 'default';
 		}
 		closeInspector();
 		selectStation(station.id);
@@ -324,8 +325,8 @@
 	function handleNavigateToItem() {
 		if (!currentAudioItem) return;
 
-		if (playerMode === 'cover') {
-			playerMode = 'default';
+		if (appUi.playerMode === 'cover') {
+			appUi.playerMode = 'default';
 		}
 
 		const context = getPlaybackContext();
@@ -380,35 +381,31 @@
 		{
 			event: 'menu-settings',
 			handler: () => {
-				playerMode = 'default';
+				appUi.playerMode = 'default';
 				selectSection('settings');
 			}
 		},
 		{
 			event: 'menu-toggle-sidebar',
-			handler: () => {
-				isSidebarCollapsed = !isSidebarCollapsed;
-			}
+			handler: toggleSidebar
 		},
 		{
 			event: 'menu-next-source',
 			handler: () => {
-				if (playerMode === 'cover') return;
+				if (appUi.playerMode === 'cover') return;
 				handleCycleSource(1);
 			}
 		},
 		{
 			event: 'menu-prev-source',
 			handler: () => {
-				if (playerMode === 'cover') return;
+				if (appUi.playerMode === 'cover') return;
 				handleCycleSource(-1);
 			}
 		},
 		{
 			event: 'menu-toggle-cover',
-			handler: () => {
-				playerMode = playerMode === 'cover' ? 'default' : 'cover';
-			}
+			handler: togglePlayerMode
 		},
 		{
 			event: 'menu-toggle-mini-player',
@@ -453,7 +450,7 @@
 			}
 
 			e.preventDefault();
-			appUi.isCommandPaletteOpen = true;
+			openCommandPalette();
 		};
 
 		document.addEventListener('keydown', handleKeyDown);
@@ -484,29 +481,26 @@
 	open={isFeedEditorOpen}
 	isLoading={isCreatingFeed}
 	onSave={handleAddFeed}
-	onClose={() => (isFeedEditorOpen = false)}
+	onClose={closeFeedEditor}
 />
 
 <StationEditor
-	open={isStationEditorOpen}
+	open={appUi.dialog.kind === 'station-editor'}
 	station={editingStation}
 	{feeds}
 	onSave={handleStationSave}
-	onClose={() => {
-		isStationEditorOpen = false;
-		editingStation = null;
-	}}
+	onClose={closeStationEditor}
 />
 
 <CommandPalette />
 
 <div class="h-screen overflow-hidden bg-surface-shell">
-	{#if playerMode === 'cover'}
+	{#if appUi.playerMode === 'cover'}
 		<CoverView
 			item={currentAudioItem}
 			imageUrl={currentAudioItem?.imageUrl}
 			onNavigateToItem={handleNavigateToItem}
-			onClose={() => (playerMode = 'default')}
+			onClose={() => (appUi.playerMode = 'default')}
 			onRemoveQueueItem={removeQueuedItem}
 			onMoveQueueItemUp={moveQueuedItemUp}
 			onMoveQueueItemDown={moveQueuedItemDown}
@@ -522,7 +516,7 @@
 					class="flex h-12 w-full items-center justify-end py-0 pr-4 pl-44 align-middle"
 				>
 					<Header
-						onOpenDialog={() => (isFeedEditorOpen = true)}
+						onOpenDialog={openFeedEditor}
 						onSelectResult={handleSelectSearchResult}
 						onSelectFeedResult={handleSelectFeedSearchResult}
 						onSelectStationResult={handleSelectStationSearchResult}
@@ -533,18 +527,18 @@
 		</AppBar>
 
 		<QueueDrawer
-			open={isQueueDrawerOpen}
+			open={appUi.isQueueDrawerOpen}
 			onRemoveItem={removeQueuedItem}
 			onMoveItemUp={moveQueuedItemUp}
 			onMoveItemDown={moveQueuedItemDown}
 			onClearQueue={clearQueue}
-			onClose={() => (isQueueDrawerOpen = false)}
+			onClose={handleCloseQueue}
 		/>
 
 		<div class="flex h-[calc(100%-54px)] overflow-hidden">
 			<div
 				class={`hidden shrink-0 overflow-hidden motion-reduce:transition-none md:block md:transition-[width] md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
-					isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
+					appUi.isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
 				}`}
 			>
 				<Sidebar
@@ -556,11 +550,11 @@
 					onSelectFeed={handleSelectFeed}
 					onSelectSection={handleSelectSection}
 					onSelectStation={handleSelectStation}
-					onToggleCollapse={() => (isSidebarCollapsed = !isSidebarCollapsed)}
+					onToggleCollapse={toggleSidebar}
 					onCreateStation={handleCreateStation}
-					onAddFeed={() => (isFeedEditorOpen = true)}
+					onAddFeed={openFeedEditor}
 					refreshingFeedIds={syncingFeedIds}
-					isCollapsed={isSidebarCollapsed}
+					isCollapsed={appUi.isSidebarCollapsed}
 				/>
 			</div>
 
@@ -607,8 +601,12 @@
 							}`}
 						>
 							<div class="absolute inset-0 bg-surface/72 backdrop-blur-md"></div>
-							<div class="relative flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg">
-								<div class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"></div>
+							<div
+								class="relative flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg"
+							>
+								<div
+									class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"
+								></div>
 								<span class="text-sm font-medium text-fg-secondary">Loading view</span>
 							</div>
 						</div>
@@ -618,13 +616,13 @@
 						item={currentAudioItem}
 						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
 						onNavigateToItem={handleNavigateToItem}
-						onShowCover={() => (playerMode = 'cover')}
+						onShowCover={() => (appUi.playerMode = 'cover')}
 					>
 						{#snippet controls()}
 							<QueueToggleButton
-								isOpen={isQueueDrawerOpen}
+								isOpen={appUi.isQueueDrawerOpen}
 								{queueLength}
-								onToggle={() => (isQueueDrawerOpen = !isQueueDrawerOpen)}
+								onToggle={toggleQueue}
 							/>
 						{/snippet}
 					</AudioPlayer>
