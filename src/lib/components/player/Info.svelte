@@ -47,7 +47,9 @@
 					{#if imageUrl}
 						<Avatar.Image src={imageUrl} alt="" class="h-full max-h-12 w-full hover:object-cover" />
 					{/if}
-					<Avatar.Fallback class="grid size-12 h-full w-full place-items-center text-xs font-semibold">
+					<Avatar.Fallback
+						class="grid size-12 h-full w-full place-items-center text-xs font-semibold"
+					>
 						♪
 					</Avatar.Fallback>
 				</Avatar>

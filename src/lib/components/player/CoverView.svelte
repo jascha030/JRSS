@@ -99,9 +99,7 @@
 
 	let artworkFrameWidth = $state(0);
 	const artworkSize = $derived(artworkFrameWidth ? `${artworkFrameWidth}px` : '100%');
-	const episodeImageUrl = $derived(
-		imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined
-	);
+	const episodeImageUrl = $derived(imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined);
 	const fallbackImageUrl = $derived(
 		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
 	);
@@ -185,7 +183,7 @@
 				>
 					{#snippet artworkImage(src: string)}
 						<img
-							src={src}
+							{src}
 							alt=""
 							onerror={handleArtworkError}
 							class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
