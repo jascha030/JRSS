@@ -1,12 +1,13 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
-	import { getFeedById, requestTogglePlayback } from '$lib/state';
+	import { getFeedById } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { usePlayerControls } from '$lib/hooks/usePlayerControls.svelte';
-	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
+	import { appUi } from '$lib/hooks/useAppUi.svelte';
+	import { navigateToCurrentAudioItem } from '$lib/navigation/audio-nav';
 	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 	import Icon from '@iconify/svelte';
 	import Controls from './Controls.svelte';
@@ -15,105 +16,29 @@
 	import QueueList from './QueueList.svelte';
 	import CoverThemeStyles from './CoverThemeStyles.svelte';
 	import VerticalVolume from './VerticalVolume.svelte';
-	import { pickBestArtworkUrl } from '$lib/utils/artwork';
+	import { useArtwork } from '$lib/hooks/useArtwork.svelte';
 
 	type Props = {
 		item: MediaListItem | null;
 		imageUrl?: string;
-		onNavigateToItem?: () => void;
-		onClose?: () => void;
 		class?: string;
-		onRemoveQueueItem?: (itemId: string) => void;
-		onMoveQueueItemUp?: (itemId: string) => void;
-		onMoveQueueItemDown?: (itemId: string) => void;
-		onClearQueue?: () => void;
 	};
 
-	let {
-		item,
-		imageUrl,
-		onNavigateToItem,
-		onClose,
-		class: className = '',
-		onRemoveQueueItem,
-		onMoveQueueItemUp,
-		onMoveQueueItemDown,
-		onClearQueue
-	}: Props = $props();
+	let { item, imageUrl, class: className = '' }: Props = $props();
 
 	const player = usePlayerControls(() => item);
 	const playbackState = $derived(globalPlaybackState.currentPlaybackState);
 	const coverTheme = $derived(getCoverTheme());
-	const feedImageUrl = $derived(item ? getFeedById(item.feedId)?.imageUrl : undefined);
 
-	const brokenImageUrls = $state<Record<string, true>>({});
-
-	useMenuShortcuts([
-		{
-			event: 'menu-play-pause',
-			handler: () => {
-				if (item) player.handleTogglePlayback();
-			}
-		},
-		{
-			event: 'menu-skip-forward',
-			handler: () => {
-				if (item) player.handleSkip(playbackSettings.skipForwardSeconds);
-			}
-		},
-		{
-			event: 'menu-skip-backward',
-			handler: () => {
-				if (item) player.handleSkip(-playbackSettings.skipBackwardSeconds);
-			}
-		},
-		{
-			event: 'menu-next-episode',
-			handler: () => {
-				if (player.canSkipNext) player.nextEpisode();
-			}
-		},
-		{
-			event: 'menu-prev-episode',
-			handler: () => {
-				if (player.canSkipPrevious) player.previousEpisode();
-			}
-		},
-		{
-			event: 'menu-volume-up',
-			handler: () => player.handleAdjustVolume(0.1)
-		},
-		{
-			event: 'menu-volume-down',
-			handler: () => player.handleAdjustVolume(-0.1)
-		},
-		{
-			event: 'menu-go-to-feed',
-			handler: () => {
-				if (item && onNavigateToItem) onNavigateToItem();
-			}
-		}
-	]);
+	const artwork = useArtwork(
+		() => imageUrl,
+		() => (item ? getFeedById(item.feedId)?.imageUrl : undefined)
+	);
 
 	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
 
 	let artworkFrameWidth = $state(0);
 	const artworkSize = $derived(artworkFrameWidth ? `${artworkFrameWidth}px` : '100%');
-	const episodeImageUrl = $derived(imageUrl && !brokenImageUrls[imageUrl] ? imageUrl : undefined);
-	const fallbackImageUrl = $derived(
-		feedImageUrl && !brokenImageUrls[feedImageUrl] ? feedImageUrl : undefined
-	);
-	const artworkChoice = $derived(pickBestArtworkUrl(episodeImageUrl, fallbackImageUrl));
-
-	function handleArtworkError(event: Event) {
-		const target = event.currentTarget;
-		if (!(target instanceof HTMLImageElement)) return;
-
-		const failedUrl = target.currentSrc || target.src;
-		if (!failedUrl) return;
-
-		brokenImageUrls[failedUrl] = true;
-	}
 </script>
 
 <CoverThemeStyles />
@@ -153,16 +78,14 @@
 			<div class="cover-view-scrim absolute inset-0"></div>
 		</div>
 
-		{#if onClose}
-			<button
-				type="button"
-				class="cover-view-close absolute top-18 left-18 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
-				aria-label="Close cover view"
-				onclick={onClose}
-			>
-				<Icon icon="lucide:x" class="size-6" />
-			</button>
-		{/if}
+		<button
+			type="button"
+			class="cover-view-close absolute top-18 left-18 z-30 flex size-12 items-center justify-center rounded-full transition-colors"
+			aria-label="Close cover view"
+			onclick={() => (appUi.playerMode = 'default')}
+		>
+			<Icon icon="lucide:x" class="size-6" />
+		</button>
 
 		<button
 			type="button"
@@ -185,7 +108,7 @@
 						<img
 							{src}
 							alt=""
-							onerror={handleArtworkError}
+							onerror={artwork.handleError}
 							class="cover-view-artwork aspect-square w-auto max-w-full rounded-4xl object-contain shadow-sm select-none"
 						/>
 					{/snippet}
@@ -204,11 +127,11 @@
 							class="cover-view-artwork-frame flex min-h-0 items-center justify-center"
 							bind:offsetWidth={artworkFrameWidth}
 						>
-							{#await artworkChoice}
-								{#if episodeImageUrl}
-									{@render artworkImage(episodeImageUrl)}
-								{:else if fallbackImageUrl}
-									{@render artworkImage(fallbackImageUrl)}
+							{#await artwork.artworkChoice}
+								{#if artwork.activeEpisodeUrl}
+									{@render artworkImage(artwork.activeEpisodeUrl)}
+								{:else if artwork.activeFallbackUrl}
+									{@render artworkImage(artwork.activeFallbackUrl)}
 								{:else}
 									{@render artworkPlaceholder()}
 								{/if}
@@ -219,10 +142,10 @@
 									{@render artworkPlaceholder()}
 								{/if}
 							{:catch}
-								{#if episodeImageUrl}
-									{@render artworkImage(episodeImageUrl)}
-								{:else if fallbackImageUrl}
-									{@render artworkImage(fallbackImageUrl)}
+								{#if artwork.activeEpisodeUrl}
+									{@render artworkImage(artwork.activeEpisodeUrl)}
+								{:else if artwork.activeFallbackUrl}
+									{@render artworkImage(artwork.activeFallbackUrl)}
 								{:else}
 									{@render artworkPlaceholder()}
 								{/if}
@@ -234,7 +157,7 @@
 						class="controls-row grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 4xl:max-w-400"
 					>
 						<div class="min-w-0">
-							<Info {item} showCover={false} onNavigate={onNavigateToItem} />
+							<Info {item} showCover={false} onNavigate={navigateToCurrentAudioItem} />
 						</div>
 					</div>
 
@@ -248,7 +171,7 @@
 							isPlaying={playbackState.isPlaying}
 							skipForwardSeconds={playbackSettings.skipForwardSeconds}
 							skipBackwardSeconds={playbackSettings.skipBackwardSeconds}
-							onTogglePlayback={requestTogglePlayback}
+							onTogglePlayback={player.handleTogglePlayback}
 							onSkip={player.handleSkip}
 							onPreviousEpisode={player.previousEpisode}
 							onNextEpisode={player.nextEpisode}
@@ -276,11 +199,14 @@
 						</p>
 					</div>
 
-					{#if globalPlaybackState.manualQueue.length > 0 && onClearQueue}
+					{#if globalPlaybackState.manualQueue.length > 0}
 						<button
 							type="button"
 							class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-							onclick={onClearQueue}
+							onclick={async () => {
+								const { clearQueue } = await import('$lib/state');
+								clearQueue();
+							}}
 						>
 							Clear
 						</button>
@@ -288,14 +214,7 @@
 				</div>
 
 				<div class="flex-1 overflow-y-auto">
-					<QueueList
-						appearance="inverse"
-						rowPaddingClass="px-4"
-						separatorPaddingClass="px-4"
-						onRemoveItem={onRemoveQueueItem}
-						onMoveItemUp={onMoveQueueItemUp}
-						onMoveItemDown={onMoveQueueItemDown}
-					/>
+					<QueueList appearance="inverse" rowPaddingClass="px-4" separatorPaddingClass="px-4" />
 				</div>
 			</div>
 		</div>

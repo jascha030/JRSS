@@ -16,16 +16,6 @@
 		displayImageUrl?: string;
 		overlayImageUrl?: string;
 		coverTheme: CoverTheme;
-		cardHeight: number;
-		controlsHeight: number;
-		effectiveControlsHeight: number;
-		controlsBlurFeather: number;
-		controlsBlurFeather85: number;
-		controlsBlurFeather70: number;
-		controlsBlurFeather55: number;
-		controlsBlurFeather40: number;
-		controlsBlurFeather25: number;
-		controlsBlurFeather12: number;
 		canSkipPrevious: boolean;
 		canSkipNext: boolean;
 		onArtworkError: (event: Event) => void;
@@ -40,16 +30,6 @@
 		displayImageUrl,
 		overlayImageUrl,
 		coverTheme,
-		cardHeight = $bindable(),
-		controlsHeight = $bindable(),
-		effectiveControlsHeight,
-		controlsBlurFeather,
-		controlsBlurFeather85,
-		controlsBlurFeather70,
-		controlsBlurFeather55,
-		controlsBlurFeather40,
-		controlsBlurFeather25,
-		controlsBlurFeather12,
 		canSkipPrevious,
 		canSkipNext,
 		onArtworkError,
@@ -57,6 +37,20 @@
 		onPreviousEpisode,
 		onNextEpisode
 	}: Props = $props();
+
+	let cardHeight = $state(0);
+	let controlsHeight = $state(0);
+
+	const effectiveCardHeight = $derived(cardHeight > 0 ? cardHeight : 320);
+	const effectiveControlsHeight = $derived(controlsHeight > 0 ? controlsHeight : 150);
+
+	const controlsBlurFeather = $derived(Math.max(112, Math.min(280, effectiveCardHeight * 0.28)));
+	const controlsBlurFeather85 = $derived(controlsBlurFeather * 0.85);
+	const controlsBlurFeather70 = $derived(controlsBlurFeather * 0.7);
+	const controlsBlurFeather55 = $derived(controlsBlurFeather * 0.55);
+	const controlsBlurFeather40 = $derived(controlsBlurFeather * 0.4);
+	const controlsBlurFeather25 = $derived(controlsBlurFeather * 0.25);
+	const controlsBlurFeather12 = $derived(controlsBlurFeather * 0.12);
 </script>
 
 <div
