@@ -1,5 +1,1 @@
-<script lang="ts">
-	import { selection } from '$lib/state';
-
-	selection.selectedSection = 'unread';
-</script>
+<!-- Route selection applied by +layout.svelte -->

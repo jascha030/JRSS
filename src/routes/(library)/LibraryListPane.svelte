@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { openStationEditor } from '$lib/hooks/useAppUi.svelte';
 	import ItemListHeader from '$lib/components/content/ItemListHeader.svelte';
 	import ItemListView from '$lib/components/content/ItemListView.svelte';
@@ -202,22 +202,29 @@
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 
-	useMenuShortcuts([
-		{
-			event: 'menu-search-feed',
-			handler: () => {
+	onMount(() => {
+		let unlistenSearchFeed: UnlistenFn | undefined;
+		let unlistenRefreshFeed: UnlistenFn | undefined;
+
+		const setupListeners = async () => {
+			unlistenSearchFeed = await listen('menu-search-feed', () => {
 				searchInputRef?.focus();
-			}
-		},
-		{
-			event: 'menu-refresh-feed',
-			handler: () => {
+			});
+
+			unlistenRefreshFeed = await listen('menu-refresh-feed', () => {
 				if (selectedFeed && !isRefreshing) {
-					handleRefreshFeed();
+					void refreshExistingFeed(selectedFeed.id);
 				}
-			}
-		}
-	]);
+			});
+		};
+
+		void setupListeners();
+
+		return () => {
+			if (unlistenSearchFeed) unlistenSearchFeed();
+			if (unlistenRefreshFeed) unlistenRefreshFeed();
+		};
+	});
 
 	onMount(() => {
 		return () => {

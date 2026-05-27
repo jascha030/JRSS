@@ -2,12 +2,7 @@
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
 	import { feedsState } from '$lib/state';
-	import {
-		getSelectedItemOrNull,
-		getIsSelectedItemReaderLoading,
-		getHasSelectedItemReaderContent,
-		getCanUseReaderMode
-	} from '$lib/state/selectors.svelte';
+	import { getSelectedItem, readerState } from '$lib/state';
 	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
@@ -24,13 +19,15 @@
 		return value === 'feed' || value === 'reader';
 	}
 
-	const selectedItem = $derived(getSelectedItemOrNull());
+	const selectedItem = $derived(getSelectedItem());
 
-	const isSelectedItemReaderLoading = $derived(getIsSelectedItemReaderLoading());
+	const isSelectedItemReaderLoading = $derived(
+		selectedItem ? readerState.readerLoadingItemIds.includes(selectedItem.id) : false
+	);
 
-	const hasSelectedItemReaderContent = $derived(getHasSelectedItemReaderContent());
+	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
 
-	const canUseReaderMode = $derived(getCanUseReaderMode());
+	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
 
 	const readerPaneMode = $derived(appUi.readerPaneMode);
 	const isReaderMaximized = $derived(appUi.isReaderMaximized);
