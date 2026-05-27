@@ -1,116 +1,50 @@
 <script lang="ts">
-	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
-	import { openStationEditor } from '$lib/hooks/useAppUi.svelte';
+	import type { Feed } from '$lib/types/feed';
+	import type { Station } from '$lib/types/station';
 	import { formatDate } from '$lib/utils/format';
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
-	import { toast } from 'svelte-sonner';
-	import type { SidebarSection } from '$lib/state';
-	import {
-		selection,
-		feedsState,
-		stationsState,
-		getActiveTotalCount,
-		refreshExistingFeed,
-		openInspector,
-		setFeedSortOrder,
-		playStation,
-		deleteExistingStation
-	} from '$lib/state';
-
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 
-	const sectionHeadings: Record<Exclude<SidebarSection, null>, string> = {
-		home: 'Home',
-		all: 'All feeds',
-		unread: 'Unread',
-		media: 'Media',
-		settings: 'Settings'
+	type Props = {
+		pageHeading: string;
+		totalCount: number;
+		selectedFeed: Feed | null;
+		selectedStation: Station | null;
+		searchInputRef?: HTMLInputElement | null;
+		isRefreshing: boolean;
+		itemSortOrder: 'newest_first' | 'oldest_first';
+		searchLabel: string | null;
+		searchPlaceholder: string | null;
+		searchValue: string;
+		onSearchChange: (value: string) => void;
+		onPlayStation: () => void;
+		onEditStation: () => void;
+		onDeleteStation: () => void;
+		onRefreshFeed: () => void;
+		onInspectFeed: () => void;
+		onSetSortOrder: (order: 'newest_first' | 'oldest_first') => void;
 	};
 
-	const resolvedSelectedFeedId = $derived(selection.selectedFeedId);
-	const resolvedSelectedStationId = $derived(selection.selectedStationId);
-	const resolvedSelectedSection = $derived(selection.selectedSection);
-
-	const selectedFeed = $derived(
-		feedsState.feeds.find((f) => f.id === resolvedSelectedFeedId) ?? null
-	);
-	const selectedStation = $derived(
-		stationsState.stations.find((s) => s.id === resolvedSelectedStationId) ?? null
-	);
-	const isRefreshing = $derived(
-		selectedFeed ? feedsState.syncingFeedIds.includes(selectedFeed.id) : false
-	);
-	const itemSortOrder = $derived(
-		selectedStation?.sortOrder ?? selectedFeed?.sortOrder ?? 'newest_first'
-	);
-	const totalCount = $derived(getActiveTotalCount());
-
-	const pageHeading = $derived(
-		selectedStation?.name ??
-			selectedFeed?.title ??
-			(resolvedSelectedSection ? sectionHeadings[resolvedSelectedSection] : 'All feeds')
-	);
-
-	let searchInputRef = $state<HTMLInputElement | null>(null);
-
-	async function handlePlayStation() {
-		if (!selectedStation) return;
-		try {
-			await playStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-		}
-	}
-
-	async function handleDeleteStation() {
-		if (!selectedStation) return;
-		try {
-			await deleteExistingStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-		}
-	}
-
-	function handleEditStation() {
-		if (!selectedStation) return;
-		openStationEditor({
-			id: selectedStation.id
-		});
-	}
-
-	function handleRefreshFeed() {
-		if (selectedFeed) {
-			void refreshExistingFeed(selectedFeed.id);
-		}
-	}
-
-	function handleInspectFeed() {
-		if (selectedFeed) {
-			openInspector(selectedFeed.id);
-		}
-	}
-
-	function handleSetSortOrder(order: 'newest_first' | 'oldest_first') {
-		void setFeedSortOrder(order);
-	}
-
-	useMenuShortcuts([
-		{
-			event: 'menu-search-feed',
-			handler: () => {
-				searchInputRef?.focus();
-			}
-		},
-		{
-			event: 'menu-refresh-feed',
-			handler: () => {
-				if (selectedFeed && !isRefreshing) {
-					handleRefreshFeed();
-				}
-			}
-		}
-	]);
+	let {
+		pageHeading,
+		totalCount,
+		selectedFeed,
+		selectedStation,
+		searchInputRef = $bindable(null),
+		isRefreshing,
+		itemSortOrder,
+		searchLabel,
+		searchPlaceholder,
+		searchValue,
+		onSearchChange,
+		onPlayStation,
+		onEditStation,
+		onDeleteStation,
+		onRefreshFeed,
+		onInspectFeed,
+		onSetSortOrder
+	}: Props = $props();
 </script>
 
 <div class="shrink-0 border-b border-border px-6 py-8 pb-7.75 lg:px-8">
@@ -145,22 +79,20 @@
 					title="Play station"
 					label="Play station"
 					variant="accent"
-					onclick={handlePlayStation}
+					onclick={onPlayStation}
 				/>
-
 				<IconButton
 					icon="lucide:pencil"
 					title="Edit station"
 					label="Edit station"
-					onclick={handleEditStation}
+					onclick={onEditStation}
 				/>
-
 				<IconButton
 					icon="lucide:trash-2"
 					title="Delete station"
 					label="Delete station"
 					variant="error"
-					onclick={handleDeleteStation}
+					onclick={onDeleteStation}
 				/>
 			{:else if selectedFeed}
 				<div class="flex flex-col">
@@ -171,11 +103,11 @@
 						value={itemSortOrder}
 						onchange={(event) => {
 							const target = event.currentTarget;
-							if (target instanceof HTMLSelectElement) {
-								const value = target.value;
-								if (value === 'newest_first' || value === 'oldest_first') {
-									handleSetSortOrder(value);
-								}
+							if (!(target instanceof HTMLSelectElement)) return;
+
+							const value = target.value;
+							if (value === 'newest_first' || value === 'oldest_first') {
+								onSetSortOrder(value);
 							}
 						}}
 					>
@@ -183,15 +115,15 @@
 						<option value="oldest_first">Oldest first</option>
 					</select>
 				</div>
-				<div class="">
+				<div>
 					{#key isRefreshing}
 						<IconButton
 							icon="lucide:refresh-cw"
 							title="Refresh feed"
 							label="Refresh feed"
-							iconClass="size-5 {isRefreshing ? 'animate-spin' : ''}"
+							iconClass={`size-5 ${isRefreshing ? 'animate-spin' : ''}`}
 							disabled={isRefreshing}
-							onclick={handleRefreshFeed}
+							onclick={onRefreshFeed}
 						/>
 					{/key}
 
@@ -200,12 +132,20 @@
 						title="Inspect feed XML"
 						label="Inspect feed XML"
 						iconClass="size-5"
-						onclick={handleInspectFeed}
+						onclick={onInspectFeed}
 					/>
 				</div>
 			{/if}
 		</div>
 
-		<SearchBar bind:inputRef={searchInputRef} />
+		{#if searchLabel && searchPlaceholder}
+			<SearchBar
+				bind:inputRef={searchInputRef}
+				label={searchLabel}
+				placeholder={searchPlaceholder}
+				value={searchValue}
+				onChange={onSearchChange}
+			/>
+		{/if}
 	</div>
 </div>
