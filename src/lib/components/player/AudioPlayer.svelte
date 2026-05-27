@@ -5,8 +5,8 @@
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { usePlayerControls } from '$lib/hooks/usePlayerControls.svelte';
-	import { useMenuShortcuts } from '$lib/hooks/useMenuShortcuts.svelte';
-	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
+	import { appUi } from '$lib/hooks/useAppUi.svelte';
+	import { navigateToCurrentAudioItem } from '$lib/navigation/audio-nav';
 	import Info from './Info.svelte';
 	import Controls from './Controls.svelte';
 	import Volume from './Volume.svelte';
@@ -15,64 +15,17 @@
 	type Props = {
 		item: MediaListItem | null;
 		imageUrl?: string;
-		onNavigateToItem: () => void;
-		onShowCover?: () => void;
 		controls?: Snippet;
 	};
 
-	let { item, imageUrl, onNavigateToItem, onShowCover, controls }: Props = $props();
+	let { item, imageUrl, controls }: Props = $props();
 
 	const player = usePlayerControls(() => item);
 	const playbackState = $derived(globalPlaybackState.currentPlaybackState);
 
-	useMenuShortcuts([
-		{
-			event: 'menu-play-pause',
-			handler: () => {
-				if (item) player.handleTogglePlayback();
-			}
-		},
-		{
-			event: 'menu-skip-forward',
-			handler: () => {
-				if (item) player.handleSkip(playbackSettings.skipForwardSeconds);
-			}
-		},
-		{
-			event: 'menu-skip-backward',
-			handler: () => {
-				if (item) player.handleSkip(-playbackSettings.skipBackwardSeconds);
-			}
-		},
-		{
-			event: 'menu-next-episode',
-			handler: () => {
-				if (player.canSkipNext) player.nextEpisode();
-			}
-		},
-		{
-			event: 'menu-prev-episode',
-			handler: () => {
-				if (player.canSkipPrevious) player.previousEpisode();
-			}
-		},
-		{
-			event: 'menu-volume-up',
-			handler: () => player.handleAdjustVolume(0.1)
-		},
-		{
-			event: 'menu-volume-down',
-			handler: () => player.handleAdjustVolume(-0.1)
-		},
-		{
-			event: 'menu-go-to-feed',
-			handler: () => {
-				if (item) onNavigateToItem();
-			}
-		}
-	]);
-
-	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
+	function handleShowCover() {
+		appUi.playerMode = 'cover';
+	}
 </script>
 
 {#if item && playbackState}
@@ -83,8 +36,8 @@
 			<Info
 				{item}
 				{imageUrl}
-				onNavigate={onNavigateToItem}
-				{onShowCover}
+				onNavigate={navigateToCurrentAudioItem}
+				onShowCover={handleShowCover}
 				class="min-w-0 shrink-0 basis-56"
 			/>
 

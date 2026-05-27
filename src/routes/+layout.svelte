@@ -4,6 +4,7 @@
 	import App from '$lib/components/App.svelte';
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte';
 	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
+	import { useGlobalShortcuts } from '$lib/hooks/useGlobalShortcuts.svelte';
 	import { parseAppUrl, toRouteSelection, navigateToSection } from '$lib/navigation/app-router';
 	import {
 		appState,
@@ -23,6 +24,8 @@
 	const currentRoute = $derived(parseAppUrl(page.url));
 	const isInitialized = $derived(appState.initialized);
 	let lastRouteItemId = $state<string | null>(null);
+
+	useGlobalShortcuts();
 
 	$effect(() => {
 		applyRouteSelection(toRouteSelection(currentRoute));
