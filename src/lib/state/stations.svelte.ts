@@ -24,7 +24,6 @@ export async function loadStations(): Promise<void> {
 		!stationsState.stations.some((station) => station.id === selection.selectedStationId)
 	) {
 		selection.selectedStationId = null;
-		selection.selectedSection = 'all';
 	}
 }
 
@@ -51,7 +50,6 @@ export async function deleteExistingStation(stationId: string): Promise<void> {
 
 	if (selection.selectedStationId === stationId) {
 		selection.selectedStationId = null;
-		selection.selectedSection = 'all';
 	}
 
 	await loadStations();

@@ -3,9 +3,9 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedListItem } from '$lib/types/item';
 import { isMediaItem } from '$lib/types/item';
 import { openArticleContextMenu, openAudioContextMenu } from '$lib/utils/tauri-menu';
+import { replaceCurrentSelectedItem } from '$lib/navigation/app-router';
 import { getActiveItemIdsByIndex } from '$lib/state/items.svelte';
 import { itemsState } from '$lib/state/items.svelte';
-import { selectItem } from '$lib/state/selection.svelte';
 
 export function useItemSelection() {
 	const selectedIds = new SvelteSet<string>();
@@ -90,7 +90,7 @@ export function useItemSelection() {
 
 		clearSelection();
 		anchorIndex = index;
-		selectItem(itemId);
+		void replaceCurrentSelectedItem(itemId, 'feed');
 	}
 
 	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {

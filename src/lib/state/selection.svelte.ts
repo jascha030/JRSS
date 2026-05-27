@@ -3,6 +3,14 @@ import type { Station } from '$lib/types/station';
 
 export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 
+export type RouteSelectionState = {
+	selectedFeedId: string | null;
+	selectedStationId: string | null;
+	selectedSection: SidebarSection;
+	selectedItemId: string | null;
+	searchTerm: string;
+};
+
 export const selection = $state({
 	selectedFeedId: null as string | null,
 	selectedStationId: null as string | null,
@@ -21,6 +29,23 @@ export function resetSelectionState(): void {
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';
 	selection.sectionSearchTerm = '';
+}
+
+export function applyRouteSelection(state: RouteSelectionState): void {
+	selection.selectedFeedId = state.selectedFeedId;
+	selection.selectedStationId = state.selectedStationId;
+	selection.selectedSection = state.selectedSection;
+	selection.selectedItemId = state.selectedItemId;
+	selection.feedSearchTerm = state.selectedFeedId ? state.searchTerm : '';
+	selection.stationSearchTerm = state.selectedStationId ? state.searchTerm : '';
+	selection.sectionSearchTerm =
+		state.selectedFeedId === null &&
+		state.selectedStationId === null &&
+		(state.selectedSection === 'all' ||
+			state.selectedSection === 'unread' ||
+			state.selectedSection === 'media')
+			? state.searchTerm
+			: '';
 }
 
 export function selectFeed(feedId: string | null): void {

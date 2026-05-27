@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-
+	import SettingRow from '$lib/components/settings/SettingRow.svelte';
+	import { APP_SETTINGS } from '$lib/constants/settings';
 	import {
 		clearAudioCache,
 		discoverThemes,
@@ -11,20 +12,18 @@
 	import { isTauriRuntime } from '$lib/services/tauri';
 	import { applyAccentColor, applyColorScheme, applyThemeCss } from '$lib/state';
 	import {
+		DEFAULT_ACCENT_COLOR,
 		DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES,
 		DEFAULT_COLOR_SCHEME,
 		DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
 		DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
-		DEFAULT_ACCENT_COLOR,
-		DEFAULT_THEME_NAME,
-		DEFAULT_SKIP_FORWARD_SECONDS,
 		DEFAULT_SKIP_BACKWARD_SECONDS,
+		DEFAULT_SKIP_FORWARD_SECONDS,
+		DEFAULT_THEME_NAME,
 		type AppSettings,
 		type SettingEntry,
 		type ThemeInfo
 	} from '$lib/types/settings';
-	import { APP_SETTINGS } from '$lib/constants/settings';
-	import SettingRow from './SettingRow.svelte';
 
 	const allEntries: SettingEntry[] = [];
 	for (const section of APP_SETTINGS) {
@@ -177,7 +176,6 @@
 					{/if}
 					<div class="mt-5 flex flex-col divide-y divide-border">
 						{#if section.title === 'Appearance'}
-							<!-- Theme selector -->
 							<div class="py-5 first:pt-0 last:pb-0">
 								<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
 									<div class="max-w-sm">

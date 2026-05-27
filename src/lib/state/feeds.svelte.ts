@@ -49,7 +49,6 @@ export async function loadFeeds(): Promise<void> {
 		!feedsState.feeds.some((feed) => feed.id === selection.selectedFeedId)
 	) {
 		selection.selectedFeedId = null;
-		selection.selectedSection = 'all';
 	}
 }
 
@@ -59,15 +58,7 @@ export async function createFeed(url: string): Promise<Feed> {
 	try {
 		const createdFeed = await addFeed(url);
 		await loadFeeds();
-
-		selection.selectedFeedId = createdFeed.id;
-		selection.selectedStationId = null;
-		selection.selectedSection = null;
-		selection.selectedItemId = null;
-		selection.feedSearchTerm = '';
-
 		invalidateAllQueries();
-		await loadInitialItemsPage();
 
 		return createdFeed;
 	} finally {
@@ -107,7 +98,6 @@ export async function deleteExistingFeed(feedId: string): Promise<void> {
 	if (selection.selectedFeedId === feedId) {
 		selection.selectedFeedId = null;
 		selection.selectedStationId = null;
-		selection.selectedSection = 'all';
 		selection.selectedItemId = null;
 	}
 

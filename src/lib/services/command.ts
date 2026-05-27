@@ -1,7 +1,4 @@
 import {
-	selectSection,
-	selectFeed,
-	selectStation,
 	closeInspector,
 	playbackState,
 	requestTogglePlayback,
@@ -9,6 +6,13 @@ import {
 	requestPreviousEpisode,
 	requestSeekTo
 } from '$lib/state';
+import {
+	navigateToFeed,
+	navigateToHome,
+	navigateToSettings,
+	navigateToSection,
+	navigateToStation
+} from '$lib/navigation/app-router';
 import type { Feed } from '$lib/types/feed';
 import type { Station } from '$lib/types/station';
 import type { CommandCategory, CommandPaletteItem } from '$lib/types/command';
@@ -92,7 +96,7 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 			keywords: ['home', 'dashboard'],
 			action: withClose(() => {
 				closeInspector();
-				selectSection('home');
+				void navigateToHome();
 			}, onClose)
 		},
 		{
@@ -103,7 +107,7 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 			keywords: ['all', 'feeds', 'everything'],
 			action: withClose(() => {
 				closeInspector();
-				selectSection('all');
+				void navigateToSection('all');
 			}, onClose)
 		},
 		{
@@ -114,7 +118,7 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 			keywords: ['unread', 'inbox', 'new'],
 			action: withClose(() => {
 				closeInspector();
-				selectSection('unread');
+				void navigateToSection('unread');
 			}, onClose)
 		},
 		{
@@ -125,7 +129,7 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 			keywords: ['media', 'podcasts', 'audio'],
 			action: withClose(() => {
 				closeInspector();
-				selectSection('media');
+				void navigateToSection('media');
 			}, onClose)
 		},
 		{
@@ -136,7 +140,7 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 			keywords: ['settings', 'preferences', 'config'],
 			action: withClose(() => {
 				closeInspector();
-				selectSection('settings');
+				void navigateToSettings();
 			}, onClose)
 		},
 		{
@@ -277,7 +281,7 @@ function buildFeedItems(feeds: Feed[], term: string, onClose: () => void): Comma
 			badge: 'Feed',
 			action: withClose(() => {
 				closeInspector();
-				selectFeed(feed.id);
+				void navigateToFeed(feed.id);
 			}, onClose)
 		}));
 }
@@ -309,7 +313,7 @@ function buildStationItems(
 			badge: 'Station',
 			action: withClose(() => {
 				closeInspector();
-				selectStation(station.id);
+				void navigateToStation(station.id);
 			}, onClose)
 		}));
 }
