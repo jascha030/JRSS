@@ -29,10 +29,13 @@
 		addFeedFromUrl,
 		saveStation
 	} from '$lib/hooks/useAppOrchestrator.svelte';
+	import { usePageTransition } from '$lib/hooks/usePageTransition.svelte';
+	import PageTransition from '$lib/components/ui/PageTransition.svelte';
 
 	let { children } = $props();
 
 	useAppOrchestrator();
+	const transition = usePageTransition();
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
@@ -106,11 +109,13 @@
 			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
 					<main class="relative flex min-h-0 flex-1 flex-col">
-						{#if shouldShowEmptyFeedView}
-							<EmptyFeedView />
-						{:else}
-							{@render children?.()}
-						{/if}
+						<PageTransition phase={transition.phase}>
+							{#if shouldShowEmptyFeedView}
+								<EmptyFeedView />
+							{:else}
+								{@render children?.()}
+							{/if}
+						</PageTransition>
 					</main>
 
 					<AudioPlayer
