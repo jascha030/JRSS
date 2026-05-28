@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import type { Snippet } from 'svelte';
 	import AudioPlayer from '$lib/components/player/AudioPlayer.svelte';
 	import CommandPalette from '$lib/components/command/CommandPalette.svelte';
 	import CoverView from '$lib/components/player/CoverView.svelte';
@@ -29,13 +30,17 @@
 		addFeedFromUrl,
 		saveStation
 	} from '$lib/hooks/useAppOrchestrator.svelte';
-	import { usePageTransition } from '$lib/hooks/usePageTransition.svelte';
-	import PageTransition from '$lib/components/ui/PageTransition.svelte';
 
-	let { children } = $props();
+	type RouteLoadingCoverState = 'idle' | 'covering' | 'loading' | 'revealing';
+
+	type Props = {
+		children: Snippet;
+		routeLoadingCoverState?: RouteLoadingCoverState;
+	};
+
+	let { children, routeLoadingCoverState = 'idle' }: Props = $props();
 
 	useAppOrchestrator();
-	const transition = usePageTransition();
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
@@ -55,6 +60,13 @@
 			: null
 	);
 	const shouldShowEmptyFeedView = $derived(feeds.length === 0 && !isInitialLoading);
+	const isRouteLoadingCoverVisible = $derived(routeLoadingCoverState !== 'idle');
+	const isRouteContentHidden = $derived(
+		routeLoadingCoverState === 'covering' || routeLoadingCoverState === 'loading'
+	);
+	const isRouteLoadingCoverOpaque = $derived(
+		routeLoadingCoverState === 'covering' || routeLoadingCoverState === 'loading'
+	);
 
 	function handleCloseQueue() {
 		appUi.isQueueDrawerOpen = false;
@@ -108,14 +120,48 @@
 
 			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-					<main class="relative flex min-h-0 flex-1 flex-col">
-						<PageTransition phase={transition.phase}>
+					<main class="relative flex min-h-0 flex-1 flex-col [view-transition-name:page-content]">
+						<div
+							class={`flex min-h-0 flex-1 flex-col transition-[opacity,filter,transform] duration-180 ease-out motion-reduce:transition-none ${
+								isRouteContentHidden
+									? 'translate-y-1 scale-[0.995] opacity-0 blur-[2px]'
+									: 'blur-0 translate-y-0 scale-100 opacity-100'
+							}`}
+						>
 							{#if shouldShowEmptyFeedView}
 								<EmptyFeedView />
 							{:else}
 								{@render children?.()}
 							{/if}
-						</PageTransition>
+						</div>
+
+						<div
+							aria-hidden={!isRouteLoadingCoverVisible}
+							class={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
+								isRouteLoadingCoverVisible ? 'opacity-100' : 'opacity-0'
+							}`}
+						>
+							<div
+								class={`absolute inset-0 bg-surface/76 transition-[backdrop-filter] duration-180 ease-out motion-reduce:transition-none ${
+									isRouteLoadingCoverOpaque ? 'backdrop-blur-md' : 'backdrop-blur-0'
+								}`}
+							></div>
+
+							<div class="absolute inset-0 flex items-center justify-center">
+								<div
+									class={`flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
+										routeLoadingCoverState === 'revealing'
+											? 'translate-y-1 scale-[0.985] opacity-0'
+											: 'translate-y-0 scale-100 opacity-100'
+									}`}
+								>
+									<div
+										class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"
+									></div>
+									<span class="text-sm font-medium text-fg-secondary">Loading view</span>
+								</div>
+							</div>
+						</div>
 					</main>
 
 					<AudioPlayer

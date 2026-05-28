@@ -537,6 +537,49 @@ body {
 	@apply cursor-default select-none;
 }
 
+@supports (view-transition-name: none) {
+	::view-transition-old(page-content) {
+		animation: 180ms cubic-bezier(0.22, 1, 0.36, 1) both jrss-page-out;
+	}
+
+	::view-transition-new(page-content) {
+		animation: 220ms cubic-bezier(0.22, 1, 0.36, 1) both jrss-page-in;
+	}
+
+	::view-transition-old(page-content),
+	::view-transition-new(page-content) {
+		mix-blend-mode: normal;
+	}
+
+	@keyframes jrss-page-out {
+		from {
+			opacity: 1;
+			filter: blur(0);
+			transform: translateY(0) scale(1);
+		}
+
+		to {
+			opacity: 0;
+			filter: blur(3px);
+			transform: translateY(10px) scale(0.9925);
+		}
+	}
+
+	@keyframes jrss-page-in {
+		from {
+			opacity: 0;
+			filter: blur(5px);
+			transform: translateY(14px) scale(0.9925);
+		}
+
+		to {
+			opacity: 1;
+			filter: blur(0);
+			transform: translateY(0) scale(1);
+		}
+	}
+}
+
 input,
 textarea,
 [contenteditable] {

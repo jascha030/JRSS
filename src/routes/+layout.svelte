@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onNavigate } from '$app/navigation';
 	import './layout.css';
 	import { page } from '$app/state';
 	import App from '$lib/components/App.svelte';
@@ -16,6 +17,11 @@
 		stationsState
 	} from '$lib/state';
 
+	type RouteLoadingCoverState = 'idle' | 'covering' | 'loading' | 'revealing';
+
+	const ROUTE_COVER_MIN_MS = 240;
+	const ROUTE_COVER_OUT_MS = 180;
+
 	let { children } = $props();
 
 	const isMiniWindow = $derived(page.url.searchParams.get('window') === 'mini');
@@ -24,8 +30,81 @@
 	const currentRoute = $derived(parseAppUrl(page.url));
 	const isInitialized = $derived(appState.initialized);
 	let lastRouteItemId = $state<string | null>(null);
+	let routeLoadingCoverState = $state<RouteLoadingCoverState>('idle');
+	let routeLoadingToken = 0;
 
 	useGlobalShortcuts();
+
+	function sleep(milliseconds: number): Promise<void> {
+		return new Promise((resolve) => {
+			window.setTimeout(resolve, milliseconds);
+		});
+	}
+
+	onNavigate((navigation) => {
+		const startViewTransition = document.startViewTransition;
+
+		if (!navigation.to || !startViewTransition) {
+			const token = ++routeLoadingToken;
+			const startedAt = performance.now();
+			routeLoadingCoverState = 'covering';
+
+			return new Promise<void>((resolve) => {
+				requestAnimationFrame(() => {
+					routeLoadingCoverState = 'loading';
+					resolve();
+
+					void navigation.complete.then(async () => {
+						const remaining = ROUTE_COVER_MIN_MS - (performance.now() - startedAt);
+						if (remaining > 0) {
+							await sleep(remaining);
+						}
+
+						if (token !== routeLoadingToken) {
+							return;
+						}
+
+						routeLoadingCoverState = 'revealing';
+						await sleep(ROUTE_COVER_OUT_MS);
+
+						if (token === routeLoadingToken) {
+							routeLoadingCoverState = 'idle';
+						}
+					});
+				});
+			});
+		}
+
+		const token = ++routeLoadingToken;
+		const startedAt = performance.now();
+		routeLoadingCoverState = 'covering';
+
+		return new Promise<void>((resolve) => {
+			requestAnimationFrame(() => {
+				startViewTransition.call(document, async () => {
+					routeLoadingCoverState = 'loading';
+					resolve();
+					await navigation.complete;
+
+					const remaining = ROUTE_COVER_MIN_MS - (performance.now() - startedAt);
+					if (remaining > 0) {
+						await sleep(remaining);
+					}
+
+					if (token !== routeLoadingToken) {
+						return;
+					}
+
+					routeLoadingCoverState = 'revealing';
+					await sleep(ROUTE_COVER_OUT_MS);
+
+					if (token === routeLoadingToken) {
+						routeLoadingCoverState = 'idle';
+					}
+				});
+			});
+		});
+	});
 
 	$effect(() => {
 		applyRouteSelection(toRouteSelection(currentRoute));
@@ -87,7 +166,7 @@
 		playbackState={currentPlaybackState}
 	/>
 {:else}
-	<App>
+	<App {routeLoadingCoverState}>
 		{@render children?.()}
 	</App>
 {/if}

@@ -29,9 +29,15 @@ export function useArtwork(
 	}
 
 	return {
-		activeEpisodeUrl,
-		activeFallbackUrl,
-		artworkChoice,
+		get activeEpisodeUrl() {
+			return activeEpisodeUrl;
+		},
+		get activeFallbackUrl() {
+			return activeFallbackUrl;
+		},
+		get artworkChoice() {
+			return artworkChoice;
+		},
 		handleError
 	};
 }
