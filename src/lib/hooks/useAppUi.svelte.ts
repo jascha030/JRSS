@@ -1,5 +1,4 @@
 import { loadReaderView } from '$lib/state/reader.svelte';
-import { replaceCurrentReaderPaneMode } from '$lib/navigation/app-router';
 import type { Station } from '$lib/types/station';
 import { toast } from 'svelte-sonner';
 
@@ -107,13 +106,11 @@ export async function switchToReaderView(itemId: string): Promise<void> {
 		const updatedItem = await loadReaderView(itemId);
 		const readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
 		appUi.readerPaneMode = readerPaneMode;
-		await replaceCurrentReaderPaneMode(readerPaneMode);
 		if (updatedItem.readerStatus !== 'ready') {
 			toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 		}
 	} catch (error: unknown) {
 		appUi.readerPaneMode = 'feed';
-		await replaceCurrentReaderPaneMode('feed');
 		toast.error(
 			error instanceof Error ? error.message : 'Unable to load reader view for this item.'
 		);

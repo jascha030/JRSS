@@ -1,5 +1,4 @@
 import type { FeedItem } from '$lib/types/item';
-import { replaceCurrentSelectedItem } from '$lib/navigation/app-router';
 import { loadReaderContent } from '$lib/services/item';
 import { mergeDetailedItem } from './items.svelte';
 import { selection } from './selection.svelte';
@@ -51,7 +50,6 @@ export async function loadReaderView(itemId: string): Promise<FeedItem> {
  */
 export function requestOpenInReader(itemId: string): void {
 	selection.selectedItemId = itemId;
-	void replaceCurrentSelectedItem(itemId, 'reader');
 	readerState.readerRequestItemId = itemId;
 	readerState.readerRequestSeq += 1;
 }

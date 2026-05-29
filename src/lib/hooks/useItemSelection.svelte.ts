@@ -3,9 +3,9 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedListItem } from '$lib/types/item';
 import { isMediaItem } from '$lib/types/item';
 import { openArticleContextMenu, openAudioContextMenu } from '$lib/utils/tauri-menu';
-import { replaceCurrentSelectedItem } from '$lib/navigation/app-router';
 import { getActiveItemIdsByIndex } from '$lib/state/items.svelte';
 import { itemsState } from '$lib/state/items.svelte';
+import { selectItem } from '$lib/state/selection.svelte';
 
 export function useItemSelection() {
 	const selectedIds = new SvelteSet<string>();
@@ -90,33 +90,32 @@ export function useItemSelection() {
 
 		clearSelection();
 		anchorIndex = index;
-		void replaceCurrentSelectedItem(itemId, 'feed');
+		selectItem(itemId);
+	}
+
+	function openContextMenu(
+		event: MouseEvent,
+		item: FeedListItem,
+		options?: { selectedIds: SvelteSet<string>; itemsById: Record<string, FeedListItem> }
+	): void {
+		if (isMediaItem(item)) {
+			void openAudioContextMenu(event, item, options);
+		} else {
+			void openArticleContextMenu(event, item, options);
+		}
 	}
 
 	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {
 		if (isMultiSelecting && selectedIds.has(item.id)) {
-			if (isMediaItem(item)) {
-				void openAudioContextMenu(event, item, {
-					selectedIds,
-					itemsById: itemsState.itemSummariesById
-				});
-			} else {
-				void openArticleContextMenu(event, item, {
-					selectedIds,
-					itemsById: itemsState.itemSummariesById
-				});
-			}
-
+			openContextMenu(event, item, {
+				selectedIds,
+				itemsById: itemsState.itemSummariesById
+			});
 			return;
 		}
 
 		clearSelection();
-
-		if (isMediaItem(item)) {
-			void openAudioContextMenu(event, item);
-		} else {
-			void openArticleContextMenu(event, item);
-		}
+		openContextMenu(event, item);
 	}
 
 	return {
