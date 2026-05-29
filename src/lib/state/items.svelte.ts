@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import type { FeedItem, FeedItemDetails, FeedListItem, MediaListItem } from '$lib/types/item';
 import { isMediaItem } from '$lib/types/item';
 import {
@@ -56,38 +57,35 @@ export function invalidateAllQueries(): void {
 
 export { getActiveQuerySpec, getActiveQueryKey, type ItemsQuerySpec };
 
-export function getActiveTotalCount(): number {
+function withActiveQueryKey<T>(getValue: (queryKey: string) => T, fallback: T): T {
 	const queryKey = getActiveQueryKey();
 	if (!queryKey) {
-		return 0;
+		return fallback;
 	}
-	return itemsState.totalCountByQueryKey[queryKey] ?? 0;
+	return getValue(queryKey);
+}
+
+export function getActiveTotalCount(): number {
+	return withActiveQueryKey((queryKey) => itemsState.totalCountByQueryKey[queryKey] ?? 0, 0);
 }
 
 export function getActiveItemIdsByIndex(): ItemIdsByIndex {
-	const queryKey = getActiveQueryKey();
-	if (!queryKey) {
-		return {};
-	}
-	return itemsState.itemIdsByIndexByQueryKey[queryKey] ?? {};
+	return withActiveQueryKey((queryKey) => itemsState.itemIdsByIndexByQueryKey[queryKey] ?? {}, {});
 }
 
 export function getActiveLoadedPageOffsets(): PageOffsets {
-	const queryKey = getActiveQueryKey();
-	if (!queryKey) {
-		return {};
-	}
-	return itemsState.loadedPageOffsetsByQueryKey[queryKey] ?? {};
+	return withActiveQueryKey(
+		(queryKey) => itemsState.loadedPageOffsetsByQueryKey[queryKey] ?? {},
+		{}
+	);
 }
 
 export function getIsActiveInitialLoading(): boolean {
-	const queryKey = getActiveQueryKey();
-	if (!queryKey) {
-		return false;
-	}
-	return (
-		!itemsState.initialLoadDoneByQueryKey[queryKey] &&
-		Object.keys(itemsState.loadingPageOffsetsByQueryKey[queryKey] ?? {}).length > 0
+	return withActiveQueryKey(
+		(queryKey) =>
+			!itemsState.initialLoadDoneByQueryKey[queryKey] &&
+			Object.keys(itemsState.loadingPageOffsetsByQueryKey[queryKey] ?? {}).length > 0,
+		false
 	);
 }
 
@@ -394,44 +392,39 @@ export async function loadItemDetails(itemId: string): Promise<FeedItem> {
 	return detailedItem;
 }
 
-export async function markItemRead(itemId: string, read: boolean): Promise<void> {
-	const previousItem = itemsState.itemSummariesById[itemId];
-	patchItemSummary(itemId, { read });
+async function markReadOptimistic(
+	itemIds: string[],
+	read: boolean,
+	persist: () => Promise<void>
+): Promise<void> {
+	const previousItems = new SvelteMap<string, FeedListItem>();
+	for (const itemId of itemIds) {
+		const previous = itemsState.itemSummariesById[itemId];
+		if (previous) {
+			previousItems.set(itemId, previous);
+		}
+		patchItemSummary(itemId, { read });
+	}
 
 	try {
-		await markRead(itemId, read);
+		await persist();
 		if (getActiveListSection() === 'unread') {
 			await loadInitialItemsPage();
 		}
 	} catch (error) {
-		if (previousItem) {
-			itemsState.itemSummariesById[itemId] = previousItem;
+		for (const [itemId, previous] of previousItems) {
+			itemsState.itemSummariesById[itemId] = previous;
 		}
 		throw error;
 	}
 }
 
-export async function markItemsRead(itemIds: string[], read: boolean): Promise<void> {
-	const previousItems: Record<string, FeedListItem | undefined> = {};
-	for (const itemId of itemIds) {
-		previousItems[itemId] = itemsState.itemSummariesById[itemId];
-		patchItemSummary(itemId, { read });
-	}
+export async function markItemRead(itemId: string, read: boolean): Promise<void> {
+	await markReadOptimistic([itemId], read, () => markRead(itemId, read));
+}
 
-	try {
-		await markReadBatch(itemIds, read);
-		if (getActiveListSection() === 'unread') {
-			await loadInitialItemsPage();
-		}
-	} catch (error) {
-		for (const itemId of itemIds) {
-			const previousItem = previousItems[itemId];
-			if (previousItem) {
-				itemsState.itemSummariesById[itemId] = previousItem;
-			}
-		}
-		throw error;
-	}
+export async function markItemsRead(itemIds: string[], read: boolean): Promise<void> {
+	await markReadOptimistic(itemIds, read, () => markReadBatch(itemIds, read));
 }
 
 export async function loadItemsByIds(itemIds: string[]): Promise<FeedListItem[]> {

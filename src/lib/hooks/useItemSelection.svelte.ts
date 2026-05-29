@@ -93,30 +93,29 @@ export function useItemSelection() {
 		selectItem(itemId);
 	}
 
+	function openContextMenu(
+		event: MouseEvent,
+		item: FeedListItem,
+		options?: { selectedIds: SvelteSet<string>; itemsById: Record<string, FeedListItem> }
+	): void {
+		if (isMediaItem(item)) {
+			void openAudioContextMenu(event, item, options);
+		} else {
+			void openArticleContextMenu(event, item, options);
+		}
+	}
+
 	function handleItemContextMenu(event: MouseEvent, item: FeedListItem): void {
 		if (isMultiSelecting && selectedIds.has(item.id)) {
-			if (isMediaItem(item)) {
-				void openAudioContextMenu(event, item, {
-					selectedIds,
-					itemsById: itemsState.itemSummariesById
-				});
-			} else {
-				void openArticleContextMenu(event, item, {
-					selectedIds,
-					itemsById: itemsState.itemSummariesById
-				});
-			}
-
+			openContextMenu(event, item, {
+				selectedIds,
+				itemsById: itemsState.itemSummariesById
+			});
 			return;
 		}
 
 		clearSelection();
-
-		if (isMediaItem(item)) {
-			void openAudioContextMenu(event, item);
-		} else {
-			void openArticleContextMenu(event, item);
-		}
+		openContextMenu(event, item);
 	}
 
 	return {

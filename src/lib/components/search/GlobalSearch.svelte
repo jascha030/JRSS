@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { FeedListItem } from '$lib/types/item';
 	import SearchInput from '$lib/components/ui/SearchInput.svelte';
 	import {
 		createGlobalSearch,
@@ -8,16 +7,14 @@
 	import { createKeyboardListNavigation } from '$lib/services/keyboard-list-navigation.svelte';
 	import { feedsState } from '$lib/state/feeds.svelte';
 	import { stationsState } from '$lib/state/stations.svelte';
+	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
+	import { addFeedFromUrl } from '$lib/hooks/useAppOrchestrator.svelte';
+	import {
+		navigateToFeedItem,
+		navigateToFeed,
+		navigateToStation
+	} from '$lib/navigation/app-router';
 	import SearchResultRow from './SearchResultRow.svelte';
-
-	type Props = {
-		onSelectResult: (item: FeedListItem) => void;
-		onSelectFeedResult: (feed: (typeof feedsState.feeds)[number]) => void;
-		onSelectStationResult: (station: (typeof stationsState.stations)[number]) => void;
-		onAddFeed: (url: string) => void;
-	};
-
-	let { onSelectResult, onSelectFeedResult, onSelectStationResult, onAddFeed }: Props = $props();
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 	let containerRef = $state<HTMLDivElement | null>(null);
@@ -64,30 +61,41 @@
 
 	function executeEntry(entry: SearchResultEntry) {
 		if (entry.kind === 'action') {
-			onAddFeed(entry.data.url);
+			void addFeedFromUrl(entry.data.url);
 			resetAndBlur();
 			return;
 		}
 
 		if (entry.kind === 'feed') {
-			onSelectFeedResult(entry.data);
+			if (appUi.playerMode === 'cover') {
+				appUi.playerMode = 'default';
+			}
+			void navigateToFeed(entry.data.id);
 			resetAndBlur();
 			return;
 		}
 
 		if (entry.kind === 'station') {
-			onSelectStationResult(entry.data);
+			if (appUi.playerMode === 'cover') {
+				appUi.playerMode = 'default';
+			}
+			void navigateToStation(entry.data.id);
 			resetAndBlur();
 			return;
 		}
 
 		if (entry.kind === 'podcast') {
-			onAddFeed(entry.data.feedUrl);
+			void addFeedFromUrl(entry.data.feedUrl);
 			resetAndBlur();
 			return;
 		}
 
-		onSelectResult(entry.data);
+		if (appUi.playerMode === 'cover') {
+			appUi.playerMode = 'default';
+		}
+		void navigateToFeedItem(entry.data.feedId, entry.data.id).then(() => {
+			requestScrollToItem(entry.data.id);
+		});
 		resetAndBlur();
 	}
 

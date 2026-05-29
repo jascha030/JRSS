@@ -53,8 +53,12 @@ export function usePlayerControls(getItem: () => MediaListItem | null) {
 	}
 
 	return {
-		canSkipPrevious,
-		canSkipNext,
+		get canSkipPrevious() {
+			return canSkipPrevious;
+		},
+		get canSkipNext() {
+			return canSkipNext;
+		},
 		durationForPlayer,
 		handleSkip,
 		handleTogglePlayback,

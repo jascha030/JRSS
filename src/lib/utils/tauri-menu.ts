@@ -1,5 +1,6 @@
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { navigateToFeed } from '$lib/navigation/app-router';
 
 import {
 	selection,
@@ -13,7 +14,6 @@ import {
 	requestOpenInReader,
 	requestSeekTo,
 	requestTogglePlayback,
-	selectFeed,
 	startPlaybackFromContext,
 	stopPlayback
 } from '$lib/state';
@@ -83,7 +83,7 @@ export async function openArticleContextMenu(
 			await MenuItem.new({
 				id: 'open-feed',
 				text: 'Open feed',
-				action: () => selectFeed(item.feedId)
+				action: () => void navigateToFeed(item.feedId)
 			})
 		);
 	}
@@ -237,7 +237,7 @@ export async function openAudioContextMenu(
 			await MenuItem.new({
 				id: 'open-feed',
 				text: 'Open feed',
-				action: () => selectFeed(item.feedId)
+				action: () => void navigateToFeed(item.feedId)
 			})
 		);
 	}
@@ -308,7 +308,7 @@ export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promis
 			await MenuItem.new({
 				id: 'open-feed',
 				text: 'Open feed',
-				action: () => selectFeed(feed.id)
+				action: () => void navigateToFeed(feed.id)
 			})
 		);
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));

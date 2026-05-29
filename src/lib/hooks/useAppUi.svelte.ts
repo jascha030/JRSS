@@ -1,19 +1,47 @@
 import { loadReaderView } from '$lib/state/reader.svelte';
+import type { Station } from '$lib/types/station';
 import { toast } from 'svelte-sonner';
 
-export const appUi = $state({
-	isSidebarCollapsed: true,
-	isQueueDrawerOpen: false,
-	playerMode: 'default' as 'default' | 'cover',
-	isFeedEditorOpen: false,
-	isStationEditorOpen: false,
-	isCommandPaletteOpen: false,
-	editingStation: null as { id: string; name: string; feedIds: string[] } | null,
-	readerPaneMode: 'feed' as 'feed' | 'reader',
-	isReaderMaximized: false,
-	scrollToItemRequest: null as { itemId: string; seq: number } | null,
-	scrollRequestSeq: 0
-});
+export type PlayerMode = 'default' | 'cover';
+export type ReaderPaneMode = 'feed' | 'reader';
+
+type DialogState =
+	| { kind: 'none' }
+	| { kind: 'feed-editor' }
+	| { kind: 'station-editor'; stationId: string | null };
+
+type ScrollToItemRequest = {
+	itemId: string;
+	seq: number;
+};
+
+type AppUiState = {
+	isSidebarCollapsed: boolean;
+	isQueueDrawerOpen: boolean;
+	playerMode: PlayerMode;
+	isCommandPaletteOpen: boolean;
+	dialog: DialogState;
+	readerPaneMode: ReaderPaneMode;
+	isReaderMaximized: boolean;
+	scrollToItemRequest: ScrollToItemRequest | null;
+	scrollRequestSeq: number;
+};
+
+function createAppUiState(): AppUiState {
+	return {
+		isSidebarCollapsed: true,
+		isQueueDrawerOpen: false,
+		playerMode: 'default',
+		isCommandPaletteOpen: false,
+		dialog: { kind: 'none' },
+		readerPaneMode: 'feed',
+		isReaderMaximized: false,
+		scrollToItemRequest: null,
+		scrollRequestSeq: 0
+	};
+}
+
+export const appUi = $state(createAppUiState());
 
 export function toggleSidebar() {
 	appUi.isSidebarCollapsed = !appUi.isSidebarCollapsed;
@@ -28,23 +56,23 @@ export function togglePlayerMode() {
 }
 
 export function openFeedEditor() {
-	appUi.isFeedEditorOpen = true;
+	appUi.dialog = { kind: 'feed-editor' };
 }
 
 export function closeFeedEditor() {
-	appUi.isFeedEditorOpen = false;
+	if (appUi.dialog.kind === 'feed-editor') {
+		appUi.dialog = { kind: 'none' };
+	}
 }
 
-export function openStationEditor(
-	station: { id: string; name: string; feedIds: string[] } | null = null
-) {
-	appUi.editingStation = station;
-	appUi.isStationEditorOpen = true;
+export function openStationEditor(station: Pick<Station, 'id'> | null = null) {
+	appUi.dialog = { kind: 'station-editor', stationId: station?.id ?? null };
 }
 
 export function closeStationEditor() {
-	appUi.isStationEditorOpen = false;
-	appUi.editingStation = null;
+	if (appUi.dialog.kind === 'station-editor') {
+		appUi.dialog = { kind: 'none' };
+	}
 }
 
 export function openCommandPalette() {
@@ -76,7 +104,8 @@ export function toggleReaderMaximized() {
 export async function switchToReaderView(itemId: string): Promise<void> {
 	try {
 		const updatedItem = await loadReaderView(itemId);
-		appUi.readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
+		const readerPaneMode = updatedItem.readerStatus === 'ready' ? 'reader' : 'feed';
+		appUi.readerPaneMode = readerPaneMode;
 		if (updatedItem.readerStatus !== 'ready') {
 			toast.warning('Reader view was unavailable for this item. Showing feed content instead.');
 		}

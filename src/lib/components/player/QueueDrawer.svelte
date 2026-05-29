@@ -1,18 +1,15 @@
 <script lang="ts">
 	import { getPlaybackHistory, getUpcomingQueue } from '$lib/state/playback.svelte';
+	import { clearQueue } from '$lib/state';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import QueueList from './QueueList.svelte';
 
 	type Props = {
 		open: boolean;
-		onRemoveItem: (itemId: string) => void;
-		onMoveItemUp: (itemId: string) => void;
-		onMoveItemDown: (itemId: string) => void;
-		onClearQueue: () => void;
 		onClose: () => void;
 	};
 
-	let { open, onRemoveItem, onMoveItemUp, onMoveItemDown, onClearQueue, onClose }: Props = $props();
+	let { open, onClose }: Props = $props();
 
 	const historyItems = $derived(getPlaybackHistory());
 	const queueItems = $derived(getUpcomingQueue());
@@ -56,7 +53,7 @@
 	</div>
 
 	<div class="flex-1 overflow-y-auto">
-		<QueueList {onRemoveItem} {onMoveItemUp} {onMoveItemDown} />
+		<QueueList />
 	</div>
 
 	{#if queueItems.length > 0}
@@ -64,7 +61,7 @@
 			<button
 				type="button"
 				class="preset-outlined-subtle btn w-full justify-center rounded-xl"
-				onclick={onClearQueue}
+				onclick={() => clearQueue()}
 			>
 				Clear queue
 			</button>

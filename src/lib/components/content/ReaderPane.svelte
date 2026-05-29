@@ -2,40 +2,54 @@
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
 	import { feedsState } from '$lib/state';
-	import {
-		getSelectedItemOrNull,
-		getIsSelectedItemReaderLoading,
-		getHasSelectedItemReaderContent,
-		getCanUseReaderMode
-	} from '$lib/state/selectors.svelte';
-	import { appUi, toggleReaderMaximized } from '$lib/hooks/useAppUi.svelte';
+	import { getSelectedItem, readerState } from '$lib/state';
+	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import Icon from '@iconify/svelte';
 
-	let { class: className = '' }: { class?: string } = $props();
+	let {
+		class: className = ''
+	}: {
+		class?: string;
+	} = $props();
 
-	type ReaderPaneMode = 'feed' | 'reader';
+	function isReaderPaneMode(value: string | null): value is ReaderPaneMode {
+		return value === 'feed' || value === 'reader';
+	}
 
-	const selectedItem = $derived(getSelectedItemOrNull());
-	const isSelectedItemReaderLoading = $derived(getIsSelectedItemReaderLoading());
-	const hasSelectedItemReaderContent = $derived(getHasSelectedItemReaderContent());
-	const canUseReaderMode = $derived(getCanUseReaderMode());
+	const selectedItem = $derived(getSelectedItem());
 
-	const selectedItemFeed = $derived.by(() => {
-		const item = selectedItem;
-		return item !== null ? (feedsState.feeds.find((f) => f.id === item.feedId) ?? null) : null;
-	});
-
-	const isReaderPaneActive = $derived(
-		appUi.readerPaneMode === 'reader' && hasSelectedItemReaderContent
+	const isSelectedItemReaderLoading = $derived(
+		selectedItem ? readerState.readerLoadingItemIds.includes(selectedItem.id) : false
 	);
+
+	const hasSelectedItemReaderContent = $derived(selectedItem?.readerStatus === 'ready');
+
+	const canUseReaderMode = $derived(selectedItem ? !isMediaItem(selectedItem) : false);
+
+	const readerPaneMode = $derived(appUi.readerPaneMode);
+	const isReaderMaximized = $derived(appUi.isReaderMaximized);
+
+	const selectedItemFeed = $derived(
+		selectedItem ? (feedsState.feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
+	);
+
+	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 
 	const podcastImageUrl = $derived(
 		selectedItem !== null && isMediaItem(selectedItem)
 			? selectedItem.imageUrl || selectedItemFeed?.imageUrl
 			: undefined
+	);
+
+	const readerViewButtonLabel = $derived(
+		isSelectedItemReaderLoading
+			? 'Loading reader view...'
+			: selectedItem?.readerStatus === 'failed'
+				? 'Retry Reader View'
+				: 'Load Reader View'
 	);
 </script>
 
@@ -50,8 +64,12 @@
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
 						<SegmentedControl
-							value={appUi.readerPaneMode}
-							onValueChange={(details) => (appUi.readerPaneMode = details.value as ReaderPaneMode)}
+							value={readerPaneMode}
+							onValueChange={(details) => {
+								if (isReaderPaneMode(details.value)) {
+									appUi.readerPaneMode = details.value;
+								}
+							}}
 						>
 							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 
@@ -80,11 +98,7 @@
 							type="button"
 							onclick={() => selectedItem && void loadReaderView(selectedItem.id)}
 						>
-							{isSelectedItemReaderLoading
-								? 'Loading reader view...'
-								: selectedItem?.readerStatus === 'failed'
-									? 'Retry Reader View'
-									: 'Load Reader View'}
+							{readerViewButtonLabel}
 						</button>
 					{/if}
 
@@ -92,13 +106,10 @@
 						class="preset-outlined-subtle ml-auto flex aspect-square items-center justify-center rounded-xl"
 						style="width: 2.875rem; height: 2.875rem;"
 						type="button"
-						aria-label={appUi.isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
+						aria-label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
 						onclick={toggleReaderMaximized}
 					>
-						<Icon
-							icon={appUi.isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
-							class="size-4"
-						/>
+						<Icon icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'} class="size-4" />
 					</button>
 				</div>
 			</div>

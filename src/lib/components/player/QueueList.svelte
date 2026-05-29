@@ -2,6 +2,7 @@
 	import type { MediaListItem } from '$lib/types/item';
 	import { feedsState } from '$lib/state/feeds.svelte';
 	import { getPlaybackHistory, getUpcomingQueue } from '$lib/state/playback.svelte';
+	import { moveQueuedItemUp, moveQueuedItemDown, removeQueuedItem } from '$lib/state';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
@@ -13,18 +14,12 @@
 		appearance?: QueueListAppearance;
 		rowPaddingClass?: string;
 		separatorPaddingClass?: string;
-		onRemoveItem?: (itemId: string) => void;
-		onMoveItemUp?: (itemId: string) => void;
-		onMoveItemDown?: (itemId: string) => void;
 	};
 
 	let {
 		appearance = 'default',
 		rowPaddingClass = 'px-5',
-		separatorPaddingClass = 'px-5',
-		onRemoveItem,
-		onMoveItemUp,
-		onMoveItemDown
+		separatorPaddingClass = 'px-5'
 	}: Props = $props();
 
 	const historyItems = $derived(getPlaybackHistory());
@@ -193,37 +188,35 @@
 				</div>
 
 				<div class={classes.actionStack}>
-					{#if index > 0 && onMoveItemUp}
+					{#if index > 0}
 						<button
 							type="button"
 							title="Move up"
 							aria-label={`Move ${item.title} up in queue`}
 							class={classes.actionButton}
-							onclick={() => onMoveItemUp(item.id)}
+							onclick={() => moveQueuedItemUp(item.id)}
 						>
 							<Icon icon="lucide:chevron-up" class="size-3.5" />
 						</button>
 					{/if}
 
-					{#if onRemoveItem}
-						<button
-							type="button"
-							title="Remove from queue"
-							aria-label={`Remove ${item.title} from queue`}
-							class={classes.actionButton}
-							onclick={() => onRemoveItem(item.id)}
-						>
-							<Icon icon="lucide:x" class="size-3.5" />
-						</button>
-					{/if}
+					<button
+						type="button"
+						title="Remove from queue"
+						aria-label={`Remove ${item.title} from queue`}
+						class={classes.actionButton}
+						onclick={() => removeQueuedItem(item.id)}
+					>
+						<Icon icon="lucide:x" class="size-3.5" />
+					</button>
 
-					{#if index < queueItems.length - 1 && onMoveItemDown}
+					{#if index < queueItems.length - 1}
 						<button
 							type="button"
 							title="Move down"
 							aria-label={`Move ${item.title} down in queue`}
 							class={classes.actionButton}
-							onclick={() => onMoveItemDown(item.id)}
+							onclick={() => moveQueuedItemDown(item.id)}
 						>
 							<Icon icon="lucide:chevron-down" class="size-3.5" />
 						</button>

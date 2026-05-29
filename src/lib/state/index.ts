@@ -8,9 +8,12 @@
  * when you need specific dependencies.
  */
 
+export { appState, resetAppState, markAppInitialized } from './app.svelte';
+
 export {
 	selection,
 	resetSelectionState,
+	applyRouteSelection,
 	selectFeed,
 	selectStation,
 	selectSection,
@@ -20,7 +23,8 @@ export {
 	setSectionSearchTerm,
 	getSelectedFeed,
 	getSelectedStation,
-	type SidebarSection
+	type SidebarSection,
+	type RouteSelectionState
 } from './selection.svelte';
 
 export {
@@ -145,6 +149,7 @@ export {
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriRuntime } from '../services/tauri';
 import { loadAppSettings, loadTheme } from '../services/settings';
+import { markAppInitialized, resetAppState } from './app.svelte';
 import { resetSelectionState } from './selection.svelte';
 import { resetFeedsState, loadFeeds } from './feeds.svelte';
 import { resetStationsState, loadStations } from './stations.svelte';
@@ -162,6 +167,7 @@ import { playbackSettings } from './settings.svelte';
 import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
 
 export async function initializeApp(): Promise<void> {
+	resetAppState();
 	resetSelectionState();
 	resetPlaybackState();
 	resetFeedsState();
@@ -216,6 +222,8 @@ export async function initializeApp(): Promise<void> {
 				.then(() => loadInitialItemsPage());
 		});
 	}
+
+	markAppInitialized();
 }
 
 let _unlistenAutoRefresh: UnlistenFn | undefined;

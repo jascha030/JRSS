@@ -454,18 +454,18 @@ function patchItemDuration(itemId: string, durationSeconds: number): void {
 	if (!item || !isMediaItem(item)) return;
 	if (item.mediaEnclosure.durationSeconds === durationSeconds) return;
 
-	const patched = {
+	const patched: MediaListItem = {
 		...item,
 		mediaEnclosure: { ...item.mediaEnclosure, durationSeconds }
 	};
 
-	itemsState.itemSummariesById[itemId] = patched as FeedListItem;
-	const audioItem = playbackState.audioItemsById[itemId];
+	itemsState.itemSummariesById[itemId] = patched;
+	const audioItem = resolveAudioItem(itemId);
 	if (audioItem) {
 		playbackState.audioItemsById[itemId] = {
 			...audioItem,
-			mediaEnclosure: { ...(audioItem as MediaListItem).mediaEnclosure, durationSeconds }
-		} as FeedListItem;
+			mediaEnclosure: { ...audioItem.mediaEnclosure, durationSeconds }
+		};
 	}
 }
 

@@ -1,75 +1,19 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
-
-	import {
-		feedsState,
-		stationsState,
-		itemsState,
-		selection,
-		getActiveQueryKey,
-		getActiveItemIdsByIndex,
-		getActiveTotalCount,
-		getIsActiveInitialLoading,
-		ensureVisibleRangeLoaded,
-		ensureItemLoaded,
-		markItemRead
-	} from '$lib/state';
-	import { appUi } from '$lib/hooks/useAppUi.svelte';
-	import { isMediaItem } from '$lib/types/item';
-
-	let {
-		class: className = '',
-		onReadyStateChange
-	}: {
-		class?: string;
-		onReadyStateChange?: (ready: boolean) => void;
-	} = $props();
+	import { markItemRead } from '$lib/state';
+	import { isMediaItem, type FeedListItem } from '$lib/types/item';
+	import type { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
+	import type { appUi } from '$lib/hooks/useAppUi.svelte';
 	import { formatDateOnly } from '$lib/utils/format';
-
-	import ItemListHeader from '$lib/components/content/ItemListHeader.svelte';
 	import SkeletonRow from '$lib/components/ui/SkeletonRow.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import PlayButton from '../playback/PlayButton.svelte';
 
-	const DESKTOP_ROW_HEIGHT = 200;
-	const MOBILE_ROW_HEIGHT = 304;
-	const OVERSCAN_ROWS = 1;
-
-	const itemIdsByIndex = $derived(getActiveItemIdsByIndex());
-	const itemsById = $derived(itemsState.itemSummariesById);
-	const activeQueryKey = $derived(getActiveQueryKey());
-	const totalCount = $derived(getActiveTotalCount());
-	const isInitialLoading = $derived(getIsActiveInitialLoading());
-	const selectedItemId = $derived(selection.selectedItemId);
-	const searchTerm = $derived(selection.feedSearchTerm);
-	const stationSearchTerm = $derived(selection.stationSearchTerm);
-	const sectionSearchTerm = $derived(selection.sectionSearchTerm);
-	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
-
-	const { hasActiveSearch, feedTitleById, rowHeight, showFeedTitle } = $derived.by(
-		() => ({
-			hasActiveSearch:
-				searchTerm.trim().length > 0 ||
-				stationSearchTerm.trim().length > 0 ||
-				sectionSearchTerm.trim().length > 0,
-			feedTitleById: new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])),
-			rowHeight: windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT,
-			showFeedTitle:
-				selection.selectedFeedId === null &&
-				(selection.selectedStationId === null ||
-					stationsState.stations.find((s) => s.id === selection.selectedStationId)?.feedIds
-						.length !== 1)
-		})
-	);
-
-	const itemSelection = useItemSelection();
-
 	type VisibleRow = {
 		index: number;
-		item: import('$lib/types/item').FeedListItem | null;
+		item: FeedListItem | null;
 		top: number;
 	};
 
@@ -78,72 +22,63 @@
 		endIndex: number;
 	};
 
+	type Props = {
+		itemsById: Record<string, FeedListItem>;
+		displayedItemIdsByIndex: Record<number, string>;
+		displayedTotalCount: number;
+		displayedQueryKey: string | null;
+		selectedItemId: string | null;
+		hasActiveSearch: boolean;
+		showFeedTitle: boolean;
+		feedTitleById: Map<string, string>;
+		isInitialLoading: boolean;
+		isQueryTransitioning: boolean;
+		scrollToItemRequest: typeof appUi.scrollToItemRequest;
+		itemSelection: ReturnType<typeof useItemSelection>;
+		hasAppliedInitialScroll: boolean;
+		onEnsureItemLoaded: (itemId: string) => Promise<void>;
+		onVisibleRangeLoad: (startIndex: number, endIndex: number) => Promise<void>;
+		onScrollApplied: () => void;
+		class?: string;
+	};
+
+	let {
+		itemsById,
+		displayedItemIdsByIndex,
+		displayedTotalCount,
+		displayedQueryKey,
+		selectedItemId,
+		hasActiveSearch,
+		showFeedTitle,
+		feedTitleById,
+		isInitialLoading,
+		isQueryTransitioning,
+		scrollToItemRequest,
+		itemSelection,
+		hasAppliedInitialScroll,
+		onEnsureItemLoaded,
+		onVisibleRangeLoad,
+		onScrollApplied,
+		class: className = ''
+	}: Props = $props();
+
+	const DESKTOP_ROW_HEIGHT = 200;
+	const MOBILE_ROW_HEIGHT = 304;
+	const OVERSCAN_ROWS = 1;
+
 	let scrollViewport = $state<HTMLDivElement | null>(null);
 	let viewportHeight = $state(0);
 	let windowWidth = $state(0);
 	let scrollTop = $state(0);
-	let displayedQueryKey = $state<string | null>(null);
-	let displayedItemIdsByIndex = $state<Record<number, string>>({});
-	let displayedTotalCount = $state(0);
-	let isQueryTransitioning = $state(false);
 	let pendingScrollTop = 0;
 	let scrollFrame = 0;
 
+	const rowHeight = $derived(windowWidth >= 768 ? DESKTOP_ROW_HEIGHT : MOBILE_ROW_HEIGHT);
 	const totalHeight = $derived(displayedTotalCount * rowHeight);
 	const showInitialSkeleton = $derived(isInitialLoading && displayedQueryKey === null);
-	const isViewReady = $derived.by(
-		() =>
-			activeQueryKey !== null &&
-			displayedQueryKey === activeQueryKey &&
-			!isInitialLoading &&
-			!isQueryTransitioning
-	);
-
-	$effect(() => {
-		onReadyStateChange?.(isViewReady);
-	});
-
-	$effect(() => {
-		if (!activeQueryKey) {
-			displayedQueryKey = null;
-			displayedItemIdsByIndex = {};
-			displayedTotalCount = 0;
-			isQueryTransitioning = false;
-			return;
-		}
-
-		if (displayedQueryKey === null) {
-			displayedQueryKey = activeQueryKey;
-			displayedItemIdsByIndex = itemIdsByIndex;
-			displayedTotalCount = totalCount;
-			isQueryTransitioning = false;
-			return;
-		}
-
-		if (displayedQueryKey === activeQueryKey) {
-			displayedItemIdsByIndex = itemIdsByIndex;
-			displayedTotalCount = totalCount;
-			isQueryTransitioning = false;
-			return;
-		}
-
-		if (isInitialLoading) {
-			isQueryTransitioning = true;
-			return;
-		}
-
-		displayedQueryKey = activeQueryKey;
-		displayedItemIdsByIndex = itemIdsByIndex;
-		displayedTotalCount = totalCount;
-		isQueryTransitioning = false;
-	});
 
 	function feedTitle(feedId: string): string {
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
-	}
-
-	function getListPreview(item: import('$lib/types/item').FeedListItem) {
-		return item.previewText;
 	}
 
 	const visibleRange = $derived.by((): VisibleRange | null => {
@@ -205,8 +140,6 @@
 		scheduleScrollTop(currentTarget.scrollTop);
 	}
 
-	let hasAppliedInitialScroll = $state(false);
-
 	$effect(() => {
 		if (!scrollViewport) {
 			return;
@@ -217,28 +150,24 @@
 
 	$effect(() => {
 		const request = scrollToItemRequest;
-		if (!hasAppliedInitialScroll && scrollViewport && request && totalCount > 0) {
-			const index = itemSelection.getItemIndexById(request.itemId);
+		if (hasAppliedInitialScroll || !scrollViewport || !request || displayedTotalCount <= 0) {
+			return;
+		}
 
-			if (index !== null) {
+		const index = itemSelection.getItemIndexById(request.itemId);
+
+		if (index !== null) {
+			setInitialScrollPosition(request.itemId);
+			onScrollApplied();
+			return;
+		}
+
+		void onEnsureItemLoaded(request.itemId).then(() => {
+			void tick().then(() => {
 				setInitialScrollPosition(request.itemId);
-				hasAppliedInitialScroll = true;
-			} else {
-				void ensureItemLoaded(request.itemId).then(() => {
-					void tick().then(() => {
-						setInitialScrollPosition(request.itemId);
-					});
-				});
-				hasAppliedInitialScroll = true;
-			}
-		}
-	});
-
-	$effect(() => {
-		if (scrollToItemRequest) {
-			void scrollToItemRequest.seq;
-			hasAppliedInitialScroll = false;
-		}
+				onScrollApplied();
+			});
+		});
 	});
 
 	$effect(() => {
@@ -246,7 +175,7 @@
 			return;
 		}
 
-		void ensureVisibleRangeLoaded(visibleRange.startIndex, visibleRange.endIndex - 1);
+		void onVisibleRangeLoad(visibleRange.startIndex, visibleRange.endIndex - 1);
 	});
 
 	function setInitialScrollPosition(itemId: string): void {
@@ -274,8 +203,6 @@
 <section
 	class="flex h-full w-full flex-1 flex-col overflow-hidden bg-surface backdrop-blur-md {className}"
 >
-	<ItemListHeader />
-
 	<div
 		bind:this={scrollViewport}
 		bind:clientHeight={viewportHeight}
@@ -302,11 +229,15 @@
 					description="This view is wired up, but there are no matching items right now. Add more feeds or switch filters to keep exploring the shell."
 				/>
 			{/if}
-			{:else}
-			<div class="relative min-h-full transition-[opacity,filter] duration-220 ease-out motion-reduce:transition-none">
+		{:else}
+			<div
+				class="relative min-h-full transition-[opacity,filter] duration-220 ease-out motion-reduce:transition-none"
+			>
 				<div
 					class={`transition-[opacity,filter,transform] duration-220 ease-out motion-reduce:transition-none ${
-						isQueryTransitioning ? 'scale-[0.995] opacity-55 blur-[1px]' : 'scale-100 opacity-100 blur-0'
+						isQueryTransitioning
+							? 'scale-[0.995] opacity-55 blur-[1px]'
+							: 'blur-0 scale-100 opacity-100'
 					}`}
 				>
 					{#key displayedQueryKey}
@@ -333,7 +264,9 @@
 												onclick={(event) => itemSelection.handleItemClick(event, item.id)}
 											>
 												{#if !item.read}
-													<div class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"></div>
+													<div
+														class="absolute top-6 left-3 z-10 size-2 rounded-full bg-accent-dot"
+													></div>
 												{/if}
 
 												<div class="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -356,7 +289,7 @@
 														</h3>
 
 														<p class="text-sm leading-6 text-fg-secondary">
-															{getListPreview(item)}
+															{item.previewText}
 														</p>
 													</div>
 												</div>
@@ -371,12 +304,13 @@
 													</div>
 
 													<!-- svelte-ignore a11y_no_static_element_interactions -->
-													<div class="flex flex-wrap gap-2" onclick={(e) => e.stopPropagation()}>
+													<div
+														class="flex flex-wrap gap-2"
+														onclick={(event) => event.stopPropagation()}
+													>
 														{#if isMediaItem(item)}
 															<PlayButton {item} compact={true} size="sm" />
-														{/if}
-
-														{#if !isMediaItem(item)}
+														{:else}
 															<IconButton
 																icon={item.read
 																	? 'heroicons:envelope-open-solid'
@@ -391,9 +325,7 @@
 											</article>
 										{:else}
 											<div
-												class={`feed-row flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 lg:px-8 ${
-													index > 0 ? 'border-t border-border' : ''
-												}`}
+												class={`feed-row flex h-full min-h-0 flex-col overflow-hidden px-6 py-5 lg:px-8 ${index > 0 ? 'border-t border-border' : ''}`}
 											>
 												<SkeletonRow />
 											</div>
@@ -406,7 +338,9 @@
 				</div>
 
 				{#if isQueryTransitioning}
-					<div class="pointer-events-none absolute inset-0 bg-linear-to-b from-surface/35 via-surface/12 to-surface/35 opacity-100 backdrop-blur-[1px] transition-opacity duration-220 ease-out motion-reduce:transition-none"></div>
+					<div
+						class="pointer-events-none absolute inset-0 bg-linear-to-b from-surface/35 via-surface/12 to-surface/35 opacity-100 backdrop-blur-[1px] transition-opacity duration-220 ease-out motion-reduce:transition-none"
+					></div>
 				{/if}
 			</div>
 		{/if}

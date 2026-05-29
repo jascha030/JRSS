@@ -537,6 +537,52 @@ body {
 	@apply cursor-default select-none;
 }
 
+@supports (view-transition-name: none) {
+	::view-transition-old(page-content) {
+		animation: 180ms cubic-bezier(0.22, 1, 0.36, 1) both jrss-page-out;
+	}
+
+	::view-transition-new(page-content) {
+		animation: 220ms cubic-bezier(0.22, 1, 0.36, 1) both jrss-page-in;
+	}
+
+	::view-transition-old(page-content),
+	::view-transition-new(page-content) {
+		mix-blend-mode: normal;
+	}
+
+	@keyframes jrss-page-out {
+		from {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+
+		to {
+			opacity: 0;
+			transform: translateY(10px) scale(0.9925);
+		}
+	}
+
+	@keyframes jrss-page-in {
+		from {
+			opacity: 0;
+			transform: translateY(14px) scale(0.9925);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(page-content),
+	::view-transition-new(page-content) {
+		animation-duration: 0.01ms !important;
+	}
+}
+
 input,
 textarea,
 [contenteditable] {
@@ -776,7 +822,7 @@ kbd {
 }
 
 .toast-base {
-	@apply flex min-w-80 items-center gap-3 rounded-xl border border-l-[3px] border-border border-border-strong bg-surface-card p-3 px-4 shadow-[0_4px_12px_rgb(0_0_0/0.08)];
+	@apply flex min-w-80 items-center gap-3 rounded-xl border border-l-[3px] border-border-strong bg-surface-card p-3 px-4 shadow-[0_4px_12px_rgb(0_0_0/0.08)];
 }
 
 .toast-success {

@@ -1,10 +1,19 @@
 # JRSS
 
+<div align="center">
+  <img src="https://github.com/jascha030/jrss/blob/main/app-icon.png?raw=true" alt="App icon" width="200" />
+
+  <h3>Jassie's Really Simple Syndication Application (working title)</h3>
+
 [![Version](https://img.shields.io/badge/version-0.0.1-1f6feb)](package.json)
 [![License](https://img.shields.io/badge/license-MIT-2ea043)](LICENSE)
 [![Desktop](https://img.shields.io/badge/runtime-Tauri%202-24c8db)](src-tauri/tauri.conf.json)
 
+</div>
+
 JRSS is a local-first desktop RSS reader and podcast player built with Tauri 2, SvelteKit 2, Svelte 5, Rust, and SQLite. It ingests RSS and Atom feeds into a local database, extracts cleaner reader-mode content for articles, and runs podcast playback through a native backend with queue persistence and session restore.
+
+---
 
 ![JRSS screenshot](img/main.png)
 

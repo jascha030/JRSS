@@ -3,6 +3,14 @@ import type { Station } from '$lib/types/station';
 
 export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
 
+export type RouteSelectionState = {
+	selectedFeedId: string | null;
+	selectedStationId: string | null;
+	selectedSection: SidebarSection;
+	selectedItemId: string | null;
+	searchTerm: string;
+};
+
 export const selection = $state({
 	selectedFeedId: null as string | null,
 	selectedStationId: null as string | null,
@@ -13,47 +21,58 @@ export const selection = $state({
 	sectionSearchTerm: ''
 });
 
-export function resetSelectionState(): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = null;
-	selection.selectedSection = 'home';
-	selection.selectedItemId = null;
+function switchSelectionContext(
+	feedId: string | null,
+	stationId: string | null,
+	section: SidebarSection,
+	options: { preserveItemId?: boolean } = {}
+): void {
+	selection.selectedFeedId = feedId;
+	selection.selectedStationId = stationId;
+	selection.selectedSection = section;
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';
 	selection.sectionSearchTerm = '';
-}
 
-export function selectFeed(feedId: string | null): void {
-	const isReselecting = selection.selectedFeedId === feedId;
-
-	selection.selectedFeedId = feedId;
-	selection.selectedStationId = null;
-	selection.selectedSection = feedId ? null : 'all';
-	selection.feedSearchTerm = '';
-	selection.sectionSearchTerm = '';
-
-	if (!isReselecting) {
+	if (!options.preserveItemId) {
 		selection.selectedItemId = null;
 	}
 }
 
+export function resetSelectionState(): void {
+	switchSelectionContext(null, null, 'home');
+}
+
+export function applyRouteSelection(state: RouteSelectionState): void {
+	selection.selectedFeedId = state.selectedFeedId;
+	selection.selectedStationId = state.selectedStationId;
+	selection.selectedSection = state.selectedSection;
+	selection.selectedItemId = state.selectedItemId;
+	selection.feedSearchTerm = state.selectedFeedId ? state.searchTerm : '';
+	selection.stationSearchTerm = state.selectedStationId ? state.searchTerm : '';
+	selection.sectionSearchTerm =
+		state.selectedFeedId === null &&
+		state.selectedStationId === null &&
+		(state.selectedSection === 'all' ||
+			state.selectedSection === 'unread' ||
+			state.selectedSection === 'media')
+			? state.searchTerm
+			: '';
+}
+
+export function selectFeed(feedId: string | null): void {
+	const isReselecting = selection.selectedFeedId === feedId;
+	switchSelectionContext(feedId, null, feedId ? null : 'all', {
+		preserveItemId: isReselecting
+	});
+}
+
 export function selectStation(stationId: string): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = stationId;
-	selection.selectedSection = null;
-	selection.selectedItemId = null;
-	selection.feedSearchTerm = '';
-	selection.stationSearchTerm = '';
-	selection.sectionSearchTerm = '';
+	switchSelectionContext(null, stationId, null);
 }
 
 export function selectSection(section: SidebarSection): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = null;
-	selection.selectedSection = section;
-	selection.selectedItemId = null;
-	selection.feedSearchTerm = '';
-	selection.sectionSearchTerm = '';
+	switchSelectionContext(null, null, section);
 }
 
 export function selectItem(itemId: string | null): void {
