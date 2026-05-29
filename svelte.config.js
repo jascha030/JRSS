@@ -23,7 +23,11 @@ const config = {
 	kit: {
 		adapter: adapter({
 			fallback: 'index.html'
-		})
+		}),
+		prerender: {
+			entries: ['*'],
+			handleUnseenRoutes: () => {}
+		}
 	}
 };
 
