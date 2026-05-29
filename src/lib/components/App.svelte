@@ -120,13 +120,14 @@
 
 			<div class="relative z-30 min-w-0 flex-1">
 				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-					<main class="relative flex min-h-0 flex-1 flex-col [view-transition-name:page-content]">
+					<main class="relative flex min-h-0 flex-1 flex-col">
 						<div
-							class={`flex min-h-0 flex-1 flex-col transition-[opacity,filter,transform] duration-180 ease-out motion-reduce:transition-none ${
+							class={`flex min-h-0 flex-1 flex-col transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
 								isRouteContentHidden
-									? 'translate-y-1 scale-[0.995] opacity-0 blur-[2px]'
-									: 'blur-0 translate-y-0 scale-100 opacity-100'
+									? 'translate-y-1 scale-[0.995] opacity-0'
+									: 'translate-y-0 scale-100 opacity-100'
 							}`}
+							style="view-transition-name: page-content"
 						>
 							{#if shouldShowEmptyFeedView}
 								<EmptyFeedView />
@@ -142,8 +143,8 @@
 							}`}
 						>
 							<div
-								class={`absolute inset-0 bg-surface/76 transition-[backdrop-filter] duration-180 ease-out motion-reduce:transition-none ${
-									isRouteLoadingCoverOpaque ? 'backdrop-blur-md' : 'backdrop-blur-0'
+								class={`absolute inset-0 bg-surface/80 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
+									isRouteLoadingCoverOpaque ? 'opacity-100' : 'opacity-0'
 								}`}
 							></div>
 

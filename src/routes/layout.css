@@ -554,13 +554,11 @@ body {
 	@keyframes jrss-page-out {
 		from {
 			opacity: 1;
-			filter: blur(0);
 			transform: translateY(0) scale(1);
 		}
 
 		to {
 			opacity: 0;
-			filter: blur(3px);
 			transform: translateY(10px) scale(0.9925);
 		}
 	}
@@ -568,15 +566,20 @@ body {
 	@keyframes jrss-page-in {
 		from {
 			opacity: 0;
-			filter: blur(5px);
 			transform: translateY(14px) scale(0.9925);
 		}
 
 		to {
 			opacity: 1;
-			filter: blur(0);
 			transform: translateY(0) scale(1);
 		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(page-content),
+	::view-transition-new(page-content) {
+		animation-duration: 0.01ms !important;
 	}
 }
 

@@ -6,7 +6,12 @@
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte';
 	import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
 	import { useGlobalShortcuts } from '$lib/hooks/useGlobalShortcuts.svelte';
-	import { parseAppUrl, toRouteSelection, navigateToSection } from '$lib/navigation/app-router';
+	import {
+		parseAppUrl,
+		toRouteSelection,
+		navigateToSection,
+		type AppRoute
+	} from '$lib/navigation/app-router';
 	import {
 		appState,
 		applyRouteSelection,
@@ -19,7 +24,7 @@
 
 	type RouteLoadingCoverState = 'idle' | 'covering' | 'loading' | 'revealing';
 
-	const ROUTE_COVER_MIN_MS = 240;
+	const ROUTE_COVER_MIN_MS = 120;
 	const ROUTE_COVER_OUT_MS = 180;
 
 	let { children } = $props();
@@ -42,6 +47,10 @@
 	}
 
 	onNavigate((navigation) => {
+		if (navigation.from?.url?.pathname === navigation.to?.url?.pathname) {
+			return;
+		}
+
 		const startViewTransition = document.startViewTransition;
 
 		if (!navigation.to || !startViewTransition) {
@@ -106,35 +115,29 @@
 		});
 	});
 
+	function isContentRoute(
+		route: AppRoute
+	): route is Extract<AppRoute, { kind: 'section' | 'feed' | 'station' }> {
+		return route.kind === 'section' || route.kind === 'feed' || route.kind === 'station';
+	}
+
 	$effect(() => {
 		applyRouteSelection(toRouteSelection(currentRoute));
-		appUi.readerPaneMode =
-			currentRoute.kind === 'section' ||
-			currentRoute.kind === 'feed' ||
-			currentRoute.kind === 'station'
-				? currentRoute.readerPaneMode
-				: 'feed';
+
+		appUi.readerPaneMode = isContentRoute(currentRoute) ? currentRoute.readerPaneMode : 'feed';
 
 		if (currentRoute.kind !== 'inspect') {
 			closeInspector();
 		}
-	});
 
-	$effect(() => {
-		const itemId =
-			currentRoute.kind === 'section' ||
-			currentRoute.kind === 'feed' ||
-			currentRoute.kind === 'station'
-				? currentRoute.itemId
-				: null;
-
-		if (!itemId || itemId === lastRouteItemId) {
-			lastRouteItemId = itemId;
-			return;
-		}
+		const itemId = isContentRoute(currentRoute) ? currentRoute.itemId : null;
+		const shouldScroll = itemId !== null && itemId !== lastRouteItemId;
 
 		lastRouteItemId = itemId;
-		requestScrollToItem(itemId);
+
+		if (shouldScroll) {
+			requestScrollToItem(itemId);
+		}
 	});
 
 	$effect(() => {
