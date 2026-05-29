@@ -54,10 +54,9 @@
 				<h2
 					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
 					class:select-none={selectedFeed}
-					oncontextmenu={(() => {
-						const feed = selectedFeed;
-						return feed ? (event: MouseEvent) => void openFeedContextMenu(event, feed) : undefined;
-					})()}
+					oncontextmenu={selectedFeed
+						? (event: MouseEvent) => void openFeedContextMenu(event, selectedFeed)
+						: undefined}
 				>
 					{pageHeading}
 				</h2>

@@ -32,10 +32,9 @@
 	const readerPaneMode = $derived(appUi.readerPaneMode);
 	const isReaderMaximized = $derived(appUi.isReaderMaximized);
 
-	const selectedItemFeed = $derived.by(() => {
-		const item = selectedItem;
-		return item !== null ? (feedsState.feeds.find((f) => f.id === item.feedId) ?? null) : null;
-	});
+	const selectedItemFeed = $derived(
+		selectedItem ? (feedsState.feeds.find((f) => f.id === selectedItem.feedId) ?? null) : null
+	);
 
 	const isReaderPaneActive = $derived(readerPaneMode === 'reader' && hasSelectedItemReaderContent);
 
@@ -43,6 +42,14 @@
 		selectedItem !== null && isMediaItem(selectedItem)
 			? selectedItem.imageUrl || selectedItemFeed?.imageUrl
 			: undefined
+	);
+
+	const readerViewButtonLabel = $derived(
+		isSelectedItemReaderLoading
+			? 'Loading reader view...'
+			: selectedItem?.readerStatus === 'failed'
+				? 'Retry Reader View'
+				: 'Load Reader View'
 	);
 </script>
 
@@ -91,11 +98,7 @@
 							type="button"
 							onclick={() => selectedItem && void loadReaderView(selectedItem.id)}
 						>
-							{isSelectedItemReaderLoading
-								? 'Loading reader view...'
-								: selectedItem?.readerStatus === 'failed'
-									? 'Retry Reader View'
-									: 'Load Reader View'}
+							{readerViewButtonLabel}
 						</button>
 					{/if}
 

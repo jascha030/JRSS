@@ -21,14 +21,26 @@ export const selection = $state({
 	sectionSearchTerm: ''
 });
 
-export function resetSelectionState(): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = null;
-	selection.selectedSection = 'home';
-	selection.selectedItemId = null;
+function switchSelectionContext(
+	feedId: string | null,
+	stationId: string | null,
+	section: SidebarSection,
+	options: { preserveItemId?: boolean } = {}
+): void {
+	selection.selectedFeedId = feedId;
+	selection.selectedStationId = stationId;
+	selection.selectedSection = section;
 	selection.feedSearchTerm = '';
 	selection.stationSearchTerm = '';
 	selection.sectionSearchTerm = '';
+
+	if (!options.preserveItemId) {
+		selection.selectedItemId = null;
+	}
+}
+
+export function resetSelectionState(): void {
+	switchSelectionContext(null, null, 'home');
 }
 
 export function applyRouteSelection(state: RouteSelectionState): void {
@@ -50,35 +62,17 @@ export function applyRouteSelection(state: RouteSelectionState): void {
 
 export function selectFeed(feedId: string | null): void {
 	const isReselecting = selection.selectedFeedId === feedId;
-
-	selection.selectedFeedId = feedId;
-	selection.selectedStationId = null;
-	selection.selectedSection = feedId ? null : 'all';
-	selection.feedSearchTerm = '';
-	selection.sectionSearchTerm = '';
-
-	if (!isReselecting) {
-		selection.selectedItemId = null;
-	}
+	switchSelectionContext(feedId, null, feedId ? null : 'all', {
+		preserveItemId: isReselecting
+	});
 }
 
 export function selectStation(stationId: string): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = stationId;
-	selection.selectedSection = null;
-	selection.selectedItemId = null;
-	selection.feedSearchTerm = '';
-	selection.stationSearchTerm = '';
-	selection.sectionSearchTerm = '';
+	switchSelectionContext(null, stationId, null);
 }
 
 export function selectSection(section: SidebarSection): void {
-	selection.selectedFeedId = null;
-	selection.selectedStationId = null;
-	selection.selectedSection = section;
-	selection.selectedItemId = null;
-	selection.feedSearchTerm = '';
-	selection.sectionSearchTerm = '';
+	switchSelectionContext(null, null, section);
 }
 
 export function selectItem(itemId: string | null): void {

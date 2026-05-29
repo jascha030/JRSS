@@ -61,6 +61,23 @@ function encodeSegment(value: string): string {
 	return encodeURIComponent(value);
 }
 
+function getRoutePath(route: AppRoute): string {
+	switch (route.kind) {
+		case 'home':
+			return '/';
+		case 'settings':
+			return '/settings';
+		case 'inspect':
+			return `/feeds/${encodeSegment(route.feedId)}/inspect`;
+		case 'feed':
+			return `/feeds/${encodeSegment(route.feedId)}`;
+		case 'station':
+			return `/stations/${encodeSegment(route.stationId)}`;
+		case 'section':
+			return `/${route.section}`;
+	}
+}
+
 function getSearchHashSuffix(url: URL): SearchHashSuffix {
 	if (url.search && url.hash) {
 		return `?${url.searchParams.toString()}#${url.hash.slice(1)}`;
@@ -232,44 +249,21 @@ export function toSidebarSection(route: AppRoute): SidebarSection {
 export function buildAppUrl(route: AppRoute, source?: URL): URL {
 	const url = new URL(source?.href ?? 'http://jrss.local/');
 
-	if (route.kind === 'home') {
-		url.pathname = '/';
-		url.search = '';
-		return withPreservedParams(url, source);
-	}
-
-	if (route.kind === 'settings') {
-		url.pathname = '/settings';
-		url.search = '';
-		return withPreservedParams(url, source);
-	}
-
-	if (route.kind === 'inspect') {
-		url.pathname = `/feeds/${encodeSegment(route.feedId)}/inspect`;
-		url.search = '';
-		return withPreservedParams(url, source);
-	}
-
-	if (route.kind === 'section') {
-		url.pathname = `/${route.section}`;
-	} else if (route.kind === 'feed') {
-		url.pathname = `/feeds/${encodeSegment(route.feedId)}`;
-	} else {
-		url.pathname = `/stations/${encodeSegment(route.stationId)}`;
-	}
-
+	url.pathname = getRoutePath(route);
 	url.search = '';
 
-	if (route.itemId) {
-		url.searchParams.set('item', route.itemId);
-	}
+	if (isListRoute(route)) {
+		if (route.itemId) {
+			url.searchParams.set('item', route.itemId);
+		}
 
-	if (route.search.trim().length > 0) {
-		url.searchParams.set('search', route.search);
-	}
+		if (route.search.trim().length > 0) {
+			url.searchParams.set('search', route.search);
+		}
 
-	if (route.readerPaneMode === 'reader') {
-		url.searchParams.set('view', 'reader');
+		if (route.readerPaneMode === 'reader') {
+			url.searchParams.set('view', 'reader');
+		}
 	}
 
 	return withPreservedParams(url, source);
@@ -386,31 +380,8 @@ export async function navigateToFeedInspector(
 	await navigateToAppRoute({ kind: 'inspect', feedId }, options);
 }
 
-export async function replaceCurrentSearchTerm(search: string): Promise<void> {
-	const currentUrl = getCurrentUrl();
-	if (!currentUrl) {
-		return;
-	}
-
-	const route = parseAppUrl(currentUrl);
-	if (!isListRoute(route)) {
-		return;
-	}
-
-	await navigateToAppRoute(
-		{
-			...route,
-			search,
-			itemId: null,
-			readerPaneMode: 'feed'
-		},
-		{ replaceState: true, noScroll: true, keepFocus: true }
-	);
-}
-
-export async function replaceCurrentSelectedItem(
-	itemId: string | null,
-	readerPaneMode: ReaderRouteMode = 'feed'
+async function replaceCurrentRoute(
+	mutate: (route: Extract<AppRoute, { itemId: string | null }>) => AppRoute
 ): Promise<void> {
 	const currentUrl = getCurrentUrl();
 	if (!currentUrl) {
@@ -422,34 +393,31 @@ export async function replaceCurrentSelectedItem(
 		return;
 	}
 
-	await navigateToAppRoute(
-		{
-			...route,
-			itemId,
-			readerPaneMode
-		},
-		{ replaceState: true, noScroll: true, keepFocus: true }
-	);
+	await navigateToAppRoute(mutate(route), {
+		replaceState: true,
+		noScroll: true,
+		keepFocus: true
+	});
+}
+
+export async function replaceCurrentSearchTerm(search: string): Promise<void> {
+	await replaceCurrentRoute((route) => ({
+		...route,
+		search,
+		itemId: null,
+		readerPaneMode: 'feed'
+	}));
+}
+
+export async function replaceCurrentSelectedItem(
+	itemId: string | null,
+	readerPaneMode: ReaderRouteMode = 'feed'
+): Promise<void> {
+	await replaceCurrentRoute((route) => ({ ...route, itemId, readerPaneMode }));
 }
 
 export async function replaceCurrentReaderPaneMode(readerPaneMode: ReaderRouteMode): Promise<void> {
-	const currentUrl = getCurrentUrl();
-	if (!currentUrl) {
-		return;
-	}
-
-	const route = parseAppUrl(currentUrl);
-	if (!isListRoute(route)) {
-		return;
-	}
-
-	await navigateToAppRoute(
-		{
-			...route,
-			readerPaneMode
-		},
-		{ replaceState: true, noScroll: true, keepFocus: true }
-	);
+	await replaceCurrentRoute((route) => ({ ...route, readerPaneMode }));
 }
 
 export async function navigateToFeedItem(feedId: string, itemId: string): Promise<void> {

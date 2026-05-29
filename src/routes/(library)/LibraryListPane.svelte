@@ -38,25 +38,31 @@
 	const selectedFeed = $derived(
 		feedsState.feeds.find((feed) => feed.id === selection.selectedFeedId) ?? null
 	);
+
 	const selectedStation = $derived(
 		stationsState.stations.find((station) => station.id === selection.selectedStationId) ?? null
 	);
+
 	const selectedItemId = $derived(selection.selectedItemId);
 	const scrollToItemRequest = $derived(appUi.scrollToItemRequest);
 	const isRefreshing = $derived(
 		selectedFeed ? feedsState.syncingFeedIds.includes(selectedFeed.id) : false
 	);
+
 	const itemSortOrder = $derived(
 		selectedStation?.sortOrder ?? selectedFeed?.sortOrder ?? 'newest_first'
 	);
+
 	const totalCount = $derived(
 		activeQueryKey ? (itemsState.totalCountByQueryKey[activeQueryKey] ?? 0) : 0
 	);
+
 	const pageHeading = $derived(
 		selectedStation?.name ??
 			selectedFeed?.title ??
 			(selection.selectedSection ? sectionHeadings[selection.selectedSection] : 'All feeds')
 	);
+
 	const searchContext = $derived.by(() => {
 		if (selectedFeed) {
 			return {
@@ -75,34 +81,39 @@
 		}
 
 		if (selection.selectedSection === 'unread' || selection.selectedSection === 'media') {
-			const kind = selection.selectedSection === 'unread' ? 'unread' : 'media';
 			return {
-				label: `Search ${kind}`,
-				placeholder: `Search ${kind}`,
+				label: `Search ${selection.selectedSection}`,
+				placeholder: `Search ${selection.selectedSection}`,
 				value: selection.sectionSearchTerm
 			};
 		}
 
 		return null;
 	});
+
 	const hasActiveSearch = $derived(
 		selection.feedSearchTerm.trim().length > 0 ||
 			selection.stationSearchTerm.trim().length > 0 ||
 			selection.sectionSearchTerm.trim().length > 0
 	);
+
 	const feedTitleById = $derived(new Map(feedsState.feeds.map((feed) => [feed.id, feed.title])));
+
 	const showFeedTitle = $derived(
 		selection.selectedFeedId === null &&
 			(selection.selectedStationId === null ||
 				stationsState.stations.find((station) => station.id === selection.selectedStationId)
 					?.feedIds.length !== 1)
 	);
+
 	const resolvedItemIdsByIndex = $derived(
 		activeQueryKey ? (itemsState.itemIdsByIndexByQueryKey[activeQueryKey] ?? {}) : {}
 	);
+
 	const resolvedTotalCount = $derived(
 		activeQueryKey ? (itemsState.totalCountByQueryKey[activeQueryKey] ?? 0) : 0
 	);
+
 	const isInitialLoading = $derived(getIsActiveInitialLoading());
 
 	let displayedQueryKey = $state<string | null>(null);
@@ -120,22 +131,9 @@
 			return;
 		}
 
-		if (displayedQueryKey === null) {
-			displayedQueryKey = activeQueryKey;
-			displayedItemIdsByIndex = resolvedItemIdsByIndex;
-			displayedTotalCount = resolvedTotalCount;
-			isQueryTransitioning = false;
-			return;
-		}
+		const isNewQuery = displayedQueryKey !== null && displayedQueryKey !== activeQueryKey;
 
-		if (displayedQueryKey === activeQueryKey) {
-			displayedItemIdsByIndex = resolvedItemIdsByIndex;
-			displayedTotalCount = resolvedTotalCount;
-			isQueryTransitioning = false;
-			return;
-		}
-
-		if (isInitialLoading) {
+		if (isNewQuery && isInitialLoading) {
 			isQueryTransitioning = true;
 			return;
 		}
@@ -161,13 +159,17 @@
 		void replaceCurrentSearchTerm(value);
 	}
 
+	async function withToast<T>(promise: Promise<T>, fallback: string): Promise<void> {
+		try {
+			await promise;
+		} catch (error: unknown) {
+			toast.error(error instanceof Error ? error.message : fallback);
+		}
+	}
+
 	async function handlePlayStation(): Promise<void> {
 		if (!selectedStation) return;
-		try {
-			await playStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to play station.');
-		}
+		await withToast(playStation(selectedStation.id), 'Unable to play station.');
 	}
 
 	function handleEditStation(): void {
@@ -177,11 +179,7 @@
 
 	async function handleDeleteStation(): Promise<void> {
 		if (!selectedStation) return;
-		try {
-			await deleteExistingStation(selectedStation.id);
-		} catch (error: unknown) {
-			toast.error(error instanceof Error ? error.message : 'Unable to delete station.');
-		}
+		await withToast(deleteExistingStation(selectedStation.id), 'Unable to delete station.');
 	}
 
 	function handleRefreshFeed(): void {
@@ -223,11 +221,6 @@
 		return () => {
 			if (unlistenSearchFeed) unlistenSearchFeed();
 			if (unlistenRefreshFeed) unlistenRefreshFeed();
-		};
-	});
-
-	onMount(() => {
-		return () => {
 			hasAppliedInitialScroll = false;
 		};
 	});

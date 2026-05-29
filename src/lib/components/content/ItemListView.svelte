@@ -81,10 +81,6 @@
 		return feedTitleById.get(feedId) ?? 'Unknown feed';
 	}
 
-	function getListPreview(item: FeedListItem) {
-		return item.previewText;
-	}
-
 	const visibleRange = $derived.by((): VisibleRange | null => {
 		if (displayedTotalCount === 0) {
 			return null;
@@ -293,7 +289,7 @@
 														</h3>
 
 														<p class="text-sm leading-6 text-fg-secondary">
-															{getListPreview(item)}
+															{item.previewText}
 														</p>
 													</div>
 												</div>
@@ -314,9 +310,7 @@
 													>
 														{#if isMediaItem(item)}
 															<PlayButton {item} compact={true} size="sm" />
-														{/if}
-
-														{#if !isMediaItem(item)}
+														{:else}
 															<IconButton
 																icon={item.read
 																	? 'heroicons:envelope-open-solid'
