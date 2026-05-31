@@ -6,12 +6,13 @@
 		item: FeedItem;
 		feedTitle?: string;
 		feedImageUrl?: string;
+		maximized?: boolean;
 	};
 
-	let { item, feedTitle, feedImageUrl }: Props = $props();
+	let { item, feedTitle, feedImageUrl, maximized = false }: Props = $props();
 </script>
 
-<ArticleBase {feedTitle} imageUrl={feedImageUrl} {item}>
+<ArticleBase {feedTitle} imageUrl={feedImageUrl} {item} {maximized}>
 	{#if item.readerContentHtml}
 		<div class="article-html mt-10">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->

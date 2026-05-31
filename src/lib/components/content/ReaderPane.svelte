@@ -59,7 +59,9 @@
 	{#if selectedItem}
 		<div class="space-y-9">
 			<div
-				class="mx-auto w-full max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl"
+				class="mx-auto w-full {isReaderMaximized
+					? 'max-w-5xl 3xl:max-w-7xl 4xl:max-w-[100rem]'
+					: 'max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl'}"
 			>
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
@@ -115,12 +117,17 @@
 			</div>
 
 			{#if isReaderPaneActive}
-				<ReaderArticle item={selectedItem} feedTitle={selectedItemFeed?.title} />
+				<ReaderArticle
+					item={selectedItem}
+					feedTitle={selectedItemFeed?.title}
+					maximized={isReaderMaximized}
+				/>
 			{:else}
 				<FeedArticle
 					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
 					feedOrEpisodeImageUrl={podcastImageUrl}
+					maximized={isReaderMaximized}
 				/>
 			{/if}
 		</div>

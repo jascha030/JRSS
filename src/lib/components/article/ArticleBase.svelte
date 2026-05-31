@@ -7,6 +7,7 @@
 		imageUrl?: string;
 		item: FeedItem;
 		surfaceClass?: string;
+		maximized?: boolean;
 		children?: import('svelte').Snippet;
 	};
 
@@ -15,13 +16,18 @@
 		imageUrl: imageUrl,
 		item,
 		surfaceClass = 'article-surface',
+		maximized = false,
 		children
 	}: Props = $props();
+
+	const widthClass = $derived(
+		maximized
+			? 'max-w-5xl 3xl:max-w-7xl 4xl:max-w-[100rem]'
+			: 'max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl'
+	);
 </script>
 
-<article
-	class={`${surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl`}
->
+<article class={`${surfaceClass} mx-auto w-full ${widthClass} pb-12`}>
 	<ArticleHeader {feedTitle} {imageUrl} {item} />
 
 	{@render children?.()}
