@@ -44,6 +44,7 @@ import {
 } from './items.svelte';
 import { selection } from './selection.svelte';
 import { feedsState } from './feeds.svelte';
+import { log } from '$lib/services/log';
 
 export type PlaybackState = {
 	itemId: string;
@@ -274,7 +275,7 @@ export async function precalculateCoverTheme(imageUrl: string | undefined): Prom
 		playbackState.coverTheme =
 			palette.length > 0 ? buildThemeFromPalette(palette) : FALLBACK_COVER_THEME;
 	} catch (error) {
-		console.error('Failed to extract cover palette:', error);
+		log.error(`Failed to extract cover palette: ${error}`);
 		playbackState.coverTheme = FALLBACK_COVER_THEME;
 	}
 }
@@ -396,7 +397,7 @@ async function ensureAudioItemsLoaded(itemIds: string[]): Promise<void> {
 					}
 				}
 			} catch (error) {
-				console.error('Failed to hydrate audio items from backend state.', error);
+				log.error(`Failed to hydrate audio items from backend state: ${error}`);
 			} finally {
 				for (const itemId of newIds) {
 					delete inFlightAudioItemHydrations[itemId];
@@ -525,7 +526,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
 		void markItemRead(event.itemId, true).catch((error) => {
-			console.error('Failed to mark item as read during playback.', error);
+			log.error(`Failed to mark item as read during playback: ${error}`);
 		});
 	}
 }
@@ -650,10 +651,10 @@ export function playAudioItem(
 				startPositionSeconds
 			);
 		} catch (error: unknown) {
-			console.error('Failed to start audio playback.', error);
+			log.error(`Failed to start audio playback: ${error}`);
 			playbackState.isAudioLoading = false;
 			void syncAudioSessionFromBackend().catch((syncError: unknown) => {
-				console.error('Failed to resync audio after playback start failure.', syncError);
+				log.error(`Failed to resync audio after playback start failure: ${syncError}`);
 			});
 		}
 	})();
@@ -661,7 +662,7 @@ export function playAudioItem(
 
 export function stopPlayback(): Promise<void> {
 	return audioStop().catch((error: unknown) => {
-		console.error('Failed to stop audio.', error);
+		log.error(`Failed to stop audio: ${error}`);
 	});
 }
 
@@ -672,23 +673,23 @@ export function requestTogglePlayback(): void {
 	}
 
 	void audioToggle().catch((error: unknown) => {
-		console.error('Failed to toggle playback.', error);
+		log.error(`Failed to toggle playback: ${error}`);
 		void syncAudioSessionFromBackend().catch((syncError: unknown) => {
-			console.error('Failed to resync audio after toggle failure.', syncError);
+			log.error(`Failed to resync audio after toggle failure: ${syncError}`);
 		});
 	});
 }
 
 export function requestSeekTo(positionSeconds: number): void {
 	void audioSeek(positionSeconds).catch((error: unknown) => {
-		console.error('Failed to seek.', error);
+		log.error(`Failed to seek: ${error}`);
 	});
 }
 
 export function requestNextEpisode(): void {
 	playbackState.isAudioLoading = true;
 	void audioQueueNext().catch((error: unknown) => {
-		console.error('Failed to skip to next episode.', error);
+		log.error(`Failed to skip to next episode: ${error}`);
 		playbackState.isAudioLoading = false;
 	});
 }
@@ -696,7 +697,7 @@ export function requestNextEpisode(): void {
 export function requestPreviousEpisode(): void {
 	playbackState.isAudioLoading = true;
 	void audioQueuePrev().catch((error: unknown) => {
-		console.error('Failed to skip to previous episode.', error);
+		log.error(`Failed to skip to previous episode: ${error}`);
 		playbackState.isAudioLoading = false;
 	});
 }
@@ -711,9 +712,9 @@ export function requestSetVolume(volume: number): void {
 	pendingVolumeTimeout = setTimeout(() => {
 		pendingVolumeTimeout = null;
 		void audioSetVolume(volume).catch((error: unknown) => {
-			console.error('Failed to set volume.', error);
+			log.error(`Failed to set volume: ${error}`);
 			void syncAudioSessionFromBackend().catch((syncError: unknown) => {
-				console.error('Failed to resync audio after volume failure.', syncError);
+				log.error(`Failed to resync audio after volume failure: ${syncError}`);
 			});
 		});
 	}, 125);
@@ -772,7 +773,7 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 		queueItems.push(itemToQueuedItem(item));
 	}
 
-	void audioQueueSet(queueItems).catch(console.error);
+	void audioQueueSet(queueItems).catch((err: unknown) => log.error(`Failed to set queue: ${err}`));
 }
 
 export function enqueueAudioItem(item: MediaListItem): void {
@@ -786,7 +787,9 @@ export function enqueueAudioItem(item: MediaListItem): void {
 
 	registerAudioItem(item);
 
-	void audioQueueEnqueue(itemToQueuedItem(item)).catch(console.error);
+	void audioQueueEnqueue(itemToQueuedItem(item)).catch((err: unknown) =>
+		log.error(`Failed to enqueue: ${err}`)
+	);
 }
 
 export function playAudioItemNext(item: MediaListItem): void {
@@ -796,27 +799,37 @@ export function playAudioItemNext(item: MediaListItem): void {
 
 	registerAudioItem(item);
 
-	void audioQueuePlayNext(itemToQueuedItem(item)).catch(console.error);
+	void audioQueuePlayNext(itemToQueuedItem(item)).catch((err: unknown) =>
+		log.error(`Failed to play next: ${err}`)
+	);
 }
 
 export function moveQueuedItemUp(itemId: string): void {
-	void audioQueueMoveUp(itemId).catch(console.error);
+	void audioQueueMoveUp(itemId).catch((err: unknown) =>
+		log.error(`Failed to move queue item up: ${err}`)
+	);
 }
 
 export function moveQueuedItemDown(itemId: string): void {
-	void audioQueueMoveDown(itemId).catch(console.error);
+	void audioQueueMoveDown(itemId).catch((err: unknown) =>
+		log.error(`Failed to move queue item down: ${err}`)
+	);
 }
 
 export function removeQueuedItem(itemId: string): void {
-	void audioQueueRemove(itemId).catch(console.error);
+	void audioQueueRemove(itemId).catch((err: unknown) =>
+		log.error(`Failed to remove queue item: ${err}`)
+	);
 }
 
 export function clearQueue(): void {
-	void audioQueueClear().catch(console.error);
+	void audioQueueClear().catch((err: unknown) => log.error(`Failed to clear queue: ${err}`));
 }
 
 export function clearPlaybackHistory(): void {
-	void audioQueueClearHistory().catch(console.error);
+	void audioQueueClearHistory().catch((err: unknown) =>
+		log.error(`Failed to clear playback history: ${err}`)
+	);
 }
 
 export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {
@@ -829,7 +842,7 @@ export async function removeFromQueuesByFeedId(feedId: string): Promise<void> {
 
 	for (const itemId of queuedIdsToRemove) {
 		await audioQueueRemove(itemId).catch((error: unknown) => {
-			console.error('Failed to remove deleted feed item from backend queue.', error);
+			log.error(`Failed to remove deleted feed item from backend queue: ${error}`);
 		});
 	}
 

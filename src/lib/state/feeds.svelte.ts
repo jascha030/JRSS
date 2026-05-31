@@ -10,6 +10,7 @@ import {
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 import { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } from './playback.svelte';
+import { log } from '$lib/services/log';
 
 export const feedsState = $state({
 	feeds: [] as Feed[],
@@ -126,7 +127,7 @@ export async function setFeedSortOrder(order: ItemSortOrder): Promise<void> {
 
 	// Persist to SQLite (fire-and-forget)
 	void persistFeedSortOrder(feedId, order).catch((error: unknown) => {
-		console.error('Failed to persist feed sort order.', error);
+		log.error(`Failed to persist feed sort order: ${error}`);
 	});
 
 	invalidateAllQueries();
