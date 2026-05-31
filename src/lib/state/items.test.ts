@@ -42,7 +42,7 @@ function makeMedia(id: string): MediaListItem {
 		read: false,
 		playbackPositionSeconds: 0,
 		itemType: 'media',
-		mediaEnclosure: { url: 'http://example.com/ep.mp3', mimeType: 'audio/mpeg' }
+		mediaEnclosure: { url: 'https://example.com/ep.mp3', mimeType: 'audio/mpeg' }
 	};
 }
 

@@ -1,4 +1,4 @@
-/** Reused across calls — construction involves locale resolution and option canonicalization. */
+/** Reused across calls — construction involves locale resolution and option canonicalisation. */
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
 	month: 'short',
 	day: 'numeric',
