@@ -10,6 +10,7 @@
 		onNavigate?: () => void;
 		onShowCover?: () => void;
 		showCover?: boolean;
+		compact?: boolean;
 		class?: string;
 	};
 
@@ -19,6 +20,7 @@
 		onNavigate,
 		onShowCover: onShowCover = undefined,
 		showCover = true,
+		compact = false,
 		class: className = ''
 	}: Props = $props();
 
@@ -35,7 +37,6 @@
 {#if item}
 	<div class={`flex min-w-0 items-center gap-3 ${className}`}>
 		{#if showCover}
-			<!-- <div class="min-h-12 max-h-12 w-auto flex"> -->
 			<button
 				class="shrink-0"
 				type="button"
@@ -43,7 +44,7 @@
 				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
 				aria-label="Show cover art"
 			>
-				<Avatar class="h-12 w-auto rounded-md shadow-sm">
+				<Avatar class={`w-auto rounded-md shadow-sm ${compact ? 'h-10' : 'h-12'}`}>
 					{#if imageUrl}
 						<Avatar.Image src={imageUrl} alt="" class="h-full max-h-12 w-full hover:object-cover" />
 					{/if}
@@ -54,13 +55,14 @@
 					</Avatar.Fallback>
 				</Avatar>
 			</button>
-			<!-- </div> -->
 		{/if}
 
 		<div class="min-w-0 flex-1">
-			<p class="text-[0.65rem] font-semibold tracking-widest text-fg-muted uppercase">
-				Now playing
-			</p>
+			{#if !compact}
+				<p class="text-[0.65rem] font-semibold tracking-widest text-fg-muted uppercase">
+					Now playing
+				</p>
+			{/if}
 
 			<button
 				class="mt-1 block w-full text-left text-sm font-semibold text-fg transition-colors select-none hover:text-accent focus-visible:text-accent"
