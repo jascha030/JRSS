@@ -91,94 +91,100 @@
 <CommandPalette />
 
 <div class="h-screen overflow-hidden bg-surface-shell">
-	{#if appUi.playerMode === 'cover'}
-		<CoverView item={currentAudioItem} imageUrl={currentAudioItem?.imageUrl} />
-	{:else}
-		<AppBar class="top-0 z-9999 h-12 bg-transparent! p-0">
-			<AppBar.Toolbar
-				class="flex h-12 w-full content-center border-b border-border bg-surface-sidebar p-0"
-			>
-				<div
-					data-tauri-drag-region
-					class="flex h-12 w-full items-center justify-end py-0 pr-4 pl-44 align-middle"
-				>
-					<Header />
-				</div>
-			</AppBar.Toolbar>
-		</AppBar>
-
-		<QueueDrawer open={appUi.isQueueDrawerOpen} onClose={handleCloseQueue} />
-
-		<div class="flex h-[calc(100%-54px)] overflow-hidden">
+	<AppBar class="top-0 z-9999 h-12 bg-transparent! p-0">
+		<AppBar.Toolbar
+			class="flex h-12 w-full content-center border-b border-border bg-surface-sidebar p-0"
+		>
 			<div
-				class={`hidden shrink-0 overflow-hidden motion-reduce:transition-none md:block md:transition-[width] md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
-					appUi.isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
-				}`}
+				data-tauri-drag-region
+				class="flex h-12 w-full items-center justify-end py-0 pr-4 pl-44 align-middle"
 			>
-				<Sidebar />
+				<Header />
 			</div>
+		</AppBar.Toolbar>
+	</AppBar>
 
-			<div class="relative z-30 min-w-0 flex-1">
-				<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-					<main class="relative flex min-h-0 flex-1 flex-col">
-						<div
-							class={`flex min-h-0 flex-1 flex-col transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
-								isRouteContentHidden
-									? 'translate-y-1 scale-[0.995] opacity-0'
-									: 'translate-y-0 scale-100 opacity-100'
-							}`}
-							style="view-transition-name: page-content"
-						>
-							{#if shouldShowEmptyFeedView}
-								<EmptyFeedView />
-							{:else}
-								{@render children?.()}
-							{/if}
-						</div>
+	<QueueDrawer open={appUi.isQueueDrawerOpen} onClose={handleCloseQueue} />
 
+	<div class="flex h-[calc(100%-54px)] overflow-hidden">
+		<div
+			class={`hidden shrink-0 overflow-hidden motion-reduce:transition-none md:block md:transition-[width] md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)] ${
+				appUi.isSidebarCollapsed ? 'md:w-16' : 'md:w-60'
+			}`}
+		>
+			<Sidebar />
+		</div>
+
+		<div class="relative z-30 min-w-0 flex-1">
+			<div class="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+				<main class="relative flex min-h-0 flex-1 flex-col">
+					<div
+						class={`flex min-h-0 flex-1 flex-col transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
+							isRouteContentHidden
+								? 'translate-y-1 scale-[0.995] opacity-0'
+								: 'translate-y-0 scale-100 opacity-100'
+						}`}
+						style="view-transition-name: page-content"
+					>
+						{#if shouldShowEmptyFeedView}
+							<EmptyFeedView />
+						{:else}
+							{@render children?.()}
+						{/if}
+					</div>
+
+					<div
+						aria-hidden={!isRouteLoadingCoverVisible}
+						class={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
+							isRouteLoadingCoverVisible ? 'opacity-100' : 'opacity-0'
+						}`}
+					>
 						<div
-							aria-hidden={!isRouteLoadingCoverVisible}
-							class={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
-								isRouteLoadingCoverVisible ? 'opacity-100' : 'opacity-0'
+							class={`absolute inset-0 bg-surface/80 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
+								isRouteLoadingCoverOpaque ? 'opacity-100' : 'opacity-0'
 							}`}
-						>
+						></div>
+
+						<div class="absolute inset-0 flex items-center justify-center">
 							<div
-								class={`absolute inset-0 bg-surface/80 transition-opacity duration-180 ease-out motion-reduce:transition-none ${
-									isRouteLoadingCoverOpaque ? 'opacity-100' : 'opacity-0'
+								class={`flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
+									routeLoadingCoverState === 'revealing'
+										? 'translate-y-1 scale-[0.985] opacity-0'
+										: 'translate-y-0 scale-100 opacity-100'
 								}`}
-							></div>
-
-							<div class="absolute inset-0 flex items-center justify-center">
+							>
 								<div
-									class={`flex items-center gap-3 rounded-full border border-border/70 bg-surface-shell/88 px-4 py-2.5 shadow-lg transition-[opacity,transform] duration-180 ease-out motion-reduce:transition-none ${
-										routeLoadingCoverState === 'revealing'
-											? 'translate-y-1 scale-[0.985] opacity-0'
-											: 'translate-y-0 scale-100 opacity-100'
-									}`}
-								>
-									<div
-										class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"
-									></div>
-									<span class="text-sm font-medium text-fg-secondary">Loading view</span>
-								</div>
+									class="size-4 rounded-full border-2 border-accent/25 border-t-accent motion-safe:animate-spin motion-reduce:animate-none"
+								></div>
+								<span class="text-sm font-medium text-fg-secondary">Loading view</span>
 							</div>
 						</div>
-					</main>
+					</div>
+				</main>
 
-					<AudioPlayer
-						item={currentAudioItem}
-						imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
-					>
-						{#snippet controls()}
-							<QueueToggleButton
-								isOpen={appUi.isQueueDrawerOpen}
-								{queueLength}
-								onToggle={toggleQueue}
-							/>
-						{/snippet}
-					</AudioPlayer>
-				</div>
+				<AudioPlayer
+					item={currentAudioItem}
+					imageUrl={currentAudioItem?.imageUrl ?? currentAudioItemFeed?.imageUrl}
+				>
+					{#snippet controls()}
+						<QueueToggleButton
+							isOpen={appUi.isQueueDrawerOpen}
+							{queueLength}
+							onToggle={toggleQueue}
+						/>
+					{/snippet}
+				</AudioPlayer>
 			</div>
 		</div>
-	{/if}
+	</div>
+
+	<div
+		class="fixed inset-0 z-50 transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+		class:opacity-0={appUi.playerMode !== 'cover'}
+		class:pointer-events-none={appUi.playerMode !== 'cover'}
+		class:scale-[0.985]={appUi.playerMode !== 'cover'}
+		aria-hidden={appUi.playerMode !== 'cover'}
+	>
+		<CoverView item={currentAudioItem} imageUrl={currentAudioItem?.imageUrl} />
+	</div>
 </div>

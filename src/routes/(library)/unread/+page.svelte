@@ -1,1 +1,5 @@
-<!-- Route selection applied by +layout.svelte -->
+<script lang="ts">
+	import LayoutDrivenRoute from '$lib/components/LayoutDrivenRoute.svelte';
+</script>
+
+<LayoutDrivenRoute />

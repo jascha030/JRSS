@@ -29,7 +29,7 @@
 					"y": 28
 				},
 				"resizable": true,
-				"transparent": true,
+				"transparent": false,
 				"windowEffects": {
 					"effects": ["sidebar"],
 					"state": "followsWindowActiveState"

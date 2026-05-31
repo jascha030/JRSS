@@ -12,6 +12,7 @@
 		navigateToSection,
 		type AppRoute
 	} from '$lib/navigation/app-router';
+	import { Toaster } from 'svelte-sonner';
 	import {
 		appState,
 		applyRouteSelection,
@@ -173,3 +174,20 @@
 		{@render children?.()}
 	</App>
 {/if}
+
+<Toaster
+	position="top-center"
+	class="mt-14"
+	toastOptions={{
+		unstyled: true,
+		classes: {
+			toast: 'toast-base',
+			success: 'toast-success',
+			error: 'toast-error',
+			warning: 'toast-warning',
+			info: 'toast-info',
+			title: 'text-sm font-medium text-fg',
+			description: 'text-xs text-fg-secondary mt-0.5'
+		}
+	}}
+/>

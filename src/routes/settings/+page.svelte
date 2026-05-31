@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
 	import { APP_SETTINGS } from '$lib/constants/settings';
 	import {
@@ -34,7 +35,6 @@
 	let isLoading = $state(true);
 	let isSaving = $state(false);
 	let errorMessage = $state('');
-	let successMessage = $state('');
 	let initialized = $state(false);
 	let isClearingCache = $state(false);
 	let cacheMessage = $state('');
@@ -111,7 +111,6 @@
 	async function handleSave(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		errorMessage = '';
-		successMessage = '';
 
 		if (!isDesktop) {
 			errorMessage = 'Settings are only available in the desktop app.';
@@ -133,7 +132,7 @@
 		try {
 			const result = await saveAppSettings(pending);
 			Object.assign(pending, result);
-			successMessage = 'Settings saved.';
+			toast.success('Settings saved.');
 		} catch (error) {
 			errorMessage = `Failed to save settings. ${getErrorMessage(error)}`;
 		} finally {
@@ -251,8 +250,6 @@
 
 				{#if isLoading}
 					<p class="text-sm text-fg-muted">Loading settings…</p>
-				{:else if successMessage}
-					<p class="text-sm text-success">{successMessage}</p>
 				{:else if errorMessage}
 					<p class="text-sm text-error">{errorMessage}</p>
 				{/if}
