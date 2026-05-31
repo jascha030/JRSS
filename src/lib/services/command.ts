@@ -258,21 +258,39 @@ function buildBaseItems(options: Omit<BuildPaletteItemsOptions, 'feeds' | 'stati
 	return items;
 }
 
-function buildFeedItems(feeds: Feed[], term: string, onClose: () => void): CommandPaletteItem[] {
+type ScoredEntity<T> = {
+	entity: T;
+	score: number;
+};
+
+function buildSearchItems<T>(
+	entities: T[],
+	term: string,
+	getLabel: (entity: T) => string,
+	getItem: (entity: T) => CommandPaletteItem
+): CommandPaletteItem[] {
 	if (!term) return [];
 
-	return feeds
-		.map((feed) => ({
-			feed,
-			score: scoreTextMatch(feed.title, term)
+	return entities
+		.map((entity) => ({
+			entity,
+			score: scoreTextMatch(getLabel(entity), term)
 		}))
-		.filter((entry) => entry.score >= 0)
+		.filter((entry): entry is ScoredEntity<T> => entry.score >= 0)
 		.sort((a, b) => {
 			if (a.score !== b.score) return a.score - b.score;
-			return a.feed.title.localeCompare(b.feed.title);
+			return getLabel(a.entity).localeCompare(getLabel(b.entity));
 		})
 		.slice(0, 5)
-		.map(({ feed }) => ({
+		.map(({ entity }) => getItem(entity));
+}
+
+function buildFeedItems(feeds: Feed[], term: string, onClose: () => void): CommandPaletteItem[] {
+	return buildSearchItems(
+		feeds,
+		term,
+		(feed) => feed.title,
+		(feed) => ({
 			id: `feed:${feed.id}`,
 			title: feed.title,
 			icon: 'lucide:rss',
@@ -283,7 +301,8 @@ function buildFeedItems(feeds: Feed[], term: string, onClose: () => void): Comma
 				closeInspector();
 				void navigateToFeed(feed.id);
 			}, onClose)
-		}));
+		})
+	);
 }
 
 function buildStationItems(
@@ -291,20 +310,11 @@ function buildStationItems(
 	term: string,
 	onClose: () => void
 ): CommandPaletteItem[] {
-	if (!term) return [];
-
-	return stations
-		.map((station) => ({
-			station,
-			score: scoreTextMatch(station.name, term)
-		}))
-		.filter((entry) => entry.score >= 0)
-		.sort((a, b) => {
-			if (a.score !== b.score) return a.score - b.score;
-			return a.station.name.localeCompare(b.station.name);
-		})
-		.slice(0, 5)
-		.map(({ station }) => ({
+	return buildSearchItems(
+		stations,
+		term,
+		(station) => station.name,
+		(station) => ({
 			id: `station:${station.id}`,
 			title: station.name,
 			icon: 'lucide:radio',
@@ -315,7 +325,8 @@ function buildStationItems(
 				closeInspector();
 				void navigateToStation(station.id);
 			}, onClose)
-		}));
+		})
+	);
 }
 
 export function getCommandPaletteItems(options: BuildPaletteItemsOptions): CommandPaletteItem[] {

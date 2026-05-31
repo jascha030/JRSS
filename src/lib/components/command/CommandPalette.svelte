@@ -190,7 +190,7 @@
 			onclick={handlePanelClick}
 		>
 			<div
-				class="input-group grid grid-cols-[auto_1fr_auto] border-none bg-none px-4 py-3 ring-0 outline-0 focus-within:border-b-border"
+				class="input-group grid grid-cols-[auto_1fr_auto] border-none bg-none px-2 py-4 ring-0 outline-0 focus-within:border-b-border"
 			>
 				<div class="ig-cell">
 					<Icon icon="lucide:search" class="size-4" />
@@ -199,7 +199,7 @@
 					bind:this={inputRef}
 					bind:value={inputValue}
 					type="text"
-					class="ig-input"
+					class="ig-input border-none"
 					placeholder="Type a command..."
 					onkeydown={handleInputKeydown}
 				/>
