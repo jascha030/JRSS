@@ -5,6 +5,12 @@
 	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
+	import {
+		Combobox,
+		Portal,
+		type ComboboxRootProps,
+		useListCollection
+	} from '@skeletonlabs/skeleton-svelte';
 
 	type Props = {
 		pageHeading: string;
@@ -45,6 +51,26 @@
 		onInspectFeed,
 		onSetSortOrder
 	}: Props = $props();
+
+	const sortOptions = [
+		{ label: 'Newest first', value: 'newest_first' },
+		{ label: 'Oldest first', value: 'oldest_first' }
+	];
+
+	const collection = $derived(
+		useListCollection({
+			items: sortOptions,
+			itemToString: (item) => item.label,
+			itemToValue: (item) => item.value
+		})
+	);
+
+	const onValueChange: ComboboxRootProps['onValueChange'] = (event) => {
+		const value = event.value[0] ?? '';
+		if (value === 'newest_first' || value === 'oldest_first') {
+			onSetSortOrder(value);
+		}
+	};
 </script>
 
 <div class="shrink-0 border-b border-border bg-surface px-6 py-8 pb-7.75 backdrop-blur-md lg:px-8">
@@ -95,24 +121,31 @@
 				/>
 			{:else if selectedFeed}
 				<div class="flex flex-col">
-					<select
-						id="feed-sort-order"
-						class="preset-outlined-subtle select flex h-9 min-w-0 grow rounded-xl border border-border placeholder:text-fg-muted"
-						aria-label="Sort order"
-						value={itemSortOrder}
-						onchange={(event) => {
-							const target = event.currentTarget;
-							if (!(target instanceof HTMLSelectElement)) return;
-
-							const value = target.value;
-							if (value === 'newest_first' || value === 'oldest_first') {
-								onSetSortOrder(value);
-							}
-						}}
+					<Combobox
+						class="w-full min-w-0"
+						{collection}
+						value={[itemSortOrder]}
+						{onValueChange}
+						openOnClick
 					>
-						<option value="newest_first">Newest first</option>
-						<option value="oldest_first">Oldest first</option>
-					</select>
+						<Combobox.Label class="sr-only">Sort order</Combobox.Label>
+						<Combobox.Control class="flex h-9 items-center gap-2">
+							<Combobox.Input class="h-full min-w-0 flex-1" />
+							<Combobox.Trigger class="h-full" />
+						</Combobox.Control>
+						<Portal>
+							<Combobox.Positioner>
+								<Combobox.Content class="z-50 max-h-64 overflow-y-auto">
+									{#each sortOptions as item (item.value)}
+										<Combobox.Item {item}>
+											<Combobox.ItemText>{item.label}</Combobox.ItemText>
+											<Combobox.ItemIndicator />
+										</Combobox.Item>
+									{/each}
+								</Combobox.Content>
+							</Combobox.Positioner>
+						</Portal>
+					</Combobox>
 				</div>
 				<div>
 					{#key isRefreshing}
