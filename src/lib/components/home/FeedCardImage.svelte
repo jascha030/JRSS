@@ -13,16 +13,17 @@
 		<div class="absolute inset-0 animate-pulse bg-surface-elevated" class:hidden={loaded}></div>
 
 		<img
-			src={imageUrl}
-			{alt}
-			loading="lazy"
-			decoding="async"
-			fetchpriority="low"
-			draggable="false"
-			onload={handleLoad}
-			class="size-full object-cover transition-opacity duration-500 ease-out"
 			class:opacity-0={!loaded}
 			class:opacity-100={loaded}
+			class="size-full object-cover transition-opacity duration-500 ease-out"
+			decoding="async"
+			draggable="false"
+			fetchpriority="low"
+			loading="lazy"
+			oncontextmenu={(e) => e.preventDefault()}
+			onload={handleLoad}
+			src={imageUrl}
+			{alt}
 		/>
 	{:else}
 		<span

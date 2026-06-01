@@ -2,6 +2,7 @@
 	import type { Station } from '$lib/types/station';
 	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
 	import Icon from '@iconify/svelte';
+	import { openStationContextMenu } from '$lib/utils/tauri-menu';
 
 	let { station, onClick }: { station: Station; onClick: () => void } = $props();
 
@@ -13,6 +14,7 @@
 	class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 	onclick={onClick}
 	title={station.name}
+	oncontextmenu={(e) => void openStationContextMenu(e, station)}
 	aria-label={`Open station ${station.name}`}
 >
 	<div
