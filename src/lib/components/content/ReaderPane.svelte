@@ -9,6 +9,8 @@
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import Icon from '@iconify/svelte';
+	import { toast } from 'svelte-sonner';
+	import IconButton from '../ui/IconButton.svelte';
 
 	let {
 		class: className = ''
@@ -57,6 +59,18 @@
 				? 'Retry Reader View'
 				: 'Load Reader View'
 	);
+
+	async function handleLoadReaderView(itemId: string): Promise<void> {
+		const updatedItem = await loadReaderView(itemId);
+
+		if (updatedItem.readerStatus === 'ready') {
+			appUi.readerPaneMode = 'reader';
+			return;
+		}
+
+		appUi.readerPaneMode = 'feed';
+		toast.error('Reader view was unavailable for this item. Showing feed content instead.');
+	}
 </script>
 
 <aside
@@ -81,61 +95,54 @@
 						>
 							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 
-							<SegmentedControl.Control class="rounded-2xl">
+							<SegmentedControl.Control class="rounded-xl">
 								<SegmentedControl.Indicator />
 
 								<SegmentedControl.Item value="feed">
 									<SegmentedControl.ItemText>
-										<Icon icon="lucide:file-text" class="size-4" />
+										<Icon icon="lucide:file-text" />
 									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 
 								<SegmentedControl.Item value="reader">
 									<SegmentedControl.ItemText>
-										<Icon icon="lucide:book-open-text" class="size-4" />
+										<Icon icon="lucide:book-open-text" />
 									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 							</SegmentedControl.Control>
 						</SegmentedControl>
 					{:else if canUseReaderMode}
-						<button
-							class="preset-outlined-subtle btn rounded-xl"
+						<IconButton
+                             icon="lucide:file-text"
 							disabled={isSelectedItemReaderLoading}
-							type="button"
-							onclick={() => selectedItem && void loadReaderView(selectedItem.id)}
-						>
-							{readerViewButtonLabel}
-						</button>
+							label={readerViewButtonLabel}
+							onclick={() =>
+								selectedItem &&
+									void handleLoadReaderView(selectedItem.id).catch((error: unknown) => {
+										appUi.readerPaneMode = 'feed';
+										toast.error(
+											error instanceof Error
+												? error.message
+												: 'Unable to load reader view for this item.'
+										);
+									})}
+						/>
 					{/if}
 
 					<div class="ml-auto flex items-center gap-2">
-						<button
-							class="preset-outlined-subtle flex aspect-square items-center justify-center rounded-xl"
-							style="width: 2.875rem; height: 2.875rem;"
-							type="button"
-							aria-label={selectedItem.favorite ? 'Remove favorite' : 'Add favorite'}
+						<IconButton
+							icon={selectedItem.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
+							label={selectedItem.favorite ? 'Remove favorite' : 'Add favorite'}
 							onclick={() => void markItemFavorite(selectedItem.id, !selectedItem.favorite)}
-						>
-							<Icon
-								icon={selectedItem.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
-								class="size-4"
-							/>
-						</button>
+						/>
 
-						<button
-							class="preset-outlined-subtle flex aspect-square items-center justify-center rounded-xl"
-							style="width: 2.875rem; height: 2.875rem;"
-							type="button"
-							aria-label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
+						<IconButton
+							icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
+							label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
 							onclick={toggleReaderMaximized}
-						>
-							<Icon
-								icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
-								class="size-4"
-							/>
-						</button>
+						/>
 					</div>
 				</div>
 			</div>

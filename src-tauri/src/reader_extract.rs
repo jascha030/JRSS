@@ -6,6 +6,7 @@ use html_escape::decode_html_entities;
 use readability::{ExtractOptions, extract};
 use regex::Regex;
 use reqwest::blocking::Client;
+use std::borrow::Cow;
 use std::io::Cursor;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -130,12 +131,53 @@ fn sanitize_reader_html(candidate: &str, base_url: &Url) -> Option<String> {
     }
 
     let mut sanitizer = Builder::default();
+    let base_url_for_filter = base_url.clone();
     sanitizer
         .url_relative(UrlRelative::RewriteWithBase(base_url.clone()))
+        .add_tags(&["iframe", "source", "video"])
         .add_tag_attributes("a", &["target"])
+        .add_tag_attributes(
+            "iframe",
+            &[
+                "allow",
+                "allowfullscreen",
+                "frameborder",
+                "height",
+                "loading",
+                "referrerpolicy",
+                "src",
+                "title",
+                "width",
+            ],
+        )
+        .add_tag_attributes("source", &["src", "type"])
+        .add_tag_attributes(
+            "video",
+            &[
+                "autoplay",
+                "controls",
+                "height",
+                "loop",
+                "muted",
+                "playsinline",
+                "poster",
+                "preload",
+                "src",
+                "width",
+            ],
+        )
+		.attribute_filter(move |element, attribute, value| match (element, attribute) {
+			("iframe", "src") => normalize_allowed_reader_iframe_src(value, &base_url_for_filter)
+				.map(Cow::Owned),
+			("source", "src") | ("video", "poster") | ("video", "src")
+				=> normalize_allowed_reader_media_src(value, &base_url_for_filter).map(Cow::Owned),
+			("source", "type") if is_allowed_reader_video_type(value) => Some(Cow::Borrowed(value)),
+			("source", "type") => None,
+			_ => Some(Cow::Borrowed(value)),
+		})
         .set_tag_attribute_value("a", "target", "_blank");
 
-    let sanitized = sanitizer.clean(candidate).to_string();
+    let sanitized = filter_reader_embeds(&sanitizer.clean(candidate).to_string());
     let trimmed = sanitized.trim();
 
     if trimmed.is_empty() {
@@ -143,6 +185,118 @@ fn sanitize_reader_html(candidate: &str, base_url: &Url) -> Option<String> {
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn filter_reader_embeds(html: &str) -> String {
+    let without_invalid_iframes = iframe_regex()
+        .replace_all(html, |captures: &regex::Captures<'_>| {
+            let full_match = captures.get(0).map(|value| value.as_str()).unwrap_or_default();
+            let opening_tag = full_match.split('>').next().unwrap_or_default();
+            let src = parse_tag_attributes(opening_tag)
+                .into_iter()
+                .find(|(name, _)| name == "src")
+                .map(|(_, value)| value);
+
+            if src.as_deref().is_some_and(is_allowed_reader_iframe_src) {
+                full_match.to_string()
+            } else {
+                String::new()
+            }
+        })
+        .into_owned();
+
+    video_regex()
+        .replace_all(&without_invalid_iframes, |captures: &regex::Captures<'_>| {
+            let full_match = captures.get(0).map(|value| value.as_str()).unwrap_or_default();
+            let opening_tag = full_match.split('>').next().unwrap_or_default();
+            let video_attributes = parse_tag_attributes(opening_tag);
+            let has_video_src = video_attributes.iter().any(|(name, value)| {
+                name == "src" && is_allowed_reader_media_src(value)
+            });
+            let has_allowed_source = source_tag_regex().find_iter(full_match).any(|source_tag| {
+                parse_tag_attributes(source_tag.as_str())
+                    .into_iter()
+                    .any(|(name, value)| name == "src" && is_allowed_reader_media_src(&value))
+            });
+
+            if has_video_src || has_allowed_source {
+                full_match.to_string()
+            } else {
+                String::new()
+            }
+        })
+        .into_owned()
+}
+
+fn is_allowed_reader_iframe_src(value: &str) -> bool {
+    let Ok(url) = Url::parse(value) else {
+        return false;
+    };
+
+    if !matches!(url.scheme(), "https") {
+        return false;
+    }
+
+    matches!(
+        url.host_str(),
+        Some("www.youtube.com" | "youtube.com" | "www.youtube-nocookie.com")
+    )
+}
+
+fn normalize_allowed_reader_iframe_src(value: &str, base_url: &Url) -> Option<String> {
+    let url = resolve_reader_media_url(value, base_url)?;
+
+    if matches!(
+        url.host_str(),
+        Some("www.youtube.com" | "youtube.com" | "www.youtube-nocookie.com")
+    ) {
+        Some(url.to_string())
+    } else {
+        None
+    }
+}
+
+fn is_allowed_reader_media_src(value: &str) -> bool {
+    Url::parse(value)
+        .map(|url| matches!(url.scheme(), "https"))
+        .unwrap_or(false)
+}
+
+fn normalize_allowed_reader_media_src(value: &str, base_url: &Url) -> Option<String> {
+    resolve_reader_media_url(value, base_url).map(|url| url.to_string())
+}
+
+fn resolve_reader_media_url(value: &str, base_url: &Url) -> Option<Url> {
+    let url = Url::parse(value).or_else(|_| base_url.join(value)).ok()?;
+
+    matches!(url.scheme(), "https").then_some(url)
+}
+
+fn is_allowed_reader_video_type(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "video/mp4" | "video/webm" | "video/ogg"
+    )
+}
+
+fn iframe_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+
+    REGEX.get_or_init(|| {
+        Regex::new(r#"(?is)<iframe\b[^>]*>.*?</iframe>"#).expect("valid iframe regex")
+    })
+}
+
+fn source_tag_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+
+    REGEX.get_or_init(|| Regex::new(r#"(?is)<source\b[^>]*>"#).expect("valid source regex"))
+}
+
+fn video_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+
+    REGEX.get_or_init(|| Regex::new(r#"(?is)<video\b[^>]*>.*?</video>"#).expect("valid video regex"))
 }
 
 fn extract_title(html: &str) -> Option<String> {
@@ -397,7 +551,6 @@ fn validate_extraction_quality(
     content_html: Option<&str>,
     content_text: Option<&str>,
 ) -> AppResult<()> {
-    // Check for known error/generic phrases that indicate failed extraction
     let error_phrases = [
         "sorry, something went wrong",
         "uh oh",
@@ -421,7 +574,7 @@ fn validate_extraction_quality(
     let lowercase_content = combined_content.to_ascii_lowercase();
 
     for phrase in &error_phrases {
-        if lowercase_content.contains(phrase) {
+        if contains_error_phrase(&lowercase_content, phrase) {
             return Err(format!(
                 "Extracted content contains error phrase: '{}'",
                 phrase
@@ -477,6 +630,24 @@ fn validate_extraction_quality(
     Ok(())
 }
 
+fn contains_error_phrase(content: &str, phrase: &str) -> bool {
+    match phrase {
+        "404" => {
+            content.contains("404 not found")
+                || content.contains("not found 404")
+                || content.contains("error 404")
+                || content.contains("404 error")
+        }
+        "500" => {
+            content.contains("500 internal server error")
+                || content.contains("internal server error 500")
+                || content.contains("500 error")
+                || content.contains("error 500")
+        }
+        _ => content.contains(phrase),
+    }
+}
+
 fn has_insufficient_text_density(html_content: &str, content_text: Option<&str>) -> bool {
     // If we have HTML but almost no text, it's likely scaffolding/layout
     let html_length = html_content.len();
@@ -510,6 +681,27 @@ mod tests {
         let result =
             validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(good_text));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_extraction_quality_allows_non_error_numbers() {
+        let text = "Last year we organized this online conference for the first time, and it was a huge success. We had over 5000 people follow the event live, and then thousands and thousands more watching afterwards. That kind of growth makes this a real article, not an error page.";
+        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_extraction_quality_allows_status_codes_in_article_content() {
+        let text = "The replay command used a chunk size of 500, and one example even checked whether xhr.status === 500 before showing an inline message. This is still clearly article content with enough surrounding explanation to pass validation without being mistaken for an error page.";
+        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_extraction_quality_rejects_contextual_http_errors() {
+        let text = "The page crashed with a 500 internal server error and could not be rendered. Nothing useful was extracted from the response.";
+        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        assert!(result.is_err());
     }
 
     #[test]
@@ -566,5 +758,58 @@ mod tests {
         assert!(!content.contains("<script"));
         assert!(content.contains("https://example.com/relative-link"));
         assert!(content.contains("reader mode"));
+    }
+
+	#[test]
+    fn sanitized_html_preserves_allowed_video_embeds() {
+        let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
+        let html = r#"<iframe src="https://www.youtube.com/embed/example" title="Video" allowfullscreen></iframe>"#;
+
+		let sanitized = sanitize_reader_html(html, &article_url);
+
+		assert!(sanitized.is_some());
+		let content = sanitized.unwrap();
+		assert!(content.contains("<iframe"));
+        assert!(content.contains("https://www.youtube.com/embed/example"));
+    }
+
+    #[test]
+    fn sanitized_html_preserves_allowed_inline_video() {
+        let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
+        let html = r#"<video controls muted playsinline><source src="/media/demo.mp4" type="video/mp4"></video>"#;
+
+        let sanitized = sanitize_reader_html(html, &article_url);
+
+        assert!(sanitized.is_some());
+        let content = sanitized.unwrap();
+        assert!(content.contains("<video"));
+        assert!(content.contains("https://example.com/media/demo.mp4"));
+        assert!(content.contains("video/mp4"));
+    }
+
+    #[test]
+    fn sanitized_html_removes_untrusted_video_embeds() {
+        let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
+        let html = r#"<p>Intro</p><iframe src="https://evil.example/embed/example" title="Video"></iframe>"#;
+
+        let sanitized = sanitize_reader_html(html, &article_url);
+
+        assert!(sanitized.is_some());
+        let content = sanitized.unwrap();
+        assert!(!content.contains("<iframe"));
+        assert!(content.contains("Intro"));
+    }
+
+    #[test]
+    fn sanitized_html_removes_invalid_inline_video() {
+        let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
+        let html = r#"<p>Intro</p><video controls><source src="http://example.com/media/demo.mp4" type="video/mp4"></video>"#;
+
+        let sanitized = sanitize_reader_html(html, &article_url);
+
+        assert!(sanitized.is_some());
+        let content = sanitized.unwrap();
+        assert!(!content.contains("<video"));
+        assert!(content.contains("Intro"));
     }
 }
