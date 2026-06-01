@@ -115,19 +115,19 @@
 						</SegmentedControl>
 					{:else if canUseReaderMode}
 						<IconButton
-                             icon="lucide:file-text"
+							icon="lucide:file-text"
 							disabled={isSelectedItemReaderLoading}
 							label={readerViewButtonLabel}
 							onclick={() =>
 								selectedItem &&
-									void handleLoadReaderView(selectedItem.id).catch((error: unknown) => {
-										appUi.readerPaneMode = 'feed';
-										toast.error(
-											error instanceof Error
-												? error.message
-												: 'Unable to load reader view for this item.'
-										);
-									})}
+								void handleLoadReaderView(selectedItem.id).catch((error: unknown) => {
+									appUi.readerPaneMode = 'feed';
+									toast.error(
+										error instanceof Error
+											? error.message
+											: 'Unable to load reader view for this item.'
+									);
+								})}
 						/>
 					{/if}
 

@@ -1,7 +1,7 @@
 import type { MenuIcon } from '@tauri-apps/api/image';
 import { IconMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { navigateToFeed, navigateToStation } from '$lib/navigation/app-router';
+import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 
 import {
 	selection,

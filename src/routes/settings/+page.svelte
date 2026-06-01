@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
-	import { APP_SETTINGS } from '$lib/constants/settings';
+	import { APP_SETTINGS } from './app-settings';
 	import {
 		clearAudioCache,
 		discoverThemes,

@@ -13,7 +13,7 @@ import {
 } from '$lib/hooks/useAppUi.svelte';
 import { popOutMiniPlayer } from '$lib/utils/mini-player';
 import { restoreMainWindow } from '$lib/utils/tauri-window';
-import { navigateToSettings } from '$lib/navigation/app-router';
+import { navigateToSettings } from '$lib/utils/navigation/app-router';
 import {
 	VOLUME_STEP,
 	skip,
@@ -21,7 +21,7 @@ import {
 	nextEpisode,
 	previousEpisode
 } from '$lib/utils/player-controls';
-import { navigateToCurrentAudioItem, cycleSource } from '$lib/navigation/audio-nav';
+import { navigateToCurrentAudioItem, cycleSource } from '$lib/utils/navigation/audio-nav';
 
 export function useGlobalShortcuts() {
 	onMount(() => {

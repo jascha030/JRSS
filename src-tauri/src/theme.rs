@@ -116,7 +116,7 @@ pub fn ensure_default_theme(app: &tauri::AppHandle) -> Result<(), String> {
     let dir = ensure_default_themes_dir(app)?;
     let default_path = dir.join("default.css");
 
-    const DEFAULT_CSS: &str = include_str!("../../src/lib/themes/default.css");
+    const DEFAULT_CSS: &str = include_str!("../../src/lib/assets/themes/default.css");
 
     std::fs::write(&default_path, DEFAULT_CSS)
         .map_err(|e| format!("Failed to write default theme: {e}"))?;

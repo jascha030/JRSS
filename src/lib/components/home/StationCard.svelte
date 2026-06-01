@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Station } from '$lib/types/station';
-	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
+	import { STATION_GRADIENTS } from '$lib/components/station/station-gradients';
 	import Icon from '@iconify/svelte';
 	import { openStationContextMenu } from '$lib/utils/tauri-menu';
 

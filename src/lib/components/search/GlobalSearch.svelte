@@ -13,7 +13,7 @@
 		navigateToFeedItem,
 		navigateToFeed,
 		navigateToStation
-	} from '$lib/navigation/app-router';
+	} from '$lib/utils/navigation/app-router';
 	import SearchResultRow from './SearchResultRow.svelte';
 
 	let searchInputRef = $state<HTMLInputElement | null>(null);

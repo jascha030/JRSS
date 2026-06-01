@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { navigateToFeed, navigateToStation } from '$lib/navigation/app-router';
+	import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 	import { getFeedsUnreadCounts } from '$lib/services/feed';
 	import { feedsState, stationsState } from '$lib/state';
 

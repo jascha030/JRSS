@@ -12,7 +12,7 @@ import {
 	navigateToSettings,
 	navigateToSection,
 	navigateToStation
-} from '$lib/navigation/app-router';
+} from '$lib/utils/navigation/app-router';
 import type { Feed } from '$lib/types/feed';
 import type { Station } from '$lib/types/station';
 import type { CommandCategory, CommandPaletteItem } from '$lib/types/command';

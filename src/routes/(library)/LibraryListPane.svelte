@@ -6,7 +6,10 @@
 	import ItemListView from '$lib/components/content/ItemListView.svelte';
 	import { appUi } from '$lib/hooks/useAppUi.svelte';
 	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
-	import { navigateToFeedInspector, replaceCurrentSearchTerm } from '$lib/navigation/app-router';
+	import {
+		navigateToFeedInspector,
+		replaceCurrentSearchTerm
+	} from '$lib/utils/navigation/app-router';
 	import { toast } from 'svelte-sonner';
 	import type { SidebarSection } from '$lib/state';
 	import {

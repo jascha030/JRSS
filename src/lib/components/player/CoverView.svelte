@@ -7,7 +7,7 @@
 	import { usePlayerControls } from '$lib/hooks/usePlayerControls.svelte';
 	import { useMediaSession } from '$lib/hooks/useMediaSession.svelte';
 	import { appUi } from '$lib/hooks/useAppUi.svelte';
-	import { navigateToCurrentAudioItem } from '$lib/navigation/audio-nav';
+	import { navigateToCurrentAudioItem } from '$lib/utils/navigation/audio-nav';
 	import { popOutMiniPlayer } from '$lib/utils/mini-player';
 	import Icon from '@iconify/svelte';
 	import Controls from './Controls.svelte';

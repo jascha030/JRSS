@@ -4,7 +4,7 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import XmlTreeNode from '$lib/components/feed/XmlTreeNode.svelte';
 	import XmlViewer from '$lib/components/feed/XmlViewer.svelte';
-	import { navigateToFeed } from '$lib/navigation/app-router';
+	import { navigateToFeed } from '$lib/utils/navigation/app-router';
 	import { closeInspector, inspectorState, openInspector } from '$lib/state/inspector.svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import {

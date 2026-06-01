@@ -4,7 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/types/playback';
-import { getFeedById } from '$lib/state';
+	import { getFeedById } from '$lib/state';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import { nextEpisode, previousEpisode, skip } from '$lib/utils/player-controls';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';

@@ -2,7 +2,7 @@
 @plugin '@tailwindcss/forms';
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-@import '../lib/themes/default.css';
+@import '../lib/assets/themes/default.css';
 
 @theme {
 	--breakpoint-xs: 30rem;

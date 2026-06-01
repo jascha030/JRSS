@@ -6,7 +6,7 @@
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
 	import { usePlayerControls } from '$lib/hooks/usePlayerControls.svelte';
 	import { appUi } from '$lib/hooks/useAppUi.svelte';
-	import { navigateToCurrentAudioItem } from '$lib/navigation/audio-nav';
+	import { navigateToCurrentAudioItem } from '$lib/utils/navigation/audio-nav';
 	import Info from './Info.svelte';
 	import Controls from './Controls.svelte';
 	import Volume from './Volume.svelte';

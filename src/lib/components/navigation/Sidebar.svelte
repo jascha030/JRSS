@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { STATION_GRADIENTS } from '$lib/constants/station-gradients';
+	import { STATION_GRADIENTS } from '$lib/components/station/station-gradients';
 	import type { SidebarSection } from '$lib/state';
 	import { feedsState, stationsState, selection } from '$lib/state';
 	import {
@@ -16,7 +16,7 @@
 		navigateToFeed,
 		navigateToStation,
 		isAppListSection
-	} from '$lib/navigation/app-router';
+	} from '$lib/utils/navigation/app-router';
 	import Icon from '@iconify/svelte';
 
 	const feeds = $derived(feedsState.feeds);

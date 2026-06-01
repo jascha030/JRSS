@@ -11,7 +11,7 @@
 		toRouteSelection,
 		navigateToSection,
 		type AppRoute
-	} from '$lib/navigation/app-router';
+	} from '$lib/utils/navigation/app-router';
 	import { Toaster } from 'svelte-sonner';
 	import {
 		appState,
