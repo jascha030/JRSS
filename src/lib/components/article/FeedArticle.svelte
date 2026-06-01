@@ -6,10 +6,17 @@
 		item: FeedItem;
 		feedTitle?: string;
 		feedOrEpisodeImageUrl?: string;
+		feedLink?: string | null;
 		maximized?: boolean;
 	};
 
-	let { item, feedTitle, feedOrEpisodeImageUrl: imageUrl, maximized = false }: Props = $props();
+	let {
+		item,
+		feedTitle,
+		feedOrEpisodeImageUrl: imageUrl,
+		feedLink = null,
+		maximized = false
+	}: Props = $props();
 
 	const hasHtmlContent = $derived(!!item.contentHtml);
 	const hasTextContent = $derived(!!item.contentText && !hasHtmlContent);
@@ -22,7 +29,7 @@
 	);
 </script>
 
-<ArticleBase {feedTitle} {imageUrl} {item} {maximized}>
+<ArticleBase {feedTitle} {feedLink} {imageUrl} {item} {maximized}>
 	{#if hasHtmlContent}
 		<div class="article-html mt-10">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->

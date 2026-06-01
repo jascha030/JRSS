@@ -5,6 +5,7 @@
 	type Props = {
 		feedTitle?: string;
 		imageUrl?: string;
+		feedLink?: string | null;
 		item: FeedItem;
 		surfaceClass?: string;
 		maximized?: boolean;
@@ -14,6 +15,7 @@
 	let {
 		feedTitle,
 		imageUrl: imageUrl,
+		feedLink = null,
 		item,
 		surfaceClass = 'article-surface',
 		maximized = false,
@@ -28,7 +30,7 @@
 </script>
 
 <article class={`${surfaceClass} mx-auto w-full ${widthClass} pb-12`}>
-	<ArticleHeader {feedTitle} {imageUrl} {item} />
+	<ArticleHeader {feedTitle} {feedLink} {imageUrl} {item} />
 
 	{@render children?.()}
 </article>
@@ -106,6 +108,25 @@
 		max-width: 100%;
 		height: auto;
 		border-radius: 1rem;
+	}
+
+	.article-surface :global(.article-html iframe) {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		aspect-ratio: 16 / 9;
+		min-height: 16rem;
+		border: 0;
+		border-radius: 1rem;
+	}
+
+	.article-surface :global(.article-html video) {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		height: auto;
+		border-radius: 1rem;
+		background: var(--color-surface-shell);
 	}
 
 	.article-surface :global(.article-html figcaption) {
