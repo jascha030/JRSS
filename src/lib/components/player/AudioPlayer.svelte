@@ -44,9 +44,7 @@
 </script>
 
 {#if item && playbackState}
-	<div
-		class="sticky bottom-0 z-10 border-t border-border bg-surface-glass-heavy px-4 py-3 backdrop-blur"
-	>
+	<div class="sticky bottom-0 z-10 border-t border-border bg-surface-glass-heavy p-4 backdrop-blur">
 		<div
 			bind:this={playerBarEl}
 			class="mx-auto flex w-full max-w-full items-center justify-between gap-4 px-4 3xl:max-w-6xl 4xl:max-w-400"

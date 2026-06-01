@@ -288,7 +288,7 @@
 															{item.title}
 														</h3>
 
-														<p class="text-sm leading-6 text-fg-secondary">
+														<p class="text-xs leading-6 text-fg-secondary">
 															{item.previewText}
 														</p>
 													</div>
