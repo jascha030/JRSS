@@ -11,6 +11,7 @@ export async function popOutMiniPlayer(): Promise<void> {
 
 		await openMiniPlayer();
 	} catch (error: unknown) {
+		console.error(error);
 		const message = error instanceof Error ? error.message : 'Unable to open mini player.';
 		if (message.includes('already in progress')) {
 			return;

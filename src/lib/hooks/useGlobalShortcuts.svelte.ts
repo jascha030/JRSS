@@ -1,5 +1,6 @@
 import { onMount } from 'svelte';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { playbackState, requestTogglePlayback, getCurrentAudioItem } from '$lib/state';
 import { playbackSettings } from '$lib/state/settings.svelte';
 import {
@@ -162,11 +163,16 @@ export function useGlobalShortcuts() {
 
 			unlisteners.push(
 				await listen('menu-toggle-mini-player', async () => {
-					if (isMiniWindow) {
-						await restoreMainWindow();
-					} else {
-						await popOutMiniPlayer();
+					if (!document.hasFocus()) {
+						return;
 					}
+
+					if (isMiniWindow) {
+						await getCurrentWebviewWindow().close();
+						return;
+					}
+
+					await popOutMiniPlayer();
 				})
 			);
 
