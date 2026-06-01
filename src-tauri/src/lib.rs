@@ -37,13 +37,11 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            )?;
 
             #[cfg(debug_assertions)]
             {
@@ -98,6 +96,8 @@ pub fn run() {
             commands::get_item_details,
             commands::mark_read,
             commands::mark_read_batch,
+            commands::mark_favorite,
+            commands::mark_favorite_batch,
             commands::save_playback,
             commands::load_reader_content,
             commands::get_items_by_ids,

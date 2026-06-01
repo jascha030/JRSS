@@ -17,7 +17,9 @@
 
 	function handleEscape() {
 		inputRef?.blur();
-		onChange('');
+		if (value !== '') {
+			onChange('');
+		}
 	}
 </script>
 

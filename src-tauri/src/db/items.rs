@@ -14,7 +14,7 @@ const ITEM_SELECT_QUERY: &str =
 	"SELECT i.id, i.feed_id, i.title, i.url, i.summary, i.preview_text, i.summary_text, i.summary_html,
 			 i.content_text, i.content_html, i.reader_status, i.reader_title, i.reader_byline,
 			 i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
-			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
+			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
 			 i.image_url
 		 FROM items i
@@ -23,7 +23,7 @@ const ITEM_SELECT_QUERY: &str =
 pub const ITEM_LIST_SELECT_QUERY: &str = "SELECT i.id, i.feed_id, i.title, i.url, i.summary,
 			 i.preview_text,
 			 i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
-			 i.published_at, i.read, i.enclosure_url, i.enclosure_mime_type,
+			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
 			 i.image_url
 			 FROM items i
@@ -53,6 +53,51 @@ pub fn mark_read(db_path: &Path, item_id: &str, read: bool) -> AppResult<()> {
         .map_err(|error| format!("Failed to update read state: {error}"))?;
 
     Ok(())
+}
+
+pub fn mark_favorite(db_path: &Path, item_id: &str, favorite: bool) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "UPDATE items SET favorite = ?2 WHERE id = ?1",
+            params![item_id, if favorite { 1_i64 } else { 0_i64 }],
+        )
+        .map_err(|error| format!("Failed to update favorite state: {error}"))?;
+
+    Ok(())
+}
+
+pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) -> AppResult<()> {
+	if item_ids.is_empty() {
+		return Ok(());
+	}
+
+	let mut connection = open_connection(db_path)?;
+	let tx = connection
+		.transaction()
+		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
+
+	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+	let sql = format!(
+		"UPDATE items SET favorite = ?1 WHERE id IN ({})",
+		placeholders.join(", ")
+	);
+
+	let favorite_value = if favorite { 1_i64 } else { 0_i64 };
+	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+	params.push(&favorite_value as &dyn rusqlite::ToSql);
+	for id in item_ids {
+		params.push(id as &dyn rusqlite::ToSql);
+	}
+
+	tx.execute(&sql, params.as_slice())
+		.map_err(|error| format!("Failed to batch update favorite state: {error}"))?;
+
+	tx.commit()
+		.map_err(|error| format!("Failed to commit batch favorite update: {error}"))?;
+
+	Ok(())
 }
 
 pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
@@ -216,7 +261,8 @@ pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResul
 
     const ITEM_LIST_FILTER_QUERY: &str = " WHERE (?1 IS NULL OR i.feed_id = ?1)
         AND (?2 <> 'unread' OR i.read = 0)
-        AND (?2 <> 'media' OR i.enclosure_url IS NOT NULL)";
+        AND (?2 <> 'media' OR i.enclosure_url IS NOT NULL)
+        AND (?2 <> 'favorites' OR i.favorite = 1)";
 
     let search_clause = if search_term.is_some() {
         " AND (i.title LIKE ?3 COLLATE NOCASE OR i.preview_text LIKE ?3 COLLATE NOCASE OR i.content_text LIKE ?3 COLLATE NOCASE)"
@@ -364,6 +410,12 @@ pub fn query_items(
         ""
     };
 
+    let favorites_clause = if query.section == ItemListSection::Favorites {
+        " AND i.favorite = 1"
+    } else {
+        ""
+    };
+
     // Search clause
     let search_pattern = query
         .search
@@ -377,9 +429,11 @@ pub fn query_items(
 
     // Build and execute count query
     let search_param_idx = feed_ids.len() + 1;
+    let section_clauses = format!("{episode_clause}{media_clause}{favorites_clause}");
+
     let total_count: i64 = if let Some(_pattern) = &search_pattern {
         let count_sql = format!(
-            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{media_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE)"
+            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{section_clauses} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE)"
         );
         let mut count_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
         for fid in &feed_ids {
@@ -394,7 +448,7 @@ pub fn query_items(
             .map_err(|error| format!("Failed to count items: {error}"))?
     } else {
         let count_sql = format!(
-            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{media_clause}"
+            "SELECT COUNT(*) FROM items i WHERE {feed_filter}{episode_clause}{media_clause}{favorites_clause}"
         );
         let count_params: Vec<Box<dyn rusqlite::ToSql>> = feed_ids
             .iter()
@@ -418,13 +472,14 @@ pub fn query_items(
 
     let page_sql = if let Some(_pattern) = &search_pattern {
         format!(
-            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{media_clause} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE) ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{section_clauses} AND (i.title LIKE ?{search_param_idx} COLLATE NOCASE OR i.preview_text LIKE ?{search_param_idx} COLLATE NOCASE OR i.content_text LIKE ?{search_param_idx} COLLATE NOCASE) ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
         )
     } else {
         format!(
-            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{episode_clause}{media_clause} ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
+            "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{section_clauses} ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
         )
     };
+
 
     let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     for fid in &feed_ids {
@@ -489,21 +544,25 @@ mod tests {
     }
 
     /// Insert a feed with one article item; return the derived item ID.
-    fn insert_item(db_path: &Path) -> String {
-        let feed = upsert_feed_snapshot(
-            db_path,
-            "https://example.com/rss",
+	fn insert_item(db_path: &Path) -> String {
+		insert_item_with_external_id(db_path, "ext-1", "Article 1")
+	}
+
+	fn insert_item_with_external_id(db_path: &Path, external_id: &str, title: &str) -> String {
+		let feed = upsert_feed_snapshot(
+			db_path,
+			"https://example.com/rss",
             ParsedFeed {
                 title: "Feed".to_string(),
                 description: String::new(),
                 site_url: None,
-                image_url: None,
-                kind: "article".to_string(),
-                items: vec![ParsedFeedItem {
-                    external_id: "ext-1".to_string(),
-                    title: "Article 1".to_string(),
-                    url: "https://example.com/1".to_string(),
-                    summary: String::new(),
+				image_url: None,
+				kind: "article".to_string(),
+				items: vec![ParsedFeedItem {
+					external_id: external_id.to_string(),
+					title: title.to_string(),
+					url: "https://example.com/1".to_string(),
+					summary: String::new(),
                     preview_text: String::new(),
                     summary_text: None,
                     summary_html: None,
@@ -514,15 +573,11 @@ mod tests {
                     image_url: None,
                 }],
             },
-        )
-        .unwrap();
-        // Mirror the stable_hash + build_item_id logic from feeds.rs.
-        format!(
-            "item-{}",
-            sha1_smol::Sha1::from(format!("{}:{}", feed.id, "ext-1"))
-                .digest()
-        )
-    }
+		)
+		.unwrap();
+		// Mirror the stable_hash + build_item_id logic from feeds.rs.
+		format!("item-{}", sha1_smol::Sha1::from(format!("{}:{}", feed.id, external_id)).digest())
+	}
 
     #[test]
     fn get_item_by_id_returns_item() {
@@ -557,6 +612,35 @@ mod tests {
         mark_read(&db_path, &item_id, false).unwrap();
         let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
         assert!(!item.read);
+    }
+
+    #[test]
+    fn mark_favorite_true_sets_flag() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        mark_favorite(&db_path, &item_id, true).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert!(item.favorite);
+    }
+
+    #[test]
+    fn mark_favorite_false_clears_flag() {
+        let (_dir, db_path) = tmpdb();
+        let item_id = insert_item(&db_path);
+        mark_favorite(&db_path, &item_id, true).unwrap();
+        mark_favorite(&db_path, &item_id, false).unwrap();
+        let item = get_item_by_id(&db_path, &item_id).unwrap().unwrap();
+        assert!(!item.favorite);
+    }
+
+    #[test]
+    fn mark_favorite_batch_sets_flags() {
+        let (_dir, db_path) = tmpdb();
+        let first_item_id = insert_item(&db_path);
+        let second_item_id = insert_item_with_external_id(&db_path, "ext-2", "Article 2");
+        mark_favorite_batch(&db_path, &[first_item_id.clone(), second_item_id.clone()], true).unwrap();
+        assert!(get_item_by_id(&db_path, &first_item_id).unwrap().unwrap().favorite);
+        assert!(get_item_by_id(&db_path, &second_item_id).unwrap().unwrap().favorite);
     }
 
     #[test]

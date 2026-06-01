@@ -7,7 +7,7 @@ Future dotfile themes should override these `--app-*` variables only.
 App code keeps consuming the internal `--color-*` and `--font-*` tokens.
 
 Metadata (first comment block only):
-  name — display name shown in the theme picker
+  name - display name shown in the theme picker
 */
 
 :root {

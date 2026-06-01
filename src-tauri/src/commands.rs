@@ -185,6 +185,26 @@ pub async fn mark_read_batch(
 }
 
 #[tauri::command]
+pub async fn mark_favorite(
+    item_id: String,
+    favorite: bool,
+    state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+    let db_path = state.db_path();
+    blocking(move || db::mark_favorite(&db_path, &item_id, favorite)).await
+}
+
+#[tauri::command]
+pub async fn mark_favorite_batch(
+	item_ids: Vec<String>,
+	favorite: bool,
+	state: State<'_, DatabaseState>,
+) -> Result<(), String> {
+	let db_path = state.db_path();
+	blocking(move || db::mark_favorite_batch(&db_path, &item_ids, favorite)).await
+}
+
+#[tauri::command]
 pub async fn save_playback(
     item_id: String,
     position_seconds: i64,

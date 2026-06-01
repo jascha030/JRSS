@@ -51,7 +51,7 @@ export function normalizeSearchTerm(term: string): string {
 	return term.trim().toLowerCase();
 }
 
-export function getActiveListSection(): 'all' | 'unread' | 'media' | null {
+export function getActiveListSection(): 'all' | 'unread' | 'media' | 'favorites' | null {
 	if (selection.selectedSection === 'settings' || selection.selectedSection === 'home') {
 		return null;
 	}
@@ -69,7 +69,7 @@ export function getActiveListSection(): 'all' | 'unread' | 'media' | null {
 
 function buildQueryKey(
 	feedId: string | null,
-	section: 'all' | 'unread' | 'media',
+	section: 'all' | 'unread' | 'media' | 'favorites',
 	search: string,
 	sortOrder: ItemSortOrder
 ): string {

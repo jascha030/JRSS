@@ -17,8 +17,9 @@ import {
 	closeStationEditor,
 	switchToReaderView
 } from '$lib/hooks/useAppUi.svelte';
-import { navigateToFeed, navigateToStation } from '$lib/navigation/app-router';
+import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 import type { CreateStationInput } from '$lib/types/station';
+import { log } from '$lib/services/log';
 
 export function useAppOrchestrator() {
 	let lastQueryKey = $state<string | null>(null);
@@ -42,7 +43,7 @@ export function useAppOrchestrator() {
 
 		lastQueryKey = queryKey;
 		void loadInitialItemsPage().catch((error: unknown) => {
-			console.error('Failed to load items:', error);
+			log.error(`Failed to load items: ${error}`);
 		});
 	});
 

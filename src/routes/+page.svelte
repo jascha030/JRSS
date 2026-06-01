@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { navigateToFeed, navigateToStation } from '$lib/navigation/app-router';
+	import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 	import { getFeedsUnreadCounts } from '$lib/services/feed';
 	import { feedsState, stationsState } from '$lib/state';
-	import { onMount } from 'svelte';
+
 	import FeedCard from '$lib/components/home/FeedCard.svelte';
 	import StationCard from '$lib/components/home/StationCard.svelte';
 
@@ -11,11 +11,9 @@
 
 	let unreadCountsByFeedId = $state<Record<string, number>>({});
 
-	async function loadUnreadCounts() {
-		unreadCountsByFeedId = await getFeedsUnreadCounts();
-	}
-
-	onMount(() => void loadUnreadCounts());
+	void getFeedsUnreadCounts().then((counts) => {
+		unreadCountsByFeedId = counts;
+	});
 
 	const podcasts = $derived(feeds.filter((feed) => feed.kind === 'media'));
 	const articles = $derived(feeds.filter((feed) => feed.kind === 'article'));

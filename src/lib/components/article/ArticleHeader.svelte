@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { FeedItem } from '$lib/types/item';
 	import { isMediaItem } from '$lib/types/item';
 	import { formatDate } from '$lib/utils/format';
@@ -10,10 +11,11 @@
 	type Props = {
 		feedTitle?: string;
 		imageUrl?: string;
+		feedLink?: string | null;
 		item: FeedItem;
 	};
 
-	let { feedTitle, imageUrl, item }: Props = $props();
+	let { feedTitle, imageUrl, feedLink = null, item }: Props = $props();
 
 	const { readerByline, publishedAt, readerExcerpt } = $derived.by(() => item);
 
@@ -45,9 +47,18 @@
 
 		<div class="flex min-w-0 flex-1 flex-col gap-y-2">
 			{#if feedTitle}
-				<p class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
-					{feedTitle}
-				</p>
+				{#if feedLink}
+					<a
+						href={resolve(feedLink as `/feeds/${string}`)}
+						class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase no-underline hover:text-fg"
+					>
+						{feedTitle}
+					</a>
+				{:else}
+					<p class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
+						{feedTitle}
+					</p>
+				{/if}
 			{/if}
 
 			<h1

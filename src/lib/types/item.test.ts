@@ -19,6 +19,7 @@ const baseRaw: Omit<RawFeedListItem, 'mediaEnclosure'> = {
 	readerStatus: 'unfetched',
 	publishedAt: '2024-01-01T00:00:00Z',
 	read: false,
+	favorite: false,
 	playbackPositionSeconds: 0
 };
 
@@ -50,6 +51,7 @@ describe('mapRawFeedListItem', () => {
 		expect(result.feedId).toBe('feed-1');
 		expect(result.publishedAt).toBe('2024-01-01T00:00:00Z');
 		expect(result.read).toBe(false);
+		expect(result.favorite).toBe(false);
 	});
 
 	it('preserves all base fields on media items', () => {

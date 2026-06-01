@@ -7,7 +7,7 @@
 </script>
 
 <div class="flex min-h-0 flex-1 overflow-hidden">
-	<div class="hidden">{@render children?.()}</div>
+	<div class="hidden">{@render children()}</div>
 	<LibraryListPane />
 	<ReaderPane
 		class="min-h-0 min-w-0 {appUi.isReaderMaximized

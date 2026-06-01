@@ -18,7 +18,10 @@
 	});
 </script>
 
-<div class={`group flex ${showRange ? '' : 'not-hover:flex-0'} items-center gap-2 ${className}`}>
+<div
+	class={`group flex ${showRange ? '' : 'not-hover:flex-0'} items-center gap-2 ${className}`}
+	onwheel={volumeControl.handleVolumeWheel}
+>
 	<button
 		class="preset-icon-subtle btn-icon size-5 rounded-xl"
 		type="button"
@@ -38,7 +41,7 @@
 	<RangeInput
 		class={showRange
 			? 'w-24'
-			: 'translate w-24 origin-left scale-x-0 transition-transform duration-150 group-hover:scale-x-100'}
+			: 'w-24 origin-left scale-x-0 transition-transform duration-150 group-hover:scale-x-100'}
 		value={volumeControl.effectiveVolume}
 		max={1}
 		step={0.01}

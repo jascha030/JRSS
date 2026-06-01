@@ -1,14 +1,17 @@
-import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
+import type { MenuIcon } from '@tauri-apps/api/image';
+import { IconMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { navigateToFeed } from '$lib/navigation/app-router';
+import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 
 import {
 	selection,
 	deleteFeed,
+	deleteExistingStation,
 	enqueueAudioItem,
 	isAudioPlaying,
 	isItemCurrentAudio,
 	markItemRead,
+	markItemsFavorite,
 	markItemsRead,
 	playAudioItemNext,
 	requestOpenInReader,
@@ -19,6 +22,35 @@ import {
 } from '$lib/state';
 import type { Feed } from '$lib/types/feed';
 import type { ArticleListItem, FeedListItem, MediaListItem } from '$lib/types/item';
+import type { Station } from '$lib/types/station';
+
+type ContextMenuItem = MenuItem | IconMenuItem | PredefinedMenuItem;
+
+type ActionMenuItemOptions = {
+	id: string;
+	text: string;
+	action?: () => void;
+	enabled?: boolean;
+	icon?: MenuIcon;
+};
+
+function supportsNativeMenuIcons(): boolean {
+	return navigator.userAgent.includes('Mac');
+}
+
+async function createActionMenuItem({
+	id,
+	text,
+	action,
+	enabled,
+	icon
+}: ActionMenuItemOptions): Promise<MenuItem | IconMenuItem> {
+	if (icon && supportsNativeMenuIcons()) {
+		return IconMenuItem.new({ id, text, action, enabled, icon });
+	}
+
+	return MenuItem.new({ id, text, action, enabled });
+}
 
 /**
  * Whether the user is browsing a section (all/unread/media) rather than
@@ -43,14 +75,17 @@ export async function openArticleContextMenu(
 ): Promise<void> {
 	event.preventDefault();
 
-	const items: Array<MenuItem | PredefinedMenuItem> = [];
+	const items: ContextMenuItem[] = [];
 
 	if (multiSelect && multiSelect.selectedIds.size > 1 && multiSelect.selectedIds.has(item.id)) {
 		const count = multiSelect.selectedIds.size;
 		const allRead = [...multiSelect.selectedIds].every((id) => multiSelect.itemsById[id]?.read);
+		const allFavorite = [...multiSelect.selectedIds].every(
+			(id) => multiSelect.itemsById[id]?.favorite
+		);
 
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'header',
 				text: `${count} item${count > 1 ? 's' : ''} selected`,
 				enabled: false
@@ -58,10 +93,19 @@ export async function openArticleContextMenu(
 		);
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: allRead ? 'mark-unread' : 'mark-read',
 				text: allRead ? 'Mark unread' : 'Mark read',
+				icon: NativeIcon.MenuOnState,
 				action: () => void markItemsRead([...multiSelect.selectedIds], !allRead)
+			})
+		);
+		items.push(
+			await createActionMenuItem({
+				id: allFavorite ? 'remove-favorite' : 'add-favorite',
+				text: allFavorite ? 'Remove favorite' : 'Add favorite',
+				icon: NativeIcon.Bookmarks,
+				action: () => void markItemsFavorite([...multiSelect.selectedIds], !allFavorite)
 			})
 		);
 
@@ -71,18 +115,20 @@ export async function openArticleContextMenu(
 	}
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: 'open-reader',
 			text: 'Open in reader',
+			icon: NativeIcon.QuickLook,
 			action: () => requestOpenInReader(item.id)
 		})
 	);
 
 	if (isInSectionView()) {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'open-feed',
 				text: 'Open feed',
+				icon: NativeIcon.FollowLinkFreestanding,
 				action: () => void navigateToFeed(item.feedId)
 			})
 		);
@@ -91,10 +137,19 @@ export async function openArticleContextMenu(
 	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: item.read ? 'mark-unread' : 'mark-read',
 			text: item.read ? 'Mark unread' : 'Mark read',
+			icon: NativeIcon.MenuOnState,
 			action: () => void markItemRead(item.id, !item.read)
+		})
+	);
+	items.push(
+		await createActionMenuItem({
+			id: item.favorite ? 'remove-favorite' : 'add-favorite',
+			text: item.favorite ? 'Remove favorite' : 'Add favorite',
+			icon: NativeIcon.Bookmarks,
+			action: () => void markItemsFavorite([item.id], !item.favorite)
 		})
 	);
 
@@ -102,9 +157,10 @@ export async function openArticleContextMenu(
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'copy-url',
 				text: 'Copy URL',
+				icon: NativeIcon.Share,
 				action: () => void writeText(item.url)
 			})
 		);
@@ -124,14 +180,17 @@ export async function openAudioContextMenu(
 ): Promise<void> {
 	event.preventDefault();
 
-	const items: Array<MenuItem | PredefinedMenuItem> = [];
+	const items: ContextMenuItem[] = [];
 
 	if (multiSelect && multiSelect.selectedIds.size > 1 && multiSelect.selectedIds.has(item.id)) {
 		const count = multiSelect.selectedIds.size;
 		const allRead = [...multiSelect.selectedIds].every((id) => multiSelect.itemsById[id]?.read);
+		const allFavorite = [...multiSelect.selectedIds].every(
+			(id) => multiSelect.itemsById[id]?.favorite
+		);
 
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'header',
 				text: `${count} item${count > 1 ? 's' : ''} selected`,
 				enabled: false
@@ -139,17 +198,27 @@ export async function openAudioContextMenu(
 		);
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: allRead ? 'mark-unplayed' : 'mark-played',
 				text: allRead ? 'Mark unplayed' : 'Mark played',
+				icon: NativeIcon.MenuOnState,
 				action: () => void markItemsRead([...multiSelect.selectedIds], !allRead)
+			})
+		);
+		items.push(
+			await createActionMenuItem({
+				id: allFavorite ? 'remove-favorite' : 'add-favorite',
+				text: allFavorite ? 'Remove favorite' : 'Add favorite',
+				icon: NativeIcon.Bookmarks,
+				action: () => void markItemsFavorite([...multiSelect.selectedIds], !allFavorite)
 			})
 		);
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'add-to-queue',
 				text: 'Add to queue',
+				icon: NativeIcon.Add,
 				action: () => {
 					for (const id of multiSelect.selectedIds) {
 						const it = multiSelect.itemsById[id];
@@ -161,9 +230,10 @@ export async function openAudioContextMenu(
 			})
 		);
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'play-next',
 				text: 'Play next',
+				icon: NativeIcon.RightFacingTriangle,
 				action: () => {
 					for (const id of [...multiSelect.selectedIds].reverse()) {
 						const it = multiSelect.itemsById[id];
@@ -187,25 +257,28 @@ export async function openAudioContextMenu(
 
 	if (playing) {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'pause',
 				text: 'Pause',
+				icon: NativeIcon.StopProgress,
 				action: () => requestTogglePlayback()
 			})
 		);
 	} else if (isCurrent) {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'play',
 				text: 'Play',
+				icon: NativeIcon.RightFacingTriangle,
 				action: () => requestTogglePlayback()
 			})
 		);
 	} else {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'play-now',
 				text: 'Play now',
+				icon: NativeIcon.RightFacingTriangle,
 				action: () => startPlaybackFromContext(item)
 			})
 		);
@@ -213,9 +286,10 @@ export async function openAudioContextMenu(
 
 	if (hasProgress) {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'play-from-start',
 				text: 'Play from start',
+				icon: NativeIcon.Refresh,
 				action: () => {
 					if (isCurrent) {
 						requestSeekTo(0);
@@ -234,9 +308,10 @@ export async function openAudioContextMenu(
 	if (isInSectionView()) {
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'open-feed',
 				text: 'Open feed',
+				icon: NativeIcon.FollowLinkFreestanding,
 				action: () => void navigateToFeed(item.feedId)
 			})
 		);
@@ -245,36 +320,48 @@ export async function openAudioContextMenu(
 	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: item.read ? 'mark-unplayed' : 'mark-played',
 			text: item.read ? 'Mark unplayed' : 'Mark played',
+			icon: NativeIcon.MenuOnState,
 			action: () => void markItemRead(item.id, !item.read)
+		})
+	);
+	items.push(
+		await createActionMenuItem({
+			id: item.favorite ? 'remove-favorite' : 'add-favorite',
+			text: item.favorite ? 'Remove favorite' : 'Add favorite',
+			icon: NativeIcon.Bookmarks,
+			action: () => void markItemsFavorite([item.id], !item.favorite)
 		})
 	);
 
 	if (isCurrent) {
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'stop-playback',
 				text: 'Stop playback',
+				icon: NativeIcon.StopProgress,
 				action: () => stopPlayback()
 			})
 		);
 	}
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: 'play-next',
 			text: 'Play next',
+			icon: NativeIcon.RightFacingTriangle,
 			action: () => playAudioItemNext(item)
 		})
 	);
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: 'add-to-queue',
 			text: 'Add to queue',
+			icon: NativeIcon.Add,
 			action: () => enqueueAudioItem(item)
 		})
 	);
@@ -283,9 +370,10 @@ export async function openAudioContextMenu(
 		items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'copy-url',
 				text: 'Copy URL',
+				icon: NativeIcon.Share,
 				action: () => void writeText(enclosureUrl)
 			})
 		);
@@ -301,13 +389,14 @@ export async function openAudioContextMenu(
 export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promise<void> {
 	event.preventDefault();
 
-	const items: Array<MenuItem | PredefinedMenuItem> = [];
+	const items: ContextMenuItem[] = [];
 
 	if (isInSectionView()) {
 		items.push(
-			await MenuItem.new({
+			await createActionMenuItem({
 				id: 'open-feed',
 				text: 'Open feed',
+				icon: NativeIcon.FollowLinkFreestanding,
 				action: () => void navigateToFeed(feed.id)
 			})
 		);
@@ -315,9 +404,10 @@ export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promis
 	}
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: 'copy-url',
 			text: 'Copy URL',
+			icon: NativeIcon.Share,
 			action: () => void writeText(feed.url)
 		})
 	);
@@ -325,10 +415,40 @@ export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promis
 	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
 
 	items.push(
-		await MenuItem.new({
+		await createActionMenuItem({
 			id: 'remove-feed',
 			text: 'Remove feed',
+			icon: NativeIcon.Remove,
 			action: () => void deleteFeed(feed.id)
+		})
+	);
+
+	const menu = await Menu.new({ items });
+	await menu.popup();
+}
+
+export async function openStationContextMenu(event: MouseEvent, station: Station): Promise<void> {
+	event.preventDefault();
+
+	const items: ContextMenuItem[] = [];
+
+	items.push(
+		await createActionMenuItem({
+			id: 'open-station',
+			text: 'Open station',
+			icon: NativeIcon.FollowLinkFreestanding,
+			action: () => void navigateToStation(station.id)
+		})
+	);
+
+	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+
+	items.push(
+		await createActionMenuItem({
+			id: 'remove-station',
+			text: 'Remove station',
+			icon: NativeIcon.Remove,
+			action: () => void deleteExistingStation(station.id)
 		})
 	);
 

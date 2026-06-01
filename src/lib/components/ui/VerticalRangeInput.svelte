@@ -1,11 +1,11 @@
 <script lang="ts">
+	import { Slider } from '@skeletonlabs/skeleton-svelte';
+
 	type Props = {
 		value: number;
 		min?: number;
 		max?: number;
 		step?: number;
-		fillColor?: string;
-		trackColor?: string;
 		ariaLabel?: string;
 		disabled?: boolean;
 		oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
@@ -17,8 +17,6 @@
 		min = 0,
 		max = 100,
 		step = 1,
-		fillColor = 'var(--color-accent)',
-		trackColor = 'var(--color-border)',
 		ariaLabel = 'Vertical range',
 		disabled = false,
 		oninput,
@@ -26,123 +24,45 @@
 	}: Props = $props();
 
 	let progressPercent = $derived(max === min ? 0 : ((value - min) / (max - min)) * 100);
+
+	function createFakeEvent(val: number): Event & { currentTarget: HTMLInputElement } {
+		return { currentTarget: { value: String(val) } } as Event & { currentTarget: HTMLInputElement };
+	}
+
+	function handleValueChange(details: { value: number[] }) {
+		const val = details.value[0] ?? min;
+		oninput?.(createFakeEvent(val));
+	}
+
+	function handleValueChangeEnd(details: { value: number[] }) {
+		const val = details.value[0] ?? min;
+		onchange?.(createFakeEvent(val));
+	}
 </script>
 
-<div
-	class="vertical-range-wrapper"
-	style="--progress: {progressPercent}%; --fill: {fillColor}; --track: {trackColor};"
+<Slider
+	value={[value]}
+	{min}
+	{max}
+	{step}
+	{disabled}
+	aria-label={[ariaLabel]}
+	orientation="vertical"
+	onValueChange={handleValueChange}
+	onValueChangeEnd={handleValueChangeEnd}
+	class="player-range items-center"
 >
-	<input
-		type="range"
-		{min}
-		{max}
-		{step}
-		{value}
-		{disabled}
-		aria-label={ariaLabel}
-		{oninput}
-		{onchange}
-		class="player-range vertical-range"
-	/>
-</div>
-
-<style>
-	.vertical-range-wrapper {
-		position: relative;
-		width: 1.25rem;
-		height: 6rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.vertical-range {
-		position: absolute;
-		width: 6rem;
-		height: 1.25rem;
-		transform: rotate(-90deg);
-		transform-origin: center center;
-		-webkit-appearance: none;
-		appearance: none;
-		background: transparent;
-		cursor: pointer;
-		left: 50%;
-		top: 50%;
-		margin-left: -3rem;
-		margin-top: -0.625rem;
-	}
-
-	.vertical-range:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
-
-	.vertical-range:focus {
-		outline: none;
-	}
-
-	.vertical-range:focus-visible {
-		outline: 2px solid var(--color-accent);
-		outline-offset: 2px;
-		border-radius: 9999px;
-	}
-
-	.vertical-range::-webkit-slider-runnable-track {
-		height: 0.25rem;
-		border-radius: 9999px;
-		background: linear-gradient(
-			to right,
-			var(--fill) 0%,
-			var(--fill) var(--progress),
-			var(--track) var(--progress),
-			var(--track) 100%
-		);
-	}
-
-	.vertical-range::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		width: 0.875rem;
-		height: 0.875rem;
-		border-radius: 9999px;
-		background: var(--fill);
-		margin-top: -0.3125rem;
-		border: none;
-		transition:
-			transform 0.12s ease,
-			box-shadow 0.12s ease;
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--fill) 20%, transparent);
-	}
-
-	.vertical-range:hover::-webkit-slider-thumb {
-		transform: scale(1.12);
-	}
-
-	.vertical-range::-moz-range-track {
-		height: 0.25rem;
-		border-radius: 9999px;
-		background: var(--track);
-		border: none;
-	}
-
-	.vertical-range::-moz-range-progress {
-		height: 0.25rem;
-		border-radius: 9999px;
-		background: var(--fill);
-	}
-
-	.vertical-range::-moz-range-thumb {
-		width: 0.875rem;
-		height: 0.875rem;
-		border-radius: 9999px;
-		background: var(--fill);
-		border: none;
-		transition:
-			transform 0.12s ease,
-			box-shadow 0.12s ease;
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--fill) 20%, transparent);
-	}
-
-	.vertical-range:hover::-moz-range-thumb {
-		transform: scale(1.12);
-	}
-</style>
+	<Slider.Control class="relative flex h-24 w-5 flex-col items-center justify-center">
+		<Slider.Track
+			class="h-full w-1 rounded-full"
+			style={`background: linear-gradient(to top, var(--color-accent) 0%, var(--color-accent) ${progressPercent}%, var(--color-border) ${progressPercent}%, var(--color-border) 100%)`}
+		>
+			<Slider.Range class="opacity-0" />
+		</Slider.Track>
+		<Slider.Thumb
+			index={0}
+			class="left-1/2 size-3.5 -translate-x-1/2 rounded-full transition-transform hover:scale-110 focus:outline-2 focus:outline-offset-2 focus:outline-accent"
+			style="background-color: var(--color-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);"
+		/>
+	</Slider.Control>
+</Slider>

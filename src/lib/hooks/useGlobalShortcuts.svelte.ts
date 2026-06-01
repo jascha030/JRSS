@@ -1,5 +1,6 @@
 import { onMount } from 'svelte';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { playbackState, requestTogglePlayback, getCurrentAudioItem } from '$lib/state';
 import { playbackSettings } from '$lib/state/settings.svelte';
 import {
@@ -12,7 +13,7 @@ import {
 } from '$lib/hooks/useAppUi.svelte';
 import { popOutMiniPlayer } from '$lib/utils/mini-player';
 import { restoreMainWindow } from '$lib/utils/tauri-window';
-import { navigateToSettings } from '$lib/navigation/app-router';
+import { navigateToSettings } from '$lib/utils/navigation/app-router';
 import {
 	VOLUME_STEP,
 	skip,
@@ -20,7 +21,7 @@ import {
 	nextEpisode,
 	previousEpisode
 } from '$lib/utils/player-controls';
-import { navigateToCurrentAudioItem, cycleSource } from '$lib/navigation/audio-nav';
+import { navigateToCurrentAudioItem, cycleSource } from '$lib/utils/navigation/audio-nav';
 
 export function useGlobalShortcuts() {
 	onMount(() => {
@@ -162,11 +163,16 @@ export function useGlobalShortcuts() {
 
 			unlisteners.push(
 				await listen('menu-toggle-mini-player', async () => {
-					if (isMiniWindow) {
-						await restoreMainWindow();
-					} else {
-						await popOutMiniPlayer();
+					if (!document.hasFocus()) {
+						return;
 					}
+
+					if (isMiniWindow) {
+						await getCurrentWebviewWindow().close();
+						return;
+					}
+
+					await popOutMiniPlayer();
 				})
 			);
 

@@ -5,24 +5,32 @@
 	type Props = {
 		feedTitle?: string;
 		imageUrl?: string;
+		feedLink?: string | null;
 		item: FeedItem;
 		surfaceClass?: string;
+		maximized?: boolean;
 		children?: import('svelte').Snippet;
 	};
 
 	let {
 		feedTitle,
 		imageUrl: imageUrl,
+		feedLink = null,
 		item,
 		surfaceClass = 'article-surface',
+		maximized = false,
 		children
 	}: Props = $props();
+
+	const widthClass = $derived(
+		maximized
+			? 'max-w-5xl 3xl:max-w-7xl 4xl:max-w-[100rem]'
+			: 'max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl'
+	);
 </script>
 
-<article
-	class={`${surfaceClass} mx-auto w-full max-w-xl min-w-lg pb-12 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl`}
->
-	<ArticleHeader {feedTitle} {imageUrl} {item} />
+<article class={`${surfaceClass} mx-auto w-full ${widthClass} pb-12`}>
+	<ArticleHeader {feedTitle} {feedLink} {imageUrl} {item} />
 
 	{@render children?.()}
 </article>
@@ -100,6 +108,25 @@
 		max-width: 100%;
 		height: auto;
 		border-radius: 1rem;
+	}
+
+	.article-surface :global(.article-html iframe) {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		aspect-ratio: 16 / 9;
+		min-height: 16rem;
+		border: 0;
+		border-radius: 1rem;
+	}
+
+	.article-surface :global(.article-html video) {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		height: auto;
+		border-radius: 1rem;
+		background: var(--color-surface-shell);
 	}
 
 	.article-surface :global(.article-html figcaption) {

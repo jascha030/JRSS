@@ -2,7 +2,7 @@
 @plugin '@tailwindcss/forms';
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
-@import '../lib/themes/default.css';
+@import '../lib/assets/themes/default.css';
 
 @theme {
 	--breakpoint-xs: 30rem;
@@ -373,17 +373,6 @@
 	--color-article-caption: var(--app-article-caption);
 	--color-article-code-bg: var(--app-article-code-bg);
 	--color-article-table-border: var(--app-article-table-border);
-}
-
-:root {
-	--color-surface-elevated: color-mix(in oklch, var(--color-surface-card), white 18%);
-	--color-accent-hover: color-mix(in oklch, var(--color-accent), white 20%);
-	--color-accent-dot: var(--color-accent);
-	--color-skeleton: color-mix(in oklch, var(--color-border), var(--color-surface) 35%);
-	--color-success: var(--color-success-700);
-	--color-warning: var(--color-warning-700);
-	--color-error: var(--color-error-700);
-	--color-fg-error: var(--color-error-700);
 }
 
 :root.dark {

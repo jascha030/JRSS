@@ -106,7 +106,7 @@ describe('selectSection', () => {
 	it('clears feedSearchTerm and sectionSearchTerm', () => {
 		selection.feedSearchTerm = 'x';
 		selection.sectionSearchTerm = 'y';
-		selectSection('media');
+		selectSection('favorites');
 		expect(selection.feedSearchTerm).toBe('');
 		expect(selection.sectionSearchTerm).toBe('');
 	});
@@ -142,31 +142,34 @@ describe('search term setters', () => {
 	});
 });
 
-describe('getSelectedFeed', () => {
-	it('returns the matching feed', () => {
-		const feeds = [makeFeed('a'), makeFeed('b')];
-		selection.selectedFeedId = 'b';
-		expect(getSelectedFeed(feeds)?.id).toBe('b');
-	});
+function describeGetSelected<T extends { id: string }>(
+	name: string,
+	getSelected: (entities: T[]) => T | null,
+	makeEntity: (id: string) => T,
+	setSelectedId: (id: string | null) => void
+) {
+	describe(name, () => {
+		it('returns the matching entity', () => {
+			const entities = [makeEntity('a'), makeEntity('b')];
+			setSelectedId('b');
+			expect(getSelected(entities)?.id).toBe('b');
+		});
 
-	it('returns null when no selection', () => {
-		expect(getSelectedFeed([makeFeed('a')])).toBeNull();
-	});
+		it('returns null when no selection', () => {
+			expect(getSelected([makeEntity('a')])).toBeNull();
+		});
 
-	it('returns null when selection not in list', () => {
-		selection.selectedFeedId = 'z';
-		expect(getSelectedFeed([makeFeed('a')])).toBeNull();
+		it('returns null when selection not in list', () => {
+			setSelectedId('z');
+			expect(getSelected([makeEntity('a')])).toBeNull();
+		});
 	});
+}
+
+describeGetSelected('getSelectedFeed', getSelectedFeed, makeFeed, (id) => {
+	selection.selectedFeedId = id;
 });
 
-describe('getSelectedStation', () => {
-	it('returns the matching station', () => {
-		const stations = [makeStation('s1'), makeStation('s2')];
-		selection.selectedStationId = 's1';
-		expect(getSelectedStation(stations)?.id).toBe('s1');
-	});
-
-	it('returns null when no selection', () => {
-		expect(getSelectedStation([makeStation('s1')])).toBeNull();
-	});
+describeGetSelected('getSelectedStation', getSelectedStation, makeStation, (id) => {
+	selection.selectedStationId = id;
 });

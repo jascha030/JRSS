@@ -4,6 +4,8 @@ import { isMediaItem } from '$lib/types/item';
 import {
 	getItemDetails,
 	getItemsByIds,
+	markFavorite,
+	markFavoriteBatch,
 	markRead,
 	markReadBatch,
 	queryItems,
@@ -169,7 +171,7 @@ export function registerItems(items: FeedListItem[]): void {
  */
 export function patchItemSummary(
 	itemId: string,
-	patch: Partial<Pick<FeedListItem, 'read' | 'playbackPositionSeconds'>>
+	patch: Partial<Pick<FeedListItem, 'favorite' | 'read' | 'playbackPositionSeconds'>>
 ): void {
 	const existingItem = itemsState.itemSummariesById[itemId];
 	if (existingItem) {
@@ -425,6 +427,41 @@ export async function markItemRead(itemId: string, read: boolean): Promise<void>
 
 export async function markItemsRead(itemIds: string[], read: boolean): Promise<void> {
 	await markReadOptimistic(itemIds, read, () => markReadBatch(itemIds, read));
+}
+
+async function markFavoriteOptimistic(
+	itemIds: string[],
+	favorite: boolean,
+	persist: () => Promise<void>
+): Promise<void> {
+	const previousItems = new SvelteMap<string, FeedListItem>();
+	for (const itemId of itemIds) {
+		const previous = itemsState.itemSummariesById[itemId];
+		if (previous) {
+			previousItems.set(itemId, previous);
+		}
+		patchItemSummary(itemId, { favorite });
+	}
+
+	try {
+		await persist();
+		if (getActiveListSection() === 'favorites' && !favorite) {
+			await loadInitialItemsPage();
+		}
+	} catch (error) {
+		for (const [itemId, previous] of previousItems) {
+			itemsState.itemSummariesById[itemId] = previous;
+		}
+		throw error;
+	}
+}
+
+export async function markItemFavorite(itemId: string, favorite: boolean): Promise<void> {
+	await markFavoriteOptimistic([itemId], favorite, () => markFavorite(itemId, favorite));
+}
+
+export async function markItemsFavorite(itemIds: string[], favorite: boolean): Promise<void> {
+	await markFavoriteOptimistic(itemIds, favorite, () => markFavoriteBatch(itemIds, favorite));
 }
 
 export async function loadItemsByIds(itemIds: string[]): Promise<FeedListItem[]> {

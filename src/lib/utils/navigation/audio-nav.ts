@@ -1,10 +1,14 @@
+import { feedsState } from '$lib/state/feeds.svelte';
+import { selection } from '$lib/state/selection.svelte';
 import { getCurrentAudioItem, getPlaybackContext } from '$lib/state/playback.svelte';
 import { stationsState } from '$lib/state/stations.svelte';
 import { appUi, requestScrollToItem } from '$lib/hooks/useAppUi.svelte';
-import { navigateToFeedItem, navigateToStationItem } from './app-router';
-import { selection } from '$lib/state/selection.svelte';
-import { feedsState } from '$lib/state/feeds.svelte';
-import { navigateToFeed, navigateToStation } from './app-router';
+import {
+	navigateToFeed,
+	navigateToFeedItem,
+	navigateToStation,
+	navigateToStationItem
+} from './app-router';
 
 export function navigateToCurrentAudioItem(): void {
 	const item = getCurrentAudioItem();

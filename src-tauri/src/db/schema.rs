@@ -41,6 +41,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 	reader_fetched_at TEXT,
 			 	published_at TEXT NOT NULL,
 			 	read INTEGER NOT NULL DEFAULT 0,
+			 	favorite INTEGER NOT NULL DEFAULT 0,
 			 	enclosure_url TEXT,
 			 	enclosure_mime_type TEXT,
 			 	enclosure_size_bytes INTEGER,
@@ -90,6 +91,8 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 		.map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
     ensure_item_content_columns(&connection)?;
+    ensure_item_favorite_column(&connection)?;
+    ensure_item_favorite_index(&connection)?;
     ensure_item_image_url_column(&connection)?;
     ensure_feed_sort_order_column(&connection)?;
     ensure_feed_image_url_column(&connection)?;
@@ -318,6 +321,39 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
 		.map_err(|error| format!("Failed to backfill items.reader_status values: {error}"))?;
 
     Ok(())
+}
+
+fn ensure_item_favorite_column(connection: &Connection) -> AppResult<()> {
+	let mut statement = connection
+		.prepare("PRAGMA table_info(items)")
+		.map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+	let existing_columns = statement
+		.query_map([], |row| row.get::<_, String>(1))
+		.map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+		.collect::<Result<Vec<_>, _>>()
+		.map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+	if !existing_columns.iter().any(|column| column == "favorite") {
+		connection
+			.execute(
+				"ALTER TABLE items ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
+				[]
+			)
+			.map_err(|error| format!("Failed to add items.favorite column: {error}"))?;
+	}
+
+	Ok(())
+}
+
+fn ensure_item_favorite_index(connection: &Connection) -> AppResult<()> {
+	connection
+		.execute(
+			"CREATE INDEX IF NOT EXISTS idx_items_favorite_published_at_id ON items(published_at DESC, id DESC) WHERE favorite = 1",
+			[]
+		)
+		.map_err(|error| format!("Failed to create favorite items index: {error}"))?;
+
+	Ok(())
 }
 
 fn ensure_feed_sort_order_column(connection: &Connection) -> AppResult<()> {

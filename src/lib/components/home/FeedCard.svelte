@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Feed } from '$lib/types/feed';
+	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
 	import FeedCardImage from './FeedCardImage.svelte';
 
 	let {
@@ -18,6 +19,7 @@
 	class="group relative flex w-full flex-col items-center gap-2 rounded-xl p-2 transition-colors contain-[paint] hover:bg-surface-hover"
 	onclick={onClick}
 	title={feed.title}
+	oncontextmenu={(e) => void openFeedContextMenu(e, feed)}
 	aria-label={`Open feed ${feed.title}`}
 >
 	<FeedCardImage

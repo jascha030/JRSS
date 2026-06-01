@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
-	import { APP_SETTINGS } from '$lib/constants/settings';
+	import { APP_SETTINGS } from './app-settings';
 	import {
 		clearAudioCache,
 		discoverThemes,
@@ -24,6 +25,12 @@
 		type SettingEntry,
 		type ThemeInfo
 	} from '$lib/types/settings';
+	import {
+		Combobox,
+		Portal,
+		type ComboboxRootProps,
+		useListCollection
+	} from '@skeletonlabs/skeleton-svelte';
 
 	const allEntries: SettingEntry[] = [];
 	for (const section of APP_SETTINGS) {
@@ -34,7 +41,6 @@
 	let isLoading = $state(true);
 	let isSaving = $state(false);
 	let errorMessage = $state('');
-	let successMessage = $state('');
 	let initialized = $state(false);
 	let isClearingCache = $state(false);
 	let cacheMessage = $state('');
@@ -51,6 +57,26 @@
 		skipForwardSeconds: DEFAULT_SKIP_FORWARD_SECONDS,
 		skipBackwardSeconds: DEFAULT_SKIP_BACKWARD_SECONDS
 	});
+
+	const themeOptions = $derived([
+		{ label: 'Default', value: '' },
+		...themes.map((t) => ({ label: t.name, value: t.filename }))
+	]);
+
+	const themeCollection = $derived(
+		useListCollection({
+			items: themeOptions,
+			itemToString: (item) => item.label,
+			itemToValue: (item) => item.value
+		})
+	);
+
+	const themeValue = $derived([pending.themeName ?? '']);
+
+	const onThemeValueChange: ComboboxRootProps['onValueChange'] = (event) => {
+		const selected = event.value[0] ?? '';
+		pending.themeName = selected === '' ? null : selected;
+	};
 
 	$effect(() => {
 		const scheme = pending.colorScheme;
@@ -111,7 +137,6 @@
 	async function handleSave(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		errorMessage = '';
-		successMessage = '';
 
 		if (!isDesktop) {
 			errorMessage = 'Settings are only available in the desktop app.';
@@ -133,7 +158,7 @@
 		try {
 			const result = await saveAppSettings(pending);
 			Object.assign(pending, result);
-			successMessage = 'Settings saved.';
+			toast.success('Settings saved.');
 		} catch (error) {
 			errorMessage = `Failed to save settings. ${getErrorMessage(error)}`;
 		} finally {
@@ -186,20 +211,32 @@
 										</p>
 									</div>
 									<div class="flex w-full max-w-xs flex-col gap-2">
-										<select
-											class="preset-outlined-subtle select h-9 w-full rounded-xl border border-border"
+										<Combobox
+											class="w-full"
+											collection={themeCollection}
+											value={themeValue}
+											onValueChange={onThemeValueChange}
 											disabled={isLoading || isSaving || isLoadingThemes}
-											value={pending.themeName ?? ''}
-											onchange={(e) => {
-												const value = e.currentTarget.value;
-												pending.themeName = value === '' ? null : value;
-											}}
+											openOnClick
 										>
-											<option value="">Default</option>
-											{#each themes as theme (theme.filename)}
-												<option value={theme.filename}>{theme.name}</option>
-											{/each}
-										</select>
+											<Combobox.Label class="sr-only">Theme</Combobox.Label>
+											<Combobox.Control class="flex h-9 w-full items-center gap-2">
+												<Combobox.Input class="h-full min-w-0 flex-1" />
+												<Combobox.Trigger class="h-full" />
+											</Combobox.Control>
+											<Portal>
+												<Combobox.Positioner>
+													<Combobox.Content class="z-50 max-h-64 overflow-y-auto">
+														{#each themeOptions as item (item.value)}
+															<Combobox.Item {item}>
+																<Combobox.ItemText>{item.label}</Combobox.ItemText>
+																<Combobox.ItemIndicator />
+															</Combobox.Item>
+														{/each}
+													</Combobox.Content>
+												</Combobox.Positioner>
+											</Portal>
+										</Combobox>
 										{#if isLoadingThemes}
 											<p class="text-sm text-fg-muted">Loading themes…</p>
 										{/if}
@@ -251,8 +288,6 @@
 
 				{#if isLoading}
 					<p class="text-sm text-fg-muted">Loading settings…</p>
-				{:else if successMessage}
-					<p class="text-sm text-success">{successMessage}</p>
 				{:else if errorMessage}
 					<p class="text-sm text-error">{errorMessage}</p>
 				{/if}

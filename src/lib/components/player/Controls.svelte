@@ -12,6 +12,7 @@
 		canSkipNext?: boolean;
 		skipForwardSeconds?: number;
 		skipBackwardSeconds?: number;
+		size?: 'sm' | 'md' | 'lg';
 		class?: string;
 	};
 
@@ -25,11 +26,21 @@
 		canSkipNext = false,
 		skipForwardSeconds = 15,
 		skipBackwardSeconds = 15,
+		size = 'md',
 		class: className = ''
 	}: Props = $props();
+
+	const sizes = $derived.by(() => {
+		const map = {
+			sm: { gap: 'gap-1', skip: 'size-4', playBtn: 'size-7', playIcon: 'size-7' },
+			md: { gap: 'gap-2', skip: 'size-5', playBtn: 'size-9', playIcon: 'size-9' },
+			lg: { gap: 'gap-2', skip: 'size-6', playBtn: 'size-10', playIcon: 'size-10' }
+		};
+		return map[size];
+	});
 </script>
 
-<div class={`flex items-center justify-center gap-2 ${className}`}>
+<div class={`flex items-center justify-center ${sizes.gap} ${className}`}>
 	{#if onPreviousEpisode}
 		<button
 			class="text-fg-subtle transition-colors hover:text-white disabled:opacity-30"
@@ -38,7 +49,7 @@
 			disabled={!canSkipPrevious}
 			onclick={onPreviousEpisode}
 		>
-			<Icon icon="bi:skip-start-fill" class="size-5" />
+			<Icon icon="bi:skip-start-fill" class={sizes.skip} />
 		</button>
 	{/if}
 
@@ -48,11 +59,11 @@
 		aria-label={`Back ${skipBackwardSeconds} seconds`}
 		onclick={() => onSkip(-skipBackwardSeconds)}
 	>
-		<Icon icon="bi:rewind-fill" class="size-5" />
+		<Icon icon="bi:rewind-fill" class={sizes.skip} />
 	</button>
 
 	<button
-		class="preset-filled-accent btn-icon size-5 rounded-xl"
+		class={`${sizes.playBtn} rounded-xl text-fg-subtle transition-colors hover:text-white`}
 		type="button"
 		onclick={onTogglePlayback}
 		disabled={isAudioLoading()}
@@ -61,12 +72,12 @@
 	>
 		{#if isAudioLoading()}
 			{#key isAudioLoading()}
-				<Icon icon="lucide:loader-2" class="size-5 animate-spin" />
+				<Icon icon="lucide:loader-2" class={`${sizes.playIcon} animate-spin`} />
 			{/key}
 		{:else if isPlaying}
-			<Icon icon="bi:pause-fill" class="size-5" />
+			<Icon icon="bi:pause-fill" class={sizes.playIcon} />
 		{:else}
-			<Icon icon="bi:play-fill" class="size-5" />
+			<Icon icon="bi:play-fill" class={sizes.playIcon} />
 		{/if}
 	</button>
 
@@ -76,7 +87,7 @@
 		aria-label={`Forward ${skipForwardSeconds} seconds`}
 		onclick={() => onSkip(skipForwardSeconds)}
 	>
-		<Icon icon="bi:fast-forward-fill" class="size-5" />
+		<Icon icon="bi:fast-forward-fill" class={sizes.skip} />
 	</button>
 
 	{#if onNextEpisode}
@@ -87,7 +98,7 @@
 			disabled={!canSkipNext}
 			onclick={onNextEpisode}
 		>
-			<Icon icon="bi:skip-end-fill" class="size-5" />
+			<Icon icon="bi:skip-end-fill" class={sizes.skip} />
 		</button>
 	{/if}
 </div>

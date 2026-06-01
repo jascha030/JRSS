@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { markItemRead } from '$lib/state';
+	import { markItemFavorite, markItemRead } from '$lib/state/items.svelte';
 	import { isMediaItem, type FeedListItem } from '$lib/types/item';
 	import type { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
 	import type { appUi } from '$lib/hooks/useAppUi.svelte';
@@ -10,6 +10,7 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import PlayButton from '../playback/PlayButton.svelte';
+	import Icon from '@iconify/svelte';
 
 	type VisibleRow = {
 		index: number;
@@ -62,7 +63,7 @@
 		class: className = ''
 	}: Props = $props();
 
-	const DESKTOP_ROW_HEIGHT = 200;
+	const DESKTOP_ROW_HEIGHT = 190;
 	const MOBILE_ROW_HEIGHT = 304;
 	const OVERSCAN_ROWS = 1;
 
@@ -288,18 +289,24 @@
 															{item.title}
 														</h3>
 
-														<p class="text-sm leading-6 text-fg-secondary">
+														<p class="text-xs leading-6 text-fg-secondary">
 															{item.previewText}
 														</p>
 													</div>
 												</div>
 
 												<div
-													class="relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2 pt-3"
+													class="relative z-10 mt-auto flex flex-wrap items-center justify-between gap-2"
 												>
 													<div class="flex flex-wrap items-center gap-2">
 														{#if isMediaItem(item)}
-															<span class="badge preset-tonal-surface text-xs"> Podcast </span>
+															<span class="badge preset-filled-primary-500 text-xs">
+																<Icon icon="heroicons:microphone" /> Podcast
+															</span>
+														{:else}
+															<span class="badge preset-filled-primary-500 text-xs">
+																<Icon icon="heroicons:book-open" /> Article
+															</span>
 														{/if}
 													</div>
 
@@ -310,13 +317,20 @@
 													>
 														{#if isMediaItem(item)}
 															<PlayButton {item} compact={true} size="sm" />
-														{:else}
+														{/if}
+														<IconButton
+															icon={item.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
+															label={item.favorite ? 'Remove favorite' : 'Add favorite'}
+															iconClass="size-5"
+															onclick={() => void markItemFavorite(item.id, !item.favorite)}
+														/>
+														{#if !isMediaItem(item)}
 															<IconButton
 																icon={item.read
 																	? 'heroicons:envelope-open-solid'
 																	: 'heroicons:envelope-solid'}
 																label={item.read ? 'Mark as unread' : 'Mark as read'}
-																iconClass="size-5"
+																iconClass="size-6"
 																onclick={() => void markItemRead(item.id, !item.read)}
 															/>
 														{/if}

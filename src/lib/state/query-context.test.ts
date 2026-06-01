@@ -83,6 +83,11 @@ describe('getActiveListSection', () => {
 		expect(getActiveListSection()).toBe('media');
 	});
 
+	it('returns "favorites" for favorites section', () => {
+		selectSection('favorites');
+		expect(getActiveListSection()).toBe('favorites');
+	});
+
 	it('returns null for default "home" state', () => {
 		expect(getActiveListSection()).toBeNull();
 	});

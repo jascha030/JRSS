@@ -58,6 +58,14 @@ export async function markReadBatch(itemIds: string[], read: boolean): Promise<v
 	await invokeCommand('mark_read_batch', { itemIds, read });
 }
 
+export async function markFavorite(itemId: string, favorite: boolean): Promise<void> {
+	await invokeCommand('mark_favorite', { itemId, favorite });
+}
+
+export async function markFavoriteBatch(itemIds: string[], favorite: boolean): Promise<void> {
+	await invokeCommand('mark_favorite_batch', { itemIds, favorite });
+}
+
 export async function savePlayback(itemId: string, positionSeconds: number): Promise<void> {
 	await invokeCommand('save_playback', {
 		itemId,
@@ -82,7 +90,7 @@ export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> 
 export interface ItemsQuery {
 	feedId?: string;
 	stationId?: string;
-	section: 'all' | 'unread' | 'media';
+	section: 'all' | 'unread' | 'media' | 'favorites';
 	offset: number;
 	limit: number;
 	search?: string;

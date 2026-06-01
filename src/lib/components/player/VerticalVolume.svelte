@@ -17,7 +17,10 @@
 	});
 </script>
 
-<div class={`group relative flex items-center justify-center ${className}`}>
+<div
+	class={`group relative flex items-center justify-center ${className}`}
+	onwheel={volumeControl.handleVolumeWheel}
+>
 	<div
 		class="volume-range-container absolute bottom-full left-1/2 mb-2 flex w-8 -translate-x-1/2 justify-center rounded-xl py-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
 	>

@@ -1,11 +1,3 @@
-/**
- * Canonical settings definition — the single source of truth for the settings UI.
- *
- * The order of sections and entries controls the render order in the settings page.
- *
- * @see {@link https://github.com/jascha030/JRSS/blob/main/AGENTS.md#adding-a-new-setting|Adding a new setting}
- */
-
 import type { SettingsDefinition } from '$lib/types/settings';
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;

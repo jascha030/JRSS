@@ -6,7 +6,10 @@
 	import ItemListView from '$lib/components/content/ItemListView.svelte';
 	import { appUi } from '$lib/hooks/useAppUi.svelte';
 	import { useItemSelection } from '$lib/hooks/useItemSelection.svelte';
-	import { navigateToFeedInspector, replaceCurrentSearchTerm } from '$lib/navigation/app-router';
+	import {
+		navigateToFeedInspector,
+		replaceCurrentSearchTerm
+	} from '$lib/utils/navigation/app-router';
 	import { toast } from 'svelte-sonner';
 	import type { SidebarSection } from '$lib/state';
 	import {
@@ -29,6 +32,7 @@
 		all: 'All feeds',
 		unread: 'Unread',
 		media: 'Media',
+		favorites: 'Favorites',
 		settings: 'Settings'
 	};
 
@@ -80,7 +84,11 @@
 			};
 		}
 
-		if (selection.selectedSection === 'unread' || selection.selectedSection === 'media') {
+		if (
+			selection.selectedSection === 'unread' ||
+			selection.selectedSection === 'media' ||
+			selection.selectedSection === 'favorites'
+		) {
 			return {
 				label: `Search ${selection.selectedSection}`,
 				placeholder: `Search ${selection.selectedSection}`,

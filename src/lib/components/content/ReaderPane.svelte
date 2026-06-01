@@ -1,13 +1,16 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
-	import { feedsState } from '$lib/state';
+	import { feedsState, selection } from '$lib/state';
 	import { getSelectedItem, readerState } from '$lib/state';
+	import { markItemFavorite } from '$lib/state/items.svelte';
 	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
 	import { SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import Icon from '@iconify/svelte';
+	import { toast } from 'svelte-sonner';
+	import IconButton from '../ui/IconButton.svelte';
 
 	let {
 		class: className = ''
@@ -44,6 +47,11 @@
 			: undefined
 	);
 
+	const feedId = $derived(selectedItemFeed?.id ?? null);
+	const feedLink = $derived(
+		feedId && selection.selectedFeedId !== feedId ? `/feeds/${feedId}` : null
+	);
+
 	const readerViewButtonLabel = $derived(
 		isSelectedItemReaderLoading
 			? 'Loading reader view...'
@@ -51,6 +59,18 @@
 				? 'Retry Reader View'
 				: 'Load Reader View'
 	);
+
+	async function handleLoadReaderView(itemId: string): Promise<void> {
+		const updatedItem = await loadReaderView(itemId);
+
+		if (updatedItem.readerStatus === 'ready') {
+			appUi.readerPaneMode = 'reader';
+			return;
+		}
+
+		appUi.readerPaneMode = 'feed';
+		toast.error('Reader view was unavailable for this item. Showing feed content instead.');
+	}
 </script>
 
 <aside
@@ -59,7 +79,9 @@
 	{#if selectedItem}
 		<div class="space-y-9">
 			<div
-				class="mx-auto w-full max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl"
+				class="mx-auto w-full {isReaderMaximized
+					? 'max-w-5xl 3xl:max-w-7xl 4xl:max-w-[100rem]'
+					: 'max-w-xl min-w-lg 3xl:max-w-3xl 3xl:min-w-3xl 4xl:max-w-4xl 4xl:min-w-4xl'}"
 			>
 				<div class="flex flex-wrap items-center gap-4">
 					{#if canUseReaderMode && hasSelectedItemReaderContent}
@@ -73,54 +95,72 @@
 						>
 							<SegmentedControl.Label class="sr-only">Article view mode</SegmentedControl.Label>
 
-							<SegmentedControl.Control class="rounded-2xl">
+							<SegmentedControl.Control class="rounded-xl">
 								<SegmentedControl.Indicator />
 
 								<SegmentedControl.Item value="feed">
 									<SegmentedControl.ItemText>
-										<Icon icon="lucide:file-text" class="size-4" />
+										<Icon icon="lucide:file-text" />
 									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 
 								<SegmentedControl.Item value="reader">
 									<SegmentedControl.ItemText>
-										<Icon icon="lucide:book-open-text" class="size-4" />
+										<Icon icon="lucide:book-open-text" />
 									</SegmentedControl.ItemText>
 									<SegmentedControl.ItemHiddenInput />
 								</SegmentedControl.Item>
 							</SegmentedControl.Control>
 						</SegmentedControl>
 					{:else if canUseReaderMode}
-						<button
-							class="preset-outlined-subtle btn rounded-xl"
+						<IconButton
+							icon="lucide:file-text"
 							disabled={isSelectedItemReaderLoading}
-							type="button"
-							onclick={() => selectedItem && void loadReaderView(selectedItem.id)}
-						>
-							{readerViewButtonLabel}
-						</button>
+							label={readerViewButtonLabel}
+							onclick={() =>
+								selectedItem &&
+								void handleLoadReaderView(selectedItem.id).catch((error: unknown) => {
+									appUi.readerPaneMode = 'feed';
+									toast.error(
+										error instanceof Error
+											? error.message
+											: 'Unable to load reader view for this item.'
+									);
+								})}
+						/>
 					{/if}
 
-					<button
-						class="preset-outlined-subtle ml-auto flex aspect-square items-center justify-center rounded-xl"
-						style="width: 2.875rem; height: 2.875rem;"
-						type="button"
-						aria-label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
-						onclick={toggleReaderMaximized}
-					>
-						<Icon icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'} class="size-4" />
-					</button>
+					<div class="ml-auto flex items-center gap-2">
+						<IconButton
+							icon={selectedItem.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
+							label={selectedItem.favorite ? 'Remove favorite' : 'Add favorite'}
+							onclick={() => void markItemFavorite(selectedItem.id, !selectedItem.favorite)}
+						/>
+
+						<IconButton
+							icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
+							label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
+							onclick={toggleReaderMaximized}
+						/>
+					</div>
 				</div>
 			</div>
 
 			{#if isReaderPaneActive}
-				<ReaderArticle item={selectedItem} feedTitle={selectedItemFeed?.title} />
+				<ReaderArticle
+					item={selectedItem}
+					feedTitle={selectedItemFeed?.title}
+					{feedLink}
+					maximized={isReaderMaximized}
+				/>
 			{:else}
 				<FeedArticle
 					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
+					{feedLink}
 					feedOrEpisodeImageUrl={podcastImageUrl}
+					maximized={isReaderMaximized}
 				/>
 			{/if}
 		</div>

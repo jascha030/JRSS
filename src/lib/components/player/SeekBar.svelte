@@ -7,10 +7,16 @@
 	type Props = {
 		playbackState: PlaybackState;
 		durationSeconds: number;
+		showTimeLabels?: boolean;
 		class?: string;
 	};
 
-	let { playbackState, durationSeconds, class: className = '' }: Props = $props();
+	let {
+		playbackState,
+		durationSeconds,
+		showTimeLabels = true,
+		class: className = ''
+	}: Props = $props();
 
 	let isSeeking = $state(false);
 	let seekPosition = $state(0);
@@ -40,9 +46,11 @@
 </script>
 
 <div class={`flex min-w-0 flex-1 items-center gap-3 ${className}`}>
-	<span class="shrink-0 text-xs text-fg-muted tabular-nums">
-		{formatDuration(displayPosition)}
-	</span>
+	{#if showTimeLabels}
+		<span class="shrink-0 text-xs text-fg-muted tabular-nums">
+			{formatDuration(displayPosition)}
+		</span>
+	{/if}
 
 	<div
 		class="relative min-w-0 flex-1"
@@ -74,7 +82,9 @@
 		/>
 	</div>
 
-	<span class="shrink-0 text-xs text-fg-muted tabular-nums">
-		{formatDuration(durationSeconds)}
-	</span>
+	{#if showTimeLabels}
+		<span class="shrink-0 text-xs text-fg-muted tabular-nums">
+			{formatDuration(durationSeconds)}
+		</span>
+	{/if}
 </div>

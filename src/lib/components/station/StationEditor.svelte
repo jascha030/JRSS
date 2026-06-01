@@ -7,7 +7,10 @@
 		StationEpisodeFilter,
 		StationGradient
 	} from '$lib/types/station';
-	import { STATION_GRADIENTS, STATION_GRADIENT_OPTIONS } from '$lib/constants/station-gradients';
+	import {
+		STATION_GRADIENTS,
+		STATION_GRADIENT_OPTIONS
+	} from '$lib/components/station/station-gradients';
 	import Icon from '@iconify/svelte';
 	import {
 		Combobox,

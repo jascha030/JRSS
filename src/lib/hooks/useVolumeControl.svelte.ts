@@ -2,6 +2,18 @@ type VolumeInputEvent = Event & {
 	currentTarget: EventTarget & HTMLInputElement;
 };
 
+type VolumeWheelEvent = WheelEvent & {
+	currentTarget: EventTarget & HTMLDivElement;
+};
+
+const VOLUME_MIN = 0;
+const VOLUME_MAX = 1;
+const VOLUME_WHEEL_STEP = 0.05;
+
+function clampVolume(volume: number): number {
+	return Math.min(VOLUME_MAX, Math.max(VOLUME_MIN, volume));
+}
+
 type Options = {
 	getVolume: () => number;
 	setVolume: (value: number) => void;
@@ -16,7 +28,24 @@ export function useVolumeControl({ getVolume, setVolume, defaultVolume = 1 }: Op
 	const isMuted = $derived(effectiveVolume === 0);
 
 	function handleVolumeInput(event: VolumeInputEvent) {
-		const nextVolume = Number(event.currentTarget.value);
+		const nextVolume = clampVolume(Number(event.currentTarget.value));
+		volumeOverride = nextVolume;
+
+		if (nextVolume > 0) {
+			previousNonZeroVolume = nextVolume;
+		}
+	}
+
+	function handleVolumeWheel(event: VolumeWheelEvent) {
+		if (event.deltaY === 0) {
+			return;
+		}
+
+		event.preventDefault();
+
+		const direction = Math.sign(event.deltaY);
+		const nextVolume = clampVolume(effectiveVolume - direction * VOLUME_WHEEL_STEP);
+
 		volumeOverride = nextVolume;
 
 		if (nextVolume > 0) {
@@ -68,6 +97,7 @@ export function useVolumeControl({ getVolume, setVolume, defaultVolume = 1 }: Op
 			return isMuted;
 		},
 		handleVolumeInput,
+		handleVolumeWheel,
 		toggleMute
 	};
 }

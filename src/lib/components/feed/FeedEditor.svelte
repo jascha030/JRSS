@@ -53,7 +53,7 @@
 				bind:value={url}
 				disabled={isLoading}
 				placeholder="https://example.com/feed.xml"
-				class="input"
+				class="input h-9"
 			/>
 		</label>
 	</div>

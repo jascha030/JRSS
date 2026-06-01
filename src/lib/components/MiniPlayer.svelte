@@ -4,7 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/types/playback';
-	import { getFeedById, requestTogglePlayback } from '$lib/state';
+	import { getFeedById } from '$lib/state';
 	import { restoreMainWindow } from '$lib/utils/tauri-window';
 	import { nextEpisode, previousEpisode, skip } from '$lib/utils/player-controls';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -50,25 +50,8 @@
 			}
 		});
 
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-				return;
-			}
-
-			if (e.key === ' ') {
-				e.preventDefault();
-
-				if (item) {
-					requestTogglePlayback();
-				}
-			}
-		};
-
-		document.addEventListener('keydown', handleKeyDown);
-
 		return () => {
 			unlisten.then((fn) => fn());
-			document.removeEventListener('keydown', handleKeyDown);
 		};
 	});
 

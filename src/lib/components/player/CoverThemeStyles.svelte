@@ -53,10 +53,6 @@
 	}
 
 	:global(.cover-theme .player-range) {
-		--fill: var(--cover-seek-fill) !important;
-	}
-
-	:global(.cover-theme .player-range:focus-visible) {
-		outline-color: var(--cover-seek-fill) !important;
+		--color-accent: var(--cover-seek-fill) !important;
 	}
 </style>

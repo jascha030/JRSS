@@ -1,6 +1,6 @@
 export type ItemType = 'article' | 'media';
 export type ReaderStatus = 'unfetched' | 'ready' | 'failed';
-export type ItemListSection = 'all' | 'unread' | 'media';
+export type ItemListSection = 'all' | 'unread' | 'media' | 'favorites';
 export type ItemSortOrder = 'newest_first' | 'oldest_first';
 
 export interface MediaEnclosure {
@@ -24,6 +24,7 @@ interface FeedListItemBase {
 	readerFetchedAt?: string;
 	publishedAt: string;
 	read: boolean;
+	favorite: boolean;
 	playbackPositionSeconds: number;
 	imageUrl?: string;
 }
