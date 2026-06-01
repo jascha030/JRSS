@@ -58,6 +58,7 @@ describe('getItemsByIds — mockIPC mapping', () => {
 		readerStatus: 'unfetched',
 		publishedAt: '2024-01-01T00:00:00Z',
 		read: false,
+		favorite: false,
 		playbackPositionSeconds: 0
 	};
 
@@ -100,6 +101,7 @@ describe('getItemDetails — mockIPC', () => {
 					readerStatus: 'ready',
 					publishedAt: '2024-01-01T00:00:00Z',
 					read: true,
+					favorite: false,
 					playbackPositionSeconds: 0,
 					contentHtml: '<p>Content</p>'
 				};

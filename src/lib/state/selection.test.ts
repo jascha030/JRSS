@@ -106,7 +106,7 @@ describe('selectSection', () => {
 	it('clears feedSearchTerm and sectionSearchTerm', () => {
 		selection.feedSearchTerm = 'x';
 		selection.sectionSearchTerm = 'y';
-		selectSection('media');
+		selectSection('favorites');
 		expect(selection.feedSearchTerm).toBe('');
 		expect(selection.sectionSearchTerm).toBe('');
 	});

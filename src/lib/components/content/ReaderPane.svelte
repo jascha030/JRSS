@@ -1,8 +1,9 @@
 <script lang="ts">
 	import FeedArticle from '$lib/components/article/FeedArticle.svelte';
 	import ReaderArticle from '$lib/components/article/ReaderArticle.svelte';
-	import { feedsState } from '$lib/state';
+	import { feedsState, selection } from '$lib/state';
 	import { getSelectedItem, readerState } from '$lib/state';
+	import { markItemFavorite } from '$lib/state/items.svelte';
 	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
@@ -42,6 +43,11 @@
 		selectedItem !== null && isMediaItem(selectedItem)
 			? selectedItem.imageUrl || selectedItemFeed?.imageUrl
 			: undefined
+	);
+
+	const feedId = $derived(selectedItemFeed?.id ?? null);
+	const feedLink = $derived(
+		feedId && selection.selectedFeedId !== feedId ? `/feeds/${feedId}` : null
 	);
 
 	const readerViewButtonLabel = $derived(
@@ -104,15 +110,33 @@
 						</button>
 					{/if}
 
-					<button
-						class="preset-outlined-subtle ml-auto flex aspect-square items-center justify-center rounded-xl"
-						style="width: 2.875rem; height: 2.875rem;"
-						type="button"
-						aria-label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
-						onclick={toggleReaderMaximized}
-					>
-						<Icon icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'} class="size-4" />
-					</button>
+					<div class="ml-auto flex items-center gap-2">
+						<button
+							class="preset-outlined-subtle flex aspect-square items-center justify-center rounded-xl"
+							style="width: 2.875rem; height: 2.875rem;"
+							type="button"
+							aria-label={selectedItem.favorite ? 'Remove favorite' : 'Add favorite'}
+							onclick={() => void markItemFavorite(selectedItem.id, !selectedItem.favorite)}
+						>
+							<Icon
+								icon={selectedItem.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
+								class="size-4"
+							/>
+						</button>
+
+						<button
+							class="preset-outlined-subtle flex aspect-square items-center justify-center rounded-xl"
+							style="width: 2.875rem; height: 2.875rem;"
+							type="button"
+							aria-label={isReaderMaximized ? 'Minimize reader' : 'Maximize reader'}
+							onclick={toggleReaderMaximized}
+						>
+							<Icon
+								icon={isReaderMaximized ? 'lucide:minimize' : 'lucide:maximize'}
+								class="size-4"
+							/>
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -120,12 +144,14 @@
 				<ReaderArticle
 					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
+					{feedLink}
 					maximized={isReaderMaximized}
 				/>
 			{:else}
 				<FeedArticle
 					item={selectedItem}
 					feedTitle={selectedItemFeed?.title}
+					{feedLink}
 					feedOrEpisodeImageUrl={podcastImageUrl}
 					maximized={isReaderMaximized}
 				/>

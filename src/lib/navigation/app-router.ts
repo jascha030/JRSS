@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import type { RouteSelectionState, SidebarSection } from '$lib/state';
 
-export type AppListSection = 'all' | 'unread' | 'media';
+export type AppListSection = 'all' | 'unread' | 'media' | 'favorites';
 export type ReaderRouteMode = 'feed' | 'reader';
 
 type ListRouteState = {
@@ -100,7 +100,7 @@ function withRootSuffix(
 	return suffix ? `/${suffix}` : '/';
 }
 
-function withStaticSuffix<Path extends '/settings' | '/all' | '/unread' | '/media'>(
+function withStaticSuffix<Path extends '/settings' | '/all' | '/unread' | '/media' | '/favorites'>(
 	path: Path,
 	suffix: SearchHashSuffix
 ): Path | `${Path}?${string}` | `${Path}#${string}` | `${Path}?${string}#${string}` {
@@ -185,7 +185,7 @@ export function parseAppUrl(url: URL): AppRoute {
 }
 
 export function isAppListSection(value: string): value is AppListSection {
-	return value === 'all' || value === 'unread' || value === 'media';
+	return value === 'all' || value === 'unread' || value === 'media' || value === 'favorites';
 }
 
 export function isListRoute(
@@ -314,6 +314,11 @@ export async function navigateToAppRoute(
 
 	if (route.section === 'unread') {
 		await goto(resolve(withStaticSuffix('/unread', suffix)), gotoOptions);
+		return;
+	}
+
+	if (route.section === 'favorites') {
+		await goto(resolve(withStaticSuffix('/favorites', suffix)), gotoOptions);
 		return;
 	}
 

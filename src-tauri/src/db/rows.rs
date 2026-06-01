@@ -19,10 +19,10 @@ pub fn map_feed_row(row: &Row<'_>) -> rusqlite::Result<FeedRecord> {
 }
 
 pub fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
-    let enclosure_url: Option<String> = row.get(19)?;
-    let enclosure_mime_type: Option<String> = row.get(20)?;
-    let enclosure_size_bytes: Option<i64> = row.get(21)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(22)?;
+    let enclosure_url: Option<String> = row.get(20)?;
+    let enclosure_mime_type: Option<String> = row.get(21)?;
+    let enclosure_size_bytes: Option<i64> = row.get(22)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(23)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -54,17 +54,18 @@ pub fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         reader_fetched_at: row.get(16)?,
         published_at: row.get(17)?,
         read: row.get::<_, i64>(18)? != 0,
-        playback_position_seconds: row.get(23)?,
+        favorite: row.get::<_, i64>(19)? != 0,
+        playback_position_seconds: row.get(24)?,
         media_enclosure,
-        image_url: row.get(24)?,
+        image_url: row.get(25)?,
     })
 }
 
 pub fn map_item_list_row(row: &Row<'_>) -> rusqlite::Result<FeedListItemRecord> {
-    let enclosure_url: Option<String> = row.get(13)?;
-    let enclosure_mime_type: Option<String> = row.get(14)?;
-    let enclosure_size_bytes: Option<i64> = row.get(15)?;
-    let enclosure_duration_seconds: Option<i64> = row.get(16)?;
+    let enclosure_url: Option<String> = row.get(14)?;
+    let enclosure_mime_type: Option<String> = row.get(15)?;
+    let enclosure_size_bytes: Option<i64> = row.get(16)?;
+    let enclosure_duration_seconds: Option<i64> = row.get(17)?;
 
     let media_enclosure = match (enclosure_url, enclosure_mime_type) {
         (Some(url), Some(mime_type)) => Some(MediaEnclosureRecord {
@@ -90,9 +91,10 @@ pub fn map_item_list_row(row: &Row<'_>) -> rusqlite::Result<FeedListItemRecord> 
         reader_fetched_at: row.get(10)?,
         published_at: row.get(11)?,
         read: row.get::<_, i64>(12)? != 0,
-        playback_position_seconds: row.get(17)?,
+        favorite: row.get::<_, i64>(13)? != 0,
+        playback_position_seconds: row.get(18)?,
         media_enclosure,
-        image_url: row.get(18)?,
+        image_url: row.get(19)?,
     })
 }
 

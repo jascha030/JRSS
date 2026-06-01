@@ -8,6 +8,7 @@ pub enum ItemListSection {
     All,
     Unread,
     Media,
+    Favorites,
 }
 
 impl ItemListSection {
@@ -16,6 +17,7 @@ impl ItemListSection {
             Self::All => "all",
             Self::Unread => "unread",
             Self::Media => "media",
+            Self::Favorites => "favorites",
         }
     }
 }
@@ -128,6 +130,7 @@ pub struct FeedListItemRecord {
     pub reader_fetched_at: Option<String>,
     pub published_at: String,
     pub read: bool,
+    pub favorite: bool,
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
     pub image_url: Option<String>,
@@ -155,6 +158,7 @@ pub struct FeedItemRecord {
     pub reader_fetched_at: Option<String>,
     pub published_at: String,
     pub read: bool,
+    pub favorite: bool,
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
     pub image_url: Option<String>,

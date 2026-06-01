@@ -29,6 +29,7 @@
 		all: 'All feeds',
 		unread: 'Unread',
 		media: 'Media',
+		favorites: 'Favorites',
 		settings: 'Settings'
 	};
 
@@ -80,7 +81,11 @@
 			};
 		}
 
-		if (selection.selectedSection === 'unread' || selection.selectedSection === 'media') {
+		if (
+			selection.selectedSection === 'unread' ||
+			selection.selectedSection === 'media' ||
+			selection.selectedSection === 'favorites'
+		) {
 			return {
 				label: `Search ${selection.selectedSection}`,
 				placeholder: `Search ${selection.selectedSection}`,

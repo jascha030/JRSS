@@ -96,6 +96,8 @@ pub fn run() {
             commands::get_item_details,
             commands::mark_read,
             commands::mark_read_batch,
+            commands::mark_favorite,
+            commands::mark_favorite_batch,
             commands::save_playback,
             commands::load_reader_content,
             commands::get_items_by_ids,

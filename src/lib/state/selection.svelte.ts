@@ -1,7 +1,7 @@
 import type { Feed } from '$lib/types/feed';
 import type { Station } from '$lib/types/station';
 
-export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'settings' | null;
+export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'favorites' | 'settings' | null;
 
 export type RouteSelectionState = {
 	selectedFeedId: string | null;
@@ -55,7 +55,8 @@ export function applyRouteSelection(state: RouteSelectionState): void {
 		state.selectedStationId === null &&
 		(state.selectedSection === 'all' ||
 			state.selectedSection === 'unread' ||
-			state.selectedSection === 'media')
+			state.selectedSection === 'media' ||
+			state.selectedSection === 'favorites')
 			? state.searchTerm
 			: '';
 }

@@ -2,7 +2,7 @@
 	import type { Feed } from '$lib/types/feed';
 	import type { Station } from '$lib/types/station';
 	import { formatDate } from '$lib/utils/format';
-	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
+	import { openFeedContextMenu, openStationContextMenu } from '$lib/utils/tauri-menu';
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import {
@@ -71,21 +71,43 @@
 			onSetSortOrder(value);
 		}
 	};
+
+	const feedImageFallback = $derived((selectedFeed?.title.trim().slice(0, 1) ?? '?').toUpperCase());
 </script>
 
 <div class="shrink-0 border-b border-border bg-surface px-6 py-8 pb-7.75 backdrop-blur-md lg:px-8">
 	<div class="flex flex-col gap-4">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div>
-				<h2
-					class="mt-2 text-2xl font-semibold tracking-tight text-fg"
-					class:select-none={selectedFeed}
-					oncontextmenu={selectedFeed
-						? (event: MouseEvent) => void openFeedContextMenu(event, selectedFeed)
-						: undefined}
-				>
-					{pageHeading}
-				</h2>
+				<div class="mt-2 flex items-center gap-3">
+					{#if selectedFeed}
+						<div
+							class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-elevated text-xs font-semibold text-fg-muted"
+						>
+							{#if selectedFeed.imageUrl}
+								<img
+									src={selectedFeed.imageUrl}
+									alt={selectedFeed.title}
+									class="size-full object-cover"
+								/>
+							{:else}
+								<span>{feedImageFallback}</span>
+							{/if}
+						</div>
+					{/if}
+
+					<h2
+						class="text-2xl font-semibold tracking-tight text-fg"
+						class:select-none={selectedFeed || selectedStation}
+						oncontextmenu={selectedFeed
+							? (event: MouseEvent) => void openFeedContextMenu(event, selectedFeed)
+							: selectedStation
+								? (event: MouseEvent) => void openStationContextMenu(event, selectedStation)
+								: undefined}
+					>
+						{pageHeading}
+					</h2>
+				</div>
 
 				{#if selectedFeed?.lastFetchedAt}
 					<p class="mt-1 text-xs text-fg-subtle">

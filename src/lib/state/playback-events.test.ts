@@ -32,6 +32,7 @@ function makeMediaItem(id = 'item-1', positionSeconds = 0): RawFeedListItem {
 		readerStatus: 'unfetched',
 		publishedAt: '2024-01-01T00:00:00Z',
 		read: false,
+		favorite: false,
 		playbackPositionSeconds: positionSeconds,
 		mediaEnclosure: { url: 'https://cdn.example.com/ep1.mp3', mimeType: 'audio/mpeg' }
 	};

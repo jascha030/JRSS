@@ -8,7 +8,7 @@
 		openFeedEditor,
 		openStationEditor
 	} from '$lib/hooks/useAppUi.svelte';
-	import { openFeedContextMenu } from '$lib/utils/tauri-menu';
+	import { openFeedContextMenu, openStationContextMenu } from '$lib/utils/tauri-menu';
 	import {
 		navigateToHome,
 		navigateToSettings,
@@ -34,6 +34,7 @@
 		{ id: 'all', label: 'All feeds', icon: 'heroicons:squares-2x2' },
 		{ id: 'unread', label: 'Unread', icon: 'heroicons:inbox' },
 		{ id: 'media', label: 'Media', icon: 'heroicons:microphone' },
+		{ id: 'favorites', label: 'Favorites', icon: 'heroicons:heart' },
 		{ id: 'settings', label: 'Settings', icon: 'heroicons:cog-6-tooth' }
 	];
 
@@ -76,6 +77,7 @@
 					<button
 						type="button"
 						onclick={toggleSidebar}
+						oncontextmenu={(e) => e.preventDefault()}
 						title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						class="flex size-9 items-center justify-center rounded-xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
@@ -210,6 +212,7 @@
 		<button
 			type="button"
 			onclick={() => handleSelectSection(section.id)}
+			oncontextmenu={(e) => e.preventDefault()}
 			title={section.label}
 			aria-label={section.label}
 			class={`mx-auto flex h-10 w-11 items-center justify-center rounded-xl transition-colors ${
@@ -257,6 +260,7 @@
 		<button
 			type="button"
 			onclick={() => handleSelectStation(station.id)}
+			oncontextmenu={(e) => void openStationContextMenu(e, station)}
 			title={station.name}
 			aria-label={station.name}
 			class={`mx-auto flex size-10 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold shadow-sm transition-transform hover:scale-[1.02] ${
@@ -293,6 +297,7 @@
 		<button
 			type="button"
 			onclick={() => handleSelectSection(section.id)}
+			oncontextmenu={(e) => e.preventDefault()}
 			aria-label={section.label}
 			class={`flex h-10 w-full items-center rounded-xl px-3 text-sm font-medium transition-colors ${
 				isActive
@@ -350,25 +355,40 @@
 
 {#snippet stationList()}
 	{#each stations as station (station.id)}
-		<button
-			type="button"
-			onclick={() => handleSelectStation(station.id)}
-			aria-label={station.name}
-			class={`mb-2 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
+		<div
+			class={`group mb-2 flex items-center rounded-xl transition-colors ${
 				selectedStationId === station.id
 					? 'bg-surface-sidebar-active text-fg'
 					: 'text-fg-muted hover:bg-surface-sidebar-hover hover:text-fg'
 			}`}
 		>
-			<Icon icon="heroicons:microphone" class="size-4 shrink-0 text-success-600" />
+			<button
+				type="button"
+				onclick={() => handleSelectStation(station.id)}
+				oncontextmenu={(e) => void openStationContextMenu(e, station)}
+				aria-label={station.name}
+				class="flex h-10 min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left"
+			>
+				<Icon icon="heroicons:microphone" class="size-4 shrink-0 text-success-600" />
 
-			<span class="min-w-0 flex-1">
-				<span class="block truncate text-sm font-medium">{station.name}</span>
-				<span class="block truncate text-xs text-fg-muted">
-					{station.feedIds.length}
-					{station.feedIds.length === 1 ? 'podcast' : 'podcasts'}
+				<span class="min-w-0 flex-1">
+					<span class="block truncate text-sm font-medium">{station.name}</span>
+					<span class="block truncate text-xs text-fg-muted">
+						{station.feedIds.length}
+						{station.feedIds.length === 1 ? 'podcast' : 'podcasts'}
+					</span>
 				</span>
-			</span>
-		</button>
+			</button>
+
+			<button
+				type="button"
+				title="Open station context menu"
+				onclick={(e) => void openStationContextMenu(e, station)}
+				aria-label={`Open ${station.name} context menu`}
+				class="ml-1 flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-subtle transition-[opacity,background-color,color] duration-150 group-hover:text-fg-secondary"
+			>
+				<Icon icon="heroicons:ellipsis-vertical" class="size-4" />
+			</button>
+		</div>
 	{/each}
 {/snippet}
