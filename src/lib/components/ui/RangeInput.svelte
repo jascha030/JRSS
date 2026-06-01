@@ -55,8 +55,8 @@
 >
 	<Slider.Control class="group/control relative flex h-5 w-full min-w-0 items-center">
 		<Slider.Track
-			class="h-1 w-full rounded-full transition-all [--progress-color:white] group-hover/control:[--progress-color:var(--color-accent)]"
-			style={`background: linear-gradient(to right, var(--progress-color) 0%, var(--progress-color) ${progressPercent}%, var(--color-border) ${progressPercent}%, var(--color-border) 100%)`}
+			class="h-1 w-full rounded-full"
+			style={`background: linear-gradient(to right, var(--color-accent) 0%, var(--color-accent) ${progressPercent}%, var(--color-border) ${progressPercent}%, var(--color-border) 100%)`}
 		>
 			<Slider.Range class="opacity-0" />
 		</Slider.Track>
