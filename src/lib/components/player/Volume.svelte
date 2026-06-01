@@ -18,7 +18,10 @@
 	});
 </script>
 
-<div class={`group flex ${showRange ? '' : 'not-hover:flex-0'} items-center gap-2 ${className}`}>
+<div
+	class={`group flex ${showRange ? '' : 'not-hover:flex-0'} items-center gap-2 ${className}`}
+	onwheel={volumeControl.handleVolumeWheel}
+>
 	<button
 		class="preset-icon-subtle btn-icon size-5 rounded-xl"
 		type="button"
