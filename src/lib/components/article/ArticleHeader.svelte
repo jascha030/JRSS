@@ -2,7 +2,6 @@
 	import { resolve } from '$app/paths';
 	import type { FeedItem } from '$lib/types/item';
 	import { isMediaItem } from '$lib/types/item';
-	import { markItemFavorite } from '$lib/state/items.svelte';
 	import { formatDate } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -92,15 +91,6 @@
 						label="More audio actions"
 						class="rounded-full"
 						onclick={(e) => void openAudioContextMenu(e, item)}
-					/>
-				</div>
-			{:else}
-				<div class="mt-2 flex flex-wrap items-center gap-2">
-					<IconButton
-						icon={item.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
-						label={item.favorite ? 'Remove favorite' : 'Add favorite'}
-						class="rounded-full"
-						onclick={() => void markItemFavorite(item.id, !item.favorite)}
 					/>
 				</div>
 			{/if}
