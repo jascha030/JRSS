@@ -11,7 +11,7 @@ import {
 	queryItems,
 	type ItemsQuery
 } from '$lib/services/item';
-import { measurePerfAsync } from '$lib/utils/perfDebug';
+import { measurePerfAsync } from '$lib/utils/performance-debug';
 import { selection } from './selection.svelte';
 import {
 	getActiveQuerySpec,

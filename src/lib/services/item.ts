@@ -9,7 +9,7 @@ import type {
 	RawFeedListItem
 } from '$lib/types/item';
 import { mapRawFeedItem, mapRawFeedListItem } from '$lib/types/item';
-import { measurePerfAsync } from '$lib/utils/perfDebug';
+import { measurePerfAsync } from '$lib/utils/performance-debug';
 
 export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<FeedListItem>> {
 	if (!isTauriRuntime()) {
