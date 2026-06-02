@@ -1,6 +1,7 @@
 import type { MenuIcon } from '@tauri-apps/api/image';
 import { IconMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { openFeedEditor, openStationEditor } from '$lib/hooks/useAppUi.svelte';
 import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 
 import {
@@ -449,6 +450,33 @@ export async function openStationContextMenu(event: MouseEvent, station: Station
 			text: 'Remove station',
 			icon: NativeIcon.Remove,
 			action: () => void deleteExistingStation(station.id)
+		})
+	);
+
+	const menu = await Menu.new({ items });
+	await menu.popup();
+}
+
+export async function openCreateMenu(event: MouseEvent): Promise<void> {
+	event.preventDefault();
+
+	const items: ContextMenuItem[] = [];
+
+	items.push(
+		await createActionMenuItem({
+			id: 'add-feed',
+			text: 'Add feed',
+			icon: NativeIcon.Add,
+			action: () => openFeedEditor()
+		})
+	);
+
+	items.push(
+		await createActionMenuItem({
+			id: 'create-station',
+			text: 'Create station',
+			icon: NativeIcon.Add,
+			action: () => openStationEditor()
 		})
 	);
 

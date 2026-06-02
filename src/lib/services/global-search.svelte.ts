@@ -112,11 +112,15 @@ export function createGlobalSearch(options: Options) {
 			kind: 'item' as const,
 			data: item
 		})),
-		...podcastResults.map((podcast) => ({
-			id: `podcast:${podcast.feedUrl}`,
-			kind: 'podcast' as const,
-			data: podcast
-		}))
+		...podcastResults
+			.filter(
+				(podcast, index, self) => index === self.findIndex((p) => p.feedUrl === podcast.feedUrl)
+			)
+			.map((podcast) => ({
+				id: `podcast:${podcast.feedUrl}`,
+				kind: 'podcast' as const,
+				data: podcast
+			}))
 	]);
 
 	function clearResults() {
