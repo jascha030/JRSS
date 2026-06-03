@@ -166,15 +166,21 @@ fn sanitize_reader_html(candidate: &str, base_url: &Url) -> Option<String> {
                 "width",
             ],
         )
-		.attribute_filter(move |element, attribute, value| match (element, attribute) {
-			("iframe", "src") => normalize_allowed_reader_iframe_src(value, &base_url_for_filter)
-				.map(Cow::Owned),
-			("source", "src") | ("video", "poster") | ("video", "src")
-				=> normalize_allowed_reader_media_src(value, &base_url_for_filter).map(Cow::Owned),
-			("source", "type") if is_allowed_reader_video_type(value) => Some(Cow::Borrowed(value)),
-			("source", "type") => None,
-			_ => Some(Cow::Borrowed(value)),
-		})
+        .attribute_filter(
+            move |element, attribute, value| match (element, attribute) {
+                ("iframe", "src") => {
+                    normalize_allowed_reader_iframe_src(value, &base_url_for_filter).map(Cow::Owned)
+                }
+                ("source", "src") | ("video", "poster") | ("video", "src") => {
+                    normalize_allowed_reader_media_src(value, &base_url_for_filter).map(Cow::Owned)
+                }
+                ("source", "type") if is_allowed_reader_video_type(value) => {
+                    Some(Cow::Borrowed(value))
+                }
+                ("source", "type") => None,
+                _ => Some(Cow::Borrowed(value)),
+            },
+        )
         .set_tag_attribute_value("a", "target", "_blank");
 
     let sanitized = filter_reader_embeds(&sanitizer.clean(candidate).to_string());
@@ -190,7 +196,10 @@ fn sanitize_reader_html(candidate: &str, base_url: &Url) -> Option<String> {
 fn filter_reader_embeds(html: &str) -> String {
     let without_invalid_iframes = iframe_regex()
         .replace_all(html, |captures: &regex::Captures<'_>| {
-            let full_match = captures.get(0).map(|value| value.as_str()).unwrap_or_default();
+            let full_match = captures
+                .get(0)
+                .map(|value| value.as_str())
+                .unwrap_or_default();
             let opening_tag = full_match.split('>').next().unwrap_or_default();
             let src = parse_tag_attributes(opening_tag)
                 .into_iter()
@@ -206,25 +215,32 @@ fn filter_reader_embeds(html: &str) -> String {
         .into_owned();
 
     video_regex()
-        .replace_all(&without_invalid_iframes, |captures: &regex::Captures<'_>| {
-            let full_match = captures.get(0).map(|value| value.as_str()).unwrap_or_default();
-            let opening_tag = full_match.split('>').next().unwrap_or_default();
-            let video_attributes = parse_tag_attributes(opening_tag);
-            let has_video_src = video_attributes.iter().any(|(name, value)| {
-                name == "src" && is_allowed_reader_media_src(value)
-            });
-            let has_allowed_source = source_tag_regex().find_iter(full_match).any(|source_tag| {
-                parse_tag_attributes(source_tag.as_str())
-                    .into_iter()
-                    .any(|(name, value)| name == "src" && is_allowed_reader_media_src(&value))
-            });
+        .replace_all(
+            &without_invalid_iframes,
+            |captures: &regex::Captures<'_>| {
+                let full_match = captures
+                    .get(0)
+                    .map(|value| value.as_str())
+                    .unwrap_or_default();
+                let opening_tag = full_match.split('>').next().unwrap_or_default();
+                let video_attributes = parse_tag_attributes(opening_tag);
+                let has_video_src = video_attributes
+                    .iter()
+                    .any(|(name, value)| name == "src" && is_allowed_reader_media_src(value));
+                let has_allowed_source =
+                    source_tag_regex().find_iter(full_match).any(|source_tag| {
+                        parse_tag_attributes(source_tag.as_str()).into_iter().any(
+                            |(name, value)| name == "src" && is_allowed_reader_media_src(&value),
+                        )
+                    });
 
-            if has_video_src || has_allowed_source {
-                full_match.to_string()
-            } else {
-                String::new()
-            }
-        })
+                if has_video_src || has_allowed_source {
+                    full_match.to_string()
+                } else {
+                    String::new()
+                }
+            },
+        )
         .into_owned()
 }
 
@@ -296,7 +312,8 @@ fn source_tag_regex() -> &'static Regex {
 fn video_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
 
-    REGEX.get_or_init(|| Regex::new(r#"(?is)<video\b[^>]*>.*?</video>"#).expect("valid video regex"))
+    REGEX
+        .get_or_init(|| Regex::new(r#"(?is)<video\b[^>]*>.*?</video>"#).expect("valid video regex"))
 }
 
 fn extract_title(html: &str) -> Option<String> {
@@ -686,21 +703,24 @@ mod tests {
     #[test]
     fn validate_extraction_quality_allows_non_error_numbers() {
         let text = "Last year we organized this online conference for the first time, and it was a huge success. We had over 5000 people follow the event live, and then thousands and thousands more watching afterwards. That kind of growth makes this a real article, not an error page.";
-        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        let result =
+            validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
         assert!(result.is_ok());
     }
 
     #[test]
     fn validate_extraction_quality_allows_status_codes_in_article_content() {
         let text = "The replay command used a chunk size of 500, and one example even checked whether xhr.status === 500 before showing an inline message. This is still clearly article content with enough surrounding explanation to pass validation without being mistaken for an error page.";
-        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        let result =
+            validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
         assert!(result.is_ok());
     }
 
     #[test]
     fn validate_extraction_quality_rejects_contextual_http_errors() {
         let text = "The page crashed with a 500 internal server error and could not be rendered. Nothing useful was extracted from the response.";
-        let result = validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
+        let result =
+            validate_extraction_quality("Article Title", Some("<p>content</p>"), Some(text));
         assert!(result.is_err());
     }
 
@@ -760,16 +780,16 @@ mod tests {
         assert!(content.contains("reader mode"));
     }
 
-	#[test]
+    #[test]
     fn sanitized_html_preserves_allowed_video_embeds() {
         let article_url = Url::parse("https://example.com/posts/test").expect("valid url");
         let html = r#"<iframe src="https://www.youtube.com/embed/example" title="Video" allowfullscreen></iframe>"#;
 
-		let sanitized = sanitize_reader_html(html, &article_url);
+        let sanitized = sanitize_reader_html(html, &article_url);
 
-		assert!(sanitized.is_some());
-		let content = sanitized.unwrap();
-		assert!(content.contains("<iframe"));
+        assert!(sanitized.is_some());
+        let content = sanitized.unwrap();
+        assert!(content.contains("<iframe"));
         assert!(content.contains("https://www.youtube.com/embed/example"));
     }
 

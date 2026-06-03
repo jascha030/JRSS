@@ -141,7 +141,9 @@ pub fn enforce_cache_size_limit(
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
         });
 
-        if path == current_download_path || protected_paths.iter().any(|protected| protected == &path) {
+        if path == current_download_path
+            || protected_paths.iter().any(|protected| protected == &path)
+        {
             retained_files_size = retained_files_size.saturating_add(size);
             continue;
         }

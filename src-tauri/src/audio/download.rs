@@ -100,15 +100,13 @@ pub fn download_to_file(
         meta.total_size.store(content_length, Ordering::Release);
         log::debug!("Download content-length: {} bytes", content_length);
 
-        if let Err(e) =
-            enforce_cache_size_limit(
-                cache_dir,
-                path,
-                protected_paths,
-                content_length,
-                max_cache_size_bytes,
-            )
-        {
+        if let Err(e) = enforce_cache_size_limit(
+            cache_dir,
+            path,
+            protected_paths,
+            content_length,
+            max_cache_size_bytes,
+        ) {
             log::warn!("Failed to enforce cache size limit with content length: {e}");
         }
     }

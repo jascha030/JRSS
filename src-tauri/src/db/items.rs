@@ -69,67 +69,67 @@ pub fn mark_favorite(db_path: &Path, item_id: &str, favorite: bool) -> AppResult
 }
 
 pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) -> AppResult<()> {
-	if item_ids.is_empty() {
-		return Ok(());
-	}
+    if item_ids.is_empty() {
+        return Ok(());
+    }
 
-	let mut connection = open_connection(db_path)?;
-	let tx = connection
-		.transaction()
-		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
+    let mut connection = open_connection(db_path)?;
+    let tx = connection
+        .transaction()
+        .map_err(|error| format!("Failed to begin transaction: {error}"))?;
 
-	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
-	let sql = format!(
-		"UPDATE items SET favorite = ?1 WHERE id IN ({})",
-		placeholders.join(", ")
-	);
+    let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+    let sql = format!(
+        "UPDATE items SET favorite = ?1 WHERE id IN ({})",
+        placeholders.join(", ")
+    );
 
-	let favorite_value = if favorite { 1_i64 } else { 0_i64 };
-	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-	params.push(&favorite_value as &dyn rusqlite::ToSql);
-	for id in item_ids {
-		params.push(id as &dyn rusqlite::ToSql);
-	}
+    let favorite_value = if favorite { 1_i64 } else { 0_i64 };
+    let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+    params.push(&favorite_value as &dyn rusqlite::ToSql);
+    for id in item_ids {
+        params.push(id as &dyn rusqlite::ToSql);
+    }
 
-	tx.execute(&sql, params.as_slice())
-		.map_err(|error| format!("Failed to batch update favorite state: {error}"))?;
+    tx.execute(&sql, params.as_slice())
+        .map_err(|error| format!("Failed to batch update favorite state: {error}"))?;
 
-	tx.commit()
-		.map_err(|error| format!("Failed to commit batch favorite update: {error}"))?;
+    tx.commit()
+        .map_err(|error| format!("Failed to commit batch favorite update: {error}"))?;
 
-	Ok(())
+    Ok(())
 }
 
 pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
-	if item_ids.is_empty() {
-		return Ok(());
-	}
+    if item_ids.is_empty() {
+        return Ok(());
+    }
 
-	let mut connection = open_connection(db_path)?;
-	let tx = connection
-		.transaction()
-		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
+    let mut connection = open_connection(db_path)?;
+    let tx = connection
+        .transaction()
+        .map_err(|error| format!("Failed to begin transaction: {error}"))?;
 
-	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
-	let sql = format!(
-		"UPDATE items SET read = ?1 WHERE id IN ({})",
-		placeholders.join(", ")
-	);
+    let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+    let sql = format!(
+        "UPDATE items SET read = ?1 WHERE id IN ({})",
+        placeholders.join(", ")
+    );
 
-	let read_value = if read { 1_i64 } else { 0_i64 };
-	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-	params.push(&read_value as &dyn rusqlite::ToSql);
-	for id in item_ids {
-		params.push(id as &dyn rusqlite::ToSql);
-	}
+    let read_value = if read { 1_i64 } else { 0_i64 };
+    let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+    params.push(&read_value as &dyn rusqlite::ToSql);
+    for id in item_ids {
+        params.push(id as &dyn rusqlite::ToSql);
+    }
 
-	tx.execute(&sql, params.as_slice())
-		.map_err(|error| format!("Failed to batch update read state: {error}"))?;
+    tx.execute(&sql, params.as_slice())
+        .map_err(|error| format!("Failed to batch update read state: {error}"))?;
 
-	tx.commit()
-		.map_err(|error| format!("Failed to commit batch read update: {error}"))?;
+    tx.commit()
+        .map_err(|error| format!("Failed to commit batch read update: {error}"))?;
 
-	Ok(())
+    Ok(())
 }
 
 pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> AppResult<()> {
@@ -480,7 +480,6 @@ pub fn query_items(
         )
     };
 
-
     let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     for fid in &feed_ids {
         page_params.push(Box::new(fid.clone()));
@@ -521,7 +520,8 @@ pub fn get_unread_counts_by_feed(db_path: &Path) -> AppResult<HashMap<String, i6
 
     let mut result = HashMap::new();
     for row in rows {
-        let (feed_id, count) = row.map_err(|error| format!("Failed to read unread count: {error}"))?;
+        let (feed_id, count) =
+            row.map_err(|error| format!("Failed to read unread count: {error}"))?;
         result.insert(feed_id, count);
     }
 
@@ -544,25 +544,25 @@ mod tests {
     }
 
     /// Insert a feed with one article item; return the derived item ID.
-	fn insert_item(db_path: &Path) -> String {
-		insert_item_with_external_id(db_path, "ext-1", "Article 1")
-	}
+    fn insert_item(db_path: &Path) -> String {
+        insert_item_with_external_id(db_path, "ext-1", "Article 1")
+    }
 
-	fn insert_item_with_external_id(db_path: &Path, external_id: &str, title: &str) -> String {
-		let feed = upsert_feed_snapshot(
-			db_path,
-			"https://example.com/rss",
+    fn insert_item_with_external_id(db_path: &Path, external_id: &str, title: &str) -> String {
+        let feed = upsert_feed_snapshot(
+            db_path,
+            "https://example.com/rss",
             ParsedFeed {
                 title: "Feed".to_string(),
                 description: String::new(),
                 site_url: None,
-				image_url: None,
-				kind: "article".to_string(),
-				items: vec![ParsedFeedItem {
-					external_id: external_id.to_string(),
-					title: title.to_string(),
-					url: "https://example.com/1".to_string(),
-					summary: String::new(),
+                image_url: None,
+                kind: "article".to_string(),
+                items: vec![ParsedFeedItem {
+                    external_id: external_id.to_string(),
+                    title: title.to_string(),
+                    url: "https://example.com/1".to_string(),
+                    summary: String::new(),
                     preview_text: String::new(),
                     summary_text: None,
                     summary_html: None,
@@ -573,11 +573,14 @@ mod tests {
                     image_url: None,
                 }],
             },
-		)
-		.unwrap();
-		// Mirror the stable_hash + build_item_id logic from feeds.rs.
-		format!("item-{}", sha1_smol::Sha1::from(format!("{}:{}", feed.id, external_id)).digest())
-	}
+        )
+        .unwrap();
+        // Mirror the stable_hash + build_item_id logic from feeds.rs.
+        format!(
+            "item-{}",
+            sha1_smol::Sha1::from(format!("{}:{}", feed.id, external_id)).digest()
+        )
+    }
 
     #[test]
     fn get_item_by_id_returns_item() {
@@ -638,9 +641,24 @@ mod tests {
         let (_dir, db_path) = tmpdb();
         let first_item_id = insert_item(&db_path);
         let second_item_id = insert_item_with_external_id(&db_path, "ext-2", "Article 2");
-        mark_favorite_batch(&db_path, &[first_item_id.clone(), second_item_id.clone()], true).unwrap();
-        assert!(get_item_by_id(&db_path, &first_item_id).unwrap().unwrap().favorite);
-        assert!(get_item_by_id(&db_path, &second_item_id).unwrap().unwrap().favorite);
+        mark_favorite_batch(
+            &db_path,
+            &[first_item_id.clone(), second_item_id.clone()],
+            true,
+        )
+        .unwrap();
+        assert!(
+            get_item_by_id(&db_path, &first_item_id)
+                .unwrap()
+                .unwrap()
+                .favorite
+        );
+        assert!(
+            get_item_by_id(&db_path, &second_item_id)
+                .unwrap()
+                .unwrap()
+                .favorite
+        );
     }
 
     #[test]

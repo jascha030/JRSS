@@ -196,12 +196,12 @@ pub async fn mark_favorite(
 
 #[tauri::command]
 pub async fn mark_favorite_batch(
-	item_ids: Vec<String>,
-	favorite: bool,
-	state: State<'_, DatabaseState>,
+    item_ids: Vec<String>,
+    favorite: bool,
+    state: State<'_, DatabaseState>,
 ) -> Result<(), String> {
-	let db_path = state.db_path();
-	blocking(move || db::mark_favorite_batch(&db_path, &item_ids, favorite)).await
+    let db_path = state.db_path();
+    blocking(move || db::mark_favorite_batch(&db_path, &item_ids, favorite)).await
 }
 
 #[tauri::command]

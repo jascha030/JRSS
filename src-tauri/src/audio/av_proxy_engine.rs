@@ -6,7 +6,9 @@
 
 use std::time::Duration;
 
-use super::av_main_thread_actor::{ActorHandle, AvCmd, AvResp, dispatch_cmd, start_on_dedicated_queue};
+use super::av_main_thread_actor::{
+    ActorHandle, AvCmd, AvResp, dispatch_cmd, start_on_dedicated_queue,
+};
 use super::engine::{EngineError, PlayConfig, PlaybackEngine, PlaybackSnapshot};
 use super::streaming_file::StreamingFile;
 
@@ -19,13 +21,13 @@ pub struct AvProxyEngine {
 }
 
 impl AvProxyEngine {
-	pub fn new() -> Self {
-		Self {
-			handle: start_on_dedicated_queue(),
-			cached_duration: 0.0,
-			has_active: false,
-		}
-	}
+    pub fn new() -> Self {
+        Self {
+            handle: start_on_dedicated_queue(),
+            cached_duration: 0.0,
+            has_active: false,
+        }
+    }
 
     fn send(&self, cmd: AvCmd) -> Result<AvResp, EngineError> {
         // dispatch_cmd blocks on an mpsc::SyncSender; apply a wall-clock guard

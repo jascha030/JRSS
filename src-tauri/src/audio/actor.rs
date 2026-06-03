@@ -352,7 +352,11 @@ impl AudioThread {
     fn snapshot_from_cache(&self) -> Option<PlaybackStateEvent> {
         let eng = &self.cached_engine_snapshot;
         self.current_item_id.as_ref().map(|item_id| {
-            let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
+            let position_seconds = if eng.has_active {
+                eng.position
+            } else {
+                self.stored_position_seconds
+            };
             let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
             let effective_duration = self
                 .duration_seconds
@@ -568,16 +572,14 @@ impl AudioThread {
             .name("jrss-prefetch".into())
             .spawn(move || {
                 let cache_dir = cache_dir_for_prefetch.as_deref().unwrap_or(Path::new(""));
-                if let Err(e) =
-                    download_to_file(
-                        &dl_url,
-                        &dl_path,
-                        &dl_meta,
-                        cache_dir,
-                        &protected_paths,
-                        cache_limit_bytes,
-                    )
-                {
+                if let Err(e) = download_to_file(
+                    &dl_url,
+                    &dl_path,
+                    &dl_meta,
+                    cache_dir,
+                    &protected_paths,
+                    cache_limit_bytes,
+                ) {
                     log::error!("Prefetch download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
                 }
