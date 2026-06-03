@@ -153,7 +153,7 @@
 						<Combobox.Label class="sr-only">Sort order</Combobox.Label>
 						<Combobox.Control class="flex h-9 items-center gap-2">
 							<Combobox.Input class="h-full min-w-0 flex-1" />
-							<Combobox.Trigger class="h-full" />
+							<Combobox.Trigger />
 						</Combobox.Control>
 						<Portal>
 							<Combobox.Positioner>
