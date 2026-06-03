@@ -9,6 +9,9 @@ export default defineConfig({
 				conditions: ['browser']
 			}
 		: undefined,
+	build: {
+		cssMinify: true
+	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
 		globals: true,

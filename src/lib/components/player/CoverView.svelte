@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
-	import { getFeedById } from '$lib/state';
+	import { getFeedById, clearQueue } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -203,8 +203,7 @@
 						<button
 							type="button"
 							class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-							onclick={async () => {
-								const { clearQueue } = await import('$lib/state');
+							onclick={() => {
 								clearQueue();
 							}}
 						>
