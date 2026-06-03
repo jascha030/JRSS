@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 
-	type Variant = 'accent' | 'subtle' | 'tonal' | 'error' | 'icon-subtle';
+	type Variant = 'accent' | 'subtle' | 'tonal' | 'error' | 'icon-subtle' | 'ghost';
 
 	type Props = {
 		icon: string;
@@ -20,7 +20,9 @@
 		subtle: 'preset-outlined-subtle btn-icon rounded-xl',
 		tonal: 'preset-tonal btn-icon rounded-xl',
 		error: 'preset-filled-error btn-icon rounded-xl',
-		'icon-subtle': 'preset-icon-subtle btn-icon rounded-xl'
+		'icon-subtle': 'preset-icon-subtle btn-icon rounded-xl',
+		ghost:
+			'inline-flex items-center justify-center rounded-xl text-fg-subtle transition-colors hover:text-white disabled:opacity-30'
 	};
 
 	let {

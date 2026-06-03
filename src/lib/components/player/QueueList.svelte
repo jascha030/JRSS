@@ -7,6 +7,7 @@
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
 	import Icon from '@iconify/svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 
 	type QueueListAppearance = 'default' | 'inverse';
 
@@ -53,8 +54,8 @@
 				emptyText: 'mt-1 text-xs text-white/40',
 				actionStack:
 					'mt-0.5 flex shrink-0 flex-col items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100',
-				actionButton:
-					'flex size-6 items-center justify-center rounded text-white/50 hover:bg-white/20 hover:text-white'
+				actionButtonClass: 'size-6 rounded text-white/50 hover:bg-white/20 hover:text-white',
+				actionButtonIconClass: 'size-3.5'
 			};
 		}
 
@@ -73,7 +74,8 @@
 			emptyText: 'mt-1 text-xs text-fg-subtle',
 			actionStack:
 				'mt-0.5 flex shrink-0 flex-col items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100',
-			actionButton: 'preset-icon-subtle p-1 btn-icon rounded-lg'
+			actionButtonClass: 'rounded-lg p-1',
+			actionButtonIconClass: 'size-3.5'
 		};
 	});
 
@@ -189,37 +191,37 @@
 
 				<div class={classes.actionStack}>
 					{#if index > 0}
-						<button
-							type="button"
+						<IconButton
+							icon="lucide:chevron-up"
+							variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+							class={classes.actionButtonClass}
+							iconClass={classes.actionButtonIconClass}
 							title="Move up"
-							aria-label={`Move ${item.title} up in queue`}
-							class={classes.actionButton}
+							label={`Move ${item.title} up in queue`}
 							onclick={() => moveQueuedItemUp(item.id)}
-						>
-							<Icon icon="lucide:chevron-up" class="size-3.5" />
-						</button>
+						/>
 					{/if}
 
-					<button
-						type="button"
+					<IconButton
+						icon="lucide:x"
+						variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+						class={classes.actionButtonClass}
+						iconClass={classes.actionButtonIconClass}
 						title="Remove from queue"
-						aria-label={`Remove ${item.title} from queue`}
-						class={classes.actionButton}
+						label={`Remove ${item.title} from queue`}
 						onclick={() => removeQueuedItem(item.id)}
-					>
-						<Icon icon="lucide:x" class="size-3.5" />
-					</button>
+					/>
 
 					{#if index < queueItems.length - 1}
-						<button
-							type="button"
+						<IconButton
+							icon="lucide:chevron-down"
+							variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+							class={classes.actionButtonClass}
+							iconClass={classes.actionButtonIconClass}
 							title="Move down"
-							aria-label={`Move ${item.title} down in queue`}
-							class={classes.actionButton}
+							label={`Move ${item.title} down in queue`}
 							onclick={() => moveQueuedItemDown(item.id)}
-						>
-							<Icon icon="lucide:chevron-down" class="size-3.5" />
-						</button>
+						/>
 					{/if}
 				</div>
 			</li>
