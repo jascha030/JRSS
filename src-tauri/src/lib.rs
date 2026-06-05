@@ -147,6 +147,7 @@ pub fn run() {
             commands::extract_cover_palette,
             commands::clear_audio_cache,
             commands::set_window_content_aspect_ratio,
+            commands::resize_mini_player,
             mini_player::open_mini_player_native,
             mini_player::restore_main_window_native
         ]);
