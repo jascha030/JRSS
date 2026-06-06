@@ -41,8 +41,8 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			alwaysOnTop: miniPlayerAlwaysOnTop,
 			width: 440,
 			trafficLightPosition: {
-				x: 16,
-				y: 28
+				x: 14,
+				y: 22
 			} as LogicalPosition,
 			resizable: true,
 			title: 'JRSS Mini Player',
