@@ -9,6 +9,7 @@
 	import Controls from './player/Controls.svelte';
 	import Info from './player/Info.svelte';
 	import VerticalVolume from './player/VerticalVolume.svelte';
+	import IconButton from './ui/IconButton.svelte';
 
 	type Props = {
 		item: MediaListItem;
@@ -22,6 +23,7 @@
 		onSkip: (deltaSeconds: number) => void;
 		onPreviousEpisode: () => void;
 		onNextEpisode: () => void;
+		onToggleCompactMode?: () => void;
 	};
 
 	let {
@@ -35,7 +37,8 @@
 		onArtworkError,
 		onSkip,
 		onPreviousEpisode,
-		onNextEpisode
+		onNextEpisode,
+		onToggleCompactMode
 	}: Props = $props();
 
 	let cardHeight = $state(0);
@@ -116,7 +119,7 @@
 				{item}
 				imageUrl={displayImageUrl}
 				showCover={false}
-				class="mb-4 w-full justify-center"
+				class="mb-2 flex-1 justify-center"
 			/>
 
 			<div class="min-w-0">
@@ -131,7 +134,7 @@
 			/>
 		</div>
 
-		<div class="grid grid-cols-3">
+		<div class="mt-2 grid grid-cols-3">
 			<div class="col-start-2 flex items-center justify-center gap-4">
 				<Controls
 					isPlaying={playbackState.isPlaying}
@@ -144,6 +147,17 @@
 					{canSkipPrevious}
 					{canSkipNext}
 				/>
+			</div>
+
+			<div class="flex w-full justify-end">
+				<button
+					class="preset-icon-subtle btn-icon size-5 shrink-0 rounded-xl"
+					type="button"
+					onclick={onToggleCompactMode}
+					aria-label="Expand"
+				>
+					<Icon icon="lucide:minimize" class="size-5" />
+				</button>
 			</div>
 		</div>
 	</div>

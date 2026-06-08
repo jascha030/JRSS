@@ -82,11 +82,11 @@
 		{#if item && playbackState}
 			<div class="flex h-full w-full flex-col px-3">
 				<div
-					class="relative z-0 flex h-9 w-full items-center justify-end"
+					class="relative z-0 flex h-7 w-full items-center justify-end"
 					data-tauri-drag-region
 				></div>
 				<div class="flext-row flex gap-4">
-					<Avatar class="hidden sm:block aspect-square h-[94px] w-[94px] rounded-md shadow-sm">
+					<Avatar class="hidden aspect-square h-[94px] w-[94px] rounded-md shadow-sm sm:block">
 						{#if imageUrl}
 							<Avatar.Image
 								src={artwork.activeEpisodeUrl ?? artwork.activeFallbackUrl}
@@ -107,7 +107,7 @@
 								imageUrl={artwork.activeEpisodeUrl ?? artwork.activeFallbackUrl}
 								compact={true}
 								showCover={false}
-								class="mi-w-full justify-center"
+								class="mb-2 justify-center"
 							/>
 
 							<div class="min-w-0">
@@ -124,7 +124,7 @@
 							/>
 						</div>
 
-						<div class="grid grid-cols-3">
+						<div class="mt-2 grid grid-cols-3">
 							<div class="col-start-2 flex items-center justify-center gap-4">
 								<Controls
 									isPlaying={playbackState.isPlaying}
@@ -213,6 +213,7 @@
 						onSkip={handleSkip}
 						onPreviousEpisode={previousEpisode}
 						onNextEpisode={nextEpisode}
+						onToggleCompactMode={toggleCompactMode}
 					/>
 				{:then selectedImageUrl}
 					<MiniPlayerCoverCard
@@ -231,6 +232,7 @@
 						onSkip={handleSkip}
 						onPreviousEpisode={previousEpisode}
 						onNextEpisode={nextEpisode}
+						onToggleCompactMode={toggleCompactMode}
 					/>
 				{:catch}
 					<MiniPlayerCoverCard
@@ -245,6 +247,7 @@
 						onSkip={handleSkip}
 						onPreviousEpisode={previousEpisode}
 						onNextEpisode={nextEpisode}
+						onToggleCompactMode={toggleCompactMode}
 					/>
 				{/await}
 			{:else}
@@ -254,14 +257,5 @@
 				</div>
 			{/if}
 		</div>
-
-		<IconButton
-			class="absolute top-2 right-2 z-50 rounded-full bg-surface-glass-heavy p-1.5 text-fg-muted backdrop-blur transition-colors hover:text-fg"
-			type="button"
-			icon="lucide:minimize"
-			iconClass="size-4"
-			label="Compact"
-			onclick={toggleCompactMode}
-		/>
 	{/if}
 </div>
