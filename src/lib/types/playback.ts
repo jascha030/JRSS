@@ -2,8 +2,10 @@ export interface PlaybackState {
 	itemId: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	fileDurationSeconds: number | null;
 	isPlaying: boolean;
 	isBuffering: boolean;
+	isFullyDownloaded: boolean;
 	volume: number;
 }
 
@@ -26,8 +28,10 @@ export interface BackendPlaybackState {
 	itemId: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	fileDurationSeconds: number | null;
 	isPlaying: boolean;
 	isBuffering: boolean;
+	isFullyDownloaded: boolean;
 	volume: number;
 }
 

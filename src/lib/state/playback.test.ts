@@ -28,8 +28,10 @@ describe('resetPlaybackState', () => {
 			itemId: 'i1',
 			positionSeconds: 30,
 			durationSeconds: 300,
+			fileDurationSeconds: null,
 			isPlaying: true,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: 1
 		};
 		resetPlaybackState();
@@ -104,8 +106,10 @@ describe('isItemCurrentAudio', () => {
 			itemId: 'other',
 			positionSeconds: 0,
 			durationSeconds: 100,
+			fileDurationSeconds: null,
 			isPlaying: true,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: 1
 		};
 		expect(isItemCurrentAudio('i1')).toBe(false);
@@ -116,8 +120,10 @@ describe('isItemCurrentAudio', () => {
 			itemId: 'i1',
 			positionSeconds: 0,
 			durationSeconds: 100,
+			fileDurationSeconds: null,
 			isPlaying: true,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: 1
 		};
 		expect(isItemCurrentAudio('i1')).toBe(true);
@@ -134,8 +140,10 @@ describe('getPlaybackPositionForItem', () => {
 			itemId: 'other',
 			positionSeconds: 99,
 			durationSeconds: 100,
+			fileDurationSeconds: null,
 			isPlaying: true,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: 1
 		};
 		expect(getPlaybackPositionForItem('i1', 42)).toBe(42);
@@ -146,8 +154,10 @@ describe('getPlaybackPositionForItem', () => {
 			itemId: 'i1',
 			positionSeconds: 55,
 			durationSeconds: 100,
+			fileDurationSeconds: null,
 			isPlaying: true,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: 1
 		};
 		expect(getPlaybackPositionForItem('i1', 42)).toBe(55);

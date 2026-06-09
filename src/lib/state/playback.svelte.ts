@@ -50,8 +50,10 @@ export type PlaybackState = {
 	itemId: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	fileDurationSeconds: number | null;
 	isPlaying: boolean;
 	isBuffering: boolean;
+	isFullyDownloaded: boolean;
 	volume: number;
 };
 
@@ -290,7 +292,7 @@ export async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenState = await listen<BackendPlaybackState>('playback-state-changed', (event) => {
 		void ensureAudioItemsLoaded([event.payload.itemId]).then(() => {
-			applyBackendPlaybackState(event.payload, true);
+			applyBackendPlaybackState(event.payload);
 		});
 	});
 
@@ -443,8 +445,10 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 			itemId: queueState.current.itemId,
 			positionSeconds: fallbackPosition,
 			durationSeconds: queueState.current.durationSeconds,
+			fileDurationSeconds: null,
 			isPlaying: false,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: playbackState.currentPlaybackState?.volume ?? 1
 		};
 	}
@@ -470,9 +474,13 @@ function patchItemDuration(itemId: string, durationSeconds: number): void {
 	}
 }
 
-function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boolean = false): void {
+function applyBackendPlaybackState(event: BackendPlaybackState): void {
 	const positionSeconds = Math.floor(event.positionSeconds);
-	const durationSeconds = Math.floor(event.durationSeconds);
+	const fileDurationSeconds =
+		event.fileDurationSeconds && event.fileDurationSeconds > 0
+			? Math.floor(event.fileDurationSeconds)
+			: null;
+	const durationSeconds = fileDurationSeconds ?? Math.floor(event.durationSeconds);
 	const previous = playbackState.currentPlaybackState;
 
 	const playbackUnchanged =
@@ -480,14 +488,14 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		previous.itemId === event.itemId &&
 		previous.positionSeconds === positionSeconds &&
 		previous.durationSeconds === durationSeconds &&
+		previous.fileDurationSeconds === fileDurationSeconds &&
 		previous.isPlaying === event.isPlaying &&
 		previous.isBuffering === event.isBuffering &&
+		previous.isFullyDownloaded === event.isFullyDownloaded &&
 		previous.volume === event.volume;
 
 	if (playbackUnchanged) {
-		if (fromEvent) {
-			playbackState.isAudioLoading = false;
-		}
+		playbackState.isAudioLoading = event.isBuffering;
 		return;
 	}
 
@@ -506,13 +514,15 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		itemId: event.itemId,
 		positionSeconds,
 		durationSeconds,
+		fileDurationSeconds,
 		isPlaying: event.isPlaying,
 		isBuffering: event.isBuffering,
+		isFullyDownloaded: event.isFullyDownloaded,
 		volume: event.volume
 	};
 
-	if (durationSeconds > 0) {
-		patchItemDuration(event.itemId, durationSeconds);
+	if (fileDurationSeconds !== null) {
+		patchItemDuration(event.itemId, fileDurationSeconds);
 	}
 
 	if (!event.isPlaying) {
@@ -520,9 +530,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		patchAudioItem(event.itemId, { playbackPositionSeconds: positionSeconds });
 	}
 
-	if (fromEvent) {
-		playbackState.isAudioLoading = event.isBuffering;
-	}
+	playbackState.isAudioLoading = event.isBuffering;
 
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
 		void markItemRead(event.itemId, true).catch((error) => {
@@ -629,8 +637,10 @@ export function playAudioItem(
 		itemId: item.id,
 		positionSeconds: startPositionSeconds,
 		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
+		fileDurationSeconds: null,
 		isPlaying: false,
 		isBuffering: false,
+		isFullyDownloaded: false,
 		volume: playbackState.currentPlaybackState?.volume ?? 1
 	};
 

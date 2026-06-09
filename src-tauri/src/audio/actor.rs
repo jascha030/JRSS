@@ -351,6 +351,7 @@ impl AudioThread {
     /// commands when main thread may be busy (e.g., during window creation).
     fn snapshot_from_cache(&self) -> Option<PlaybackStateEvent> {
         let eng = &self.cached_engine_snapshot;
+        let download_complete = self.current_download_is_complete();
         self.current_item_id.as_ref().map(|item_id| {
             let position_seconds = if eng.has_active {
                 eng.position
@@ -368,8 +369,10 @@ impl AudioThread {
                 artist: self.current_feed_title.clone(),
                 position_seconds,
                 duration_seconds: effective_duration,
+                file_duration_seconds: download_complete.then_some(self.duration_seconds).filter(|d| *d > 0.0),
                 is_playing,
                 is_buffering: self.stalled_at_download_edge,
+                is_fully_downloaded: download_complete,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -385,6 +388,7 @@ impl AudioThread {
         } else {
             PlaybackSnapshot::default()
         };
+        let download_complete = self.current_download_is_complete();
         let event = self.current_item_id.as_ref().map(|item_id| {
             let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
             let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
@@ -402,8 +406,10 @@ impl AudioThread {
                 artist: self.current_feed_title.clone(),
                 position_seconds,
                 duration_seconds: effective_duration,
+                file_duration_seconds: download_complete.then_some(self.duration_seconds).filter(|d| *d > 0.0),
                 is_playing,
                 is_buffering: self.stalled_at_download_edge,
+                is_fully_downloaded: download_complete,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -1047,8 +1053,12 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     // Only emit if something meaningful changed
                     last.item_id != snapshot.item_id
                         || last.is_playing != snapshot.is_playing
+                        || last.is_buffering != snapshot.is_buffering
+                        || last.is_fully_downloaded != snapshot.is_fully_downloaded
                         || (last.position_seconds as i64) != (snapshot.position_seconds as i64)
                         || (last.duration_seconds as i64) != (snapshot.duration_seconds as i64)
+                        || (last.file_duration_seconds.unwrap_or(0.0) as i64)
+                            != (snapshot.file_duration_seconds.unwrap_or(0.0) as i64)
                         || (last.speed as i64) != (snapshot.speed as i64)
                 } else {
                     true // Always emit if we haven't emitted before
@@ -1183,6 +1193,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 log::info!(
                     "Playback reached the downloaded edge before cache completion; waiting for more data"
                 );
+                emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
             }
 
             // Log unexpected stops (route changes, errors) so they show up in

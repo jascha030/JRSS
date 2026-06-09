@@ -10,8 +10,10 @@ pub struct PlaybackStateEvent {
     pub artist: String,
     pub position_seconds: f64,
     pub duration_seconds: f64,
+    pub file_duration_seconds: Option<f64>,
     pub is_playing: bool,
     pub is_buffering: bool,
+    pub is_fully_downloaded: bool,
     pub volume: f64,
     pub speed: f64,
 }

@@ -27,7 +27,11 @@ export function usePlayerControls(getItem: () => MediaListItem | null) {
 	function handleSkip(deltaSeconds: number) {
 		const state = playbackState.currentPlaybackState;
 		const item = getItem();
-		const dur = state?.durationSeconds ?? item?.mediaEnclosure.durationSeconds ?? 0;
+		const dur =
+			state?.fileDurationSeconds ??
+			state?.durationSeconds ??
+			item?.mediaEnclosure.durationSeconds ??
+			0;
 		const current = state?.positionSeconds ?? 0;
 		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
 		requestSeekTo(target);

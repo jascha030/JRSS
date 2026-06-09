@@ -16,7 +16,11 @@ export function skip(
 	deltaSeconds: number
 ) {
 	const current = playbackState?.positionSeconds ?? 0;
-	const dur = playbackState?.durationSeconds ?? itemDurationSeconds ?? 0;
+	const dur =
+		playbackState?.fileDurationSeconds ??
+		playbackState?.durationSeconds ??
+		itemDurationSeconds ??
+		0;
 	const target = Math.max(0, Math.min(current + deltaSeconds, dur));
 	requestSeekTo(target);
 }
