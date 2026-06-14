@@ -63,6 +63,7 @@ pub enum EngineError {
     #[allow(dead_code)]
     DeviceNotFound(String),
     /// The media stream could not be decoded.
+    #[allow(dead_code)]
     DecodeFailed(String),
     /// An internal engine error.
     Internal(String),

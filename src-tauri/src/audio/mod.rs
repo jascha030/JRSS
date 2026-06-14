@@ -246,8 +246,3 @@ pub fn set_output_device(app: &AppHandle, device_id: Option<String>) -> Result<(
         .map_err(|_| "Timed out waiting for audio device change".to_string())?
 }
 
-#[allow(dead_code)]
-pub fn prefetch_item(app: &AppHandle, item_id: String, url: String) -> Result<(), String> {
-    app.state::<AudioState>()
-        .send(AudioCommand::Prefetch { item_id, url })
-}

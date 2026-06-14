@@ -515,7 +515,6 @@ unsafe extern "C" fn cmd_trampoline(ctx: *mut c_void) {
 
 pub struct AvEngine {
 	inner: Arc<AvEngineInner>,
-	cached_duration: f64,
 	has_active: bool,
 }
 
@@ -533,7 +532,6 @@ impl AvEngine {
 				actor: Mutex::new(None),
 				queue,
 			}),
-			cached_duration: 0.0,
 			has_active: false,
 		}
 	}
@@ -595,7 +593,6 @@ impl PlaybackEngine for AvEngine {
 					_ => return Ok(None),
 				};
 				if snap.duration > 0.0 {
-					self.cached_duration = snap.duration;
 					Ok(Some(snap.duration))
 				} else {
 					Ok(None)
@@ -610,7 +607,6 @@ impl PlaybackEngine for AvEngine {
 	fn stop(&mut self) {
 		let _ = self.send(AvCmd::Stop);
 		self.has_active = false;
-		self.cached_duration = 0.0;
 	}
 
 	fn pause(&mut self) {

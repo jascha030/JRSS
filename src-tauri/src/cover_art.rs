@@ -1,8 +1,6 @@
 use color_thief::{ColorFormat, get_palette};
 use image::imageops::FilterType;
-use reqwest::blocking::Client;
 use std::collections::HashSet;
-use std::time::Duration;
 use url::Url;
 
 fn normalize_image_url(image_url: &str) -> Result<String, String> {
@@ -15,21 +13,13 @@ fn normalize_image_url(image_url: &str) -> Result<String, String> {
     }
 }
 
-fn build_http_client() -> Result<Client, String> {
-    Client::builder()
-        .timeout(Duration::from_secs(20))
-        .user_agent("JRSS/0.0.1 Cover")
-        .build()
-        .map_err(|error| format!("Failed to create HTTP client: {error}"))
-}
-
 fn color_to_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{r:02x}{g:02x}{b:02x}")
 }
 
 pub fn extract_cover_palette(image_url: &str) -> Result<Vec<String>, String> {
     let normalized_url = normalize_image_url(image_url)?;
-    let client = build_http_client()?;
+    let client = crate::feed_ingest::build_http_client("JRSS/0.0.1 Cover")?;
 
     let response = client
         .get(&normalized_url)

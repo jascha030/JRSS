@@ -2,8 +2,7 @@ use super::AppResult;
 use super::connection::open_connection;
 use super::rows::{map_item_list_row, map_item_row};
 use crate::models::{
-    FeedItemRecord, FeedListItemRecord, ItemListSection, ItemPageQueryRecord, ItemPageRecord,
-    ReaderContentRecord,
+    FeedItemRecord, FeedListItemRecord, ItemListSection, ItemPageRecord, ReaderContentRecord,
 };
 use chrono::Utc;
 use rusqlite::{OptionalExtension, params};
@@ -68,7 +67,12 @@ pub fn mark_favorite(db_path: &Path, item_id: &str, favorite: bool) -> AppResult
     Ok(())
 }
 
-pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) -> AppResult<()> {
+fn batch_update_bool_column(
+    db_path: &Path,
+    item_ids: &[String],
+    column: &str,
+    value: bool,
+) -> AppResult<()> {
     if item_ids.is_empty() {
         return Ok(());
     }
@@ -80,56 +84,32 @@ pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) 
 
     let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
     let sql = format!(
-        "UPDATE items SET favorite = ?1 WHERE id IN ({})",
+        "UPDATE items SET {column} = ?1 WHERE id IN ({})",
         placeholders.join(", ")
     );
 
-    let favorite_value = if favorite { 1_i64 } else { 0_i64 };
+    let bool_value: i64 = if value { 1 } else { 0 };
     let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-    params.push(&favorite_value as &dyn rusqlite::ToSql);
+    params.push(&bool_value as &dyn rusqlite::ToSql);
     for id in item_ids {
         params.push(id as &dyn rusqlite::ToSql);
     }
 
     tx.execute(&sql, params.as_slice())
-        .map_err(|error| format!("Failed to batch update favorite state: {error}"))?;
+        .map_err(|error| format!("Failed to batch update {column}: {error}"))?;
 
     tx.commit()
-        .map_err(|error| format!("Failed to commit batch favorite update: {error}"))?;
+        .map_err(|error| format!("Failed to commit batch {column} update: {error}"))?;
 
     Ok(())
 }
 
+pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) -> AppResult<()> {
+    batch_update_bool_column(db_path, item_ids, "favorite", favorite)
+}
+
 pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
-    if item_ids.is_empty() {
-        return Ok(());
-    }
-
-    let mut connection = open_connection(db_path)?;
-    let tx = connection
-        .transaction()
-        .map_err(|error| format!("Failed to begin transaction: {error}"))?;
-
-    let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
-    let sql = format!(
-        "UPDATE items SET read = ?1 WHERE id IN ({})",
-        placeholders.join(", ")
-    );
-
-    let read_value = if read { 1_i64 } else { 0_i64 };
-    let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-    params.push(&read_value as &dyn rusqlite::ToSql);
-    for id in item_ids {
-        params.push(id as &dyn rusqlite::ToSql);
-    }
-
-    tx.execute(&sql, params.as_slice())
-        .map_err(|error| format!("Failed to batch update read state: {error}"))?;
-
-    tx.commit()
-        .map_err(|error| format!("Failed to commit batch read update: {error}"))?;
-
-    Ok(())
+    batch_update_bool_column(db_path, item_ids, "read", read)
 }
 
 pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> AppResult<()> {
@@ -244,99 +224,6 @@ pub fn get_items_by_ids(db_path: &Path, ids: &[String]) -> AppResult<Vec<FeedLis
         .map_err(|error| format!("Failed to read items by IDs: {error}"))?;
 
     Ok(items)
-}
-
-/// Legacy query API — prefer `query_items` for new code.
-pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResult<ItemPageRecord> {
-    let connection = open_connection(db_path)?;
-    let safe_limit = query.limit.clamp(1, 500);
-    let safe_offset = query.offset.max(0);
-
-    let search_term = query
-        .search
-        .as_deref()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| format!("%{s}%"));
-
-    const ITEM_LIST_FILTER_QUERY: &str = " WHERE (?1 IS NULL OR i.feed_id = ?1)
-        AND (?2 <> 'unread' OR i.read = 0)
-        AND (?2 <> 'media' OR i.enclosure_url IS NOT NULL)
-        AND (?2 <> 'favorites' OR i.favorite = 1)";
-
-    let search_clause = if search_term.is_some() {
-        " AND (i.title LIKE ?3 COLLATE NOCASE OR i.preview_text LIKE ?3 COLLATE NOCASE OR i.content_text LIKE ?3 COLLATE NOCASE)"
-    } else {
-        ""
-    };
-
-    let count_sql = format!("SELECT COUNT(*) FROM items i{ITEM_LIST_FILTER_QUERY}{search_clause}");
-    let total_count: i64 = if let Some(ref pattern) = search_term {
-        connection
-            .query_row(
-                &count_sql,
-                params![query.feed_id.as_deref(), query.section.as_str(), pattern],
-                |row| row.get(0),
-            )
-            .map_err(|error| format!("Failed to count items: {error}"))?
-    } else {
-        connection
-            .query_row(
-                &count_sql,
-                params![query.feed_id.as_deref(), query.section.as_str()],
-                |row| row.get(0),
-            )
-            .map_err(|error| format!("Failed to count items: {error}"))?
-    };
-
-    let order_by = query.sort_order.order_by_clause();
-
-    let page_sql = if search_term.is_some() {
-        format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause} ORDER BY {order_by} LIMIT ?4 OFFSET ?5"
-        )
-    } else {
-        format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY {order_by} LIMIT ?3 OFFSET ?4"
-        )
-    };
-
-    let mut statement = connection
-        .prepare(&page_sql)
-        .map_err(|error| format!("Failed to prepare paged item query: {error}"))?;
-
-    let items = if let Some(ref pattern) = search_term {
-        statement
-            .query_map(
-                params![
-                    query.feed_id.as_deref(),
-                    query.section.as_str(),
-                    pattern,
-                    safe_limit,
-                    safe_offset
-                ],
-                map_item_list_row,
-            )
-            .map_err(|error| format!("Failed to query item page: {error}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("Failed to read paged items: {error}"))?
-    } else {
-        statement
-            .query_map(
-                params![
-                    query.feed_id.as_deref(),
-                    query.section.as_str(),
-                    safe_limit,
-                    safe_offset
-                ],
-                map_item_list_row,
-            )
-            .map_err(|error| format!("Failed to query item page: {error}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("Failed to read paged items: {error}"))?
-    };
-
-    Ok(ItemPageRecord { items, total_count })
 }
 
 /// Unified query for items that handles feed, station, and section views.

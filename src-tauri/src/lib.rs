@@ -94,7 +94,6 @@ pub fn run() {
             commands::remove_feed,
             commands::search_podcasts,
             commands::fetch_feed_raw,
-            commands::query_items_page,
             commands::get_item_details,
             commands::mark_read,
             commands::mark_read_batch,

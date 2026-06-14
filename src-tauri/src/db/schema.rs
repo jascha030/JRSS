@@ -1,7 +1,6 @@
 use super::AppResult;
 use super::connection::open_connection;
-use chrono::Utc;
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
 use std::path::Path;
 
 pub fn initialize_database(db_path: &Path) -> AppResult<()> {
@@ -100,7 +99,7 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     migrate_feed_kind_values(&connection)?;
     ensure_stations_tables(&connection)?;
     ensure_app_settings_columns(&connection)?;
-    ensure_app_settings_row(&connection)?;
+    super::settings::ensure_app_settings_row(&connection)?;
 
     Ok(())
 }
@@ -203,40 +202,6 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
                 format!("Failed to add SQLite app settings theme_name column: {error}")
             })?;
     }
-
-    Ok(())
-}
-
-fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
-    use super::settings::{
-        DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
-        DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP, DEFAULT_SKIP_BACKWARD_SECONDS,
-        DEFAULT_SKIP_FORWARD_SECONDS,
-    };
-
-    connection
-        .execute(
-            "INSERT INTO app_settings (
-		        id,
-		        max_audio_cache_size_bytes,
-		        mini_player_always_on_top,
-		        color_scheme,
-		        skip_forward_seconds,
-		        skip_backward_seconds,
-		        updated_at
-		     )
-			 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
-			 ON CONFLICT(id) DO NOTHING",
-            params![
-                DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
-                DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
-                DEFAULT_COLOR_SCHEME,
-                DEFAULT_SKIP_FORWARD_SECONDS,
-                DEFAULT_SKIP_BACKWARD_SECONDS,
-                Utc::now().to_rfc3339()
-            ],
-        )
-        .map_err(|error| format!("Failed to ensure app settings row: {error}"))?;
 
     Ok(())
 }

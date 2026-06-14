@@ -11,17 +11,6 @@ pub enum ItemListSection {
     Favorites,
 }
 
-impl ItemListSection {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::All => "all",
-            Self::Unread => "unread",
-            Self::Media => "media",
-            Self::Favorites => "favorites",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -38,18 +27,6 @@ impl ItemSortOrder {
             Self::OldestFirst => "i.published_at ASC, i.id ASC",
         }
     }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ItemPageQueryRecord {
-    pub feed_id: Option<String>,
-    pub section: ItemListSection,
-    pub offset: i64,
-    pub limit: i64,
-    pub search: Option<String>,
-    #[serde(default)]
-    pub sort_order: ItemSortOrder,
 }
 
 /// Unified items query that handles all cases: feed, station, or section views.

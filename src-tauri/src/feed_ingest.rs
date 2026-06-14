@@ -81,7 +81,7 @@ struct AppleSearchResult {
 pub fn search_podcasts(term: &str) -> AppResult<Vec<PodcastSearchResultRecord>> {
     crate::rate_limit::throttle_request(APPLE_SEARCH_URL);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
     let search_url = Url::parse_with_params(
         APPLE_SEARCH_URL,
         &[
@@ -192,7 +192,7 @@ pub fn normalize_feed_url(url: &str) -> AppResult<String> {
 pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
     crate::rate_limit::throttle_request(feed_url);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
 
     let response = client
         .get(feed_url)
@@ -213,10 +213,10 @@ pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
     parse_feed(&bytes, feed_url)
 }
 
-pub(crate) fn build_http_client() -> AppResult<Client> {
+pub(crate) fn build_http_client(user_agent: &str) -> AppResult<Client> {
     Client::builder()
         .timeout(Duration::from_secs(20))
-        .user_agent("JRSS/0.0.1")
+        .user_agent(user_agent)
         .build()
         .map_err(|error| format!("Failed to create HTTP client: {error}"))
 }
@@ -224,7 +224,7 @@ pub(crate) fn build_http_client() -> AppResult<Client> {
 pub fn fetch_raw_feed_xml(feed_url: &str) -> AppResult<String> {
     crate::rate_limit::throttle_request(feed_url);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
 
     let response = client
         .get(feed_url)
@@ -274,7 +274,7 @@ fn extract_apple_podcast_id_from_url(url: &Url) -> Option<String> {
 fn lookup_apple_podcast_feed_url(podcast_id: &str) -> AppResult<String> {
     crate::rate_limit::throttle_request(APPLE_LOOKUP_URL);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
     let lookup_url = Url::parse_with_params(APPLE_LOOKUP_URL, &[("id", podcast_id)])
         .map_err(|error| format!("Failed to build Apple Podcasts lookup URL: {error}"))?;
     let response = client

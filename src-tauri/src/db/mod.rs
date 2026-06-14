@@ -27,7 +27,7 @@ pub use feeds::{
 };
 pub use items::{
     get_item_by_id, get_items_by_ids, get_unread_counts_by_feed, mark_favorite,
-    mark_favorite_batch, mark_read, mark_read_batch, query_items, query_items_page, save_playback,
+    mark_favorite_batch, mark_read, mark_read_batch, query_items, save_playback,
     save_reader_content, save_reader_failure, update_item_duration,
 };
 pub use playback::{

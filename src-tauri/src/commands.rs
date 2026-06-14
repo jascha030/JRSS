@@ -5,13 +5,27 @@ use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
 use crate::models::{
     AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
-    ItemPageQueryRecord, ItemPageRecord, PlaybackContextRecord, PlaybackSessionRecord,
-    PodcastSearchResultRecord, StationWithFeedsRecord, UpdateStationInput,
+    ItemPageRecord, PlaybackContextRecord, PlaybackSessionRecord, PodcastSearchResultRecord,
+    StationWithFeedsRecord, UpdateStationInput,
 };
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
 use crate::theme::{cmd_discover_themes, cmd_load_theme, ThemeInfo};
 use tauri::{Manager, State};
+
+// CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+struct CGSize {
+    width: f64,
+    height: f64,
+}
+
+// SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
+#[cfg(target_os = "macos")]
+unsafe impl objc2::Encode for CGSize {
+    const ENCODING: objc2::Encoding = objc2::Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+}
 
 #[cfg(target_os = "macos")]
 fn set_macos_window_content_aspect_ratio(
@@ -21,19 +35,6 @@ fn set_macos_window_content_aspect_ratio(
 ) -> Result<(), String> {
     use objc2::msg_send;
     use objc2::runtime::AnyObject;
-    use objc2::{Encode, Encoding};
-
-    // CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
-    #[repr(C)]
-    struct CGSize {
-        width: f64,
-        height: f64,
-    }
-
-    // SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
-    unsafe impl Encode for CGSize {
-        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
-    }
 
     let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
     let size = CGSize { width, height };
@@ -46,17 +47,6 @@ fn set_macos_window_content_aspect_ratio(
 fn clear_macos_window_content_aspect_ratio(window: &tauri::WebviewWindow) -> Result<(), String> {
     use objc2::msg_send;
     use objc2::runtime::AnyObject;
-    use objc2::{Encode, Encoding};
-
-    #[repr(C)]
-    struct CGSize {
-        width: f64,
-        height: f64,
-    }
-
-    unsafe impl Encode for CGSize {
-        const ENCODING: Encoding = Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
-    }
 
     let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
     let increments = CGSize {
@@ -173,15 +163,6 @@ pub async fn fetch_feed_raw(
         feed_ingest::fetch_raw_feed_xml(&feed.url)
     })
     .await
-}
-
-#[tauri::command]
-pub async fn query_items_page(
-    query: ItemPageQueryRecord,
-    state: State<'_, DatabaseState>,
-) -> Result<ItemPageRecord, String> {
-    let db_path = state.db_path();
-    blocking(move || db::query_items_page(&db_path, &query)).await
 }
 
 #[tauri::command]

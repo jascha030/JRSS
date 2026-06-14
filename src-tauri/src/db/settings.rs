@@ -45,7 +45,7 @@ fn normalize_skip_backward_seconds(value: i64) -> i64 {
     value.max(1)
 }
 
-fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
+pub(super) fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
     connection
         .execute(
             "INSERT INTO app_settings (
@@ -53,14 +53,18 @@ fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
 		        max_audio_cache_size_bytes,
 		        mini_player_always_on_top,
 		        color_scheme,
+		        skip_forward_seconds,
+		        skip_backward_seconds,
 		        updated_at
 		     )
-		     VALUES (1, ?1, ?2, ?3, ?4)
+		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
 		     ON CONFLICT(id) DO NOTHING",
             params![
                 DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
                 DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
                 DEFAULT_COLOR_SCHEME,
+                DEFAULT_SKIP_FORWARD_SECONDS,
+                DEFAULT_SKIP_BACKWARD_SECONDS,
                 Utc::now().to_rfc3339()
             ],
         )
