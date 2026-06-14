@@ -62,7 +62,7 @@ pub struct AudioThread {
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
     /// Cached engine snapshot from the last poll iteration. Used to serve
-    /// GetState commands without blocking on the main thread (AVPlayer).
+    /// GetState commands without blocking on the audio thread (AVPlayer).
     cached_engine_snapshot: PlaybackSnapshot,
 }
 
@@ -381,7 +381,7 @@ impl AudioThread {
 
     /// One engine round-trip that yields both the Tauri event and the raw
     /// engine fields needed by the poll loop. Avoids repeated IPC for engines
-    /// like [`AvProxyEngine`] whose state queries cross a dispatch boundary.
+    /// whose state queries cross a dispatch boundary.
     pub fn snapshot_full(&self) -> (Option<PlaybackStateEvent>, PlaybackSnapshot) {
         let eng = if self.engine.has_active_playback() {
             self.engine.playback_snapshot()
@@ -647,8 +647,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let mut was_playing = false;
 
     // Throttling for playback-state-changed events
-    // Using longer intervals for AVPlayer on macOS to avoid blocking the
-    // main thread during window creation (miniplayer freeze issue).
+    // Using longer intervals for AVPlayer on macOS to reduce dispatch-queue
+    // contention during window creation (miniplayer freeze issue).
     let min_emit_interval_while_playing = Duration::from_millis(1000);
     let min_emit_interval_while_paused = Duration::from_secs(2);
     let mut last_emit = Instant::now();

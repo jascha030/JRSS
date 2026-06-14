@@ -22,9 +22,7 @@ use crate::queue::{QueueState, QueuedItem};
 
 pub mod actor;
 #[cfg(target_os = "macos")]
-pub mod av_main_thread_actor;
-#[cfg(target_os = "macos")]
-pub mod av_proxy_engine;
+pub mod av_engine;
 pub mod cache;
 pub mod commands;
 pub mod devices;

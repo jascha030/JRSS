@@ -85,7 +85,8 @@ impl std::error::Error for EngineError {}
 // ---------------------------------------------------------------------------
 
 /// Collapsed engine state for callers that need multiple fields at once.
-/// Avoids repeated cross-thread round-trips on engines like [`AvProxyEngine`].
+    /// Avoids repeated cross-thread round-trips on engines whose state queries
+    /// require a dispatch boundary.
 #[derive(Debug, Default, Clone)]
 pub struct PlaybackSnapshot {
     pub position: f64,
@@ -190,7 +191,7 @@ pub trait PlaybackEngine {
     /// queries are expensive (e.g. cross-thread IPC).
     ///
     /// The default implementation calls each query individually. Override
-    /// when batching is cheaper (e.g. [`AvProxyEngine`]).
+    /// when batching is cheaper (e.g. a dispatch-queue-backed engine).
     fn playback_snapshot(&self) -> PlaybackSnapshot {
         PlaybackSnapshot {
             position: self.position_seconds(),

@@ -75,10 +75,10 @@ pub fn run() {
             #[cfg(not(target_os = "macos"))]
             media_controls::install(app)?;
 
-            // On macOS, the AVPlayer actor owns MPNowPlayingInfoCenter (publishing
-            // from the main thread on every state transition), and we wire
-            // MPRemoteCommandCenter once here so Control Center / media keys
-            // forward into the same audio command queue.
+            // On macOS, AVPlayer publishes to MPNowPlayingInfoCenter on the main
+            // queue for every state transition, and we wire MPRemoteCommandCenter
+            // once here so Control Center / media keys forward into the same audio
+            // command queue.
             #[cfg(target_os = "macos")]
             audio::macos::remote_commands::install(app.state::<AudioState>().sender());
 
