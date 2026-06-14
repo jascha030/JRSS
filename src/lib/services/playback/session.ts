@@ -1,20 +1,19 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauri';
-import type { PlaybackSession } from '$lib/types/playback';
 
-export async function savePlaybackSession(session: PlaybackSession): Promise<void> {
-	await invokeCommand('save_playback_session', { session });
-}
-
-export async function loadPlaybackSession(): Promise<PlaybackSession | null> {
+export async function loadPlaybackSession(): Promise<{
+	currentItemId?: string;
+	positionSeconds: number;
+	durationSeconds: number;
+	historyQueue: string[];
+	manualQueue: string[];
+	autoQueue: string[];
+	playbackContext?: { contextType: 'feed' | 'station'; id: string };
+} | null> {
 	if (!isTauriRuntime()) {
 		return null;
 	}
 
-	return invokeCommand<PlaybackSession | null>('load_playback_session');
-}
-
-export async function clearPlaybackSession(): Promise<void> {
-	await invokeCommand('clear_playback_session');
+	return invokeCommand('load_playback_session');
 }
 
 export async function savePlaybackContext(

@@ -21,8 +21,6 @@ export {
 	setFeedSearchTerm,
 	setStationSearchTerm,
 	setSectionSearchTerm,
-	getSelectedFeed,
-	getSelectedStation,
 	type SidebarSection,
 	type RouteSelectionState
 } from './selection.svelte';
@@ -88,9 +86,7 @@ export {
 	readerState,
 	resetReaderState,
 	loadReaderView,
-	requestOpenInReader,
-	getReaderRequestSeq,
-	getReaderRequestItemId
+	requestOpenInReader
 } from './reader.svelte';
 
 export {
@@ -134,7 +130,6 @@ export {
 	clearPlaybackHistory,
 	startPlaybackFromContext,
 	playStation,
-	handlePlaybackEnded,
 	restorePlaybackContext,
 	persistPlaybackContext,
 	getCurrentAudioItem,

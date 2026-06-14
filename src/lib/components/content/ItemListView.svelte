@@ -63,7 +63,7 @@
 		class: className = ''
 	}: Props = $props();
 
-	const DESKTOP_ROW_HEIGHT = 190;
+	const DESKTOP_ROW_HEIGHT = 200;
 	const MOBILE_ROW_HEIGHT = 304;
 	const OVERSCAN_ROWS = 1;
 

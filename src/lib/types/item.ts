@@ -59,10 +59,6 @@ export function isMediaItem<T extends FeedListItem>(item: T): item is T & MediaL
 	return item.itemType === 'media';
 }
 
-export function isFeed(item: import('./feed').Feed | FeedItem): item is import('./feed').Feed {
-	return !('feedId' in item);
-}
-
 export interface RawFeedListItem extends FeedListItemBase {
 	mediaEnclosure?: MediaEnclosure;
 }
@@ -78,6 +74,7 @@ export function mapRawFeedListItem(raw: RawFeedListItem): FeedListItem {
 
 export interface ItemPageQuery {
 	feedId?: string;
+	stationId?: string;
 	section: ItemListSection;
 	offset: number;
 	limit: number;

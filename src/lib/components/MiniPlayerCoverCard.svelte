@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
-	import type { PlaybackState } from '$lib/types/playback';
+	import type { PlaybackState } from '$lib/state/playback.svelte';
 	import type { CoverTheme } from '$lib/state/playback.svelte';
 	import { requestTogglePlayback } from '$lib/state';
 	import { playbackSettings } from '$lib/state/settings.svelte';
@@ -9,7 +9,6 @@
 	import Controls from './player/Controls.svelte';
 	import Info from './player/Info.svelte';
 	import VerticalVolume from './player/VerticalVolume.svelte';
-	import IconButton from './ui/IconButton.svelte';
 
 	type Props = {
 		item: MediaListItem;
@@ -128,10 +127,7 @@
 		</div>
 
 		<div class="w-full">
-			<SeekBar
-				{playbackState}
-				durationSeconds={playbackState.durationSeconds || item.mediaEnclosure.durationSeconds || 0}
-			/>
+			<SeekBar {playbackState} durationSeconds={playbackState.durationSeconds} />
 		</div>
 
 		<div class="mt-2 grid grid-cols-3">

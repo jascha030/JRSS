@@ -6,9 +6,6 @@ import {
 	type RawFeedListItem,
 	type RawFeedItem
 } from '$lib/types/item';
-import { isFeed } from '$lib/types/item';
-import type { Feed } from '$lib/types/feed';
-
 const baseRaw: Omit<RawFeedListItem, 'mediaEnclosure'> = {
 	id: 'item-1',
 	feedId: 'feed-1',
@@ -96,25 +93,5 @@ describe('isMediaItem', () => {
 	it('returns true for a media item', () => {
 		const item = mapRawFeedListItem({ ...baseRaw, mediaEnclosure: enclosure });
 		expect(isMediaItem(item)).toBe(true);
-	});
-});
-
-describe('isFeed', () => {
-	const feed: Feed = {
-		id: 'feed-1',
-		title: 'My Feed',
-		url: 'https://example.com/feed.xml',
-		description: 'A feed',
-		kind: 'article',
-		createdAt: '2024-01-01T00:00:00Z'
-	};
-
-	it('returns true for a Feed object', () => {
-		expect(isFeed(feed)).toBe(true);
-	});
-
-	it('returns false for a FeedItem', () => {
-		const item = mapRawFeedItem({ ...baseRaw });
-		expect(isFeed(item)).toBe(false);
 	});
 });

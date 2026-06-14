@@ -88,15 +88,6 @@ export function requestScrollToItem(itemId: string) {
 	appUi.scrollToItemRequest = { itemId, seq: appUi.scrollRequestSeq };
 }
 
-export function clearScrollToItem() {
-	appUi.scrollToItemRequest = null;
-}
-
-export function resetScrollState() {
-	appUi.scrollRequestSeq = 0;
-	appUi.scrollToItemRequest = null;
-}
-
 export function toggleReaderMaximized() {
 	appUi.isReaderMaximized = !appUi.isReaderMaximized;
 }

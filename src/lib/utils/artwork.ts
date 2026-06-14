@@ -1,11 +1,11 @@
-export type ImageDimensions = {
+type ImageDimensions = {
 	width: number;
 	height: number;
 };
 
 const imageDimensionsCache = new Map<string, Promise<ImageDimensions | null>>();
 
-export function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
+function loadImageDimensions(url: string): Promise<ImageDimensions | null> {
 	const cached = imageDimensionsCache.get(url);
 	if (cached) {
 		return cached;

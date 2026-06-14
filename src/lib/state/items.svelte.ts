@@ -8,11 +8,12 @@ import {
 	markFavoriteBatch,
 	markRead,
 	markReadBatch,
-	queryItems,
-	type ItemsQuery
+	queryItems
 } from '$lib/services/item';
+import type { ItemPageQuery } from '$lib/types/item';
 import { measurePerfAsync } from '$lib/utils/performance-debug';
 import { selection } from './selection.svelte';
+import { PAGE_SIZE } from '$lib/constants/pagination';
 import {
 	getActiveQuerySpec,
 	getActiveQueryKey,
@@ -20,8 +21,6 @@ import {
 	normalizeSearchTerm,
 	type ItemsQuerySpec
 } from './query-context.svelte';
-
-const PAGE_SIZE = 100;
 const PAGE_PREFETCH = 1;
 
 type QueryKey = string;
@@ -136,7 +135,7 @@ function toFeedListItem(item: FeedItem): FeedListItem {
 	return listItem;
 }
 
-export function storeItemDetails(item: FeedItem): void {
+function storeItemDetails(item: FeedItem): void {
 	itemsState.itemDetailsById[item.id] = {
 		id: item.id,
 		summaryText: item.summaryText,
@@ -253,31 +252,23 @@ async function loadPage(spec: ItemsQuerySpec, offset: number): Promise<void> {
 	itemsState.loadingPageOffsetsByQueryKey[spec.queryKey][safeOffset] = true;
 
 	try {
-		const query: ItemsQuery =
-			spec.kind === 'station-items'
-				? {
-						stationId: spec.stationId,
-						section: 'all',
-						offset: safeOffset,
-						limit: PAGE_SIZE,
-						search: spec.search,
-						sortOrder: spec.sortOrder
-					}
-				: {
-						feedId: spec.query.feedId,
-						section: spec.query.section,
-						offset: safeOffset,
-						limit: PAGE_SIZE,
-						search: spec.query.search,
-						sortOrder: spec.query.sortOrder ?? 'newest_first'
-					};
+		const page: ItemPageQuery = {
+			feedId: spec.kind === 'feed-items' ? spec.query.feedId : undefined,
+			stationId: spec.kind === 'station-items' ? spec.stationId : undefined,
+			section: spec.kind === 'station-items' ? 'all' : spec.query.section,
+			offset: safeOffset,
+			limit: PAGE_SIZE,
+			search: spec.kind === 'station-items' ? spec.search : spec.query.search,
+			sortOrder:
+				spec.kind === 'station-items' ? spec.sortOrder : (spec.query.sortOrder ?? 'newest_first')
+		};
 
-		const page = await measurePerfAsync('items.loadPage', async () => queryItems(query), {
+		const response = await measurePerfAsync('items.loadPage', async () => queryItems(page), {
 			queryKey: spec.queryKey,
 			offset: safeOffset
 		});
 
-		mergeItemsPage(spec.queryKey, safeOffset, page.items, page.totalCount);
+		mergeItemsPage(spec.queryKey, safeOffset, response.items, response.totalCount);
 
 		if (getActiveQueryKey() === spec.queryKey) {
 			ensureSelectionAfterPageLoad(spec.queryKey);

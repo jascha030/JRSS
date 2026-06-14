@@ -8,8 +8,6 @@ import {
 } from '$lib/state/playback.svelte';
 import type { MediaListItem } from '$lib/types/item';
 
-export const VOLUME_STEP = 0.1;
-
 export function usePlayerControls(getItem: () => MediaListItem | null) {
 	const canSkipPrevious = $derived(playbackState.playbackHistory.length > 0);
 	const canSkipNext = $derived(

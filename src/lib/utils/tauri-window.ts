@@ -4,9 +4,9 @@ import { invokeCommand } from '$lib/services/tauri';
 import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/settings';
 import type { LogicalPosition } from '@tauri-apps/api/window';
 
-export const MAIN_WINDOW_LABEL = 'main';
+const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';
-export const MINI_WINDOW_URL = '/?window=mini';
+const MINI_WINDOW_URL = '/?window=mini';
 
 async function loadMiniPlayerAlwaysOnTop(): Promise<boolean> {
 	try {
@@ -96,5 +96,3 @@ export async function restoreMainWindow(): Promise<void> {
 		miniLabel: MINI_WINDOW_LABEL
 	});
 }
-
-export { ensureMiniPlayerWindow };

@@ -266,7 +266,7 @@ function buildThemeFromPalette(hexes: string[]): CoverTheme {
  * Pre-calculate cover theme from an image URL.
  * Call this when a new track loads so the theme is ready when CoverView opens.
  */
-export async function precalculateCoverTheme(imageUrl: string | undefined): Promise<void> {
+async function precalculateCoverTheme(imageUrl: string | undefined): Promise<void> {
 	if (!imageUrl) {
 		playbackState.coverTheme = FALLBACK_COVER_THEME;
 		return;
@@ -959,10 +959,6 @@ export async function playStation(stationId: string): Promise<void> {
 		autoQueueIds: [],
 		context: { contextType: 'station', id: stationId }
 	});
-}
-
-export async function handlePlaybackEnded(): Promise<void> {
-	await syncAudioSessionFromBackend();
 }
 
 export async function restorePlaybackContext(): Promise<void> {

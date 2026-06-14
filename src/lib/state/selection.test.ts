@@ -8,30 +8,8 @@ import {
 	selectItem,
 	setFeedSearchTerm,
 	setStationSearchTerm,
-	setSectionSearchTerm,
-	getSelectedFeed,
-	getSelectedStation
+	setSectionSearchTerm
 } from './selection.svelte';
-import type { Feed } from '$lib/types/feed';
-import type { Station } from '$lib/types/station';
-
-function makeFeed(id: string): Feed {
-	return { id, title: 'Feed', url: '', description: '', kind: 'article', createdAt: '' };
-}
-
-function makeStation(id: string): Station {
-	return {
-		id,
-		name: 'Station',
-		episodeFilter: 'all',
-		sortOrder: 'newest_first',
-		sortOrderPosition: 0,
-		createdAt: '',
-		feedIds: [],
-		gradient: 'emerald'
-	};
-}
-
 beforeEach(() => {
 	resetSelectionState();
 });
@@ -140,36 +118,4 @@ describe('search term setters', () => {
 		setSectionSearchTerm('test');
 		expect(selection.sectionSearchTerm).toBe('test');
 	});
-});
-
-function describeGetSelected<T extends { id: string }>(
-	name: string,
-	getSelected: (entities: T[]) => T | null,
-	makeEntity: (id: string) => T,
-	setSelectedId: (id: string | null) => void
-) {
-	describe(name, () => {
-		it('returns the matching entity', () => {
-			const entities = [makeEntity('a'), makeEntity('b')];
-			setSelectedId('b');
-			expect(getSelected(entities)?.id).toBe('b');
-		});
-
-		it('returns null when no selection', () => {
-			expect(getSelected([makeEntity('a')])).toBeNull();
-		});
-
-		it('returns null when selection not in list', () => {
-			setSelectedId('z');
-			expect(getSelected([makeEntity('a')])).toBeNull();
-		});
-	});
-}
-
-describeGetSelected('getSelectedFeed', getSelectedFeed, makeFeed, (id) => {
-	selection.selectedFeedId = id;
-});
-
-describeGetSelected('getSelectedStation', getSelectedStation, makeStation, (id) => {
-	selection.selectedStationId = id;
 });

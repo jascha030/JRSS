@@ -3,7 +3,7 @@
 	import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
-	import type { PlaybackState } from '$lib/types/playback';
+	import type { PlaybackState } from '$lib/state/playback.svelte';
 	import { getFeedById, requestTogglePlayback } from '$lib/state';
 	import { restoreMainWindow, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
 	import { nextEpisode, previousEpisode, skip } from '$lib/utils/player-controls';
@@ -18,7 +18,6 @@
 	import Controls from './player/Controls.svelte';
 	import SeekBar from './player/SeekBar.svelte';
 	import Volume from './player/Volume.svelte';
-	import IconButton from './ui/IconButton.svelte';
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 
 	let coverTheme = $derived(getCoverTheme());
@@ -116,12 +115,7 @@
 						</div>
 
 						<div class="w-full">
-							<SeekBar
-								{playbackState}
-								durationSeconds={playbackState.durationSeconds ||
-									item.mediaEnclosure.durationSeconds ||
-									0}
-							/>
+							<SeekBar {playbackState} durationSeconds={playbackState.durationSeconds} />
 						</div>
 
 						<div class="mt-2 grid grid-cols-3">

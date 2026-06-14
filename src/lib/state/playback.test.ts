@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	playbackState,
 	resetPlaybackState,
-	precalculateCoverTheme,
 	getCurrentAudioItem,
 	isItemCurrentAudio,
 	isAudioPlaying,
@@ -169,24 +168,5 @@ describe('getCoverTheme', () => {
 		const theme = getCoverTheme();
 		expect(theme.bg1).toBe(FALLBACK_BG1);
 		expect(theme.fg).toBe(FALLBACK_FG);
-	});
-});
-
-describe('precalculateCoverTheme', () => {
-	it('sets fallback when no URL provided', async () => {
-		await precalculateCoverTheme(undefined);
-		expect(playbackState.coverTheme.bg1).toBe(FALLBACK_BG1);
-	});
-
-	it('sets fallback when extractCoverPalette returns [] (no Tauri runtime)', async () => {
-		// isTauriRuntime() is false in happy-dom → extractCoverPalette returns []
-		// → buildThemeFromPalette is never called → FALLBACK_COVER_THEME applied
-		await precalculateCoverTheme('https://example.com/cover.jpg');
-		expect(playbackState.coverTheme.bg1).toBe(FALLBACK_BG1);
-	});
-
-	it('sets fallback on empty URL', async () => {
-		await precalculateCoverTheme('');
-		expect(playbackState.coverTheme.bg1).toBe(FALLBACK_BG1);
 	});
 });

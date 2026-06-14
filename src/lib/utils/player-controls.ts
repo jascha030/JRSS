@@ -5,9 +5,8 @@ import {
 	requestSetVolume,
 	requestTogglePlayback
 } from '$lib/state';
-import type { PlaybackState } from '$lib/types/playback';
+import type { PlaybackState } from '$lib/state/playback.svelte';
 
-export const DEFAULT_SKIP_SECONDS = 15;
 export const VOLUME_STEP = 0.1;
 
 export function skip(

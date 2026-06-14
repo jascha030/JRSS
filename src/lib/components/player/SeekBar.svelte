@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { requestSeekTo } from '$lib/state';
-	import type { PlaybackState } from '$lib/types/playback';
+	import type { PlaybackState } from '$lib/state/playback.svelte';
 	import { formatDuration } from '$lib/utils/format';
 	import RangeInput from '../ui/RangeInput.svelte';
 
