@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
 	import { feedsState } from '$lib/state/feeds.svelte';
-	import { getPlaybackHistory, getUpcomingQueue } from '$lib/state/playback.svelte';
+	import {
+		getPlaybackHistory,
+		getUpcomingQueue,
+		getManualQueueLength
+	} from '$lib/state/playback.svelte';
 	import { moveQueuedItemUp, moveQueuedItemDown, removeQueuedItem } from '$lib/state';
 	import { formatDuration } from '$lib/utils/format';
 	import { openAudioContextMenu } from '$lib/utils/tauri-menu';
@@ -28,6 +32,9 @@
 	const hasHistory = $derived(historyItems.length > 0);
 	const hasQueue = $derived(queueItems.length > 0);
 	const hasAnyItems = $derived(hasHistory || hasQueue);
+
+	const manualCount = $derived(getManualQueueLength());
+	const autoCount = $derived(queueItems.length - manualCount);
 
 	const feedTitleById = $derived.by(() => {
 		const map: Record<string, string> = {};
@@ -117,114 +124,203 @@
 		iconClass={classes.emptyIcon}
 		titleClass={classes.emptyTitle}
 		descriptionClass={classes.emptyText}
-		class="py-16"
+		class="h-full py-16"
 	/>
 {:else}
-	<ul class="px-0 py-2">
+	<div class="flex min-h-full flex-col">
 		{#if hasHistory}
-			{#each [...historyItems].reverse() as item (item.id)}
-				<li
-					oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
-					class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
-				>
-					<span class={classes.index}>
-						<Icon icon="lucide:history" class="size-3" />
-					</span>
+			<ul class="px-0 py-2">
+				{#each [...historyItems].reverse() as item (item.id)}
+					<li
+						oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+						class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover} ${classes.historyItem}`}
+					>
+						<span class={classes.index}>
+							<Icon icon="lucide:history" class="size-3" />
+						</span>
 
-					<div class="min-w-0 flex-1">
-						<p class={classes.title}>
-							{item.title}
-						</p>
-
-						{#if feedTitleForItem(item)}
-							<p class={classes.feedTitle}>
-								{feedTitleForItem(item)}
+						<div class="min-w-0 flex-1">
+							<p class={classes.title}>
+								{item.title}
 							</p>
-						{/if}
 
-						{#if durationLabel(item)}
-							<p class={classes.duration}>
-								{durationLabel(item)}
-							</p>
-						{/if}
-					</div>
-				</li>
-			{/each}
+							{#if feedTitleForItem(item)}
+								<p class={classes.feedTitle}>
+									{feedTitleForItem(item)}
+								</p>
+							{/if}
 
-			<li
-				class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
-				aria-hidden="true"
-				use:scrollIntoView
-			>
-				<div class={`h-px flex-1 ${classes.divider}`}></div>
-				<span class={classes.separatorLabel}>Playing next</span>
-				<div class={`h-px flex-1 ${classes.divider}`}></div>
-			</li>
+							{#if durationLabel(item)}
+								<p class={classes.duration}>
+									{durationLabel(item)}
+								</p>
+							{/if}
+						</div>
+					</li>
+				{/each}
+			</ul>
 		{/if}
 
-		{#each queueItems as item, index (item.id)}
-			<li
-				oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
-				class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
-			>
-				<span class={classes.index}>
-					{getQueueIndex(index)}
-				</span>
+		{#if queueItems.length > 0}
+			<ul class="flex flex-1 min-h-[calc(100vh-(--spacing(16)))] flex-col px-0 py-2">
+				<li
+					class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
+					aria-hidden="true"
+					use:scrollIntoView
+				>
+					<div class={`h-px flex-1 ${classes.divider}`}></div>
+					<span class={classes.separatorLabel}>Playing next</span>
+					<div class={`h-px flex-1 ${classes.divider}`}></div>
+				</li>
 
-				<div class="min-w-0 flex-1">
-					<p class={classes.title}>
-						{item.title}
-					</p>
+				{#each queueItems.slice(0, manualCount) as item, index (index)}
+					<li
+						oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+						class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
+					>
+						<span class={classes.index}>
+							{getQueueIndex(index)}
+						</span>
 
-					{#if feedTitleForItem(item)}
-						<p class={classes.feedTitle}>
-							{feedTitleForItem(item)}
-						</p>
-					{/if}
+						<div class="min-w-0 flex-1">
+							<p class={classes.title}>
+								{item.title}
+							</p>
 
-					{#if durationLabel(item)}
-						<p class={classes.duration}>
-							{durationLabel(item)}
-						</p>
-					{/if}
-				</div>
+							{#if feedTitleForItem(item)}
+								<p class={classes.feedTitle}>
+									{feedTitleForItem(item)}
+								</p>
+							{/if}
 
-				<div class={classes.actionStack}>
-					{#if index > 0}
-						<IconButton
-							icon="lucide:chevron-up"
-							variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
-							class={classes.actionButtonClass}
-							iconClass={classes.actionButtonIconClass}
-							title="Move up"
-							label={`Move ${item.title} up in queue`}
-							onclick={() => moveQueuedItemUp(item.id)}
-						/>
-					{/if}
+							{#if durationLabel(item)}
+								<p class={classes.duration}>
+									{durationLabel(item)}
+								</p>
+							{/if}
+						</div>
 
-					<IconButton
-						icon="lucide:x"
-						variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
-						class={classes.actionButtonClass}
-						iconClass={classes.actionButtonIconClass}
-						title="Remove from queue"
-						label={`Remove ${item.title} from queue`}
-						onclick={() => removeQueuedItem(item.id)}
-					/>
+						<div class={classes.actionStack}>
+							{#if index > 0}
+								<IconButton
+									icon="lucide:chevron-up"
+									variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+									class={classes.actionButtonClass}
+									iconClass={classes.actionButtonIconClass}
+									title="Move up"
+									label={`Move ${item.title} up in queue`}
+									onclick={() => moveQueuedItemUp(item.id)}
+								/>
+							{/if}
 
-					{#if index < queueItems.length - 1}
-						<IconButton
-							icon="lucide:chevron-down"
-							variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
-							class={classes.actionButtonClass}
-							iconClass={classes.actionButtonIconClass}
-							title="Move down"
-							label={`Move ${item.title} down in queue`}
-							onclick={() => moveQueuedItemDown(item.id)}
-						/>
-					{/if}
-				</div>
-			</li>
-		{/each}
-	</ul>
+							<IconButton
+								icon="lucide:x"
+								variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+								class={classes.actionButtonClass}
+								iconClass={classes.actionButtonIconClass}
+								title="Remove from queue"
+								label={`Remove ${item.title} from queue`}
+								onclick={() => removeQueuedItem(item.id)}
+							/>
+
+							{#if index < queueItems.length - 1}
+								<IconButton
+									icon="lucide:chevron-down"
+									variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+									class={classes.actionButtonClass}
+									iconClass={classes.actionButtonIconClass}
+									title="Move down"
+									label={`Move ${item.title} down in queue`}
+									onclick={() => moveQueuedItemDown(item.id)}
+								/>
+							{/if}
+						</div>
+					</li>
+				{/each}
+
+				{#if manualCount > 0 && autoCount > 0}
+					<li class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`} aria-hidden="true">
+						<div class={`h-px flex-1 ${classes.divider}`}></div>
+						<span class={classes.separatorLabel}>Auto play</span>
+						<div class={`h-px flex-1 ${classes.divider}`}></div>
+					</li>
+				{/if}
+
+				{#each queueItems.slice(manualCount) as item, index (index)}
+					<li
+						oncontextmenu={(event) => item && openAudioContextMenu(event, item)}
+						class={`group relative flex items-start gap-3 py-3 transition-colors ${rowPaddingClass} ${classes.itemHover}`}
+					>
+						<span class={classes.index}>
+							{getQueueIndex(manualCount + index)}
+						</span>
+
+						<div class="min-w-0 flex-1">
+							<p class={classes.title}>
+								{item.title}
+							</p>
+
+							{#if feedTitleForItem(item)}
+								<p class={classes.feedTitle}>
+									{feedTitleForItem(item)}
+								</p>
+							{/if}
+
+							{#if durationLabel(item)}
+								<p class={classes.duration}>
+									{durationLabel(item)}
+								</p>
+							{/if}
+						</div>
+
+						<div class={classes.actionStack}>
+							{#if index > 0}
+								<IconButton
+									icon="lucide:chevron-up"
+									variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+									class={classes.actionButtonClass}
+									iconClass={classes.actionButtonIconClass}
+									title="Move up"
+									label={`Move ${item.title} up in queue`}
+									onclick={() => moveQueuedItemUp(item.id)}
+								/>
+							{/if}
+
+							<IconButton
+								icon="lucide:x"
+								variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+								class={classes.actionButtonClass}
+								iconClass={classes.actionButtonIconClass}
+								title="Remove from queue"
+								label={`Remove ${item.title} from queue`}
+								onclick={() => removeQueuedItem(item.id)}
+							/>
+
+							{#if index < queueItems.slice(manualCount).length - 1}
+								<IconButton
+									icon="lucide:chevron-down"
+									variant={appearance === 'inverse' ? 'ghost' : 'icon-subtle'}
+									class={classes.actionButtonClass}
+									iconClass={classes.actionButtonIconClass}
+									title="Move down"
+									label={`Move ${item.title} down in queue`}
+									onclick={() => moveQueuedItemDown(item.id)}
+								/>
+							{/if}
+						</div>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<EmptyState
+				icon="lucide:list-music"
+				title="Queue is empty"
+				description="Press play on an episode to auto-populate"
+				iconClass={classes.emptyIcon}
+				titleClass={classes.emptyTitle}
+				descriptionClass={classes.emptyText}
+				class="flex-1 py-16"
+			/>
+		{/if}
+	</div>
 {/if}
