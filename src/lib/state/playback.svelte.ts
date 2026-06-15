@@ -736,20 +736,17 @@ export function getManualQueueLength(): number {
 
 export function getUpcomingQueue(): MediaListItem[] {
 	const items: MediaListItem[] = [];
-	const seen = new Set<string>();
 
 	for (const itemId of playbackState.manualQueue) {
 		const item = resolveAudioItem(itemId);
-		if (item && !seen.has(item.id)) {
-			seen.add(item.id);
+		if (item) {
 			items.push(item);
 		}
 	}
 
 	for (const itemId of playbackState.autoQueue) {
 		const item = resolveAudioItem(itemId);
-		if (item && !seen.has(item.id)) {
-			seen.add(item.id);
+		if (item) {
 			items.push(item);
 		}
 	}
@@ -787,28 +784,14 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 }
 
 export function enqueueAudioItem(item: MediaListItem): void {
-	if (playbackState.currentPlaybackState?.itemId === item.id) {
-		return;
-	}
-
-	if (playbackState.manualQueue.includes(item.id)) {
-		return;
-	}
-
 	registerAudioItem(item);
-
 	void audioQueueEnqueue(itemToQueuedItem(item)).catch((err: unknown) =>
 		log.error(`Failed to enqueue: ${err}`)
 	);
 }
 
 export function playAudioItemNext(item: MediaListItem): void {
-	if (playbackState.currentPlaybackState?.itemId === item.id) {
-		return;
-	}
-
 	registerAudioItem(item);
-
 	void audioQueuePlayNext(itemToQueuedItem(item)).catch((err: unknown) =>
 		log.error(`Failed to play next: ${err}`)
 	);

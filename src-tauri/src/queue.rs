@@ -67,18 +67,11 @@ impl QueueState {
 
     /// Add an item to the end of the manual queue.
     pub fn enqueue(&mut self, item: QueuedItem) {
-        // Dedupe: remove from both queues if present.
-        self.manual.retain(|i| i.item_id != item.item_id);
-        self.auto.retain(|i| i.item_id != item.item_id);
-
         self.manual.push_back(item);
     }
 
     /// Insert an item at the front of the manual queue (play next).
     pub fn play_next(&mut self, item: QueuedItem) {
-        self.manual.retain(|i| i.item_id != item.item_id);
-        self.auto.retain(|i| i.item_id != item.item_id);
-
         self.manual.push_front(item);
     }
 
