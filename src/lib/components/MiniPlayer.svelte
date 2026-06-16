@@ -76,15 +76,15 @@
 
 <CoverThemeStyles />
 
-<div class="relative flex h-full w-full flex-col overflow-hidden bg-surface-shell">
+<div class="relative flex h-screen w-full flex-col overflow-hidden bg-surface-shell">
 	{#if isCompactMode}
 		{#if item && playbackState}
-			<div class="flex h-full w-full flex-col px-3">
+			<div class="flex h-full w-full flex-col px-4 justify-between">
 				<div
-					class="relative z-0 flex h-7 w-full items-center justify-end"
+					class="relative z-0 flex grow w-full items-center justify-end"
 					data-tauri-drag-region
 				></div>
-				<div class="flext-row flex gap-4">
+				<div class="flex-row flex gap-4 items-center pb-2">
 					<Avatar class="hidden aspect-square h-[94px] w-[94px] rounded-md shadow-sm sm:block">
 						{#if imageUrl}
 							<Avatar.Image
