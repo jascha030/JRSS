@@ -34,6 +34,7 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			decorations: true,
 			height: 440,
 			maximizable: false,
+			minimizable: false,
 			maxHeight: 800,
 			maxWidth: 800,
 			minHeight: 340,

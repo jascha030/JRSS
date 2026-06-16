@@ -19,6 +19,7 @@
 	} from '$lib/utils/navigation/app-router';
 	import Icon from '@iconify/svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
+	import { getCachedImageUrl } from '$lib/services/imageCache';
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
@@ -27,6 +28,18 @@
 	const selectedSection = $derived(selection.selectedSection);
 	const refreshingFeedIds = $derived(feedsState.syncingFeedIds);
 	const isCollapsed = $derived(appUi.isSidebarCollapsed);
+
+	const cachedImageUrls = $state<Record<string, string | undefined>>({});
+
+	$effect(() => {
+		for (const feed of feeds) {
+			if (feed.imageUrl && !cachedImageUrls[feed.id]) {
+				getCachedImageUrl(feed.imageUrl, 40).then((url) => {
+					if (url) cachedImageUrls[feed.id] = url;
+				});
+			}
+		}
+	});
 
 	type SidebarNavSection = Exclude<SidebarSection, null>;
 
@@ -221,7 +234,12 @@
 			}`}
 		>
 			{#if feed.imageUrl}
-				<img src={feed.imageUrl} alt={feed.title} class="size-full object-cover" />
+				<img
+					src={cachedImageUrls[feed.id] || feed.imageUrl}
+					alt={feed.title}
+					class="size-full object-cover"
+					loading="lazy"
+				/>
 			{:else}
 				<span
 					class={`flex size-full items-center justify-center text-fg-inverse ${

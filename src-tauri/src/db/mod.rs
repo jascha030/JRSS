@@ -36,8 +36,8 @@ pub use playback::{
 };
 pub use schema::initialize_database;
 pub use settings::{
-    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, load_app_settings,
-    save_app_settings,
+    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+    DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES, load_app_settings, save_app_settings,
 };
 pub use stations::{
     create_station, delete_station, list_stations, query_station_episodes, update_station,

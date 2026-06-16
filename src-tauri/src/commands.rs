@@ -3,6 +3,7 @@ use crate::auto_refresh::AutoRefreshState;
 use crate::cover_art;
 use crate::db::{self, DatabaseState};
 use crate::feed_ingest;
+use crate::image_cache::ImageCache;
 use crate::models::{
     AppSettingsRecord, CreateStationInput, FeedItemRecord, FeedListItemRecord, FeedRecord,
     ItemPageRecord, PlaybackContextRecord, PlaybackSessionRecord, PodcastSearchResultRecord,
@@ -11,6 +12,7 @@ use crate::models::{
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
 use crate::theme::{cmd_discover_themes, cmd_load_theme, ThemeInfo};
+use base64::Engine;
 use tauri::{Manager, State};
 
 // CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
@@ -596,8 +598,78 @@ pub async fn load_playback_context(
 }
 
 #[tauri::command]
-pub async fn extract_cover_palette(image_url: String) -> Result<Vec<String>, String> {
-    blocking(move || cover_art::extract_cover_palette(&image_url)).await
+pub async fn extract_cover_palette(
+    image_url: String,
+    image_cache: tauri::State<'_, ImageCache>,
+) -> Result<Vec<String>, String> {
+    let cache_dir = image_cache.cache_dir().to_path_buf();
+    blocking(move || {
+        let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir)?;
+        cover_art::extract_cover_palette(&image_url, &cache)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn get_cached_image_path(
+    image_url: String,
+    size: Option<u32>,
+    image_cache: tauri::State<'_, ImageCache>,
+    db: tauri::State<'_, DatabaseState>,
+) -> Result<String, String> {
+    let cache_dir = image_cache.cache_dir().to_path_buf();
+    let cache_dir2 = cache_dir.clone();
+    let db_path = db.db_path();
+
+    let path = blocking(move || {
+        let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir)?;
+
+        if let Some(s) = size {
+            cache.get_or_create_thumbnail(&image_url, s)
+        } else {
+            cache.ensure_cached(&image_url)
+        }
+    })
+    .await?;
+
+    let bytes =
+        std::fs::read(&path).map_err(|e| format!("Failed to read cached image: {e}"))?;
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jpg");
+    let mime_type = match ext {
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        _ => "image/jpeg",
+    };
+    let base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    let data_url = format!("data:{mime_type};base64,{base64}");
+
+    let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir2)?;
+    let max_size = match db::load_app_settings(&db_path) {
+        Ok(s) => u64::try_from(s.max_image_cache_size_bytes)
+            .unwrap_or(crate::image_cache::DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES),
+        Err(_) => crate::image_cache::DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES,
+    };
+    let _ = cache.enforce_size_limit(max_size);
+
+    Ok(data_url)
+}
+
+#[tauri::command]
+pub async fn get_cached_image_dimensions(
+    image_url: String,
+    image_cache: tauri::State<'_, ImageCache>,
+) -> Result<Option<(u32, u32)>, String> {
+    let cache_dir = image_cache.cache_dir().to_path_buf();
+    blocking(move || {
+        let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir)?;
+        cache.ensure_cached(&image_url)?;
+        cache.get_cached_dimensions(&image_url)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -643,20 +715,20 @@ pub fn resize_mini_player(
 
         // Relax minimum size so the compact height is allowed.
         window
-            .set_min_size(Some(tauri::LogicalSize::new(340.0, 150.0)))
+            .set_min_size(Some(tauri::LogicalSize::new(340.0, 160.0)))
             .map_err(|e| e.to_string())?;
 
         // Shrink to compact bar height, preserving current width but clamping to min.
         window
             .set_size(tauri::LogicalSize::new(
                 logical_size.width.max(340.0),
-                150.0,
+                160.0,
             ))
             .map_err(|e| e.to_string())?;
 
         // Pin the height so the user cannot resize vertically.
         window
-            .set_max_size(Some(tauri::LogicalSize::new(800.0, 150.0)))
+            .set_max_size(Some(tauri::LogicalSize::new(800.0, 160.0)))
             .map_err(|e| e.to_string())?;
     } else {
         // Relax max height so the window can grow back to square.

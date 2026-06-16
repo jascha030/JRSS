@@ -83,6 +83,19 @@ export const APP_SETTINGS = [
 				desktopOnly: true
 			},
 			{
+				key: 'maxImageCacheSizeBytes',
+				kind: 'number',
+				label: 'Max image cache size',
+				description: 'Set the maximum disk space for cached podcast artwork and feed icons.',
+				unit: 'MB',
+				min: 10,
+				step: 10,
+				toDisplay: (bytes: number) => Number((bytes / (1024 * 1024)).toFixed(0)),
+				fromDisplay: (mb: number) => Math.round(mb * 1024 * 1024),
+				validate: (mb: number) => (mb >= 10 ? null : 'Must be at least 10 MB.'),
+				desktopOnly: true
+			},
+			{
 				key: 'autoRefreshIntervalMinutes',
 				kind: 'select',
 				label: 'Auto-refresh',

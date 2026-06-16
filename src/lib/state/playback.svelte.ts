@@ -31,6 +31,7 @@ import {
 import { loadPlaybackContext, savePlaybackContext } from '$lib/services/playback/session';
 import { queryStationEpisodes } from '$lib/services/station';
 import { extractCoverPalette } from '$lib/services/palette';
+import { pickBestArtworkUrl } from '$lib/utils/artwork';
 import { tick } from 'svelte';
 import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -266,7 +267,12 @@ function buildThemeFromPalette(hexes: string[]): CoverTheme {
  * Pre-calculate cover theme from an image URL.
  * Call this when a new track loads so the theme is ready when CoverView opens.
  */
-async function precalculateCoverTheme(imageUrl: string | undefined): Promise<void> {
+async function precalculateCoverTheme(
+	episodeImageUrl: string | undefined,
+	feedImageUrl: string | undefined
+): Promise<void> {
+	const imageUrl = await pickBestArtworkUrl(episodeImageUrl, feedImageUrl);
+
 	if (!imageUrl) {
 		playbackState.coverTheme = FALLBACK_COVER_THEME;
 		return;
@@ -506,7 +512,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState): void {
 		const item = resolveItem(event.itemId);
 		if (item) {
 			const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-			void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
+			void precalculateCoverTheme(item.imageUrl, feed?.imageUrl);
 		}
 	}
 
@@ -569,7 +575,7 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 	const currentItem = resolveItem(backendQueueState.current.itemId);
 	if (currentItem) {
 		const feed = feedsState.feeds.find((f) => f.id === currentItem.feedId);
-		void precalculateCoverTheme(currentItem.imageUrl ?? feed?.imageUrl);
+		void precalculateCoverTheme(currentItem.imageUrl, feed?.imageUrl);
 	}
 }
 
@@ -649,7 +655,7 @@ export function playAudioItem(
 	void persistPlaybackContext();
 
 	const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-	void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
+	void precalculateCoverTheme(item.imageUrl, feed?.imageUrl);
 
 	void (async () => {
 		try {

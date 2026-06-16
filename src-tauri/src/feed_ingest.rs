@@ -555,6 +555,10 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         .links()
         .iter()
         .find_map(|link| parse_atom_enclosure(link, feed_url));
+    let image_url = entry
+        .links()
+        .iter()
+        .find_map(|link| parse_atom_entry_image(link, feed_url));
 
     ParsedFeedItem {
         external_id: if entry.id().trim().is_empty() {
@@ -572,7 +576,7 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         content_html,
         published_at,
         media_enclosure: enclosure,
-        image_url: None,
+        image_url,
     }
 }
 
@@ -588,6 +592,21 @@ fn parse_atom_enclosure(link: &AtomLink, feed_url: &str) -> Option<MediaEnclosur
         link.length(),
         None,
     )
+}
+
+fn parse_atom_entry_image(link: &AtomLink, feed_url: &str) -> Option<String> {
+    match link.rel() {
+        "enclosure" => {
+            let mime = link.mime_type().unwrap_or("");
+            if mime.starts_with("image/") {
+                resolve_optional_url(Some(link.href()), feed_url)
+            } else {
+                None
+            }
+        }
+        "image" | "thumbnail" => resolve_optional_url(Some(link.href()), feed_url),
+        _ => None,
+    }
 }
 
 fn extract_atom_summary(entry: &AtomEntry) -> Option<String> {

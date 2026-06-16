@@ -6,6 +6,7 @@ mod commands;
 mod cover_art;
 mod db;
 mod feed_ingest;
+mod image_cache;
 mod menu;
 mod mini_player;
 mod models;
@@ -68,6 +69,9 @@ pub fn run() {
             let audio_state = AudioState::new(app.handle().clone())
                 .map_err(Box::<dyn std::error::Error>::from)?;
             app.manage(audio_state);
+
+            let image_cache = image_cache::ImageCache::new(app.handle())?;
+            app.manage(image_cache);
 
             let mini_player_state = mini_player::MiniPlayerTransitionState::new();
             app.manage(mini_player_state);
@@ -145,6 +149,8 @@ pub fn run() {
             commands::load_playback_context,
             commands::extract_cover_palette,
             commands::clear_audio_cache,
+            commands::get_cached_image_path,
+            commands::get_cached_image_dimensions,
             commands::set_window_content_aspect_ratio,
             commands::resize_mini_player,
             mini_player::open_mini_player_native,

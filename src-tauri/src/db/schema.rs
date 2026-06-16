@@ -203,6 +203,20 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             })?;
     }
 
+    if existing_columns
+        .iter()
+        .all(|column| column != "max_image_cache_size_bytes")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN max_image_cache_size_bytes INTEGER NOT NULL DEFAULT 209715200",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings max_image_cache_size_bytes column: {error}")
+            })?;
+    }
+
     Ok(())
 }
 

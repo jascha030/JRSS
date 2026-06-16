@@ -122,7 +122,7 @@
 						</div>
 					{/snippet}
 
-					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
+					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4 pt-0">
 						<div
 							class="cover-view-artwork-frame flex min-h-0 items-center justify-center"
 							bind:offsetWidth={artworkFrameWidth}

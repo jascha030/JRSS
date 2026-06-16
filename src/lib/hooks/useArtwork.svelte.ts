@@ -16,7 +16,7 @@ export function useArtwork(
 		return url && !brokenImageUrls[url] ? url : undefined;
 	});
 
-	const artworkChoice = $derived(pickBestArtworkUrl(activeEpisodeUrl, activeFallbackUrl));
+	const artworkChoice = $derived.by(() => pickBestArtworkUrl(activeEpisodeUrl, activeFallbackUrl));
 
 	function handleError(event: Event) {
 		const target = event.currentTarget;
