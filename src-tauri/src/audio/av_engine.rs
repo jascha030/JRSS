@@ -331,7 +331,7 @@ impl AvActor {
 		let pos = self.position_seconds();
 		let dur = self.item_duration();
 
-		const END_EPSILON: f64 = 0.2;
+		const END_EPSILON: f64 = 3.0;
 		let is_finished = dur > 0.0 && pos >= dur - END_EPSILON && rate == 0.0;
 
 		AvSnapshot {

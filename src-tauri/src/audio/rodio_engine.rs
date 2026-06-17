@@ -120,11 +120,10 @@ impl PlaybackEngine for RodioEngine {
         if config.start_position_seconds > 0.0 {
             let target = Duration::from_secs_f64(config.start_position_seconds);
             if player.try_seek(target).is_err() {
-                log::warn!(
-                    "RodioEngine: try_seek to {:.1}s failed (MP3 without seek table?), \
-                     starting from beginning",
+                return Err(EngineError::DecodeFailed(format!(
+                    "Failed to seek to {:.1}s — format may not support seeking",
                     config.start_position_seconds
-                );
+                )));
             }
         }
 

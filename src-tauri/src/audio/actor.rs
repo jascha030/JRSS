@@ -61,6 +61,12 @@ pub struct AudioThread {
     /// Set to true when the user explicitly pauses. Used to distinguish
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
+    /// Number of consecutive poll ticks where the engine reports finished.
+    /// Used to de-bounce false finished states (e.g. decoder buffer underrun).
+    finished_consecutive_count: u32,
+    /// Whether `duration_seconds` came from the actual decoder rather than
+    /// an RSS hint. Prevents clamping resume positions to incorrect durations.
+    duration_from_decoder: bool,
     /// Cached engine snapshot from the last poll iteration. Used to serve
     /// GetState commands without blocking on the audio thread (AVPlayer).
     cached_engine_snapshot: PlaybackSnapshot,
@@ -85,6 +91,8 @@ impl AudioThread {
             duration_probe_done: false,
             stalled_at_download_edge: false,
             manual_pause: false,
+            finished_consecutive_count: 0,
+            duration_from_decoder: false,
             cached_engine_snapshot: PlaybackSnapshot::default(),
         }
     }
@@ -98,6 +106,7 @@ impl AudioThread {
     ) -> Result<(), String> {
         self.manual_pause = false;
         self.stalled_at_download_edge = false;
+        self.finished_consecutive_count = 0;
 
         let play_start = Instant::now();
 
@@ -121,12 +130,24 @@ impl AudioThread {
         self.teardown_output_only();
         log::debug!("Teardown took {:?}", teardown_start.elapsed());
 
+        let same_item = self.current_item_id.as_ref() == Some(&item_id);
         self.current_item_id = Some(item_id.clone());
         self.hydrate_metadata(&item_id);
-        self.duration_seconds = duration_hint_seconds.max(0.0);
+
+        if same_item && self.duration_from_decoder && self.duration_seconds > 0.0 {
+            // Preserve verified duration when resuming the same item
+            // (prevents clamping to a potentially wrong RSS hint)
+        } else {
+            self.duration_seconds = duration_hint_seconds.max(0.0);
+            self.duration_from_decoder = false;
+        }
         self.duration_probe_done = false;
 
-        let clamped_start_position = clamp_to_duration(start_position_seconds, self.duration_seconds);
+        let clamped_start_position = if self.duration_from_decoder {
+            clamp_to_duration(start_position_seconds, self.duration_seconds)
+        } else {
+            start_position_seconds.max(0.0)
+        };
 
         if (clamped_start_position - start_position_seconds).abs() > 1.0 {
             log::debug!(
@@ -248,6 +269,7 @@ impl AudioThread {
                     self.duration_seconds
                 );
                 self.duration_seconds = actual_seconds;
+                self.duration_from_decoder = true;
 
                 // Update queue current item duration so frontend gets correct value
                 if let Some(ref mut current) = self.queue.current {
@@ -304,6 +326,8 @@ impl AudioThread {
         self.duration_seconds = 0.0;
         self.stalled_at_download_edge = false;
         self.manual_pause = false;
+        self.finished_consecutive_count = 0;
+        self.duration_from_decoder = false;
     }
 
     fn hydrate_metadata(&mut self, item_id: &str) {
@@ -966,6 +990,15 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         let (snapshot_opt, eng_snap) = state.snapshot_full();
         // Cache engine snapshot for non-blocking GetState responses
         state.cached_engine_snapshot = eng_snap.clone();
+
+        // De-bounce engine finished state: a single tick of is_finished can be
+        // a decoder buffer underrun rather than a true natural end.
+        if eng_snap.is_finished {
+            state.finished_consecutive_count = state.finished_consecutive_count.saturating_add(1);
+        } else {
+            state.finished_consecutive_count = 0;
+        }
+
         if let Some(snapshot) = snapshot_opt {
             // Throttle playback-state-changed emissions
             let min_interval = if snapshot.is_playing {
@@ -1007,6 +1040,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         state.duration_seconds
                     );
                     state.duration_seconds = actual;
+                    state.duration_from_decoder = true;
 
                     if let Some(ref mut current) = state.queue.current {
                         current.duration_seconds = actual;
@@ -1061,7 +1095,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
             }
 
             // Auto-advance only after a true natural end on a fully cached file.
-            if was_playing && !snapshot.is_playing && eng_snap.is_finished && download_complete {
+            // Require two consecutive finished ticks to de-bounce decoder stalls.
+            if was_playing && !snapshot.is_playing && state.finished_consecutive_count >= 2 && download_complete {
                 let finished_item_id = snapshot.item_id.clone();
                 let db = app.state::<crate::db::DatabaseState>();
                 let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
@@ -1092,7 +1127,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 let _ = app.emit("queue-changed", state.queue.to_event());
             } else if was_playing
                 && !snapshot.is_playing
-                && eng_snap.is_finished
+                && state.finished_consecutive_count >= 1
                 && !download_complete
             {
                 state.stalled_at_download_edge = true;
