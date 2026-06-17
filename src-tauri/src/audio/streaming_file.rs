@@ -58,18 +58,23 @@ impl Read for StreamingFile {
 impl Seek for StreamingFile {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         let available = self.meta.bytes_written.load(Ordering::Acquire);
+        let is_complete = self.meta.complete.load(Ordering::Acquire);
         let total_size = self.meta.total_size.load(Ordering::Acquire);
-        let effective_size = if total_size > 0 {
+
+        // When the download is still in progress, clamp seeks to the bytes
+        // that are actually on disk. Using total_size while incomplete would
+        // let the decoder seek into undownloaded territory and read garbage.
+        let effective_size = if is_complete && total_size > 0 {
             total_size
         } else {
             available
         };
 
         let new_pos = match pos {
-            SeekFrom::Start(n) => n,
+            SeekFrom::Start(n) => n.min(effective_size),
             SeekFrom::Current(n) => {
                 if n >= 0 {
-                    self.cursor.saturating_add(n as u64)
+                    self.cursor.saturating_add(n as u64).min(effective_size)
                 } else {
                     self.cursor.saturating_sub(n.unsigned_abs())
                 }

@@ -770,7 +770,33 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 AudioCommand::Seek { position_seconds } => {
                     let seek_start = Instant::now();
 
-                    let clamped_position = clamp_to_duration(position_seconds, state.duration_seconds);
+                    let mut clamped_position = clamp_to_duration(position_seconds, state.duration_seconds);
+
+                    // For incomplete downloads, clamp seeks to what is safely available.
+                    // Seeking past the downloaded edge causes the decoder to read garbage
+                    // (invalid MPEG headers, junk scanning) because the byte-level seek
+                    // lands in undownloaded territory or mid-frame.
+                    if let Some(ref meta) = state.download_meta {
+                        let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                        let total_size = meta.total_size.load(Ordering::Acquire);
+                        let complete = meta.complete.load(Ordering::Acquire);
+                        if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                            let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                            let seek_ratio = clamped_position / state.duration_seconds;
+                            // Keep a 5 % safety margin so we don't land exactly at the edge
+                            let safe_ratio = downloaded_ratio * 0.95;
+                            if seek_ratio > safe_ratio {
+                                let safe_position = safe_ratio * state.duration_seconds;
+                                log::warn!(
+                                    "Seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                    clamped_position,
+                                    safe_position,
+                                    downloaded_ratio * 100.0
+                                );
+                                clamped_position = safe_position.max(0.0);
+                            }
+                        }
+                    }
 
                     if (clamped_position - position_seconds).abs() > 1.0 {
                         log::debug!(
@@ -782,12 +808,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     }
 
                     if state.engine.has_active_playback() {
-                        if !state.engine.seek(clamped_position) {
+                        if state.engine.seek(clamped_position) {
+                            state.stored_position_seconds = clamped_position;
+                        } else {
                             log::warn!(
                                 "Seek failed in decoder (MP3 without seek table?), position unchanged"
                             );
                         }
-                        state.stored_position_seconds = clamped_position;
                     }
 
                     log::debug!("Seek command took {:?}", seek_start.elapsed());
@@ -810,13 +837,36 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
                     let target = current_position + direction * delta_seconds;
 
-                    let clamped_position = clamp_to_duration(target, state.duration_seconds);
+                    let mut clamped_position = clamp_to_duration(target, state.duration_seconds);
+
+                    // Same download-edge protection as AudioCommand::Seek
+                    if let Some(ref meta) = state.download_meta {
+                        let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                        let total_size = meta.total_size.load(Ordering::Acquire);
+                        let complete = meta.complete.load(Ordering::Acquire);
+                        if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                            let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                            let seek_ratio = clamped_position / state.duration_seconds;
+                            let safe_ratio = downloaded_ratio * 0.95;
+                            if seek_ratio > safe_ratio {
+                                let safe_position = safe_ratio * state.duration_seconds;
+                                log::warn!(
+                                    "Skip seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                    clamped_position,
+                                    safe_position,
+                                    downloaded_ratio * 100.0
+                                );
+                                clamped_position = safe_position.max(0.0);
+                            }
+                        }
+                    }
 
                     if state.engine.has_active_playback() {
-                        if !state.engine.seek(clamped_position) {
+                        if state.engine.seek(clamped_position) {
+                            state.stored_position_seconds = clamped_position;
+                        } else {
                             log::warn!("Skip seek failed in decoder, position unchanged");
                         }
-                        state.stored_position_seconds = clamped_position;
                     }
 
                     state.persist_session();
