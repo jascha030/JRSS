@@ -67,6 +67,10 @@ pub struct AudioThread {
     /// Whether `duration_seconds` came from the actual decoder rather than
     /// an RSS hint. Prevents clamping resume positions to incorrect durations.
     duration_from_decoder: bool,
+    /// Whether the current playback is using HTTP streaming (macOS AVPlayer)
+    /// rather than the local cache file. When true, the engine handles its
+    /// own buffering and seeking past the download edge.
+    is_streaming: bool,
     /// Cached engine snapshot from the last poll iteration. Used to serve
     /// GetState commands without blocking on the audio thread (AVPlayer).
     cached_engine_snapshot: PlaybackSnapshot,
@@ -93,6 +97,7 @@ impl AudioThread {
             manual_pause: false,
             finished_consecutive_count: 0,
             duration_from_decoder: false,
+            is_streaming: false,
             cached_engine_snapshot: PlaybackSnapshot::default(),
         }
     }
@@ -240,6 +245,17 @@ impl AudioThread {
             None
         };
 
+        let cache_complete = is_cache_complete(&cache_path);
+
+        #[cfg(target_os = "macos")]
+        let stream_url = if !cache_complete {
+            self.is_streaming = true;
+            Some(url.clone())
+        } else {
+            self.is_streaming = false;
+            None
+        };
+
         let config = PlayConfig {
             start_position_seconds: self.stored_position_seconds,
             duration_hint_seconds: self.duration_seconds,
@@ -247,6 +263,8 @@ impl AudioThread {
             speed: self.speed,
             byte_len_hint,
             file_path: Some(cache_path.clone()),
+            #[cfg(target_os = "macos")]
+            stream_url,
             #[cfg(target_os = "macos")]
             title: self.current_item_title.clone(),
             #[cfg(target_os = "macos")]
@@ -328,6 +346,7 @@ impl AudioThread {
         self.manual_pause = false;
         self.finished_consecutive_count = 0;
         self.duration_from_decoder = false;
+        self.is_streaming = false;
     }
 
     fn hydrate_metadata(&mut self, item_id: &str) {
@@ -776,24 +795,27 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     // Seeking past the downloaded edge causes the decoder to read garbage
                     // (invalid MPEG headers, junk scanning) because the byte-level seek
                     // lands in undownloaded territory or mid-frame.
-                    if let Some(ref meta) = state.download_meta {
-                        let bytes_written = meta.bytes_written.load(Ordering::Acquire);
-                        let total_size = meta.total_size.load(Ordering::Acquire);
-                        let complete = meta.complete.load(Ordering::Acquire);
-                        if !complete && total_size > 0 && state.duration_seconds > 0.0 {
-                            let downloaded_ratio = bytes_written as f64 / total_size as f64;
-                            let seek_ratio = clamped_position / state.duration_seconds;
-                            // Keep a 5 % safety margin so we don't land exactly at the edge
-                            let safe_ratio = downloaded_ratio * 0.95;
-                            if seek_ratio > safe_ratio {
-                                let safe_position = safe_ratio * state.duration_seconds;
-                                log::warn!(
-                                    "Seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
-                                    clamped_position,
-                                    safe_position,
-                                    downloaded_ratio * 100.0
-                                );
-                                clamped_position = safe_position.max(0.0);
+                    // Skip this clamping when streaming — AVPlayer handles range requests.
+                    if !state.is_streaming {
+                        if let Some(ref meta) = state.download_meta {
+                            let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                            let total_size = meta.total_size.load(Ordering::Acquire);
+                            let complete = meta.complete.load(Ordering::Acquire);
+                            if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                                let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                                let seek_ratio = clamped_position / state.duration_seconds;
+                                // Keep a 5 % safety margin so we don't land exactly at the edge
+                                let safe_ratio = downloaded_ratio * 0.95;
+                                if seek_ratio > safe_ratio {
+                                    let safe_position = safe_ratio * state.duration_seconds;
+                                    log::warn!(
+                                        "Seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                        clamped_position,
+                                        safe_position,
+                                        downloaded_ratio * 100.0
+                                    );
+                                    clamped_position = safe_position.max(0.0);
+                                }
                             }
                         }
                     }
@@ -840,23 +862,26 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let mut clamped_position = clamp_to_duration(target, state.duration_seconds);
 
                     // Same download-edge protection as AudioCommand::Seek
-                    if let Some(ref meta) = state.download_meta {
-                        let bytes_written = meta.bytes_written.load(Ordering::Acquire);
-                        let total_size = meta.total_size.load(Ordering::Acquire);
-                        let complete = meta.complete.load(Ordering::Acquire);
-                        if !complete && total_size > 0 && state.duration_seconds > 0.0 {
-                            let downloaded_ratio = bytes_written as f64 / total_size as f64;
-                            let seek_ratio = clamped_position / state.duration_seconds;
-                            let safe_ratio = downloaded_ratio * 0.95;
-                            if seek_ratio > safe_ratio {
-                                let safe_position = safe_ratio * state.duration_seconds;
-                                log::warn!(
-                                    "Skip seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
-                                    clamped_position,
-                                    safe_position,
-                                    downloaded_ratio * 100.0
-                                );
-                                clamped_position = safe_position.max(0.0);
+                    // Skip when streaming — AVPlayer handles range requests.
+                    if !state.is_streaming {
+                        if let Some(ref meta) = state.download_meta {
+                            let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                            let total_size = meta.total_size.load(Ordering::Acquire);
+                            let complete = meta.complete.load(Ordering::Acquire);
+                            if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                                let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                                let seek_ratio = clamped_position / state.duration_seconds;
+                                let safe_ratio = downloaded_ratio * 0.95;
+                                if seek_ratio > safe_ratio {
+                                    let safe_position = safe_ratio * state.duration_seconds;
+                                    log::warn!(
+                                        "Skip seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                        clamped_position,
+                                        safe_position,
+                                        downloaded_ratio * 100.0
+                                    );
+                                    clamped_position = safe_position.max(0.0);
+                                }
                             }
                         }
                     }
@@ -1114,7 +1139,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
             }
 
-            if state.stalled_at_download_edge && download_complete {
+            if state.stalled_at_download_edge && download_complete && !state.is_streaming {
                 log::info!("Download completed after stall; resuming current item");
                 match resume_current_item(&mut state) {
                     Ok(()) => {
@@ -1144,9 +1169,17 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 state.persist_session();
             }
 
-            // Auto-advance only after a true natural end on a fully cached file.
-            // Require two consecutive finished ticks to de-bounce decoder stalls.
-            if was_playing && !snapshot.is_playing && state.finished_consecutive_count >= 2 && download_complete {
+            // Auto-advance only after a true natural end. When streaming,
+            // AVPlayer handles its own buffering so auto-advance does not
+            // require the cache to be complete. Otherwise, require a fully
+            // cached file to de-bounce decoder stalls at the download edge.
+            let auto_advance_ready = if state.is_streaming {
+                state.finished_consecutive_count >= 2
+            } else {
+                state.finished_consecutive_count >= 2 && download_complete
+            };
+
+            if was_playing && !snapshot.is_playing && auto_advance_ready {
                 let finished_item_id = snapshot.item_id.clone();
                 let db = app.state::<crate::db::DatabaseState>();
                 let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
@@ -1179,6 +1212,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 && !snapshot.is_playing
                 && state.finished_consecutive_count >= 1
                 && !download_complete
+                && !state.is_streaming
             {
                 state.stalled_at_download_edge = true;
                 state.stored_position_seconds = snapshot.position_seconds;

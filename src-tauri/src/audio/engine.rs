@@ -42,6 +42,11 @@ pub struct PlayConfig {
     /// file URL (e.g. AVPlayer) use this instead of the [`StreamingFile`]
     /// stream handle.
     pub file_path: Option<std::path::PathBuf>,
+    /// Original HTTP URL for the media file. macOS engines (AVPlayer) use
+    /// this to enable native HTTP streaming when the local cache is still
+    /// incomplete. When `None`, the engine falls back to `file_path`.
+    #[cfg(target_os = "macos")]
+    pub stream_url: Option<String>,
     /// Episode title — used on macOS to populate `MPNowPlayingInfoCenter`
     /// from the main thread, preventing a NULL-client crash in `BTAudioHALPlugin`
     /// during Bluetooth spatial audio property changes.

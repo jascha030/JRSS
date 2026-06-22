@@ -53,6 +53,7 @@ const MP_STATE_STOPPED: u64 = 3;
 enum AvCmd {
 	Play {
 		file_path: String,
+		stream_url: Option<String>,
 		start_position: f64,
 		volume: f32,
 		speed: f32,
@@ -72,6 +73,16 @@ enum AvCmd {
 		speed: f32,
 	},
 	GetSnapshot,
+}
+
+struct PlayParams {
+	file_path: String,
+	stream_url: Option<String>,
+	start_position: f64,
+	volume: f32,
+	speed: f32,
+	title: String,
+	artist: String,
 }
 
 /// Collapsed state snapshot — one round-trip replaces four separate queries.
@@ -124,16 +135,25 @@ impl AvActor {
 		}
 	}
 
-	fn handle_cmd(&mut self, cmd: AvCmd) -> AvResp {
-		match cmd {
-			AvCmd::Play {
+    fn handle_cmd(&mut self, cmd: AvCmd) -> AvResp {
+        match cmd {
+            AvCmd::Play {
+                file_path,
+                stream_url,
+                start_position,
+                volume,
+                speed,
+                title,
+                artist,
+            } => self.play(PlayParams {
 				file_path,
+				stream_url,
 				start_position,
 				volume,
 				speed,
 				title,
 				artist,
-			} => self.play(&file_path, start_position, volume, speed, &title, &artist),
+			}),
 			AvCmd::Pause => {
 				self.pause();
 				AvResp::Ok
@@ -162,60 +182,60 @@ impl AvActor {
 		}
 	}
 
-	fn play(
-		&mut self,
-		file_path: &str,
-		start_position: f64,
-		volume: f32,
-		speed: f32,
-		title: &str,
-		artist: &str,
-	) -> AvResp {
+	fn play(&mut self, params: PlayParams) -> AvResp {
 		// SAFETY: called exclusively on the dedicated serial queue via dispatch
 		// trampoline. The queue is the only thread touching this actor.
 		let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
-		self.current_title = title.to_owned();
-		self.current_artist = artist.to_owned();
-		self.desired_speed = speed;
+		self.current_title = params.title;
+		self.current_artist = params.artist;
+		self.desired_speed = params.speed;
 
-		let path_ns = NSString::from_str(file_path);
-		let url = NSURL::fileURLWithPath(&path_ns);
-		let item = unsafe { AVPlayerItem::playerItemWithURL(&url, mtm) };
+		let url: Option<Retained<NSURL>> = if let Some(ref url_str) = params.stream_url {
+			let url_ns = NSString::from_str(url_str);
+			NSURL::URLWithString(&url_ns)
+		} else {
+			let path_ns = NSString::from_str(&params.file_path);
+			Some(NSURL::fileURLWithPath(&path_ns))
+		};
+		let Some(ref url) = url else {
+			return AvResp::Ok;
+		};
+		let item = unsafe { AVPlayerItem::playerItemWithURL(url, mtm) };
 
 		match self.player.as_deref() {
 			Some(player) => {
 				unsafe {
-					player.replaceCurrentItemWithPlayerItem(Some(&item));
-					player.setVolume(volume);
-					if start_position > 0.0 {
-						let time = CMTime::with_seconds(start_position, 1_000);
-						player.seekToTime(time);
-					}
-					if (speed - 1.0).abs() < 0.01 {
-						player.play();
-					} else {
-						player.setRate(speed);
-					}
+				player.replaceCurrentItemWithPlayerItem(Some(&item));
+				player.setVolume(params.volume);
+				if params.start_position > 0.0 {
+					let time = CMTime::with_seconds(params.start_position, 1_000);
+					player.seekToTime(time);
 				}
-				self.last_duration = item_duration(&item).unwrap_or(0.0);
-				self.current_item = Some(item);
+				if (params.speed - 1.0).abs() < 0.01 {
+					player.play();
+				} else {
+					player.setRate(params.speed);
+				}
 			}
-			None => {
-				let player =
-					unsafe { AVPlayer::initWithPlayerItem(AVPlayer::alloc(mtm), Some(&item)) };
-				unsafe {
-					player.setVolume(volume);
-					if start_position > 0.0 {
-						let time = CMTime::with_seconds(start_position, 1_000);
-						player.seekToTime(time);
-					}
-					if (speed - 1.0).abs() < 0.01 {
-						player.play();
-					} else {
-						player.setRate(speed);
-					}
+			self.last_duration = item_duration(&item).unwrap_or(0.0);
+			self.current_item = Some(item);
+		}
+		None => {
+			let player =
+				unsafe { AVPlayer::initWithPlayerItem(AVPlayer::alloc(mtm), Some(&item)) };
+			unsafe {
+				player.setVolume(params.volume);
+				if params.start_position > 0.0 {
+					let time = CMTime::with_seconds(params.start_position, 1_000);
+					player.seekToTime(time);
 				}
+				if (params.speed - 1.0).abs() < 0.01 {
+					player.play();
+				} else {
+					player.setRate(params.speed);
+				}
+			}
 				self.last_duration = item_duration(&item).unwrap_or(0.0);
 				self.current_item = Some(item);
 				self.player = Some(player);
@@ -578,6 +598,7 @@ impl PlaybackEngine for AvEngine {
 
 		let cmd = AvCmd::Play {
 			file_path: path.to_string_lossy().into_owned(),
+			stream_url: config.stream_url,
 			start_position: config.start_position_seconds,
 			volume: config.volume,
 			speed: config.speed,
