@@ -85,12 +85,12 @@
 					data-tauri-drag-region
 				></div>
 				<div class="flex-row flex gap-4 items-center pb-2">
-					<Avatar class="hidden aspect-square h-[94px] w-[94px] rounded-md shadow-sm sm:block">
+					<Avatar class="hidden aspect-square h-[110px] w-[110px] rounded-md shadow-sm sm:block">
 						{#if imageUrl}
 							<Avatar.Image
 								src={artwork.activeEpisodeUrl ?? artwork.activeFallbackUrl}
 								alt=""
-								class="aspect-square h-[94px] w-[94px]"
+								class="aspect-square h-[110px] w-[110px]"
 							/>
 						{/if}
 						<Avatar.Fallback
@@ -104,7 +104,7 @@
 							<Info
 								{item}
 								imageUrl={artwork.activeEpisodeUrl ?? artwork.activeFallbackUrl}
-								compact={true}
+								compact={false}
 								showCover={false}
 								class="mb-2 justify-center"
 							/>
@@ -146,37 +146,6 @@
 						</div>
 					</div>
 				</div>
-				<!-- <div class="flex items-center gap-3"> -->
-				<!---->
-				<!---->
-
-				<!---->
-				<!-- 	<button -->
-				<!-- 		class="preset-icon-subtle btn-icon size-5 shrink-0 rounded-xl" -->
-				<!-- 		type="button" -->
-				<!-- 		onclick={volumeControl.toggleMute} -->
-				<!-- 		aria-label={volumeControl.isMuted ? 'Unmute' : 'Mute'} -->
-				<!-- 		aria-pressed={volumeControl.isMuted} -->
-				<!-- 	> -->
-				<!-- 		{#if volumeControl.isMuted || volumeControl.effectiveVolume === 0} -->
-				<!-- 			<Icon icon="lucide:volume-x" class="size-5" /> -->
-				<!-- 		{:else if volumeControl.effectiveVolume < 0.5} -->
-				<!-- 			<Icon icon="lucide:volume-1" class="size-5" /> -->
-				<!-- 		{:else} -->
-				<!-- 			<Icon icon="lucide:volume-2" class="size-5" /> -->
-				<!-- 		{/if} -->
-				<!-- 	</button> -->
-				<!---->
-				<!-- </div> -->
-				<!---->
-				<!-- <div class="mt-1"> -->
-				<!-- 	<SeekBar -->
-				<!-- 		{playbackState} -->
-				<!-- 		durationSeconds={item.mediaEnclosure.durationSeconds ?? 0} -->
-				<!-- 		showTimeLabels={false} -->
-				<!-- 		class="min-w-0" -->
-				<!-- 	/> -->
-				<!-- </div> -->
 			</div>
 		{:else}
 			<div class="flex h-full w-full items-center justify-between px-4 text-fg-muted">
