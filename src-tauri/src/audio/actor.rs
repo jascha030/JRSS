@@ -1232,7 +1232,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 );
             }
 
-            was_playing = snapshot.is_playing;
+            if !eng_snap.is_finished {
+                was_playing = snapshot.is_playing;
+            }
         }
     }
 }
