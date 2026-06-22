@@ -26,7 +26,8 @@ struct CGSize {
 // SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
 #[cfg(target_os = "macos")]
 unsafe impl objc2::Encode for CGSize {
-    const ENCODING: objc2::Encoding = objc2::Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+    const ENCODING: objc2::Encoding =
+        objc2::Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
 }
 
 #[cfg(target_os = "macos")]
@@ -632,12 +633,8 @@ pub async fn get_cached_image_path(
     })
     .await?;
 
-    let bytes =
-        std::fs::read(&path).map_err(|e| format!("Failed to read cached image: {e}"))?;
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("jpg");
+    let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read cached image: {e}"))?;
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
     let mime_type = match ext {
         "png" => "image/png",
         "gif" => "image/gif",
@@ -688,6 +685,58 @@ pub fn set_window_content_aspect_ratio(
     Ok(())
 }
 
+const MIN_WIDTH: f64 = 340.0;
+const COMPACT_HEIGHT: f64 = 170.0;
+const EXPANDED_MAX: f64 = 800.0;
+const EXPANDED_MIN_HEIGHT: f64 = 340.0;
+const TRANSITION_MIN_HEIGHT: f64 = 80.0;
+
+fn current_logical_width(window: &tauri::WebviewWindow) -> Result<f64, String> {
+    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    Ok(size.to_logical::<f64>(scale).width)
+}
+
+fn apply_compact_mode(window: &tauri::WebviewWindow, width: f64) -> Result<(), String> {
+    clear_macos_window_content_aspect_ratio(window)?;
+
+    set_min_size(window, MIN_WIDTH, COMPACT_HEIGHT)?;
+    set_size(window, width, COMPACT_HEIGHT)?;
+    set_max_size(window, EXPANDED_MAX, COMPACT_HEIGHT)?;
+
+    Ok(())
+}
+
+fn apply_expanded_mode(window: &tauri::WebviewWindow, width: f64) -> Result<(), String> {
+    set_max_size(window, EXPANDED_MAX, EXPANDED_MAX)?;
+    set_min_size(window, MIN_WIDTH, TRANSITION_MIN_HEIGHT)?;
+    set_size(window, width, width)?;
+
+    set_macos_window_content_aspect_ratio(window, 1.0, 1.0)?;
+
+    set_min_size(window, MIN_WIDTH, EXPANDED_MIN_HEIGHT)?;
+
+    Ok(())
+}
+
+fn set_size(window: &tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|e| e.to_string())
+}
+
+fn set_min_size(window: &tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_min_size(Some(tauri::LogicalSize::new(width, height)))
+        .map_err(|e| e.to_string())
+}
+
+fn set_max_size(window: &tauri::WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_max_size(Some(tauri::LogicalSize::new(width, height)))
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn resize_mini_player(
     app: tauri::AppHandle,
@@ -698,64 +747,16 @@ pub fn resize_mini_player(
         .get_webview_window(&label)
         .ok_or_else(|| format!("Window '{label}' not found."))?;
 
-    // Skip the mutation if the user is actively dragging the resize handle.
-    // AppKit internal state is unstable during live resize and multiple
-    // constraint/frame changes can cause a re-entrant crash.
     if is_macos_window_in_live_resize(&window)? {
         return Ok(());
     }
 
-    let current_size = window.inner_size().map_err(|e| e.to_string())?;
-    let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
-    let logical_size = current_size.to_logical::<f64>(scale_factor);
+    let width = current_logical_width(&window)?.max(MIN_WIDTH);
+
     if compact {
-        // Remove the 1:1 aspect lock using a valid AppKit pattern.
-        // setContentAspectRatio:0x0 is not documented as a "clear" value.
-        clear_macos_window_content_aspect_ratio(&window)?;
-
-        // Relax minimum size so the compact height is allowed.
-        window
-            .set_min_size(Some(tauri::LogicalSize::new(340.0, 160.0)))
-            .map_err(|e| e.to_string())?;
-
-        // Shrink to compact bar height, preserving current width but clamping to min.
-        window
-            .set_size(tauri::LogicalSize::new(
-                logical_size.width.max(340.0),
-                160.0,
-            ))
-            .map_err(|e| e.to_string())?;
-
-        // Pin the height so the user cannot resize vertically.
-        window
-            .set_max_size(Some(tauri::LogicalSize::new(800.0, 160.0)))
-            .map_err(|e| e.to_string())?;
+        apply_compact_mode(&window, width)?;
     } else {
-        // Relax max height so the window can grow back to square.
-        window
-            .set_max_size(Some(tauri::LogicalSize::new(800.0, 800.0)))
-            .map_err(|e| e.to_string())?;
-
-        // Make sure constraints allow the transition first.
-        window
-            .set_min_size(Some(tauri::LogicalSize::new(340.0, 80.0)))
-            .map_err(|e| e.to_string())?;
-
-        // Restore square size before locking the aspect ratio.
-        window
-            .set_size(tauri::LogicalSize::new(
-                logical_size.width.max(340.0),
-                logical_size.width.max(340.0),
-            ))
-            .map_err(|e| e.to_string())?;
-
-        // Apply the aspect lock only after the frame is already square.
-        set_macos_window_content_aspect_ratio(&window, 1.0, 1.0)?;
-
-        // Restore original minimum size now the window is at a valid square frame.
-        window
-            .set_min_size(Some(tauri::LogicalSize::new(340.0, 340.0)))
-            .map_err(|e| e.to_string())?;
+        apply_expanded_mode(&window, width)?;
     }
 
     Ok(())
