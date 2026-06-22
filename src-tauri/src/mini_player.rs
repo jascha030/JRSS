@@ -2,7 +2,7 @@
 //! Prevents fullscreen-space ghosting by observing NSWindowDidExitFullScreenNotification.
 
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, WebviewWindow};
 
 #[cfg(target_os = "macos")]
 use objc2::ffi::nil;
@@ -347,6 +347,178 @@ fn restore_main_window_native_macos(
         .map_err(|e| format!("Timed out waiting for window restore: {e}"))?;
 
     let _ = mini_window.destroy().map_err(|e| e.to_string());
+
+    Ok(())
+}
+
+// CGSize ABI on 64-bit macOS: {CGFloat CGFloat} = {double double}.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+struct CGSize {
+    width: f64,
+    height: f64,
+}
+
+// SAFETY: CGSize is `{CGFloat CGFloat}` in Objective-C on 64-bit, matching this repr(C) layout.
+#[cfg(target_os = "macos")]
+unsafe impl objc2::Encode for CGSize {
+    const ENCODING: objc2::Encoding =
+        objc2::Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+}
+
+#[cfg(target_os = "macos")]
+fn set_macos_window_content_aspect_ratio(
+    window: &WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
+    let size = CGSize { width, height };
+    unsafe { msg_send![ns_window, setContentAspectRatio: size] }
+
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn clear_macos_window_content_aspect_ratio(window: &WebviewWindow) -> Result<(), String> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
+    let increments = CGSize {
+        width: 1.0,
+        height: 1.0,
+    };
+    // SAFETY: Calling setResizeIncrements: with {1,1} restores freeform resizing, which
+    // is the standard way to remove an aspect-ratio lock on AppKit.
+    unsafe { msg_send![ns_window, setResizeIncrements: increments] }
+
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn is_macos_window_in_live_resize(window: &WebviewWindow) -> Result<bool, String> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+
+    let ns_window = window.ns_window().map_err(|error| error.to_string())? as *mut AnyObject;
+    // SAFETY: inLiveResize is a standard BOOL property on NSWindow.
+    let in_live: bool = unsafe { msg_send![ns_window, inLiveResize] };
+
+    Ok(in_live)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_macos_window_content_aspect_ratio(
+    _window: &WebviewWindow,
+    _width: f64,
+    _height: f64,
+) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn clear_macos_window_content_aspect_ratio(_window: &WebviewWindow) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn is_macos_window_in_live_resize(_window: &WebviewWindow) -> Result<bool, String> {
+    Ok(false)
+}
+
+const MIN_WIDTH: f64 = 340.0;
+const COMPACT_HEIGHT: f64 = 170.0;
+const EXPANDED_MAX: f64 = 800.0;
+const EXPANDED_MIN_HEIGHT: f64 = 340.0;
+const TRANSITION_MIN_HEIGHT: f64 = 80.0;
+
+fn current_logical_width(window: &WebviewWindow) -> Result<f64, String> {
+    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    Ok(size.to_logical::<f64>(scale).width)
+}
+
+fn apply_compact_mode(window: &WebviewWindow, width: f64) -> Result<(), String> {
+    clear_macos_window_content_aspect_ratio(window)?;
+
+    set_min_size(window, MIN_WIDTH, COMPACT_HEIGHT)?;
+    set_size(window, width, COMPACT_HEIGHT)?;
+    set_max_size(window, EXPANDED_MAX, COMPACT_HEIGHT)?;
+
+    Ok(())
+}
+
+fn apply_expanded_mode(window: &WebviewWindow, width: f64) -> Result<(), String> {
+    set_max_size(window, EXPANDED_MAX, EXPANDED_MAX)?;
+    set_min_size(window, MIN_WIDTH, TRANSITION_MIN_HEIGHT)?;
+    set_size(window, width, width)?;
+
+    set_macos_window_content_aspect_ratio(window, 1.0, 1.0)?;
+
+    set_min_size(window, MIN_WIDTH, EXPANDED_MIN_HEIGHT)?;
+
+    Ok(())
+}
+
+fn set_size(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|e| e.to_string())
+}
+
+fn set_min_size(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_min_size(Some(tauri::LogicalSize::new(width, height)))
+        .map_err(|e| e.to_string())
+}
+
+fn set_max_size(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    window
+        .set_max_size(Some(tauri::LogicalSize::new(width, height)))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_window_content_aspect_ratio(
+    app: tauri::AppHandle,
+    label: String,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Window '{label}' not found."))?;
+
+    set_macos_window_content_aspect_ratio(&window, width, height)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn resize_mini_player(
+    app: tauri::AppHandle,
+    label: String,
+    compact: bool,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Window '{label}' not found."))?;
+
+    if is_macos_window_in_live_resize(&window)? {
+        return Ok(());
+    }
+
+    let width = current_logical_width(&window)?.max(MIN_WIDTH);
+
+    if compact {
+        apply_compact_mode(&window, width)?;
+    } else {
+        apply_expanded_mode(&window, width)?;
+    }
 
     Ok(())
 }

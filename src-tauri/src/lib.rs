@@ -151,8 +151,8 @@ pub fn run() {
             commands::clear_audio_cache,
             commands::get_cached_image_path,
             commands::get_cached_image_dimensions,
-            commands::set_window_content_aspect_ratio,
-            commands::resize_mini_player,
+            mini_player::set_window_content_aspect_ratio,
+            mini_player::resize_mini_player,
             mini_player::open_mini_player_native,
             mini_player::restore_main_window_native
         ]);
