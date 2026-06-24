@@ -25,3 +25,4 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /report.txt
+/.memsearch
