@@ -50,6 +50,7 @@
 			label="Previous episode"
 			disabled={!canSkipPrevious}
 			onclick={onPreviousEpisode}
+			class={`${isAudioLoading() && 'invisible'}`}
 		/>
 	{/if}
 
@@ -59,6 +60,7 @@
 		iconClass={sizes.skip}
 		label={`Back ${skipBackwardSeconds} seconds`}
 		onclick={() => onSkip(-skipBackwardSeconds)}
+		class={`${isAudioLoading() && 'invisible'}`}
 	/>
 
 	<button
@@ -86,6 +88,7 @@
 		iconClass={sizes.skip}
 		label={`Forward ${skipForwardSeconds} seconds`}
 		onclick={() => onSkip(skipForwardSeconds)}
+		class={`${isAudioLoading() && 'invisible'}`}
 	/>
 
 	{#if onNextEpisode}
@@ -96,6 +99,7 @@
 			label="Next episode"
 			disabled={!canSkipNext}
 			onclick={onNextEpisode}
+			class={`${isAudioLoading() && 'invisible'}`}
 		/>
 	{/if}
 </div>
