@@ -2,6 +2,7 @@ import { invokeCommand, isTauriRuntime } from '$lib/services/tauri';
 import type {
 	FeedItem,
 	FeedListItem,
+	ItemLocalStatus,
 	ItemPage,
 	ItemPageQuery,
 	RawFeedItem,
@@ -50,6 +51,14 @@ export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> 
 
 	const raw = await invokeCommand<RawFeedListItem[]>('get_items_by_ids', { itemIds });
 	return raw.map(mapRawFeedListItem);
+}
+
+export async function getItemsLocalStatus(itemIds: string[]): Promise<ItemLocalStatus[]> {
+	if (itemIds.length === 0 || !isTauriRuntime()) {
+		return [];
+	}
+
+	return invokeCommand<ItemLocalStatus[]>('get_items_local_status', { itemIds });
 }
 
 export async function queryItems(query: ItemPageQuery): Promise<ItemPage<FeedListItem>> {

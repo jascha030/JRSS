@@ -10,6 +10,12 @@ export interface MediaEnclosure {
 	durationSeconds?: number;
 }
 
+export interface ItemLocalStatus {
+	itemId: string;
+	isCached: boolean;
+	isExported: boolean;
+}
+
 interface FeedListItemBase {
 	id: string;
 	feedId: string;
@@ -27,6 +33,8 @@ interface FeedListItemBase {
 	favorite: boolean;
 	playbackPositionSeconds: number;
 	imageUrl?: string;
+	episodeNumber?: number;
+	seasonNumber?: number;
 }
 
 export interface ArticleListItem extends FeedListItemBase {

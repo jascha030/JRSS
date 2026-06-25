@@ -149,7 +149,6 @@ pub fn update_station(
         .transaction()
         .map_err(|error| format!("Failed to open transaction: {error}"))?;
 
-    // Fetch existing station
     let existing = transaction
         .query_row(
             "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
@@ -232,7 +231,6 @@ pub fn query_station_episodes(
     let safe_limit = limit.clamp(1, 500);
     let safe_offset = offset.max(0);
 
-    // Load station metadata
     let station = connection
         .query_row(
             "SELECT id, name, episode_filter, sort_order, sort_order_position, created_at, gradient
@@ -265,7 +263,6 @@ pub fn query_station_episodes(
     // Only podcast episodes (items with enclosures)
     let enclosure_clause = " AND i.enclosure_url IS NOT NULL";
 
-    // Search clause
     let search_pattern = search
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())

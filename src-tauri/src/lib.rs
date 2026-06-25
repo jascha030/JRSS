@@ -5,6 +5,7 @@ mod auto_refresh;
 mod commands;
 mod cover_art;
 mod db;
+mod export;
 mod feed_ingest;
 mod image_cache;
 mod menu;
@@ -29,6 +30,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_sharekit::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 // Hide window instead of closing on macOS
@@ -98,6 +100,8 @@ pub fn run() {
             commands::remove_feed,
             commands::search_podcasts,
             commands::fetch_feed_raw,
+            commands::export_feed,
+            commands::get_items_local_status,
             commands::get_item_details,
             commands::mark_read,
             commands::mark_read_batch,

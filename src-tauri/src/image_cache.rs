@@ -62,6 +62,8 @@ impl ImageCache {
 
     fn initialize_metadata_db(&self) -> Result<(), String> {
         let conn = self.open_metadata_db()?;
+        conn.execute_batch("PRAGMA journal_mode = WAL;")
+            .map_err(|e| format!("Failed to enable WAL mode for image cache metadata DB: {e}"))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS images (
                 url_hash TEXT PRIMARY KEY,

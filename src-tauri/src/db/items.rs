@@ -15,7 +15,7 @@ const ITEM_SELECT_QUERY: &str =
 			 i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
 			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
-			 i.image_url
+			 i.image_url, i.episode_number, i.season_number
 		 FROM items i
 		 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -24,7 +24,7 @@ pub const ITEM_LIST_SELECT_QUERY: &str = "SELECT i.id, i.feed_id, i.title, i.url
 			 i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
 			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
-			 i.image_url
+			 i.image_url, i.episode_number, i.season_number
 			 FROM items i
 			 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -280,7 +280,6 @@ pub fn query_items(
         });
     }
 
-    // Build query clauses
     let placeholders: Vec<String> = (1..=feed_ids.len()).map(|i| format!("?{i}")).collect();
     let feed_filter = format!("i.feed_id IN ({})", placeholders.join(", "));
 
@@ -303,7 +302,6 @@ pub fn query_items(
         ""
     };
 
-    // Search clause
     let search_pattern = query
         .search
         .as_deref()
@@ -314,7 +312,6 @@ pub fn query_items(
     // Determine sort order
     let order_by = query.sort_order.order_by_clause();
 
-    // Build and execute count query
     let search_param_idx = feed_ids.len() + 1;
     let section_clauses = format!("{episode_clause}{media_clause}{favorites_clause}");
 
@@ -349,7 +346,6 @@ pub fn query_items(
             .map_err(|error| format!("Failed to count items: {error}"))?
     };
 
-    // Build and execute page query
     let limit_idx = if search_pattern.is_some() {
         feed_ids.len() + 2
     } else {
@@ -415,6 +411,77 @@ pub fn get_unread_counts_by_feed(db_path: &Path) -> AppResult<HashMap<String, i6
     Ok(result)
 }
 
+pub fn get_exported_file_for_item(db_path: &Path, item_id: &str) -> AppResult<Option<String>> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .query_row(
+            "SELECT local_path FROM exported_files WHERE item_id = ?1",
+            [item_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("Failed to query exported file: {error}"))
+}
+
+pub fn upsert_exported_file(
+    db_path: &Path,
+    item_id: &str,
+    feed_id: &str,
+    local_path: &str,
+) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "INSERT INTO exported_files (item_id, feed_id, local_path, exported_at)
+			 VALUES (?1, ?2, ?3, ?4)
+			 ON CONFLICT(item_id) DO UPDATE SET
+			 	feed_id = excluded.feed_id,
+			 	local_path = excluded.local_path,
+			 	exported_at = excluded.exported_at",
+            params![item_id, feed_id, local_path, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to upsert exported file: {error}"))?;
+
+    Ok(())
+}
+
+pub fn delete_exported_files_for_feed(db_path: &Path, feed_id: &str) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "DELETE FROM exported_files WHERE feed_id = ?1",
+            [feed_id],
+        )
+        .map_err(|error| format!("Failed to delete exported files: {error}"))?;
+
+    Ok(())
+}
+
+pub fn get_feed_items_with_enclosures(
+    db_path: &Path,
+    feed_id: &str,
+) -> AppResult<Vec<FeedItemRecord>> {
+    let connection = open_connection(db_path)?;
+
+    let mut statement = connection
+        .prepare(&format!(
+            "{} WHERE i.feed_id = ?1 AND i.enclosure_url IS NOT NULL ORDER BY i.published_at DESC",
+            ITEM_SELECT_QUERY
+        ))
+        .map_err(|error| format!("Failed to prepare feed items query: {error}"))?;
+
+    let items = statement
+        .query_map([feed_id], map_item_row)
+        .map_err(|error| format!("Failed to query feed items: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read feed items: {error}"))?;
+
+    Ok(items)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -458,6 +525,8 @@ mod tests {
                     published_at: "2024-01-01T00:00:00Z".to_string(),
                     media_enclosure: None,
                     image_url: None,
+                    episode_number: None,
+                    season_number: None,
                 }],
             },
         )

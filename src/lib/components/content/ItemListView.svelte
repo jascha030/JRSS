@@ -32,6 +32,7 @@
 		hasActiveSearch: boolean;
 		showFeedTitle: boolean;
 		feedTitleById: Map<string, string>;
+		localStatusById: Record<string, { isCached: boolean; isExported: boolean }>;
 		isInitialLoading: boolean;
 		isQueryTransitioning: boolean;
 		scrollToItemRequest: typeof appUi.scrollToItemRequest;
@@ -52,6 +53,7 @@
 		hasActiveSearch,
 		showFeedTitle,
 		feedTitleById,
+		localStatusById,
 		isInitialLoading,
 		isQueryTransitioning,
 		scrollToItemRequest,
@@ -303,6 +305,22 @@
 															<span class="badge preset-filled-primary-500 text-xs">
 																<Icon icon="heroicons:microphone" /> Podcast
 															</span>
+															{@const status = localStatusById[item.id]}
+															{#if status?.isExported}
+																<span
+																	class="badge preset-filled-success-500 text-xs"
+																	title="Exported"
+																>
+																	<Icon icon="heroicons:arrow-down-on-square-solid" />
+																</span>
+															{:else if status?.isCached}
+																<span
+																	class="badge preset-filled-warning-500 text-xs"
+																	title="Cached"
+																>
+																	<Icon icon="heroicons:cloud-arrow-down-solid" />
+																</span>
+															{/if}
 														{:else}
 															<span class="badge preset-filled-primary-500 text-xs">
 																<Icon icon="heroicons:book-open" /> Article

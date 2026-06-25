@@ -4,6 +4,7 @@ import { isMediaItem } from '$lib/types/item';
 import {
 	getItemDetails,
 	getItemsByIds,
+	getItemsLocalStatus,
 	markFavorite,
 	markFavoriteBatch,
 	markRead,
@@ -34,7 +35,8 @@ export const itemsState = $state({
 	totalCountByQueryKey: {} as Record<QueryKey, number>,
 	loadedPageOffsetsByQueryKey: {} as Record<QueryKey, PageOffsets>,
 	loadingPageOffsetsByQueryKey: {} as Record<QueryKey, PageOffsets>,
-	initialLoadDoneByQueryKey: {} as Record<QueryKey, boolean>
+	initialLoadDoneByQueryKey: {} as Record<QueryKey, boolean>,
+	localStatusById: {} as Record<string, { isCached: boolean; isExported: boolean }>
 });
 
 export function resetItemsState(): void {
@@ -45,6 +47,7 @@ export function resetItemsState(): void {
 	itemsState.loadedPageOffsetsByQueryKey = {};
 	itemsState.loadingPageOffsetsByQueryKey = {};
 	itemsState.initialLoadDoneByQueryKey = {};
+	itemsState.localStatusById = {};
 }
 
 export function invalidateAllQueries(): void {
@@ -183,6 +186,24 @@ export function mergeDetailedItem(item: FeedItem): void {
 	storeItemDetails(item);
 }
 
+async function loadLocalStatusForItems(itemIds: string[]): Promise<void> {
+	if (itemIds.length === 0) {
+		return;
+	}
+
+	try {
+		const statuses = await getItemsLocalStatus(itemIds);
+		for (const status of statuses) {
+			itemsState.localStatusById[status.itemId] = {
+				isCached: status.isCached,
+				isExported: status.isExported
+			};
+		}
+	} catch {
+		// Silently ignore local status failures
+	}
+}
+
 function mergeItemsPage(
 	queryKey: QueryKey,
 	offset: number,
@@ -200,6 +221,9 @@ function mergeItemsPage(
 	itemsState.totalCountByQueryKey[queryKey] = totalCount;
 	itemsState.loadedPageOffsetsByQueryKey[queryKey][offset] = true;
 	itemsState.initialLoadDoneByQueryKey[queryKey] = true;
+
+	const mediaItemIds = items.filter(isMediaItem).map((item) => item.id);
+	void loadLocalStatusForItems(mediaItemIds);
 }
 
 function getFirstLoadedItemId(queryKey: QueryKey): string | null {

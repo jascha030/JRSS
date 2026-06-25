@@ -4,7 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
 	import type { PlaybackState } from '$lib/state/playback.svelte';
-	import { getFeedById, requestTogglePlayback } from '$lib/state';
+	import { requestTogglePlayback } from '$lib/state';
 	import { restoreMainWindow, MINI_WINDOW_LABEL } from '$lib/utils/tauri-window';
 	import { nextEpisode, previousEpisode, skip } from '$lib/utils/player-controls';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -32,7 +32,8 @@
 
 	const artwork = useArtwork(
 		() => imageUrl,
-		() => (item ? getFeedById(item.feedId)?.imageUrl : undefined)
+		() => (item ? item.feedId : undefined),
+		true
 	);
 
 	function handleSkip(deltaSeconds: number) {

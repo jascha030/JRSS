@@ -23,6 +23,7 @@
 	aria-label={`Open feed ${feed.title}`}
 >
 	<FeedCardImage
+		feedId={feed.id}
 		imageUrl={feed.imageUrl}
 		alt={feed.title}
 		letter={(feed.title?.trim()?.[0] ?? '?').toUpperCase()}

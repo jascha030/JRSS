@@ -1,8 +1,10 @@
 import { pickBestArtworkUrl } from '$lib/utils/artwork';
+import { getFeedById, feedImageUrls, feedImageUrlsLarge } from '$lib/state';
 
 export function useArtwork(
 	getEpisodeImageUrl: () => string | undefined,
-	getFallbackImageUrl: () => string | undefined
+	getFeedId: () => string | undefined,
+	useLarge = false
 ) {
 	const brokenImageUrls = $state<Record<string, true>>({});
 
@@ -12,7 +14,10 @@ export function useArtwork(
 	});
 
 	const activeFallbackUrl = $derived.by(() => {
-		const url = getFallbackImageUrl();
+		const feedId = getFeedId();
+		if (!feedId) return undefined;
+		const cache = useLarge ? feedImageUrlsLarge : feedImageUrls;
+		const url = cache[feedId] || getFeedById(feedId)?.imageUrl;
 		return url && !brokenImageUrls[url] ? url : undefined;
 	});
 

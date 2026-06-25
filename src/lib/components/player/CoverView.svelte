@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
-	import { getFeedById, clearQueue } from '$lib/state';
+	import { clearQueue } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -32,7 +32,8 @@
 
 	const artwork = useArtwork(
 		() => imageUrl,
-		() => (item ? getFeedById(item.feedId)?.imageUrl : undefined)
+		() => (item ? item.feedId : undefined),
+		true
 	);
 
 	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);

@@ -1,4 +1,5 @@
 import { invokeCommand, isTauriRuntime } from '$lib/services/tauri';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 const cacheUrlMap = new Map<string, string>();
 
@@ -15,12 +16,13 @@ export async function getCachedImageUrl(
 	if (cached) return cached;
 
 	try {
-		const dataUrl = await invokeCommand<string>('get_cached_image_path', {
+		const filePath = await invokeCommand<string>('get_cached_image_path', {
 			imageUrl,
 			size: size ?? null
 		});
-		cacheUrlMap.set(cacheKey, dataUrl);
-		return dataUrl;
+		const assetUrl = convertFileSrc(filePath);
+		cacheUrlMap.set(cacheKey, assetUrl);
+		return assetUrl;
 	} catch {
 		return imageUrl || undefined;
 	}

@@ -2,11 +2,13 @@ import type { Feed } from '$lib/types/feed';
 import type { ItemSortOrder } from '$lib/types/item';
 import {
 	addFeed,
+	exportFeed as invokeExportFeed,
 	listFeeds,
 	refreshFeed,
 	removeFeed,
 	setFeedSortOrder as persistFeedSortOrder
 } from '$lib/services/feed';
+import { getCachedImageUrl } from '$lib/services/imageCache';
 import { invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { selection } from './selection.svelte';
 import { getCurrentAudioItem, stopPlayback, removeFromQueuesByFeedId } from './playback.svelte';
@@ -15,13 +17,18 @@ import { log } from '$lib/services/log';
 export const feedsState = $state({
 	feeds: [] as Feed[],
 	syncingFeedIds: [] as string[],
-	isCreatingFeed: false
+	isCreatingFeed: false,
+	exportingFeedIds: [] as string[]
 });
+
+export const feedImageUrls = $state<Record<string, string>>({});
+export const feedImageUrlsLarge = $state<Record<string, string>>({});
 
 export function resetFeedsState(): void {
 	feedsState.feeds = [];
 	feedsState.syncingFeedIds = [];
 	feedsState.isCreatingFeed = false;
+	feedsState.exportingFeedIds = [];
 }
 
 export function getFeedById(feedId: string | null): Feed | null {
@@ -44,6 +51,21 @@ export function removeSyncingFeed(feedId: string): void {
 
 export async function loadFeeds(): Promise<void> {
 	feedsState.feeds = await listFeeds();
+
+	for (const feed of feedsState.feeds) {
+		if (feed.imageUrl) {
+			if (!feedImageUrls[feed.id]) {
+				getCachedImageUrl(feed.imageUrl, 256).then((url) => {
+					if (url) feedImageUrls[feed.id] = url;
+				});
+			}
+			if (!feedImageUrlsLarge[feed.id]) {
+				getCachedImageUrl(feed.imageUrl).then((url) => {
+					if (url) feedImageUrlsLarge[feed.id] = url;
+				});
+			}
+		}
+	}
 
 	if (
 		selection.selectedFeedId &&
@@ -132,4 +154,32 @@ export async function setFeedSortOrder(order: ItemSortOrder): Promise<void> {
 
 	invalidateAllQueries();
 	await loadInitialItemsPage();
+}
+
+export function isExportingFeed(feedId: string): boolean {
+	return feedsState.exportingFeedIds.includes(feedId);
+}
+
+export function addExportingFeed(feedId: string): void {
+	if (!feedsState.exportingFeedIds.includes(feedId)) {
+		feedsState.exportingFeedIds.push(feedId);
+	}
+}
+
+export function removeExportingFeed(feedId: string): void {
+	const index = feedsState.exportingFeedIds.indexOf(feedId);
+	if (index >= 0) {
+		feedsState.exportingFeedIds.splice(index, 1);
+	}
+}
+
+export async function exportExistingFeed(feedId: string): Promise<number> {
+	addExportingFeed(feedId);
+
+	try {
+		const exportedCount = await invokeExportFeed(feedId);
+		return exportedCount;
+	} finally {
+		removeExportingFeed(feedId);
+	}
 }

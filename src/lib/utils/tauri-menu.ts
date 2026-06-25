@@ -9,6 +9,7 @@ import {
 	deleteFeed,
 	deleteExistingStation,
 	enqueueAudioItem,
+	exportExistingFeed,
 	isAudioPlaying,
 	isItemCurrentAudio,
 	markItemRead,
@@ -410,6 +411,16 @@ export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promis
 			text: 'Copy URL',
 			icon: NativeIcon.Share,
 			action: () => void writeText(feed.url)
+		})
+	);
+
+	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+
+	items.push(
+		await createActionMenuItem({
+			id: 'export-feed',
+			text: 'Export feed',
+			action: () => void exportExistingFeed(feed.id)
 		})
 	);
 

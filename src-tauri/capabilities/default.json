@@ -35,6 +35,9 @@
 					"url": "http://*"
 				}
 			]
+		},
+		{
+			"identifier": "dialog:allow-open"
 		}
 	]
 }

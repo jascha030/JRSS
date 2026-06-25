@@ -2,6 +2,7 @@ use crate::audio::{self, OutputDeviceInfo, PlaybackStateEvent};
 use crate::auto_refresh::AutoRefreshState;
 use crate::cover_art;
 use crate::db::{self, DatabaseState};
+use crate::export;
 use crate::feed_ingest;
 use crate::image_cache::ImageCache;
 use crate::models::{
@@ -12,7 +13,6 @@ use crate::models::{
 use crate::queue::{QueueState, QueuedItem};
 use crate::reader_extract;
 use crate::theme::{cmd_discover_themes, cmd_load_theme, ThemeInfo};
-use base64::Engine;
 use tauri::State;
 
 
@@ -86,6 +86,84 @@ pub async fn fetch_feed_raw(
         let feed =
             db::get_feed_by_id(&db_path, &feed_id)?.ok_or_else(|| "Feed not found.".to_string())?;
         feed_ingest::fetch_raw_feed_xml(&feed.url)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn export_feed(
+    feed_id: String,
+    state: State<'_, DatabaseState>,
+    app: tauri::AppHandle,
+) -> Result<usize, String> {
+    let db_path = state.db_path();
+
+    let feed = db::get_feed_by_id(&db_path, &feed_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Feed not found.".to_string())?;
+
+    let items = db::get_feed_items_with_enclosures(&db_path, &feed_id)
+        .map_err(|e| e.to_string())?;
+
+    if items.is_empty() {
+        return Err("This feed has no downloadable episodes.".to_string());
+    }
+
+    use tauri_plugin_dialog::DialogExt;
+    let folder = app.dialog().file().blocking_pick_folder();
+
+    let target_dir = match folder {
+        Some(dir) => dir.into_path().map_err(|e| format!("Invalid folder path: {e}"))?,
+        None => return Ok(0),
+    };
+
+    let feed_title = feed.title;
+    let feed_image_url = feed.image_url;
+
+    tauri::async_runtime::spawn_blocking(move || {
+        export::export_feed_to_directory(
+            &app,
+            feed_id,
+            target_dir,
+            feed_title,
+            feed_image_url,
+            items,
+        )
+    })
+    .await
+    .map_err(|error| format!("Export task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn get_items_local_status(
+    item_ids: Vec<String>,
+    state: State<'_, DatabaseState>,
+    app: tauri::AppHandle,
+) -> Result<Vec<crate::models::ItemLocalStatusRecord>, String> {
+    let db_path = state.db_path();
+
+    blocking(move || {
+        let cache_dir = crate::audio::cache::get_audio_cache_path(&app)?;
+
+        let mut statuses = Vec::with_capacity(item_ids.len());
+
+        for item_id in &item_ids {
+            let is_exported = crate::db::get_exported_file_for_item(&db_path, item_id)
+                .ok()
+                .flatten()
+                .is_some();
+
+            let cache_path = cache_dir.join(format!("{}.mp3", crate::audio::cache::hash_item_id(item_id)));
+            let is_cached = crate::audio::cache::is_cache_complete(&cache_path);
+
+            statuses.push(crate::models::ItemLocalStatusRecord {
+                item_id: item_id.clone(),
+                is_cached,
+                is_exported,
+            });
+        }
+
+        Ok(statuses)
     })
     .await
 }
@@ -294,10 +372,6 @@ pub async fn load_theme(filename: String, app: tauri::AppHandle) -> Result<Strin
     cmd_load_theme(filename, app).await
 }
 
-// ---------------------------------------------------------------------------
-// Stations
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub async fn list_stations(
     state: State<'_, DatabaseState>,
@@ -344,10 +418,6 @@ pub async fn query_station_episodes(
     })
     .await
 }
-
-// ---------------------------------------------------------------------------
-// Audio playback — backend-owned via rodio
-// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub fn audio_play(
@@ -424,10 +494,6 @@ pub fn audio_set_output_device(
     audio::set_output_device(&app, device_id)
 }
 
-// ---------------------------------------------------------------------------
-// Queue management — backend-owned for headless playback
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub fn audio_play_with_queue(
     app: tauri::AppHandle,
@@ -499,10 +565,6 @@ pub fn clear_audio_cache(app: tauri::AppHandle) -> Result<(), String> {
     audio::cache::clear_audio_cache(&app)
 }
 
-// ---------------------------------------------------------------------------
-// Playback context — frontend-managed persistence for feed/station context
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub async fn save_playback_context(
     state: tauri::State<'_, db::DatabaseState>,
@@ -538,11 +600,8 @@ pub async fn get_cached_image_path(
     image_url: String,
     size: Option<u32>,
     image_cache: tauri::State<'_, ImageCache>,
-    db: tauri::State<'_, DatabaseState>,
 ) -> Result<String, String> {
     let cache_dir = image_cache.cache_dir().to_path_buf();
-    let cache_dir2 = cache_dir.clone();
-    let db_path = db.db_path();
 
     let path = blocking(move || {
         let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir)?;
@@ -555,26 +614,7 @@ pub async fn get_cached_image_path(
     })
     .await?;
 
-    let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read cached image: {e}"))?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
-    let mime_type = match ext {
-        "png" => "image/png",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        _ => "image/jpeg",
-    };
-    let base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    let data_url = format!("data:{mime_type};base64,{base64}");
-
-    let cache = crate::image_cache::ImageCache::new_from_path(&cache_dir2)?;
-    let max_size = match db::load_app_settings(&db_path) {
-        Ok(s) => u64::try_from(s.max_image_cache_size_bytes)
-            .unwrap_or(crate::image_cache::DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES),
-        Err(_) => crate::image_cache::DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES,
-    };
-    let _ = cache.enforce_size_limit(max_size);
-
-    Ok(data_url)
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
