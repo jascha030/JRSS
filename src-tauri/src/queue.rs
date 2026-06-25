@@ -90,7 +90,6 @@ impl QueueState {
 
     /// Move an item up one position within its segment.
     pub fn move_up(&mut self, item_id: &str) -> bool {
-        // Try manual queue first.
         if let Some(pos) = self.manual.iter().position(|i| i.item_id == item_id) {
             if pos > 0 {
                 self.manual.swap(pos, pos - 1);
@@ -105,7 +104,6 @@ impl QueueState {
             return false;
         }
 
-        // Try auto queue.
         if let Some(pos) = self.auto.iter().position(|i| i.item_id == item_id) {
             if pos > 0 {
                 self.auto.swap(pos, pos - 1);
@@ -124,7 +122,6 @@ impl QueueState {
 
     /// Move an item down one position within its segment.
     pub fn move_down(&mut self, item_id: &str) -> bool {
-        // Try manual queue.
         if let Some(pos) = self.manual.iter().position(|i| i.item_id == item_id) {
             if pos < self.manual.len() - 1 {
                 self.manual.swap(pos, pos + 1);
@@ -139,7 +136,6 @@ impl QueueState {
             return false;
         }
 
-        // Try auto queue.
         if let Some(pos) = self.auto.iter().position(|i| i.item_id == item_id) {
             if pos < self.auto.len() - 1 {
                 self.auto.swap(pos, pos + 1);
@@ -168,13 +164,8 @@ impl QueueState {
     /// Push an item to the front of history (most recent first).
     /// Removes duplicates and maintains max size.
     fn push_history(&mut self, item: QueuedItem) {
-        // Remove existing entry if present (to avoid duplicates)
         self.history.retain(|i| i.item_id != item.item_id);
-
-        // Add to front
         self.history.push_front(item);
-
-        // Trim to max size
         while self.history.len() > MAX_HISTORY_SIZE {
             self.history.pop_back();
         }

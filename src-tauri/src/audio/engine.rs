@@ -15,10 +15,6 @@
 use super::events::OutputDeviceInfo;
 use super::streaming_file::StreamingFile;
 
-// ---------------------------------------------------------------------------
-// PlayConfig
-// ---------------------------------------------------------------------------
-
 /// Configuration for a [`PlaybackEngine::play_stream`] call.
 pub struct PlayConfig {
     /// Seek to this position immediately after the decoder is ready.
@@ -57,10 +53,6 @@ pub struct PlayConfig {
     pub artist: String,
 }
 
-// ---------------------------------------------------------------------------
-// EngineError
-// ---------------------------------------------------------------------------
-
 /// Error type returned by engine operations.
 #[derive(Debug)]
 pub enum EngineError {
@@ -86,13 +78,9 @@ impl std::fmt::Display for EngineError {
 
 impl std::error::Error for EngineError {}
 
-// ---------------------------------------------------------------------------
-// PlaybackSnapshot
-// ---------------------------------------------------------------------------
-
 /// Collapsed engine state for callers that need multiple fields at once.
-    /// Avoids repeated cross-thread round-trips on engines whose state queries
-    /// require a dispatch boundary.
+/// Avoids repeated cross-thread round-trips on engines whose state queries
+/// require a dispatch boundary.
 #[derive(Debug, Default, Clone)]
 pub struct PlaybackSnapshot {
     pub position: f64,
@@ -100,10 +88,6 @@ pub struct PlaybackSnapshot {
     pub is_finished: bool,
     pub has_active: bool,
 }
-
-// ---------------------------------------------------------------------------
-// PlaybackEngine
-// ---------------------------------------------------------------------------
 
 /// A media playback engine.
 ///
@@ -118,10 +102,6 @@ pub struct PlaybackSnapshot {
 /// `Box<dyn PlaybackEngine>` when multiple concrete engine types must coexist
 /// at runtime (e.g. audio + video).
 pub trait PlaybackEngine {
-    // ------------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------------
-
     /// Called once after construction, before any [`play_stream`](Self::play_stream).
     ///
     /// Engines may open their output device eagerly here to avoid first-play
@@ -149,10 +129,6 @@ pub trait PlaybackEngine {
     /// re-initialisation overhead.
     fn stop(&mut self);
 
-    // ------------------------------------------------------------------
-    // Transport
-    // ------------------------------------------------------------------
-
     /// Pause if currently playing. No-op if already paused or stopped.
     fn pause(&mut self);
 
@@ -166,19 +142,11 @@ pub trait PlaybackEngine {
     /// caller may choose to update its stored position for UI purposes.
     fn seek(&mut self, position_seconds: f64) -> bool;
 
-    // ------------------------------------------------------------------
-    // Setters
-    // ------------------------------------------------------------------
-
     /// Set volume in \[0.0, 1.0\]. No-op if stopped.
     fn set_volume(&mut self, volume: f32);
 
     /// Set playback speed multiplier (1.0 = normal). No-op if stopped.
     fn set_speed(&mut self, speed: f32);
-
-    // ------------------------------------------------------------------
-    // State queries
-    // ------------------------------------------------------------------
 
     /// Current playback position in seconds. Returns `0.0` if stopped.
     fn position_seconds(&self) -> f64;
@@ -206,11 +174,6 @@ pub trait PlaybackEngine {
             has_active: self.has_active_playback(),
         }
     }
-
-    // ------------------------------------------------------------------
-    // Device management (optional — override for engines with selectable
-    // output devices)
-    // ------------------------------------------------------------------
 
     /// List available output devices.
     ///

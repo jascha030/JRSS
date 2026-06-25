@@ -151,10 +151,6 @@ fn parse_theme_name(content: &str) -> Option<String> {
     None
 }
 
-// ---------------------------------------------------------------------------
-// Tauri commands
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub async fn cmd_discover_themes(app: tauri::AppHandle) -> Result<Vec<ThemeInfo>, String> {
     ensure_default_theme(&app)?;

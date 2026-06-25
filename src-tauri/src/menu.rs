@@ -75,7 +75,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .accelerator("CmdOrCtrl+Down")
             .build(app)?;
 
-        // Create App submenu (first menu - shows as app name on macOS)
         let app_submenu = SubmenuBuilder::new(app, "JRSS")
             .item(&settings_item)
             .separator()
@@ -84,7 +83,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .quit()
             .build()?;
 
-        // Create File submenu
         let file_submenu = SubmenuBuilder::new(app, "File")
             .item(&add_feed_item)
             .item(&new_station_item)
@@ -93,7 +91,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .close_window()
             .build()?;
 
-        // Create Edit submenu
         let edit_submenu = SubmenuBuilder::new(app, "Edit")
             .undo()
             .redo()
@@ -106,7 +103,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&search_item)
             .build()?;
 
-        // Create View submenu
         let view_submenu = SubmenuBuilder::new(app, "View")
             .item(&go_to_feed_item)
             .item(&toggle_sidebar_item)
@@ -118,7 +114,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&toggle_mini_player_item)
             .build()?;
 
-        // Create Playback submenu
         let playback_submenu = SubmenuBuilder::new(app, "Playback")
             .item(&play_pause_item)
             .separator()
@@ -132,7 +127,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&volume_down_item)
             .build()?;
 
-        // Create Window submenu with standard window controls
         let window_submenu = SubmenuBuilder::new(app, "Window")
             .minimize()
             .fullscreen()
@@ -140,7 +134,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .close_window()
             .build()?;
 
-        // Build the full menu
         let menu = MenuBuilder::new(app)
             .item(&app_submenu)
             .item(&file_submenu)
@@ -152,7 +145,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
         app.set_menu(menu)?;
 
-        // Handle menu events - forward to frontend (emit globally so all windows receive it)
         app.on_menu_event(move |app_handle: &AppHandle, event| {
             let event_id = event.id().0.as_str();
             let event_name = format!("menu-{event_id}");
@@ -271,7 +263,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             },
         )?;
 
-        // Previous source shortcut
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(
@@ -287,7 +278,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             },
         )?;
 
-        // Next source shortcut
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(

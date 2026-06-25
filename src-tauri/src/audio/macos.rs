@@ -1,9 +1,5 @@
 //! macOS-native helpers for the audio subsystem.
 
-// ---------------------------------------------------------------------------
-// MPRemoteCommandCenter — hardware/headphone media key handlers
-// ---------------------------------------------------------------------------
-
 #[cfg(target_os = "macos")]
 pub mod remote_commands {
     use std::sync::OnceLock;

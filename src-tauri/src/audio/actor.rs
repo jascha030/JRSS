@@ -165,7 +165,17 @@ impl AudioThread {
 
         self.stored_position_seconds = clamped_start_position;
 
-        let (meta, cache_path, is_adopted_prefetch) = if prefetch_match {
+        let exported_path = self.resolve_exported_file(&item_id);
+
+        let (meta, cache_path, is_adopted_prefetch) = if let Some(path) = exported_path {
+            let meta = super::download::DownloadMeta::new();
+            let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            meta.complete.store(true, Ordering::Release);
+            meta.bytes_written.store(size, Ordering::Release);
+            meta.total_size.store(size, Ordering::Release);
+            log::info!("Using exported file for playback: item_id={}, path={:?}", item_id, path);
+            (meta, path, false)
+        } else if prefetch_match {
             let prefetch = self.prefetch.take().unwrap();
             let meta = Arc::clone(&prefetch.meta);
             let path = prefetch.cache_path.clone();
@@ -181,7 +191,6 @@ impl AudioThread {
             );
             let meta = super::download::DownloadMeta::new();
 
-            // Check for complete cache
             if is_cache_complete(&cache_path) {
                 log::info!("Cache hit (complete) for item_id={}", item_id);
                 meta.complete.store(true, Ordering::Release);
@@ -189,7 +198,6 @@ impl AudioThread {
                 meta.bytes_written.store(size, Ordering::Release);
                 meta.total_size.store(size, Ordering::Release);
             } else {
-                // Start download in background
                 let dl_meta = Arc::clone(&meta);
                 let dl_path = cache_path.clone();
                 let dl_url = url.clone();
@@ -363,6 +371,20 @@ impl AudioThread {
         } else {
             self.current_item_title.clear();
             self.current_feed_title.clear();
+        }
+    }
+
+    fn resolve_exported_file(&self, item_id: &str) -> Option<PathBuf> {
+        let db_state = self.app.state::<db::DatabaseState>();
+        let db_path = db_state.db_path();
+
+        let path_str = db::get_exported_file_for_item(&db_path, item_id).ok().flatten()?;
+        let path = PathBuf::from(path_str);
+
+        if path.is_file() && std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) > 0 {
+            Some(path)
+        } else {
+            None
         }
     }
 
@@ -569,7 +591,6 @@ impl AudioThread {
     }
 
     fn handle_prefetch(&mut self, item_id: String, url: String) {
-        // Cancel any existing prefetch
         if let Some(mut prefetch) = self.prefetch.take() {
             if prefetch.item_id != item_id {
                 log::debug!("Cancelling prefetch for item_id={}", prefetch.item_id);
@@ -580,7 +601,6 @@ impl AudioThread {
             }
         }
 
-        // Check if already cached
         let cache_path = match get_audio_cache_path(&self.app) {
             Ok(dir) => dir.join(format!("{}.mp3", hash_item_id(&item_id))),
             Err(e) => {
@@ -600,7 +620,6 @@ impl AudioThread {
             return;
         }
 
-        // Start prefetch download
         let meta = super::download::DownloadMeta::new();
         let dl_meta = Arc::clone(&meta);
         let dl_path = cache_path.clone();

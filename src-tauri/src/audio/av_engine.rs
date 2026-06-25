@@ -27,10 +27,6 @@ use super::streaming_file::StreamingFile;
 
 const CMD_TIMEOUT: Duration = Duration::from_secs(5);
 
-// ---------------------------------------------------------------------------
-// MPNowPlayingInfoCenter — Now Playing publishing
-// ---------------------------------------------------------------------------
-
 #[cfg(target_os = "macos")]
 #[link(name = "MediaPlayer", kind = "framework")]
 unsafe extern "C" {
@@ -44,10 +40,6 @@ unsafe extern "C" {
 const MP_STATE_PLAYING: u64 = 1;
 const MP_STATE_PAUSED: u64 = 2;
 const MP_STATE_STOPPED: u64 = 3;
-
-// ---------------------------------------------------------------------------
-// Public command / response types
-// ---------------------------------------------------------------------------
 
 #[derive(Debug)]
 enum AvCmd {
@@ -100,10 +92,6 @@ enum AvResp {
 	Ok,
 	Snapshot(AvSnapshot),
 }
-
-// ---------------------------------------------------------------------------
-// AvActor
-// ---------------------------------------------------------------------------
 
 /// Owns a persistent `AVPlayer` that is reused across tracks via
 /// `replaceCurrentItemWithPlayerItem:`. Must run exclusively on the
@@ -416,10 +404,6 @@ impl Drop for AvActor {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Now Playing payload and main-queue trampoline
-// ---------------------------------------------------------------------------
-
 struct NowPlayingPayload {
 	title: String,
 	artist: String,
@@ -468,10 +452,6 @@ unsafe extern "C" fn now_playing_trampoline(ctx: *mut c_void) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 fn item_duration(item: &AVPlayerItem) -> Option<f64> {
 	let dur = unsafe { item.duration() };
 	if dur.timescale > 0 {
@@ -485,10 +465,6 @@ fn item_duration(item: &AVPlayerItem) -> Option<f64> {
 		None
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Dedicated serial queue handle
-// ---------------------------------------------------------------------------
 
 struct AvEngineInner {
 	actor: Mutex<Option<AvActor>>,
@@ -528,10 +504,6 @@ unsafe extern "C" fn cmd_trampoline(ctx: *mut c_void) {
 	let resp = actor.handle_cmd(payload.cmd);
 	let _ = payload.resp.send(resp);
 }
-
-// ---------------------------------------------------------------------------
-// AvEngine — PlaybackEngine implementation
-// ---------------------------------------------------------------------------
 
 pub struct AvEngine {
 	inner: Arc<AvEngineInner>,

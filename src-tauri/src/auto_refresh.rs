@@ -18,10 +18,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::watch;
 use tokio::time::Duration;
 
-// ---------------------------------------------------------------------------
-// Public state handle
-// ---------------------------------------------------------------------------
-
 /// Managed state that lets commands update the auto-refresh interval at
 /// runtime without restarting the background task.
 pub struct AutoRefreshState {
@@ -36,10 +32,6 @@ impl AutoRefreshState {
         let _ = self.sender.send(minutes);
     }
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 /// Refresh a single feed given its RSS URL. Errors are returned as strings so
 /// the caller can log them without aborting the full sweep.
@@ -98,10 +90,6 @@ async fn run_refresh_sweep(db_path: PathBuf, app_handle: AppHandle) {
         log::warn!("Auto-refresh: failed to emit completion event: {error}");
     }
 }
-
-// ---------------------------------------------------------------------------
-// Task spawn
-// ---------------------------------------------------------------------------
 
 /// Spawn the background auto-refresh loop and return its control handle.
 ///

@@ -66,10 +66,6 @@ impl AudioState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Public API — called from Tauri commands
-// ---------------------------------------------------------------------------
-
 pub fn play_url(
     app: &AppHandle,
     item_id: String,

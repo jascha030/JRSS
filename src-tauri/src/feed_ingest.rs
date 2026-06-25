@@ -449,6 +449,14 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         .itunes_ext()
         .and_then(|itunes| itunes.image())
         .and_then(|url| resolve_optional_url(Some(url), feed_url));
+    let episode_number = item
+        .itunes_ext()
+        .and_then(|itunes| itunes.episode())
+        .and_then(parse_i64);
+    let season_number = item
+        .itunes_ext()
+        .and_then(|itunes| itunes.season())
+        .and_then(parse_i64);
 
     ParsedFeedItem {
         external_id,
@@ -463,6 +471,8 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         published_at,
         media_enclosure: enclosure,
         image_url,
+        episode_number,
+        season_number,
     }
 }
 
@@ -577,6 +587,8 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         published_at,
         media_enclosure: enclosure,
         image_url,
+        episode_number: None,
+        season_number: None,
     }
 }
 

@@ -109,7 +109,6 @@ pub fn enforce_cache_size_limit(
     let mut evictable_files_size: u64 = 0;
     let mut retained_files_size: u64 = 0;
 
-    // Read directory and collect all cached audio files
     let entries = match std::fs::read_dir(cache_dir) {
         Ok(entries) => entries,
         Err(e) => {
@@ -129,7 +128,6 @@ pub fn enforce_cache_size_limit(
             continue;
         }
 
-        // Only consider .mp3 files (not .complete markers)
         if path.extension().and_then(|e| e.to_str()) != Some("mp3") {
             continue;
         }
@@ -183,7 +181,6 @@ pub fn enforce_cache_size_limit(
         return Ok(());
     }
 
-    // Sort by last accessed time (oldest first)
     files.sort_by_key(|a| a.accessed);
 
     let mut freed: u64 = 0;
@@ -197,7 +194,6 @@ pub fn enforce_cache_size_limit(
             break;
         }
 
-        // Remove the file and its complete marker
         let marker_path = cache_complete_marker_path(&file.path);
 
         if let Err(e) = std::fs::remove_file(&file.path) {
