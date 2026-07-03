@@ -1,5 +1,6 @@
 use super::AppResult;
 use super::connection::open_connection;
+use super::items::delete_exported_files_for_feed;
 use super::rows::map_feed_row;
 use crate::models::{FeedRecord, ParsedFeed};
 use chrono::Utc;
@@ -70,6 +71,8 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
 }
 
 pub fn remove_feed(db_path: &Path, id: &str) -> AppResult<()> {
+    delete_exported_files_for_feed(db_path, id)?;
+
     let connection = open_connection(db_path)?;
 
     connection

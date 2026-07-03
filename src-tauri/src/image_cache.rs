@@ -7,7 +7,6 @@ use tauri::{AppHandle, Manager};
 const ORIGINALS_DIR: &str = "originals";
 const THUMBNAILS_DIR: &str = "thumbnails";
 const METADATA_DB: &str = "meta.db";
-pub const DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES: u64 = 200 * 1024 * 1024;
 
 pub struct ImageCache {
     cache_dir: PathBuf,
@@ -149,12 +148,6 @@ impl ImageCache {
         Ok(file_path)
     }
 
-    pub fn get_cached_path(&self, url: &str) -> Result<Option<PathBuf>, String> {
-        let conn = self.open_metadata_db()?;
-        let hash = Self::url_hash(url);
-        self.get_cached_path_internal(&conn, &hash)
-    }
-
     fn get_cached_path_internal(
         &self,
         conn: &Connection,
@@ -273,78 +266,6 @@ impl ImageCache {
         }
     }
 
-    pub fn enforce_size_limit(&self, max_size_bytes: u64) -> Result<(), String> {
-        let conn = self.open_metadata_db()?;
-
-        let total_size: i64 = conn
-            .query_row("SELECT COALESCE(SUM(file_size), 0) FROM images", [], |row| {
-                row.get(0)
-            })
-            .map_err(|e| format!("Failed to query cache size: {e}"))?;
-
-        if (total_size as u64) <= max_size_bytes {
-            return Ok(());
-        }
-
-        let over_bytes = (total_size as u64) - max_size_bytes;
-        let mut freed: u64 = 0;
-
-        let mut stmt = conn
-            .prepare("SELECT url_hash, file_ext, file_size FROM images ORDER BY last_accessed ASC")
-            .map_err(|e| format!("Failed to prepare eviction query: {e}"))?;
-
-        let entries: Vec<(String, String, i64)> = stmt
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-            .map_err(|e| format!("Failed to query eviction candidates: {e}"))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        for (hash, ext, file_size) in entries {
-            if freed >= over_bytes {
-                break;
-            }
-
-            let original_path = self.originals_dir().join(format!("{hash}.{ext}"));
-            let _ = std::fs::remove_file(&original_path);
-
-            if let Ok(mut thumb_stmt) =
-                conn.prepare("SELECT file_path FROM thumbnails WHERE url_hash = ?1")
-            {
-                let thumb_paths: Vec<String> = thumb_stmt
-                    .query_map(params![hash], |row| row.get(0))
-                    .ok()
-                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
-                    .unwrap_or_default();
-
-                for tp in thumb_paths {
-                    let _ = std::fs::remove_file(&tp);
-                }
-            }
-
-            let _ = conn.execute("DELETE FROM thumbnails WHERE url_hash = ?1", params![hash]);
-            let _ = conn.execute("DELETE FROM images WHERE url_hash = ?1", params![hash]);
-
-            freed = freed.saturating_add(file_size as u64);
-        }
-
-        Ok(())
-    }
-
-    pub fn clear(&self) -> Result<(), String> {
-        let _ = std::fs::remove_dir_all(self.originals_dir());
-        let _ = std::fs::remove_dir_all(self.thumbnails_dir());
-
-        std::fs::create_dir_all(self.originals_dir())
-            .map_err(|e| format!("Failed to recreate originals dir: {e}"))?;
-        std::fs::create_dir_all(self.thumbnails_dir())
-            .map_err(|e| format!("Failed to recreate thumbnails dir: {e}"))?;
-
-        let conn = self.open_metadata_db()?;
-        conn.execute_batch("DELETE FROM thumbnails; DELETE FROM images;")
-            .map_err(|e| format!("Failed to clear cache metadata: {e}"))?;
-
-        Ok(())
-    }
 }
 
 fn guess_image_extension(content_type: &Option<String>, url: &str) -> String {

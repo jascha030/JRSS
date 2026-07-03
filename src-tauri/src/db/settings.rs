@@ -6,7 +6,6 @@ use rusqlite::params;
 use std::path::Path;
 
 pub const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES: i64 = 5 * 1024 * 1024 * 1024;
-pub const DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES: i64 = 200 * 1024 * 1024;
 pub const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP: bool = false;
 /// Default auto-refresh interval in minutes (1 hour). `0` means disabled.
 pub const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES: i64 = 60;

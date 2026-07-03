@@ -175,15 +175,6 @@ pub struct ParsedFeedItem {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExportedFileRecord {
-    pub item_id: String,
-    pub feed_id: String,
-    pub local_path: String,
-    pub exported_at: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ItemLocalStatusRecord {
     pub item_id: String,
     pub is_cached: bool,
