@@ -88,19 +88,19 @@
 
 	{#if overlayImageUrl}
 		<div
-			class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+			class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100"
 			aria-hidden="true"
 		></div>
 	{:else}
 		<div
-			class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+			class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100"
 			aria-hidden="true"
 		></div>
 	{/if}
 
 	<div
 		bind:clientHeight={controlsHeight}
-		class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
+		class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100 xs:px-8"
 		style:--cover-fg={coverTheme.fg}
 		style:--cover-fg-muted={coverTheme.fgMuted}
 		style:--cover-fg-subtle={coverTheme.fgSubtle}

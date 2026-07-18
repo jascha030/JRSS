@@ -77,7 +77,20 @@
 
 <CoverThemeStyles />
 
-<div class="relative flex h-screen w-full flex-col overflow-hidden bg-surface-shell">
+<div
+	class="group/mini relative flex h-screen w-full flex-col overflow-hidden bg-surface-shell"
+	role="presentation"
+>
+	<button
+		class="absolute top-[16px] left-[16px] z-50 size-3 cursor-default rounded-full bg-[#FF5F57] opacity-0 transition-opacity duration-200 group-hover/mini:opacity-100"
+		type="button"
+		onclick={restoreMainWindow}
+		aria-label="Close"
+	>
+		<span class="flex h-full w-full items-center justify-center opacity-0 hover:opacity-100">
+			<Icon icon="lucide:x" class="size-2 text-black/60" />
+		</span>
+	</button>
 	{#if isCompactMode}
 		{#if item && playbackState}
 			<div class="flex h-full w-full flex-col px-4 justify-between">

@@ -301,6 +301,25 @@ fn open_mini_player_native_macos(
             .map_err(|e| format!("Timed out waiting for window transition: {e}"))?;
     }
 
+    let mini_ns = mini_window.ns_window().map_err(|e| e.to_string())? as *mut AnyObject;
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    let main_queue: *mut AnyObject = unsafe { msg_send![class!(NSOperationQueue), mainQueue] };
+    let block = RcBlock::new(move || {
+        for button_kind in [0usize, 1usize, 2usize] {
+            let button: *mut AnyObject =
+                unsafe { msg_send![mini_ns, standardWindowButton: button_kind] };
+            if !button.is_null() {
+                let _: () = unsafe { msg_send![button, setHidden: true] };
+            }
+        }
+        let _ = tx.send(());
+    });
+    let op: *mut AnyObject =
+        unsafe { msg_send![class!(NSBlockOperation), blockOperationWithBlock: &*block] };
+    let _: () = unsafe { msg_send![main_queue, addOperation: op] };
+    rx.recv_timeout(std::time::Duration::from_secs(5))
+        .map_err(|e| format!("Timed out hiding traffic lights: {e}"))?;
+
     Ok(is_fullscreen)
 }
 
