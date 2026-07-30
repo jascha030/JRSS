@@ -3,14 +3,7 @@ import type { ItemSortOrder } from './item';
 export type StationEpisodeFilter = 'all' | 'unplayed';
 
 export type StationGradient =
-	| 'emerald'
-	| 'violet'
-	| 'rose'
-	| 'amber'
-	| 'cyan'
-	| 'fuchsia'
-	| 'slate'
-	| 'orange';
+	'emerald' | 'violet' | 'rose' | 'amber' | 'cyan' | 'fuchsia' | 'slate' | 'orange';
 
 export interface Station {
 	id: string;

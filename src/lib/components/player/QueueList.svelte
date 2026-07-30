@@ -162,7 +162,7 @@
 		{/if}
 
 		{#if queueItems.length > 0}
-			<ul class="flex flex-1 min-h-[calc(100vh-(--spacing(16)))] flex-col px-0 py-2">
+			<ul class="flex min-h-[calc(100vh-(--spacing(16)))] flex-1 flex-col px-0 py-2">
 				<li
 					class={`flex items-center gap-3 py-2 ${separatorPaddingClass}`}
 					aria-hidden="true"

@@ -6,9 +6,7 @@ export type PlayerMode = 'default' | 'cover';
 export type ReaderPaneMode = 'feed' | 'reader';
 
 type DialogState =
-	| { kind: 'none' }
-	| { kind: 'feed-editor' }
-	| { kind: 'station-editor'; stationId: string | null };
+	{ kind: 'none' } | { kind: 'feed-editor' } | { kind: 'station-editor'; stationId: string | null };
 
 type ScrollToItemRequest = {
 	itemId: string;

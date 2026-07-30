@@ -93,12 +93,12 @@
 	</button>
 	{#if isCompactMode}
 		{#if item && playbackState}
-			<div class="flex h-full w-full flex-col px-4 justify-between">
+			<div class="flex h-full w-full flex-col justify-between px-4">
 				<div
-					class="relative z-0 flex grow w-full items-center justify-end"
+					class="relative z-0 flex w-full grow items-center justify-end"
 					data-tauri-drag-region
 				></div>
-				<div class="flex-row flex gap-4 items-center pb-2">
+				<div class="flex flex-row items-center gap-4 pb-2">
 					<Avatar class="hidden aspect-square h-[110px] w-[110px] rounded-md shadow-sm sm:block">
 						{#if imageUrl}
 							<Avatar.Image
