@@ -18,6 +18,8 @@
 		isAppListSection
 	} from '$lib/utils/navigation/app-router';
 	import Icon from '@iconify/svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
+	import { feedImageUrls } from '$lib/state';
 
 	const feeds = $derived(feedsState.feeds);
 	const stations = $derived(stationsState.stations);
@@ -82,20 +84,10 @@
 						aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						class="flex size-9 items-center justify-center rounded-xl bg-accent text-fg-inverse transition-colors hover:bg-accent-hover"
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.8"
+						<Icon
+							icon="lucide:chevron-left"
 							class={`size-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : 'rotate-0'}`}
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M15.75 19.5 8.25 12l7.5-7.5"
-							/>
-						</svg>
+						/>
 					</button>
 				</div>
 
@@ -147,15 +139,15 @@
 					<div class="mt-6 border-t border-border px-2 pt-4">
 						<div class="mb-3 flex items-center justify-between px-3">
 							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">Feeds</h2>
-							<button
-								type="button"
+							<IconButton
+								icon="lucide:plus"
+								variant="ghost"
+								class="size-6 rounded-md text-fg-muted hover:bg-surface-hover hover:text-fg"
+								iconClass="size-3.5"
 								title="Add feed"
-								aria-label="Add new feed"
-								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+								label="Add new feed"
 								onclick={openFeedEditor}
-							>
-								<Icon icon="lucide:plus" class="size-3.5" />
-							</button>
+							/>
 						</div>
 
 						<div class="space-y-1">
@@ -172,24 +164,15 @@
 							<h2 class="text-xs font-semibold tracking-[0.18em] text-fg-muted uppercase">
 								Stations
 							</h2>
-							<button
-								type="button"
+							<IconButton
+								icon="lucide:plus"
+								variant="ghost"
+								class="size-6 rounded-md text-fg-muted hover:bg-surface-hover hover:text-fg"
+								iconClass="size-3.5"
 								title="New station"
-								aria-label="Create new station"
-								class="flex size-6 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+								label="Create new station"
 								onclick={() => openStationEditor()}
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-									stroke="currentColor"
-									class="size-3.5"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-								</svg>
-							</button>
+							/>
 						</div>
 
 						<div class="space-y-1">
@@ -239,7 +222,12 @@
 			}`}
 		>
 			{#if feed.imageUrl}
-				<img src={feed.imageUrl} alt={feed.title} class="size-full object-cover" />
+				<img
+					src={feedImageUrls[feed.id] || feed.imageUrl}
+					alt={feed.title}
+					class="size-full object-cover"
+					loading="lazy"
+				/>
 			{:else}
 				<span
 					class={`flex size-full items-center justify-center text-fg-inverse ${
@@ -272,20 +260,7 @@
 			<span
 				class={`flex size-full items-center justify-center bg-linear-to-br text-fg-inverse ${selectedStationId === station.id ? `${STATION_GRADIENTS[station.gradient].activeFrom} ${STATION_GRADIENTS[station.gradient].activeTo}` : `${STATION_GRADIENTS[station.gradient].from} ${STATION_GRADIENTS[station.gradient].to}`}`}
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke-width="1.5"
-					stroke="currentColor"
-					class="size-5"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-					/>
-				</svg>
+				<Icon icon="lucide:mic" class="size-5" />
 			</span>
 		</button>
 	{/each}

@@ -8,8 +8,6 @@ import {
 } from '$lib/state/playback.svelte';
 import type { MediaListItem } from '$lib/types/item';
 
-export const VOLUME_STEP = 0.1;
-
 export function usePlayerControls(getItem: () => MediaListItem | null) {
 	const canSkipPrevious = $derived(playbackState.playbackHistory.length > 0);
 	const canSkipNext = $derived(
@@ -27,7 +25,11 @@ export function usePlayerControls(getItem: () => MediaListItem | null) {
 	function handleSkip(deltaSeconds: number) {
 		const state = playbackState.currentPlaybackState;
 		const item = getItem();
-		const dur = state?.durationSeconds ?? item?.mediaEnclosure.durationSeconds ?? 0;
+		const dur =
+			state?.fileDurationSeconds ??
+			state?.durationSeconds ??
+			item?.mediaEnclosure.durationSeconds ??
+			0;
 		const current = state?.positionSeconds ?? 0;
 		const target = Math.max(0, Math.min(current + deltaSeconds, dur));
 		requestSeekTo(target);

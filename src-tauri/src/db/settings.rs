@@ -21,6 +21,13 @@ fn normalize_max_audio_cache_size_bytes(value: i64) -> AppResult<i64> {
     Ok(value)
 }
 
+fn normalize_max_image_cache_size_bytes(value: i64) -> AppResult<i64> {
+    if value <= 0 {
+        return Err("Image cache size must be greater than 0 bytes.".to_string());
+    }
+    Ok(value)
+}
+
 fn normalize_auto_refresh_interval_minutes(value: i64) -> AppResult<i64> {
     if value < 0 {
         return Err("Auto-refresh interval cannot be negative.".to_string());
@@ -45,7 +52,7 @@ fn normalize_skip_backward_seconds(value: i64) -> i64 {
     value.max(1)
 }
 
-fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
+pub(super) fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
     connection
         .execute(
             "INSERT INTO app_settings (
@@ -53,14 +60,18 @@ fn ensure_app_settings_row(connection: &rusqlite::Connection) -> AppResult<()> {
 		        max_audio_cache_size_bytes,
 		        mini_player_always_on_top,
 		        color_scheme,
+		        skip_forward_seconds,
+		        skip_backward_seconds,
 		        updated_at
 		     )
-		     VALUES (1, ?1, ?2, ?3, ?4)
+		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
 		     ON CONFLICT(id) DO NOTHING",
             params![
                 DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
                 DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
                 DEFAULT_COLOR_SCHEME,
+                DEFAULT_SKIP_FORWARD_SECONDS,
+                DEFAULT_SKIP_BACKWARD_SECONDS,
                 Utc::now().to_rfc3339()
             ],
         )
@@ -82,9 +93,10 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
         skip_forward_seconds,
         skip_backward_seconds,
         theme_name,
+        max_image_cache_size_bytes,
     ) = connection
         .query_row(
-            "SELECT max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes, color_scheme, accent_color, skip_forward_seconds, skip_backward_seconds, theme_name
+            "SELECT max_audio_cache_size_bytes, mini_player_always_on_top, auto_refresh_interval_minutes, color_scheme, accent_color, skip_forward_seconds, skip_backward_seconds, theme_name, max_image_cache_size_bytes
 		         FROM app_settings
 		         WHERE id = 1",
             [],
@@ -98,6 +110,7 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
                     row.get::<_, i64>(5)?,
                     row.get::<_, i64>(6)?,
                     row.get::<_, Option<String>>(7)?,
+                    row.get::<_, i64>(8)?,
                 ))
             },
         )
@@ -116,6 +129,9 @@ pub fn load_app_settings(db_path: &Path) -> AppResult<AppSettingsRecord> {
         skip_forward_seconds: normalize_skip_forward_seconds(skip_forward_seconds),
         skip_backward_seconds: normalize_skip_backward_seconds(skip_backward_seconds),
         theme_name,
+        max_image_cache_size_bytes: normalize_max_image_cache_size_bytes(
+            max_image_cache_size_bytes,
+        )?,
     })
 }
 
@@ -136,6 +152,8 @@ pub fn save_app_settings(
     let skip_forward_seconds = normalize_skip_forward_seconds(settings.skip_forward_seconds);
     let skip_backward_seconds = normalize_skip_backward_seconds(settings.skip_backward_seconds);
     let theme_name = settings.theme_name.clone();
+    let max_image_cache_size_bytes =
+        normalize_max_image_cache_size_bytes(settings.max_image_cache_size_bytes)?;
 
     connection
         .execute(
@@ -149,9 +167,10 @@ pub fn save_app_settings(
 		        skip_forward_seconds,
 		        skip_backward_seconds,
 		        theme_name,
+		        max_image_cache_size_bytes,
 		        updated_at
 		     )
-		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+		     VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		     ON CONFLICT(id) DO UPDATE SET
 		        max_audio_cache_size_bytes = excluded.max_audio_cache_size_bytes,
 		        mini_player_always_on_top = excluded.mini_player_always_on_top,
@@ -161,6 +180,7 @@ pub fn save_app_settings(
 		        skip_forward_seconds = excluded.skip_forward_seconds,
 		        skip_backward_seconds = excluded.skip_backward_seconds,
 		        theme_name = excluded.theme_name,
+		        max_image_cache_size_bytes = excluded.max_image_cache_size_bytes,
 		        updated_at = excluded.updated_at",
             params![
                 max_audio_cache_size_bytes,
@@ -171,6 +191,7 @@ pub fn save_app_settings(
                 skip_forward_seconds,
                 skip_backward_seconds,
                 theme_name,
+                max_image_cache_size_bytes,
                 Utc::now().to_rfc3339()
             ],
         )
@@ -185,5 +206,6 @@ pub fn save_app_settings(
         skip_forward_seconds,
         skip_backward_seconds,
         theme_name,
+        max_image_cache_size_bytes,
     })
 }

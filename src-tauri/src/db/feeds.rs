@@ -1,5 +1,6 @@
 use super::AppResult;
 use super::connection::open_connection;
+use super::items::delete_exported_files_for_feed;
 use super::rows::map_feed_row;
 use crate::models::{FeedRecord, ParsedFeed};
 use chrono::Utc;
@@ -70,6 +71,8 @@ pub fn list_feeds(db_path: &Path) -> AppResult<Vec<FeedRecord>> {
 }
 
 pub fn remove_feed(db_path: &Path, id: &str) -> AppResult<()> {
+    delete_exported_files_for_feed(db_path, id)?;
+
     let connection = open_connection(db_path)?;
 
     connection
@@ -179,9 +182,11 @@ pub fn upsert_feed_snapshot(
 					enclosure_mime_type,
 					enclosure_size_bytes,
 					enclosure_duration_seconds,
-					image_url
+					image_url,
+					episode_number,
+					season_number
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
 				ON CONFLICT(id) DO UPDATE SET
 					title = excluded.title,
 					url = excluded.url,
@@ -196,7 +201,9 @@ pub fn upsert_feed_snapshot(
 					enclosure_mime_type = excluded.enclosure_mime_type,
 					enclosure_size_bytes = excluded.enclosure_size_bytes,
 					enclosure_duration_seconds = excluded.enclosure_duration_seconds,
-					image_url = excluded.image_url",
+					image_url = excluded.image_url,
+					episode_number = excluded.episode_number,
+					season_number = excluded.season_number",
                 params![
                     item_id,
                     next_feed.id,
@@ -222,7 +229,9 @@ pub fn upsert_feed_snapshot(
                     media_enclosure
                         .as_ref()
                         .and_then(|enclosure| enclosure.duration_seconds),
-                    parsed_item.image_url
+                    parsed_item.image_url,
+                    parsed_item.episode_number,
+                    parsed_item.season_number
                 ],
             )
             .map_err(|error| format!("Failed to upsert feed item: {error}"))?;
@@ -267,20 +276,22 @@ mod tests {
             site_url: None,
             image_url: None,
             kind: "article".to_string(),
-                items: vec![ParsedFeedItem {
-                    external_id: external_id.to_string(),
-                    title: "Item".to_string(),
-                    url: "https://example.com/item".to_string(),
-                    summary: String::new(),
-                    preview_text: String::new(),
-                    summary_text: None,
-                    summary_html: None,
-                    content_text: None,
-                    content_html: None,
-                    published_at: "2024-01-01T00:00:00Z".to_string(),
-                    media_enclosure: None,
-                    image_url: None,
-                }],
+            items: vec![ParsedFeedItem {
+                external_id: external_id.to_string(),
+                title: "Item".to_string(),
+                url: "https://example.com/item".to_string(),
+                summary: String::new(),
+                preview_text: String::new(),
+                summary_text: None,
+                summary_html: None,
+                content_text: None,
+                content_html: None,
+                published_at: "2024-01-01T00:00:00Z".to_string(),
+                media_enclosure: None,
+                image_url: None,
+                episode_number: None,
+                season_number: None,
+            }],
         }
     }
 

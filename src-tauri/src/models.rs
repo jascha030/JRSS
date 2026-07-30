@@ -11,17 +11,6 @@ pub enum ItemListSection {
     Favorites,
 }
 
-impl ItemListSection {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::All => "all",
-            Self::Unread => "unread",
-            Self::Media => "media",
-            Self::Favorites => "favorites",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -38,18 +27,6 @@ impl ItemSortOrder {
             Self::OldestFirst => "i.published_at ASC, i.id ASC",
         }
     }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ItemPageQueryRecord {
-    pub feed_id: Option<String>,
-    pub section: ItemListSection,
-    pub offset: i64,
-    pub limit: i64,
-    pub search: Option<String>,
-    #[serde(default)]
-    pub sort_order: ItemSortOrder,
 }
 
 /// Unified items query that handles all cases: feed, station, or section views.
@@ -134,6 +111,8 @@ pub struct FeedListItemRecord {
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
     pub image_url: Option<String>,
+    pub episode_number: Option<i64>,
+    pub season_number: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -162,6 +141,8 @@ pub struct FeedItemRecord {
     pub playback_position_seconds: i64,
     pub media_enclosure: Option<MediaEnclosureRecord>,
     pub image_url: Option<String>,
+    pub episode_number: Option<i64>,
+    pub season_number: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -188,6 +169,16 @@ pub struct ParsedFeedItem {
     pub published_at: String,
     pub media_enclosure: Option<MediaEnclosureRecord>,
     pub image_url: Option<String>,
+    pub episode_number: Option<i64>,
+    pub season_number: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemLocalStatusRecord {
+    pub item_id: String,
+    pub is_cached: bool,
+    pub is_exported: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -199,10 +190,6 @@ pub struct ReaderContentRecord {
     pub content_text: Option<String>,
     pub fetched_at: String,
 }
-
-// ---------------------------------------------------------------------------
-// Stations — podcast playlist grouping
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -260,10 +247,6 @@ pub struct UpdateStationInput {
     pub feed_ids: Option<Vec<String>>,
     pub gradient: Option<String>,
 }
-
-// ---------------------------------------------------------------------------
-// Settings domain types
-// ---------------------------------------------------------------------------
 
 /// UI color scheme preference. Serialises as lowercase (`"system"`, `"light"`, `"dark"`)
 /// to match the frontend `ColorScheme` type.
@@ -340,6 +323,7 @@ pub struct PlaybackSessionRecord {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettingsRecord {
     pub max_audio_cache_size_bytes: i64,
+    pub max_image_cache_size_bytes: i64,
     pub mini_player_always_on_top: bool,
     /// Interval between automatic background feed refreshes, in minutes.
     /// `0` disables auto-refresh.

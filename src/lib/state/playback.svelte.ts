@@ -31,6 +31,7 @@ import {
 import { loadPlaybackContext, savePlaybackContext } from '$lib/services/playback/session';
 import { queryStationEpisodes } from '$lib/services/station';
 import { extractCoverPalette } from '$lib/services/palette';
+import { pickBestArtworkUrl } from '$lib/utils/artwork';
 import { tick } from 'svelte';
 import { toast } from 'svelte-sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -50,8 +51,10 @@ export type PlaybackState = {
 	itemId: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	fileDurationSeconds: number | null;
 	isPlaying: boolean;
 	isBuffering: boolean;
+	isFullyDownloaded: boolean;
 	volume: number;
 };
 
@@ -264,7 +267,12 @@ function buildThemeFromPalette(hexes: string[]): CoverTheme {
  * Pre-calculate cover theme from an image URL.
  * Call this when a new track loads so the theme is ready when CoverView opens.
  */
-export async function precalculateCoverTheme(imageUrl: string | undefined): Promise<void> {
+async function precalculateCoverTheme(
+	episodeImageUrl: string | undefined,
+	feedImageUrl: string | undefined
+): Promise<void> {
+	const imageUrl = await pickBestArtworkUrl(episodeImageUrl, feedImageUrl);
+
 	if (!imageUrl) {
 		playbackState.coverTheme = FALLBACK_COVER_THEME;
 		return;
@@ -290,7 +298,7 @@ export async function initAudioEventListeners(): Promise<void> {
 
 	const unlistenState = await listen<BackendPlaybackState>('playback-state-changed', (event) => {
 		void ensureAudioItemsLoaded([event.payload.itemId]).then(() => {
-			applyBackendPlaybackState(event.payload, true);
+			applyBackendPlaybackState(event.payload);
 		});
 	});
 
@@ -443,8 +451,10 @@ function applyBackendQueueState(queueState: BackendQueueState): void {
 			itemId: queueState.current.itemId,
 			positionSeconds: fallbackPosition,
 			durationSeconds: queueState.current.durationSeconds,
+			fileDurationSeconds: null,
 			isPlaying: false,
 			isBuffering: false,
+			isFullyDownloaded: false,
 			volume: playbackState.currentPlaybackState?.volume ?? 1
 		};
 	}
@@ -470,9 +480,13 @@ function patchItemDuration(itemId: string, durationSeconds: number): void {
 	}
 }
 
-function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boolean = false): void {
+function applyBackendPlaybackState(event: BackendPlaybackState): void {
 	const positionSeconds = Math.floor(event.positionSeconds);
-	const durationSeconds = Math.floor(event.durationSeconds);
+	const fileDurationSeconds =
+		event.fileDurationSeconds && event.fileDurationSeconds > 0
+			? Math.floor(event.fileDurationSeconds)
+			: null;
+	const durationSeconds = fileDurationSeconds ?? Math.floor(event.durationSeconds);
 	const previous = playbackState.currentPlaybackState;
 
 	const playbackUnchanged =
@@ -480,14 +494,14 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		previous.itemId === event.itemId &&
 		previous.positionSeconds === positionSeconds &&
 		previous.durationSeconds === durationSeconds &&
+		previous.fileDurationSeconds === fileDurationSeconds &&
 		previous.isPlaying === event.isPlaying &&
 		previous.isBuffering === event.isBuffering &&
+		previous.isFullyDownloaded === event.isFullyDownloaded &&
 		previous.volume === event.volume;
 
 	if (playbackUnchanged) {
-		if (fromEvent) {
-			playbackState.isAudioLoading = false;
-		}
+		playbackState.isAudioLoading = event.isBuffering;
 		return;
 	}
 
@@ -498,7 +512,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		const item = resolveItem(event.itemId);
 		if (item) {
 			const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-			void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
+			void precalculateCoverTheme(item.imageUrl, feed?.imageUrl);
 		}
 	}
 
@@ -506,13 +520,15 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		itemId: event.itemId,
 		positionSeconds,
 		durationSeconds,
+		fileDurationSeconds,
 		isPlaying: event.isPlaying,
 		isBuffering: event.isBuffering,
+		isFullyDownloaded: event.isFullyDownloaded,
 		volume: event.volume
 	};
 
-	if (durationSeconds > 0) {
-		patchItemDuration(event.itemId, durationSeconds);
+	if (fileDurationSeconds !== null) {
+		patchItemDuration(event.itemId, fileDurationSeconds);
 	}
 
 	if (!event.isPlaying) {
@@ -520,9 +536,7 @@ function applyBackendPlaybackState(event: BackendPlaybackState, fromEvent: boole
 		patchAudioItem(event.itemId, { playbackPositionSeconds: positionSeconds });
 	}
 
-	if (fromEvent) {
-		playbackState.isAudioLoading = event.isBuffering;
-	}
+	playbackState.isAudioLoading = event.isBuffering;
 
 	if (event.isPlaying && (!wasPlaying || previousItemId !== event.itemId)) {
 		void markItemRead(event.itemId, true).catch((error) => {
@@ -561,7 +575,7 @@ export async function syncAudioSessionFromBackend(): Promise<void> {
 	const currentItem = resolveItem(backendQueueState.current.itemId);
 	if (currentItem) {
 		const feed = feedsState.feeds.find((f) => f.id === currentItem.feedId);
-		void precalculateCoverTheme(currentItem.imageUrl ?? feed?.imageUrl);
+		void precalculateCoverTheme(currentItem.imageUrl, feed?.imageUrl);
 	}
 }
 
@@ -629,8 +643,10 @@ export function playAudioItem(
 		itemId: item.id,
 		positionSeconds: startPositionSeconds,
 		durationSeconds: item.mediaEnclosure.durationSeconds ?? 0,
+		fileDurationSeconds: null,
 		isPlaying: false,
 		isBuffering: false,
+		isFullyDownloaded: false,
 		volume: playbackState.currentPlaybackState?.volume ?? 1
 	};
 
@@ -639,7 +655,7 @@ export function playAudioItem(
 	void persistPlaybackContext();
 
 	const feed = feedsState.feeds.find((f) => f.id === item.feedId);
-	void precalculateCoverTheme(item.imageUrl ?? feed?.imageUrl);
+	void precalculateCoverTheme(item.imageUrl, feed?.imageUrl);
 
 	void (async () => {
 		try {
@@ -726,20 +742,17 @@ export function getManualQueueLength(): number {
 
 export function getUpcomingQueue(): MediaListItem[] {
 	const items: MediaListItem[] = [];
-	const seen = new Set<string>();
 
 	for (const itemId of playbackState.manualQueue) {
 		const item = resolveAudioItem(itemId);
-		if (item && !seen.has(item.id)) {
-			seen.add(item.id);
+		if (item) {
 			items.push(item);
 		}
 	}
 
 	for (const itemId of playbackState.autoQueue) {
 		const item = resolveAudioItem(itemId);
-		if (item && !seen.has(item.id)) {
-			seen.add(item.id);
+		if (item) {
 			items.push(item);
 		}
 	}
@@ -777,28 +790,14 @@ export function setPlaybackQueue(items: FeedListItem[]): void {
 }
 
 export function enqueueAudioItem(item: MediaListItem): void {
-	if (playbackState.currentPlaybackState?.itemId === item.id) {
-		return;
-	}
-
-	if (playbackState.manualQueue.includes(item.id)) {
-		return;
-	}
-
 	registerAudioItem(item);
-
 	void audioQueueEnqueue(itemToQueuedItem(item)).catch((err: unknown) =>
 		log.error(`Failed to enqueue: ${err}`)
 	);
 }
 
 export function playAudioItemNext(item: MediaListItem): void {
-	if (playbackState.currentPlaybackState?.itemId === item.id) {
-		return;
-	}
-
 	registerAudioItem(item);
-
 	void audioQueuePlayNext(itemToQueuedItem(item)).catch((err: unknown) =>
 		log.error(`Failed to play next: ${err}`)
 	);
@@ -949,10 +948,6 @@ export async function playStation(stationId: string): Promise<void> {
 		autoQueueIds: [],
 		context: { contextType: 'station', id: stationId }
 	});
-}
-
-export async function handlePlaybackEnded(): Promise<void> {
-	await syncAudioSessionFromBackend();
 }
 
 export async function restorePlaybackContext(): Promise<void> {

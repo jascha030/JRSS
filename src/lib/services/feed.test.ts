@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { addFeed, listFeeds } from '$lib/services/feed';
-import { getItemsByIds, queryItems, queryItemsPage } from '$lib/services/item';
+import { getItemsByIds, queryItems } from '$lib/services/item';
 import { extractCoverPalette } from '$lib/services/palette';
 import { loadPlaybackSession, loadPlaybackContext } from '$lib/services/playback/session';
 
@@ -51,13 +51,6 @@ describe('queryItems — no-Tauri guard', () => {
 			limit: 20,
 			sortOrder: 'newest_first'
 		});
-		expect(result).toEqual({ items: [], totalCount: 0 });
-	});
-});
-
-describe('queryItemsPage — no-Tauri guard', () => {
-	it('returns empty page outside Tauri runtime', async () => {
-		const result = await queryItemsPage({ section: 'all', offset: 0, limit: 20 });
 		expect(result).toEqual({ items: [], totalCount: 0 });
 	});
 });

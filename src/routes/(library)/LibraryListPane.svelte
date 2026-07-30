@@ -16,9 +16,11 @@
 		deleteExistingStation,
 		ensureItemLoaded,
 		ensureVisibleRangeLoaded,
+		exportExistingFeed,
 		feedsState,
 		getActiveQueryKey,
 		getIsActiveInitialLoading,
+		isExportingFeed,
 		itemsState,
 		playStation,
 		refreshExistingFeed,
@@ -52,6 +54,8 @@
 	const isRefreshing = $derived(
 		selectedFeed ? feedsState.syncingFeedIds.includes(selectedFeed.id) : false
 	);
+
+	const isExporting = $derived(selectedFeed ? isExportingFeed(selectedFeed.id) : false);
 
 	const itemSortOrder = $derived(
 		selectedStation?.sortOrder ?? selectedFeed?.sortOrder ?? 'newest_first'
@@ -206,6 +210,11 @@
 		void setFeedSortOrder(order);
 	}
 
+	async function handleExportFeed(): Promise<void> {
+		if (!selectedFeed) return;
+		await withToast(exportExistingFeed(selectedFeed.id), 'Unable to export feed.');
+	}
+
 	let searchInputRef = $state<HTMLInputElement | null>(null);
 
 	onMount(() => {
@@ -246,6 +255,7 @@
 		{selectedStation}
 		bind:searchInputRef
 		{isRefreshing}
+		{isExporting}
 		{itemSortOrder}
 		searchLabel={searchContext?.label ?? null}
 		searchPlaceholder={searchContext?.placeholder ?? null}
@@ -256,6 +266,7 @@
 		onDeleteStation={handleDeleteStation}
 		onRefreshFeed={handleRefreshFeed}
 		onInspectFeed={handleInspectFeed}
+		onExportFeed={handleExportFeed}
 		onSetSortOrder={handleSetSortOrder}
 	/>
 	<ItemListView
@@ -267,6 +278,7 @@
 		{hasActiveSearch}
 		{showFeedTitle}
 		{feedTitleById}
+		localStatusById={itemsState.localStatusById}
 		{isInitialLoading}
 		{isQueryTransitioning}
 		{scrollToItemRequest}

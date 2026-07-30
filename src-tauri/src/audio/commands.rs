@@ -76,9 +76,5 @@ pub enum AudioCommand {
         device_id: Option<String>,
         reply: mpsc::Sender<Result<(), String>>,
     },
-    #[allow(dead_code)]
-    Prefetch {
-        item_id: String,
-        url: String,
-    },
+
 }

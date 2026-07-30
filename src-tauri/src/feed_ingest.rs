@@ -64,82 +64,82 @@ struct AppleLookupResult {
 
 #[derive(Debug, Deserialize)]
 struct AppleSearchResponse {
-	results: Vec<AppleSearchResult>,
+    results: Vec<AppleSearchResult>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AppleSearchResult {
-	collection_name: Option<String>,
-	artist_name: Option<String>,
-	feed_url: Option<String>,
-	artwork_url_100: Option<String>,
-	artwork_url_600: Option<String>,
-	kind: Option<String>,
+    collection_name: Option<String>,
+    artist_name: Option<String>,
+    feed_url: Option<String>,
+    artwork_url_100: Option<String>,
+    artwork_url_600: Option<String>,
+    kind: Option<String>,
 }
 
 pub fn search_podcasts(term: &str) -> AppResult<Vec<PodcastSearchResultRecord>> {
-	crate::rate_limit::throttle_request(APPLE_SEARCH_URL);
+    crate::rate_limit::throttle_request(APPLE_SEARCH_URL);
 
-	let client = build_http_client()?;
-	let search_url = Url::parse_with_params(
-		APPLE_SEARCH_URL,
-		&[
-			("term", term),
-			("media", "podcast"),
-			("entity", "podcast"),
-			("limit", "20"),
-		],
-	)
-	.map_err(|error| format!("Failed to build podcast search URL: {error}"))?;
+    let client = build_http_client("JRSS/0.0.1")?;
+    let search_url = Url::parse_with_params(
+        APPLE_SEARCH_URL,
+        &[
+            ("term", term),
+            ("media", "podcast"),
+            ("entity", "podcast"),
+            ("limit", "20"),
+        ],
+    )
+    .map_err(|error| format!("Failed to build podcast search URL: {error}"))?;
 
-	let response = client
-		.get(search_url)
-		.header(reqwest::header::ACCEPT, APPLE_LOOKUP_ACCEPT_HEADER)
-		.send()
-		.map_err(|error| format!("Podcast search request failed: {error}"))?;
+    let response = client
+        .get(search_url)
+        .header(reqwest::header::ACCEPT, APPLE_LOOKUP_ACCEPT_HEADER)
+        .send()
+        .map_err(|error| format!("Podcast search request failed: {error}"))?;
 
-	let status = response.status();
+    let status = response.status();
 
-	if !status.is_success() {
-		return Err(format!("Podcast search request failed with status {status}."));
-	}
+    if !status.is_success() {
+        return Err(format!(
+            "Podcast search request failed with status {status}."
+        ));
+    }
 
-	let bytes = response
-		.bytes()
-		.map_err(|error| format!("Failed to read podcast search response: {error}"))?;
+    let bytes = response
+        .bytes()
+        .map_err(|error| format!("Failed to read podcast search response: {error}"))?;
 
-	let search_response =
-		serde_json::from_slice::<AppleSearchResponse>(&bytes).map_err(|error| {
-			format!("Podcast search returned an unreadable response: {error}")
-		})?;
+    let search_response = serde_json::from_slice::<AppleSearchResponse>(&bytes)
+        .map_err(|error| format!("Podcast search returned an unreadable response: {error}"))?;
 
-	Ok(search_response
-		.results
-		.into_iter()
-		.filter(|result| result.kind.as_deref() == Some("podcast"))
-		.filter_map(|result| {
-			let name = result.collection_name?.trim().to_string();
-			let artist = result.artist_name?.trim().to_string();
-			let feed_url = result.feed_url?.trim().to_string();
+    Ok(search_response
+        .results
+        .into_iter()
+        .filter(|result| result.kind.as_deref() == Some("podcast"))
+        .filter_map(|result| {
+            let name = result.collection_name?.trim().to_string();
+            let artist = result.artist_name?.trim().to_string();
+            let feed_url = result.feed_url?.trim().to_string();
 
-			if name.is_empty() || feed_url.is_empty() {
-				return None;
-			}
+            if name.is_empty() || feed_url.is_empty() {
+                return None;
+            }
 
-			let artwork_url = result
-				.artwork_url_600
-				.filter(|url| !url.trim().is_empty())
-				.or_else(|| result.artwork_url_100.filter(|url| !url.trim().is_empty()));
+            let artwork_url = result
+                .artwork_url_600
+                .filter(|url| !url.trim().is_empty())
+                .or_else(|| result.artwork_url_100.filter(|url| !url.trim().is_empty()));
 
-			Some(PodcastSearchResultRecord {
-				name,
-				artist,
-				feed_url,
-				artwork_url,
-			})
-		})
-		.collect())
+            Some(PodcastSearchResultRecord {
+                name,
+                artist,
+                feed_url,
+                artwork_url,
+            })
+        })
+        .collect())
 }
 
 pub fn resolve_feed_input(input: &str) -> AppResult<ResolvedFeedInput> {
@@ -192,7 +192,7 @@ pub fn normalize_feed_url(url: &str) -> AppResult<String> {
 pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
     crate::rate_limit::throttle_request(feed_url);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
 
     let response = client
         .get(feed_url)
@@ -213,10 +213,10 @@ pub fn fetch_and_parse_feed(feed_url: &str) -> AppResult<ParsedFeed> {
     parse_feed(&bytes, feed_url)
 }
 
-pub(crate) fn build_http_client() -> AppResult<Client> {
+pub(crate) fn build_http_client(user_agent: &str) -> AppResult<Client> {
     Client::builder()
         .timeout(Duration::from_secs(20))
-        .user_agent("JRSS/0.0.1")
+        .user_agent(user_agent)
         .build()
         .map_err(|error| format!("Failed to create HTTP client: {error}"))
 }
@@ -224,7 +224,7 @@ pub(crate) fn build_http_client() -> AppResult<Client> {
 pub fn fetch_raw_feed_xml(feed_url: &str) -> AppResult<String> {
     crate::rate_limit::throttle_request(feed_url);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
 
     let response = client
         .get(feed_url)
@@ -274,7 +274,7 @@ fn extract_apple_podcast_id_from_url(url: &Url) -> Option<String> {
 fn lookup_apple_podcast_feed_url(podcast_id: &str) -> AppResult<String> {
     crate::rate_limit::throttle_request(APPLE_LOOKUP_URL);
 
-    let client = build_http_client()?;
+    let client = build_http_client("JRSS/0.0.1")?;
     let lookup_url = Url::parse_with_params(APPLE_LOOKUP_URL, &[("id", podcast_id)])
         .map_err(|error| format!("Failed to build Apple Podcasts lookup URL: {error}"))?;
     let response = client
@@ -449,6 +449,14 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         .itunes_ext()
         .and_then(|itunes| itunes.image())
         .and_then(|url| resolve_optional_url(Some(url), feed_url));
+    let episode_number = item
+        .itunes_ext()
+        .and_then(|itunes| itunes.episode())
+        .and_then(parse_i64);
+    let season_number = item
+        .itunes_ext()
+        .and_then(|itunes| itunes.season())
+        .and_then(parse_i64);
 
     ParsedFeedItem {
         external_id,
@@ -463,6 +471,8 @@ fn parse_rss_item(item: &RssItem, feed_url: &str) -> ParsedFeedItem {
         published_at,
         media_enclosure: enclosure,
         image_url,
+        episode_number,
+        season_number,
     }
 }
 
@@ -555,6 +565,10 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         .links()
         .iter()
         .find_map(|link| parse_atom_enclosure(link, feed_url));
+    let image_url = entry
+        .links()
+        .iter()
+        .find_map(|link| parse_atom_entry_image(link, feed_url));
 
     ParsedFeedItem {
         external_id: if entry.id().trim().is_empty() {
@@ -572,7 +586,9 @@ fn parse_atom_entry(entry: &AtomEntry, feed_url: &str) -> ParsedFeedItem {
         content_html,
         published_at,
         media_enclosure: enclosure,
-        image_url: None,
+        image_url,
+        episode_number: None,
+        season_number: None,
     }
 }
 
@@ -588,6 +604,21 @@ fn parse_atom_enclosure(link: &AtomLink, feed_url: &str) -> Option<MediaEnclosur
         link.length(),
         None,
     )
+}
+
+fn parse_atom_entry_image(link: &AtomLink, feed_url: &str) -> Option<String> {
+    match link.rel() {
+        "enclosure" => {
+            let mime = link.mime_type().unwrap_or("");
+            if mime.starts_with("image/") {
+                resolve_optional_url(Some(link.href()), feed_url)
+            } else {
+                None
+            }
+        }
+        "image" | "thumbnail" => resolve_optional_url(Some(link.href()), feed_url),
+        _ => None,
+    }
 }
 
 fn extract_atom_summary(entry: &AtomEntry) -> Option<String> {

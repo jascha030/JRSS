@@ -1,7 +1,6 @@
 use super::AppResult;
 use super::connection::open_connection;
-use chrono::Utc;
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
 use std::path::Path;
 
 pub fn initialize_database(db_path: &Path) -> AppResult<()> {
@@ -86,7 +85,17 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
 			 	WHERE read = 0;
 			 CREATE INDEX IF NOT EXISTS idx_items_podcast_published_at_id
 			 	ON items(published_at DESC, id DESC)
-			 	WHERE enclosure_url IS NOT NULL;",
+			 	WHERE enclosure_url IS NOT NULL;
+
+			 CREATE TABLE IF NOT EXISTS exported_files (
+			 	item_id TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+			 	feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+			 	local_path TEXT NOT NULL,
+			 	exported_at TEXT NOT NULL
+			 );
+
+			 CREATE INDEX IF NOT EXISTS idx_exported_files_feed_id
+			 	ON exported_files(feed_id);",
 		)
 		.map_err(|error| format!("Failed to initialize SQLite schema: {error}"))?;
 
@@ -100,7 +109,8 @@ pub fn initialize_database(db_path: &Path) -> AppResult<()> {
     migrate_feed_kind_values(&connection)?;
     ensure_stations_tables(&connection)?;
     ensure_app_settings_columns(&connection)?;
-    ensure_app_settings_row(&connection)?;
+    ensure_item_episode_columns(&connection)?;
+    super::settings::ensure_app_settings_row(&connection)?;
 
     Ok(())
 }
@@ -196,10 +206,7 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             })?;
     }
 
-    if existing_columns
-        .iter()
-        .all(|column| column != "theme_name")
-    {
+    if existing_columns.iter().all(|column| column != "theme_name") {
         connection
             .execute("ALTER TABLE app_settings ADD COLUMN theme_name TEXT", [])
             .map_err(|error| {
@@ -207,39 +214,19 @@ fn ensure_app_settings_columns(connection: &Connection) -> AppResult<()> {
             })?;
     }
 
-    Ok(())
-}
-
-fn ensure_app_settings_row(connection: &Connection) -> AppResult<()> {
-    use super::settings::{
-        DEFAULT_COLOR_SCHEME, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
-        DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP, DEFAULT_SKIP_BACKWARD_SECONDS,
-        DEFAULT_SKIP_FORWARD_SECONDS,
-    };
-
-    connection
-        .execute(
-            "INSERT INTO app_settings (
-		        id,
-		        max_audio_cache_size_bytes,
-		        mini_player_always_on_top,
-		        color_scheme,
-		        skip_forward_seconds,
-		        skip_backward_seconds,
-		        updated_at
-		     )
-			 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
-			 ON CONFLICT(id) DO NOTHING",
-            params![
-                DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
-                DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP,
-                DEFAULT_COLOR_SCHEME,
-                DEFAULT_SKIP_FORWARD_SECONDS,
-                DEFAULT_SKIP_BACKWARD_SECONDS,
-                Utc::now().to_rfc3339()
-            ],
-        )
-        .map_err(|error| format!("Failed to ensure app settings row: {error}"))?;
+    if existing_columns
+        .iter()
+        .all(|column| column != "max_image_cache_size_bytes")
+    {
+        connection
+            .execute(
+                "ALTER TABLE app_settings ADD COLUMN max_image_cache_size_bytes INTEGER NOT NULL DEFAULT 209715200",
+                [],
+            )
+            .map_err(|error| {
+                format!("Failed to add SQLite app settings max_image_cache_size_bytes column: {error}")
+            })?;
+    }
 
     Ok(())
 }
@@ -324,36 +311,36 @@ fn ensure_item_content_columns(connection: &Connection) -> AppResult<()> {
 }
 
 fn ensure_item_favorite_column(connection: &Connection) -> AppResult<()> {
-	let mut statement = connection
-		.prepare("PRAGMA table_info(items)")
-		.map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
-	let existing_columns = statement
-		.query_map([], |row| row.get::<_, String>(1))
-		.map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
-		.collect::<Result<Vec<_>, _>>()
-		.map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+    let mut statement = connection
+        .prepare("PRAGMA table_info(items)")
+        .map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
 
-	if !existing_columns.iter().any(|column| column == "favorite") {
-		connection
-			.execute(
-				"ALTER TABLE items ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
-				[]
-			)
-			.map_err(|error| format!("Failed to add items.favorite column: {error}"))?;
-	}
+    if !existing_columns.iter().any(|column| column == "favorite") {
+        connection
+            .execute(
+                "ALTER TABLE items ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
+                [],
+            )
+            .map_err(|error| format!("Failed to add items.favorite column: {error}"))?;
+    }
 
-	Ok(())
+    Ok(())
 }
 
 fn ensure_item_favorite_index(connection: &Connection) -> AppResult<()> {
-	connection
+    connection
 		.execute(
 			"CREATE INDEX IF NOT EXISTS idx_items_favorite_published_at_id ON items(published_at DESC, id DESC) WHERE favorite = 1",
 			[]
 		)
 		.map_err(|error| format!("Failed to create favorite items index: {error}"))?;
 
-	Ok(())
+    Ok(())
 }
 
 fn ensure_feed_sort_order_column(connection: &Connection) -> AppResult<()> {
@@ -408,6 +395,31 @@ fn ensure_item_image_url_column(connection: &Connection) -> AppResult<()> {
         connection
             .execute("ALTER TABLE items ADD COLUMN image_url TEXT", [])
             .map_err(|error| format!("Failed to add items.image_url column: {error}"))?;
+    }
+
+    Ok(())
+}
+
+fn ensure_item_episode_columns(connection: &Connection) -> AppResult<()> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(items)")
+        .map_err(|error| format!("Failed to inspect SQLite item columns: {error}"))?;
+    let existing_columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to read SQLite item columns: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to collect SQLite item columns: {error}"))?;
+
+    if !existing_columns.iter().any(|column| column == "episode_number") {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN episode_number INTEGER", [])
+            .map_err(|error| format!("Failed to add items.episode_number column: {error}"))?;
+    }
+
+    if !existing_columns.iter().any(|column| column == "season_number") {
+        connection
+            .execute("ALTER TABLE items ADD COLUMN season_number INTEGER", [])
+            .map_err(|error| format!("Failed to add items.season_number column: {error}"))?;
     }
 
     Ok(())

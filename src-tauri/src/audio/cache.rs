@@ -109,7 +109,6 @@ pub fn enforce_cache_size_limit(
     let mut evictable_files_size: u64 = 0;
     let mut retained_files_size: u64 = 0;
 
-    // Read directory and collect all cached audio files
     let entries = match std::fs::read_dir(cache_dir) {
         Ok(entries) => entries,
         Err(e) => {
@@ -129,7 +128,6 @@ pub fn enforce_cache_size_limit(
             continue;
         }
 
-        // Only consider .mp3 files (not .complete markers)
         if path.extension().and_then(|e| e.to_str()) != Some("mp3") {
             continue;
         }
@@ -141,7 +139,9 @@ pub fn enforce_cache_size_limit(
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
         });
 
-        if path == current_download_path || protected_paths.iter().any(|protected| protected == &path) {
+        if path == current_download_path
+            || protected_paths.iter().any(|protected| protected == &path)
+        {
             retained_files_size = retained_files_size.saturating_add(size);
             continue;
         }
@@ -181,8 +181,7 @@ pub fn enforce_cache_size_limit(
         return Ok(());
     }
 
-    // Sort by last accessed time (oldest first)
-    files.sort_by(|a, b| a.accessed.cmp(&b.accessed));
+    files.sort_by_key(|a| a.accessed);
 
     let mut freed: u64 = 0;
     let mut removed_count: usize = 0;
@@ -195,7 +194,6 @@ pub fn enforce_cache_size_limit(
             break;
         }
 
-        // Remove the file and its complete marker
         let marker_path = cache_complete_marker_path(&file.path);
 
         if let Err(e) = std::fs::remove_file(&file.path) {
@@ -224,36 +222,6 @@ pub fn enforce_cache_size_limit(
     );
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::enforce_cache_size_limit;
-    use std::fs;
-
-    #[test]
-    fn cleanup_keeps_protected_cache_files() {
-        let temp_dir = tempfile::tempdir().expect("temp dir");
-        let cache_dir = temp_dir.path();
-        let active_path = cache_dir.join("active.mp3");
-        let old_path = cache_dir.join("old.mp3");
-        let incoming_path = cache_dir.join("incoming.mp3");
-
-        fs::write(&active_path, vec![0_u8; 4]).expect("write active");
-        fs::write(&old_path, vec![0_u8; 4]).expect("write old");
-
-        enforce_cache_size_limit(
-            cache_dir,
-            &incoming_path,
-            std::slice::from_ref(&active_path),
-            4,
-            8,
-        )
-        .expect("cleanup succeeds");
-
-        assert!(active_path.exists(), "protected file should remain");
-        assert!(!old_path.exists(), "unprotected file should be evicted");
-    }
 }
 
 /// Generate a stable hash for cache filenames using SHA1.
@@ -294,4 +262,34 @@ pub fn cleanup_failed_playback_start(meta: &super::download::DownloadMeta, temp_
     meta.complete.store(true, Ordering::Release);
     let _ = std::fs::remove_file(temp_path);
     let _ = std::fs::remove_file(cache_complete_marker_path(temp_path));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::enforce_cache_size_limit;
+    use std::fs;
+
+    #[test]
+    fn cleanup_keeps_protected_cache_files() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let cache_dir = temp_dir.path();
+        let active_path = cache_dir.join("active.mp3");
+        let old_path = cache_dir.join("old.mp3");
+        let incoming_path = cache_dir.join("incoming.mp3");
+
+        fs::write(&active_path, vec![0_u8; 4]).expect("write active");
+        fs::write(&old_path, vec![0_u8; 4]).expect("write old");
+
+        enforce_cache_size_limit(
+            cache_dir,
+            &incoming_path,
+            std::slice::from_ref(&active_path),
+            4,
+            8,
+        )
+        .expect("cleanup succeeds");
+
+        assert!(active_path.exists(), "protected file should remain");
+        assert!(!old_path.exists(), "unprotected file should be evicted");
+    }
 }

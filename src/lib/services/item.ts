@@ -2,48 +2,14 @@ import { invokeCommand, isTauriRuntime } from '$lib/services/tauri';
 import type {
 	FeedItem,
 	FeedListItem,
+	ItemLocalStatus,
 	ItemPage,
 	ItemPageQuery,
-	ItemSortOrder,
 	RawFeedItem,
 	RawFeedListItem
 } from '$lib/types/item';
 import { mapRawFeedItem, mapRawFeedListItem } from '$lib/types/item';
-import { measurePerfAsync } from '$lib/utils/perfDebug';
-
-export async function queryItemsPage(query: ItemPageQuery): Promise<ItemPage<FeedListItem>> {
-	if (!isTauriRuntime()) {
-		return {
-			items: [],
-			totalCount: 0
-		};
-	}
-
-	const raw = await measurePerfAsync(
-		'tauri.query_items_page',
-		() =>
-			invokeCommand<ItemPage<RawFeedListItem>>('query_items_page', {
-				query: {
-					feedId: query.feedId ?? null,
-					section: query.section,
-					offset: query.offset,
-					limit: query.limit,
-					search: query.search ?? null,
-					sortOrder: query.sortOrder ?? 'newest_first'
-				}
-			}),
-		{
-			feedId: query.feedId ?? null,
-			section: query.section,
-			offset: query.offset,
-			limit: query.limit,
-			search: query.search ?? null,
-			sortOrder: query.sortOrder ?? 'newest_first'
-		}
-	);
-
-	return { items: raw.items.map(mapRawFeedListItem), totalCount: raw.totalCount };
-}
+import { measurePerfAsync } from '$lib/utils/performance-debug';
 
 export async function getItemDetails(itemId: string): Promise<FeedItem> {
 	const raw = await invokeCommand<RawFeedItem>('get_item_details', { itemId });
@@ -87,17 +53,15 @@ export async function getItemsByIds(itemIds: string[]): Promise<FeedListItem[]> 
 	return raw.map(mapRawFeedListItem);
 }
 
-export interface ItemsQuery {
-	feedId?: string;
-	stationId?: string;
-	section: 'all' | 'unread' | 'media' | 'favorites';
-	offset: number;
-	limit: number;
-	search?: string;
-	sortOrder: ItemSortOrder;
+export async function getItemsLocalStatus(itemIds: string[]): Promise<ItemLocalStatus[]> {
+	if (itemIds.length === 0 || !isTauriRuntime()) {
+		return [];
+	}
+
+	return invokeCommand<ItemLocalStatus[]>('get_items_local_status', { itemIds });
 }
 
-export async function queryItems(query: ItemsQuery): Promise<ItemPage<FeedListItem>> {
+export async function queryItems(query: ItemPageQuery): Promise<ItemPage<FeedListItem>> {
 	if (!isTauriRuntime()) {
 		return {
 			items: [],

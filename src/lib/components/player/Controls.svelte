@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { isAudioLoading } from '$lib/state';
 	import Icon from '@iconify/svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 
 	type Props = {
 		isPlaying: boolean;
@@ -42,25 +43,25 @@
 
 <div class={`flex items-center justify-center ${sizes.gap} ${className}`}>
 	{#if onPreviousEpisode}
-		<button
-			class="text-fg-subtle transition-colors hover:text-white disabled:opacity-30"
-			type="button"
-			aria-label="Previous episode"
+		<IconButton
+			icon="bi:skip-start-fill"
+			variant="ghost"
+			iconClass={sizes.skip}
+			label="Previous episode"
 			disabled={!canSkipPrevious}
 			onclick={onPreviousEpisode}
-		>
-			<Icon icon="bi:skip-start-fill" class={sizes.skip} />
-		</button>
+			class={`${isAudioLoading() && 'invisible'}`}
+		/>
 	{/if}
 
-	<button
-		class="text-fg-subtle transition-colors hover:text-white"
-		type="button"
-		aria-label={`Back ${skipBackwardSeconds} seconds`}
+	<IconButton
+		icon="bi:rewind-fill"
+		variant="ghost"
+		iconClass={sizes.skip}
+		label={`Back ${skipBackwardSeconds} seconds`}
 		onclick={() => onSkip(-skipBackwardSeconds)}
-	>
-		<Icon icon="bi:rewind-fill" class={sizes.skip} />
-	</button>
+		class={`${isAudioLoading() && 'invisible'}`}
+	/>
 
 	<button
 		class={`${sizes.playBtn} rounded-xl text-fg-subtle transition-colors hover:text-white`}
@@ -81,24 +82,24 @@
 		{/if}
 	</button>
 
-	<button
-		class="text-fg-subtle transition-colors hover:text-white"
-		type="button"
-		aria-label={`Forward ${skipForwardSeconds} seconds`}
+	<IconButton
+		icon="bi:fast-forward-fill"
+		variant="ghost"
+		iconClass={sizes.skip}
+		label={`Forward ${skipForwardSeconds} seconds`}
 		onclick={() => onSkip(skipForwardSeconds)}
-	>
-		<Icon icon="bi:fast-forward-fill" class={sizes.skip} />
-	</button>
+		class={`${isAudioLoading() && 'invisible'}`}
+	/>
 
 	{#if onNextEpisode}
-		<button
-			class="text-fg-subtle transition-colors hover:text-white disabled:opacity-30"
-			type="button"
-			aria-label="Next episode"
+		<IconButton
+			icon="bi:skip-end-fill"
+			variant="ghost"
+			iconClass={sizes.skip}
+			label="Next episode"
 			disabled={!canSkipNext}
 			onclick={onNextEpisode}
-		>
-			<Icon icon="bi:skip-end-fill" class={sizes.skip} />
-		</button>
+			class={`${isAudioLoading() && 'invisible'}`}
+		/>
 	{/if}
 </div>

@@ -444,20 +444,3 @@ export async function navigateToStationItem(stationId: string, itemId: string): 
 		search: ''
 	});
 }
-
-export async function navigateToCurrentOrSectionFallback(
-	fallback: AppListSection = 'all'
-): Promise<void> {
-	const currentUrl = getCurrentUrl();
-	if (!currentUrl) {
-		return;
-	}
-
-	const route = parseAppUrl(currentUrl);
-	if (isListRoute(route)) {
-		await navigateToAppRoute(route);
-		return;
-	}
-
-	await navigateToSection(fallback);
-}

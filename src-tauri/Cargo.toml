@@ -47,7 +47,8 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 sha1_smol = "1.0.1"
 sha2 = "0.11.0"
-tauri = { version = "2.10.3", features = ["macos-private-api"] }
+base64 = "0.22"
+tauri = { version = "2.10.3", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-log = "2.8.0"
@@ -58,6 +59,10 @@ url = "2.5.8"
 uuid = { version = "1.23.1", features = ["v4"] }
 rustls-webpki = "0.103.13" # or "0.104.0-alpha.7" or later
 time = "0.3.47" # or latest
+tauri-plugin-sharekit = "0.3.1"
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+lofty = "0.22"
 
 [dependencies.rodio]
 version = "0.22.2"

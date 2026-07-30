@@ -9,11 +9,3 @@ export interface CommandPaletteItem {
 	badge?: string;
 	action: () => void;
 }
-
-export interface StaticPaletteCommandDefinition {
-	id: string;
-	title: string;
-	icon: string;
-	category: Exclude<CommandCategory, 'Feeds' | 'Stations'>;
-	keywords: string[];
-}

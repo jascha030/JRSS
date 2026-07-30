@@ -1,7 +1,7 @@
 //! Audio thread — orchestrates download, queue, session persistence, and Tauri
 //! event emission. Delegates all media rendering to a [`PlaybackEngine`].
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
@@ -61,13 +61,23 @@ pub struct AudioThread {
     /// Set to true when the user explicitly pauses. Used to distinguish
     /// manual pause from an unexpected system pause (e.g. audio route change).
     manual_pause: bool,
+    /// Number of consecutive poll ticks where the engine reports finished.
+    /// Used to de-bounce false finished states (e.g. decoder buffer underrun).
+    finished_consecutive_count: u32,
+    /// Whether `duration_seconds` came from the actual decoder rather than
+    /// an RSS hint. Prevents clamping resume positions to incorrect durations.
+    duration_from_decoder: bool,
+    /// Whether the current playback is using HTTP streaming (macOS AVPlayer)
+    /// rather than the local cache file. When true, the engine handles its
+    /// own buffering and seeking past the download edge.
+    is_streaming: bool,
     /// Cached engine snapshot from the last poll iteration. Used to serve
-    /// GetState commands without blocking on the main thread (AVPlayer).
+    /// GetState commands without blocking on the audio thread (AVPlayer).
     cached_engine_snapshot: PlaybackSnapshot,
 }
 
 impl AudioThread {
-    pub fn new(app: AppHandle) -> Self {
+    fn new(app: AppHandle) -> Self {
         Self {
             engine: engine_factory::create_engine(),
             current_item_id: None,
@@ -85,11 +95,14 @@ impl AudioThread {
             duration_probe_done: false,
             stalled_at_download_edge: false,
             manual_pause: false,
+            finished_consecutive_count: 0,
+            duration_from_decoder: false,
+            is_streaming: false,
             cached_engine_snapshot: PlaybackSnapshot::default(),
         }
     }
 
-    pub fn handle_play(
+    fn handle_play(
         &mut self,
         item_id: String,
         url: String,
@@ -98,6 +111,7 @@ impl AudioThread {
     ) -> Result<(), String> {
         self.manual_pause = false;
         self.stalled_at_download_edge = false;
+        self.finished_consecutive_count = 0;
 
         let play_start = Instant::now();
 
@@ -121,17 +135,21 @@ impl AudioThread {
         self.teardown_output_only();
         log::debug!("Teardown took {:?}", teardown_start.elapsed());
 
+        let same_item = self.current_item_id.as_ref() == Some(&item_id);
         self.current_item_id = Some(item_id.clone());
         self.hydrate_metadata(&item_id);
-        self.duration_seconds = duration_hint_seconds.max(0.0);
+
+        if same_item && self.duration_from_decoder && self.duration_seconds > 0.0 {
+            // Preserve verified duration when resuming the same item
+            // (prevents clamping to a potentially wrong RSS hint)
+        } else {
+            self.duration_seconds = duration_hint_seconds.max(0.0);
+            self.duration_from_decoder = false;
+        }
         self.duration_probe_done = false;
 
-        // Clamp start position to valid bounds [0, duration - epsilon]
-        // The epsilon prevents seeking exactly to the end which can cause immediate playback end
-        // This handles cases where RSS metadata duration doesn't match actual audio
-        const END_EPSILON: f64 = 0.5; // Leave 0.5s buffer at the end
-        let clamped_start_position = if self.duration_seconds > END_EPSILON {
-            start_position_seconds.clamp(0.0, self.duration_seconds - END_EPSILON)
+        let clamped_start_position = if self.duration_from_decoder {
+            clamp_to_duration(start_position_seconds, self.duration_seconds)
         } else {
             start_position_seconds.max(0.0)
         };
@@ -147,7 +165,17 @@ impl AudioThread {
 
         self.stored_position_seconds = clamped_start_position;
 
-        let (meta, cache_path, is_adopted_prefetch) = if prefetch_match {
+        let exported_path = self.resolve_exported_file(&item_id);
+
+        let (meta, cache_path, is_adopted_prefetch) = if let Some(path) = exported_path {
+            let meta = super::download::DownloadMeta::new();
+            let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            meta.complete.store(true, Ordering::Release);
+            meta.bytes_written.store(size, Ordering::Release);
+            meta.total_size.store(size, Ordering::Release);
+            log::info!("Using exported file for playback: item_id={}, path={:?}", item_id, path);
+            (meta, path, false)
+        } else if prefetch_match {
             let prefetch = self.prefetch.take().unwrap();
             let meta = Arc::clone(&prefetch.meta);
             let path = prefetch.cache_path.clone();
@@ -163,7 +191,6 @@ impl AudioThread {
             );
             let meta = super::download::DownloadMeta::new();
 
-            // Check for complete cache
             if is_cache_complete(&cache_path) {
                 log::info!("Cache hit (complete) for item_id={}", item_id);
                 meta.complete.store(true, Ordering::Release);
@@ -171,7 +198,6 @@ impl AudioThread {
                 meta.bytes_written.store(size, Ordering::Release);
                 meta.total_size.store(size, Ordering::Release);
             } else {
-                // Start download in background
                 let dl_meta = Arc::clone(&meta);
                 let dl_path = cache_path.clone();
                 let dl_url = url.clone();
@@ -227,6 +253,17 @@ impl AudioThread {
             None
         };
 
+        let cache_complete = is_cache_complete(&cache_path);
+
+        #[cfg(target_os = "macos")]
+        let stream_url = if !cache_complete {
+            self.is_streaming = true;
+            Some(url.clone())
+        } else {
+            self.is_streaming = false;
+            None
+        };
+
         let config = PlayConfig {
             start_position_seconds: self.stored_position_seconds,
             duration_hint_seconds: self.duration_seconds,
@@ -234,6 +271,8 @@ impl AudioThread {
             speed: self.speed,
             byte_len_hint,
             file_path: Some(cache_path.clone()),
+            #[cfg(target_os = "macos")]
+            stream_url,
             #[cfg(target_os = "macos")]
             title: self.current_item_title.clone(),
             #[cfg(target_os = "macos")]
@@ -256,6 +295,7 @@ impl AudioThread {
                     self.duration_seconds
                 );
                 self.duration_seconds = actual_seconds;
+                self.duration_from_decoder = true;
 
                 // Update queue current item duration so frontend gets correct value
                 if let Some(ref mut current) = self.queue.current {
@@ -312,6 +352,9 @@ impl AudioThread {
         self.duration_seconds = 0.0;
         self.stalled_at_download_edge = false;
         self.manual_pause = false;
+        self.finished_consecutive_count = 0;
+        self.duration_from_decoder = false;
+        self.is_streaming = false;
     }
 
     fn hydrate_metadata(&mut self, item_id: &str) {
@@ -331,6 +374,20 @@ impl AudioThread {
         }
     }
 
+    fn resolve_exported_file(&self, item_id: &str) -> Option<PathBuf> {
+        let db_state = self.app.state::<db::DatabaseState>();
+        let db_path = db_state.db_path();
+
+        let path_str = db::get_exported_file_for_item(&db_path, item_id).ok().flatten()?;
+        let path = PathBuf::from(path_str);
+
+        if path.is_file() && std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0) > 0 {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
     /// Prefetch the next item in queue so it's ready when current finishes.
     fn prefetch_next_in_queue(&mut self) {
         if let Some(next_item) = self.queue.peek_next() {
@@ -343,7 +400,7 @@ impl AudioThread {
         }
     }
 
-    pub fn snapshot(&self) -> Option<PlaybackStateEvent> {
+    fn snapshot(&self) -> Option<PlaybackStateEvent> {
         self.snapshot_full().0
     }
 
@@ -351,8 +408,13 @@ impl AudioThread {
     /// commands when main thread may be busy (e.g., during window creation).
     fn snapshot_from_cache(&self) -> Option<PlaybackStateEvent> {
         let eng = &self.cached_engine_snapshot;
+        let download_complete = self.current_download_is_complete();
         self.current_item_id.as_ref().map(|item_id| {
-            let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
+            let position_seconds = if eng.has_active {
+                eng.position
+            } else {
+                self.stored_position_seconds
+            };
             let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
             let effective_duration = self
                 .duration_seconds
@@ -364,8 +426,10 @@ impl AudioThread {
                 artist: self.current_feed_title.clone(),
                 position_seconds,
                 duration_seconds: effective_duration,
+                file_duration_seconds: download_complete.then_some(self.duration_seconds).filter(|d| *d > 0.0),
                 is_playing,
                 is_buffering: self.stalled_at_download_edge,
+                is_fully_downloaded: download_complete,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -374,13 +438,14 @@ impl AudioThread {
 
     /// One engine round-trip that yields both the Tauri event and the raw
     /// engine fields needed by the poll loop. Avoids repeated IPC for engines
-    /// like [`AvProxyEngine`] whose state queries cross a dispatch boundary.
-    pub fn snapshot_full(&self) -> (Option<PlaybackStateEvent>, PlaybackSnapshot) {
+    /// whose state queries cross a dispatch boundary.
+    fn snapshot_full(&self) -> (Option<PlaybackStateEvent>, PlaybackSnapshot) {
         let eng = if self.engine.has_active_playback() {
             self.engine.playback_snapshot()
         } else {
             PlaybackSnapshot::default()
         };
+        let download_complete = self.current_download_is_complete();
         let event = self.current_item_id.as_ref().map(|item_id| {
             let position_seconds = if eng.has_active { eng.position } else { self.stored_position_seconds };
             let is_playing = eng.has_active && !eng.is_paused && !eng.is_finished;
@@ -398,8 +463,10 @@ impl AudioThread {
                 artist: self.current_feed_title.clone(),
                 position_seconds,
                 duration_seconds: effective_duration,
+                file_duration_seconds: download_complete.then_some(self.duration_seconds).filter(|d| *d > 0.0),
                 is_playing,
                 is_buffering: self.stalled_at_download_edge,
+                is_fully_downloaded: download_complete,
                 volume: self.volume as f64,
                 speed: self.speed as f64,
             }
@@ -450,7 +517,7 @@ impl AudioThread {
         }
     }
 
-    pub fn persist_session(&mut self) {
+    fn persist_session(&mut self) {
         self.sync_cached_position();
 
         let db_state = self.app.state::<db::DatabaseState>();
@@ -501,7 +568,7 @@ impl AudioThread {
         }
     }
 
-    pub fn change_output_device(&mut self, device_id: Option<String>) -> Result<(), String> {
+    fn change_output_device(&mut self, device_id: Option<String>) -> Result<(), String> {
         self.sync_cached_position();
 
         let had_current_item = self.queue.current_item().is_some();
@@ -524,7 +591,6 @@ impl AudioThread {
     }
 
     fn handle_prefetch(&mut self, item_id: String, url: String) {
-        // Cancel any existing prefetch
         if let Some(mut prefetch) = self.prefetch.take() {
             if prefetch.item_id != item_id {
                 log::debug!("Cancelling prefetch for item_id={}", prefetch.item_id);
@@ -535,7 +601,6 @@ impl AudioThread {
             }
         }
 
-        // Check if already cached
         let cache_path = match get_audio_cache_path(&self.app) {
             Ok(dir) => dir.join(format!("{}.mp3", hash_item_id(&item_id))),
             Err(e) => {
@@ -555,7 +620,6 @@ impl AudioThread {
             return;
         }
 
-        // Start prefetch download
         let meta = super::download::DownloadMeta::new();
         let dl_meta = Arc::clone(&meta);
         let dl_path = cache_path.clone();
@@ -568,16 +632,14 @@ impl AudioThread {
             .name("jrss-prefetch".into())
             .spawn(move || {
                 let cache_dir = cache_dir_for_prefetch.as_deref().unwrap_or(Path::new(""));
-                if let Err(e) =
-                    download_to_file(
-                        &dl_url,
-                        &dl_path,
-                        &dl_meta,
-                        cache_dir,
-                        &protected_paths,
-                        cache_limit_bytes,
-                    )
-                {
+                if let Err(e) = download_to_file(
+                    &dl_url,
+                    &dl_path,
+                    &dl_meta,
+                    cache_dir,
+                    &protected_paths,
+                    cache_limit_bytes,
+                ) {
                     log::error!("Prefetch download failed: {}", e);
                     dl_meta.complete.store(true, Ordering::Release);
                 }
@@ -629,7 +691,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     // super::macos::set_audio_thread_qos();
 
     let mut state = AudioThread::new(app.clone());
-    restore_persisted_session(&mut state, &app);
+    restore_persisted_session(&mut state);
 
     state.engine.initialize();
 
@@ -639,8 +701,8 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
     let mut was_playing = false;
 
     // Throttling for playback-state-changed events
-    // Using longer intervals for AVPlayer on macOS to avoid blocking the
-    // main thread during window creation (miniplayer freeze issue).
+    // Using longer intervals for AVPlayer on macOS to reduce dispatch-queue
+    // contention during window creation (miniplayer freeze issue).
     let min_emit_interval_while_playing = Duration::from_millis(1000);
     let min_emit_interval_while_paused = Duration::from_secs(2);
     let mut last_emit = Instant::now();
@@ -746,12 +808,36 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 AudioCommand::Seek { position_seconds } => {
                     let seek_start = Instant::now();
 
-                    const END_EPSILON: f64 = 0.5;
-                    let clamped_position = if state.duration_seconds > END_EPSILON {
-                        position_seconds.clamp(0.0, state.duration_seconds - END_EPSILON)
-                    } else {
-                        position_seconds.max(0.0)
-                    };
+                    let mut clamped_position = clamp_to_duration(position_seconds, state.duration_seconds);
+
+                    // For incomplete downloads, clamp seeks to what is safely available.
+                    // Seeking past the downloaded edge causes the decoder to read garbage
+                    // (invalid MPEG headers, junk scanning) because the byte-level seek
+                    // lands in undownloaded territory or mid-frame.
+                    // Skip this clamping when streaming — AVPlayer handles range requests.
+                    if !state.is_streaming {
+                        if let Some(ref meta) = state.download_meta {
+                            let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                            let total_size = meta.total_size.load(Ordering::Acquire);
+                            let complete = meta.complete.load(Ordering::Acquire);
+                            if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                                let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                                let seek_ratio = clamped_position / state.duration_seconds;
+                                // Keep a 5 % safety margin so we don't land exactly at the edge
+                                let safe_ratio = downloaded_ratio * 0.95;
+                                if seek_ratio > safe_ratio {
+                                    let safe_position = safe_ratio * state.duration_seconds;
+                                    log::warn!(
+                                        "Seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                        clamped_position,
+                                        safe_position,
+                                        downloaded_ratio * 100.0
+                                    );
+                                    clamped_position = safe_position.max(0.0);
+                                }
+                            }
+                        }
+                    }
 
                     if (clamped_position - position_seconds).abs() > 1.0 {
                         log::debug!(
@@ -763,12 +849,13 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     }
 
                     if state.engine.has_active_playback() {
-                        if !state.engine.seek(clamped_position) {
+                        if state.engine.seek(clamped_position) {
+                            state.stored_position_seconds = clamped_position;
+                        } else {
                             log::warn!(
                                 "Seek failed in decoder (MP3 without seek table?), position unchanged"
                             );
                         }
-                        state.stored_position_seconds = clamped_position;
                     }
 
                     log::debug!("Seek command took {:?}", seek_start.elapsed());
@@ -791,18 +878,39 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
 
                     let target = current_position + direction * delta_seconds;
 
-                    const END_EPSILON: f64 = 0.5;
-                    let clamped_position = if state.duration_seconds > END_EPSILON {
-                        target.clamp(0.0, state.duration_seconds - END_EPSILON)
-                    } else {
-                        target.max(0.0)
-                    };
+                    let mut clamped_position = clamp_to_duration(target, state.duration_seconds);
+
+                    // Same download-edge protection as AudioCommand::Seek
+                    // Skip when streaming — AVPlayer handles range requests.
+                    if !state.is_streaming {
+                        if let Some(ref meta) = state.download_meta {
+                            let bytes_written = meta.bytes_written.load(Ordering::Acquire);
+                            let total_size = meta.total_size.load(Ordering::Acquire);
+                            let complete = meta.complete.load(Ordering::Acquire);
+                            if !complete && total_size > 0 && state.duration_seconds > 0.0 {
+                                let downloaded_ratio = bytes_written as f64 / total_size as f64;
+                                let seek_ratio = clamped_position / state.duration_seconds;
+                                let safe_ratio = downloaded_ratio * 0.95;
+                                if seek_ratio > safe_ratio {
+                                    let safe_position = safe_ratio * state.duration_seconds;
+                                    log::warn!(
+                                        "Skip seek to {:.1}s clamped to {:.1}s (only {:.1}% downloaded)",
+                                        clamped_position,
+                                        safe_position,
+                                        downloaded_ratio * 100.0
+                                    );
+                                    clamped_position = safe_position.max(0.0);
+                                }
+                            }
+                        }
+                    }
 
                     if state.engine.has_active_playback() {
-                        if !state.engine.seek(clamped_position) {
+                        if state.engine.seek(clamped_position) {
+                            state.stored_position_seconds = clamped_position;
+                        } else {
                             log::warn!("Skip seek failed in decoder, position unchanged");
                         }
-                        state.stored_position_seconds = clamped_position;
                     }
 
                     state.persist_session();
@@ -891,43 +999,16 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueueNext => {
-                    state.sync_cached_position();
-                    if let Some(ref item_id) = state.current_item_id {
-                        let db = app.state::<crate::db::DatabaseState>();
-                        let _ = crate::db::save_playback(
-                            &db.db_path(),
-                            item_id,
-                            state.stored_position_seconds as i64,
-                        );
-                    }
-                    state.stop_current();
+                    save_position_and_stop(&mut state, &app);
                     if let Some(next_item) = state.queue.shift_next() {
-                        let next_item_id = next_item.item_id.clone();
-                        match state.handle_play(
-                            next_item.item_id,
-                            next_item.url,
-                            0.0,
-                            next_item.duration_seconds,
-                        ) {
-                            Ok(()) => {
-                                emit_playback_snapshot(
-                                    &app,
-                                    &state,
-                                    &mut last_emit,
-                                    &mut last_emitted_state,
-                                );
-                            }
-                            Err(error) => {
-                                log::error!("QueueNext failed: {error}");
-                                let _ = app.emit(
-                                    "playback-error",
-                                    PlaybackErrorEvent {
-                                        item_id: next_item_id,
-                                        error: error.clone(),
-                                    },
-                                );
-                            }
-                        }
+                        try_handle_play(
+                            &mut state,
+                            &app,
+                            next_item,
+                            "QueueNext",
+                            &mut last_emit,
+                            &mut last_emitted_state,
+                        );
                     } else {
                         state.queue.clear_current();
                         let _ = app.emit("playback-stopped", ());
@@ -936,43 +1017,16 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     let _ = app.emit("queue-changed", state.queue.to_event());
                 }
                 AudioCommand::QueuePrev => {
-                    state.sync_cached_position();
-                    if let Some(ref item_id) = state.current_item_id {
-                        let db = app.state::<crate::db::DatabaseState>();
-                        let _ = crate::db::save_playback(
-                            &db.db_path(),
-                            item_id,
-                            state.stored_position_seconds as i64,
-                        );
-                    }
-                    state.stop_current();
+                    save_position_and_stop(&mut state, &app);
                     if let Some(prev_item) = state.queue.shift_prev() {
-                        let prev_item_id = prev_item.item_id.clone();
-                        match state.handle_play(
-                            prev_item.item_id,
-                            prev_item.url,
-                            0.0,
-                            prev_item.duration_seconds,
-                        ) {
-                            Ok(()) => {
-                                emit_playback_snapshot(
-                                    &app,
-                                    &state,
-                                    &mut last_emit,
-                                    &mut last_emitted_state,
-                                );
-                            }
-                            Err(error) => {
-                                log::error!("QueuePrev failed: {error}");
-                                let _ = app.emit(
-                                    "playback-error",
-                                    PlaybackErrorEvent {
-                                        item_id: prev_item_id,
-                                        error: error.clone(),
-                                    },
-                                );
-                            }
-                        }
+                        try_handle_play(
+                            &mut state,
+                            &app,
+                            prev_item,
+                            "QueuePrev",
+                            &mut last_emit,
+                            &mut last_emitted_state,
+                        );
                     } else {
                         let _ = app.emit("playback-stopped", ());
                     }
@@ -1021,9 +1075,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     }
                     let _ = reply.send(result);
                 }
-                AudioCommand::Prefetch { item_id, url } => {
-                    state.handle_prefetch(item_id, url);
-                }
+
             },
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -1032,6 +1084,15 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
         let (snapshot_opt, eng_snap) = state.snapshot_full();
         // Cache engine snapshot for non-blocking GetState responses
         state.cached_engine_snapshot = eng_snap.clone();
+
+        // De-bounce engine finished state: a single tick of is_finished can be
+        // a decoder buffer underrun rather than a true natural end.
+        if eng_snap.is_finished {
+            state.finished_consecutive_count = state.finished_consecutive_count.saturating_add(1);
+        } else {
+            state.finished_consecutive_count = 0;
+        }
+
         if let Some(snapshot) = snapshot_opt {
             // Throttle playback-state-changed emissions
             let min_interval = if snapshot.is_playing {
@@ -1045,8 +1106,12 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                     // Only emit if something meaningful changed
                     last.item_id != snapshot.item_id
                         || last.is_playing != snapshot.is_playing
+                        || last.is_buffering != snapshot.is_buffering
+                        || last.is_fully_downloaded != snapshot.is_fully_downloaded
                         || (last.position_seconds as i64) != (snapshot.position_seconds as i64)
                         || (last.duration_seconds as i64) != (snapshot.duration_seconds as i64)
+                        || (last.file_duration_seconds.unwrap_or(0.0) as i64)
+                            != (snapshot.file_duration_seconds.unwrap_or(0.0) as i64)
                         || (last.speed as i64) != (snapshot.speed as i64)
                 } else {
                     true // Always emit if we haven't emitted before
@@ -1069,6 +1134,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                         state.duration_seconds
                     );
                     state.duration_seconds = actual;
+                    state.duration_from_decoder = true;
 
                     if let Some(ref mut current) = state.queue.current {
                         current.duration_seconds = actual;
@@ -1092,7 +1158,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 }
             }
 
-            if state.stalled_at_download_edge && download_complete {
+            if state.stalled_at_download_edge && download_complete && !state.is_streaming {
                 log::info!("Download completed after stall; resuming current item");
                 match resume_current_item(&mut state) {
                     Ok(()) => {
@@ -1122,8 +1188,17 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 state.persist_session();
             }
 
-            // Auto-advance only after a true natural end on a fully cached file.
-            if was_playing && !snapshot.is_playing && eng_snap.is_finished && download_complete {
+            // Auto-advance only after a true natural end. When streaming,
+            // AVPlayer handles its own buffering so auto-advance does not
+            // require the cache to be complete. Otherwise, require a fully
+            // cached file to de-bounce decoder stalls at the download edge.
+            let auto_advance_ready = if state.is_streaming {
+                state.finished_consecutive_count >= 2
+            } else {
+                state.finished_consecutive_count >= 2 && download_complete
+            };
+
+            if was_playing && !snapshot.is_playing && auto_advance_ready {
                 let finished_item_id = snapshot.item_id.clone();
                 let db = app.state::<crate::db::DatabaseState>();
                 let _ = crate::db::save_playback(&db.db_path(), &finished_item_id, 0);
@@ -1137,32 +1212,14 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 );
 
                 if let Some(next_item) = state.queue.shift_next() {
-                    let next_item_id = next_item.item_id.clone();
-                    match state.handle_play(
-                        next_item.item_id,
-                        next_item.url,
-                        0.0,
-                        next_item.duration_seconds,
-                    ) {
-                        Ok(()) => {
-                            emit_playback_snapshot(
-                                &app,
-                                &state,
-                                &mut last_emit,
-                                &mut last_emitted_state,
-                            );
-                        }
-                        Err(error) => {
-                            log::error!("Auto-advance failed: {error}");
-                            let _ = app.emit(
-                                "playback-error",
-                                PlaybackErrorEvent {
-                                    item_id: next_item_id,
-                                    error: error.clone(),
-                                },
-                            );
-                        }
-                    }
+                    try_handle_play(
+                        &mut state,
+                        &app,
+                        next_item,
+                        "Auto-advance",
+                        &mut last_emit,
+                        &mut last_emitted_state,
+                    );
                 } else {
                     state.queue.clear_current();
                     let _ = app.emit("playback-stopped", ());
@@ -1172,8 +1229,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 let _ = app.emit("queue-changed", state.queue.to_event());
             } else if was_playing
                 && !snapshot.is_playing
-                && eng_snap.is_finished
+                && state.finished_consecutive_count >= 1
                 && !download_complete
+                && !state.is_streaming
             {
                 state.stalled_at_download_edge = true;
                 state.stored_position_seconds = snapshot.position_seconds;
@@ -1181,6 +1239,7 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 log::info!(
                     "Playback reached the downloaded edge before cache completion; waiting for more data"
                 );
+                emit_playback_snapshot(&app, &state, &mut last_emit, &mut last_emitted_state);
             }
 
             // Log unexpected stops (route changes, errors) so they show up in
@@ -1192,7 +1251,9 @@ pub fn audio_thread_main(rx: mpsc::Receiver<AudioCommand>, app: AppHandle) {
                 );
             }
 
-            was_playing = snapshot.is_playing;
+            if !eng_snap.is_finished {
+                was_playing = snapshot.is_playing;
+            }
         }
     }
 }
@@ -1258,7 +1319,7 @@ fn load_queued_item(db_path: &std::path::Path, item_id: String) -> Option<Queued
     }
 }
 
-fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
+fn restore_persisted_session(state: &mut AudioThread) {
     let db_state = state.app.state::<db::DatabaseState>();
     let db_path = db_state.db_path();
 
@@ -1334,6 +1395,43 @@ fn restore_persisted_session(state: &mut AudioThread, _app: &AppHandle) {
     }
 }
 
+fn try_handle_play(
+    state: &mut AudioThread,
+    app: &AppHandle,
+    item: QueuedItem,
+    label: &str,
+    last_emit: &mut Instant,
+    last_emitted_state: &mut Option<PlaybackStateEvent>,
+) {
+    let item_id = item.item_id.clone();
+    match state.handle_play(item.item_id, item.url, 0.0, item.duration_seconds) {
+        Ok(()) => {
+            emit_playback_snapshot(app, state, last_emit, last_emitted_state);
+        }
+        Err(error) => {
+            log::error!("{label} failed: {error}");
+            let _ = app.emit("playback-error", PlaybackErrorEvent { item_id, error });
+        }
+    }
+}
+
+fn clamp_to_duration(position: f64, duration: f64) -> f64 {
+    if duration > 0.5 {
+        position.clamp(0.0, duration - 0.5)
+    } else {
+        position.max(0.0)
+    }
+}
+
+fn save_position_and_stop(state: &mut AudioThread, app: &AppHandle) {
+    state.sync_cached_position();
+    if let Some(ref item_id) = state.current_item_id {
+        let db = app.state::<crate::db::DatabaseState>();
+        let _ = crate::db::save_playback(&db.db_path(), item_id, state.stored_position_seconds as i64);
+    }
+    state.stop_current();
+}
+
 fn resume_current_item(state: &mut AudioThread) -> Result<(), String> {
     let Some(current) = state.queue.current_item().cloned() else {
         return Err("No current item to resume".to_string());
@@ -1351,4 +1449,4 @@ fn resume_current_item(state: &mut AudioThread) -> Result<(), String> {
     )
 }
 
-use std::path::Path;
+

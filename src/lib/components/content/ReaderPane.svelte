@@ -4,6 +4,7 @@
 	import { feedsState, selection } from '$lib/state';
 	import { getSelectedItem, readerState } from '$lib/state';
 	import { markItemFavorite } from '$lib/state/items.svelte';
+	import { shareItem } from '$lib/services/share';
 	import { appUi, toggleReaderMaximized, type ReaderPaneMode } from '$lib/hooks/useAppUi.svelte';
 	import { loadReaderView } from '$lib/state';
 	import { isMediaItem } from '$lib/types/item';
@@ -11,6 +12,7 @@
 	import Icon from '@iconify/svelte';
 	import { toast } from 'svelte-sonner';
 	import IconButton from '../ui/IconButton.svelte';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 
 	let {
 		class: className = ''
@@ -136,6 +138,27 @@
 							icon={selectedItem.favorite ? 'heroicons:heart-solid' : 'heroicons:heart'}
 							label={selectedItem.favorite ? 'Remove favorite' : 'Add favorite'}
 							onclick={() => void markItemFavorite(selectedItem.id, !selectedItem.favorite)}
+						/>
+
+						<IconButton
+							icon="lucide:share"
+							label="Share item"
+							onclick={(event: MouseEvent) =>
+								void shareItem(selectedItem, { x: event.clientX, y: event.clientY }).catch(
+									(error: unknown) => {
+										toast.error(
+											error instanceof Error ? error.message : 'Unable to share this item.'
+										);
+									}
+								)}
+						/>
+
+						<IconButton
+							icon="iconoir:safari"
+							label="Open in Browser"
+							onclick={() => {
+								void openUrl(selectedItem.url);
+							}}
 						/>
 
 						<IconButton

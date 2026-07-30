@@ -32,7 +32,7 @@
 {/if}
 
 <div
-	class="pointer-events-auto input-group h-9 grid-cols-[auto_1fr_auto] rounded-xl border input-group-integrated border-border transition-colors focus-within:ring-2"
+	class="input-group pointer-events-auto h-9 grid-cols-[auto_1fr_auto] rounded-xl border input-group-integrated border-border transition-colors focus-within:ring-2"
 >
 	<div class="flex items-center justify-center px-3">
 		{#if isLoading}

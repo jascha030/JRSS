@@ -3,6 +3,7 @@
 	import type { Station } from '$lib/types/station';
 	import { formatDate } from '$lib/utils/format';
 	import { openFeedContextMenu, openStationContextMenu } from '$lib/utils/tauri-menu';
+	import { feedImageUrls } from '$lib/state';
 	import SearchBar from '$lib/components/content/SearchBar.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import {
@@ -29,6 +30,8 @@
 		onDeleteStation: () => void;
 		onRefreshFeed: () => void;
 		onInspectFeed: () => void;
+		onExportFeed: () => void;
+		isExporting: boolean;
 		onSetSortOrder: (order: 'newest_first' | 'oldest_first') => void;
 	};
 
@@ -49,6 +52,8 @@
 		onDeleteStation,
 		onRefreshFeed,
 		onInspectFeed,
+		onExportFeed,
+		isExporting,
 		onSetSortOrder
 	}: Props = $props();
 
@@ -86,7 +91,7 @@
 						>
 							{#if selectedFeed.imageUrl}
 								<img
-									src={selectedFeed.imageUrl}
+									src={feedImageUrls[selectedFeed.id] || selectedFeed.imageUrl}
 									alt={selectedFeed.title}
 									class="size-full object-cover"
 								/>
@@ -153,7 +158,7 @@
 						<Combobox.Label class="sr-only">Sort order</Combobox.Label>
 						<Combobox.Control class="flex h-9 items-center gap-2">
 							<Combobox.Input class="h-full min-w-0 flex-1" />
-							<Combobox.Trigger class="h-full" />
+							<Combobox.Trigger />
 						</Combobox.Control>
 						<Portal>
 							<Combobox.Positioner>
@@ -187,6 +192,14 @@
 						label="Inspect feed XML"
 						iconClass="size-5"
 						onclick={onInspectFeed}
+					/>
+					<IconButton
+						icon="lucide:download"
+						title="Export feed"
+						label="Export feed"
+						iconClass={`size-5 ${isExporting ? 'animate-pulse' : ''}`}
+						disabled={isExporting}
+						onclick={onExportFeed}
 					/>
 				</div>
 			{/if}

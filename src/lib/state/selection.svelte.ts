@@ -1,6 +1,3 @@
-import type { Feed } from '$lib/types/feed';
-import type { Station } from '$lib/types/station';
-
 export type SidebarSection = 'home' | 'all' | 'unread' | 'media' | 'favorites' | 'settings' | null;
 
 export type RouteSelectionState = {
@@ -90,18 +87,4 @@ export function setStationSearchTerm(term: string): void {
 
 export function setSectionSearchTerm(term: string): void {
 	selection.sectionSearchTerm = term;
-}
-
-/**
- * Get the currently selected feed from the provided feeds array.
- */
-export function getSelectedFeed(feeds: Feed[]): Feed | null {
-	return feeds.find((feed) => feed.id === selection.selectedFeedId) ?? null;
-}
-
-/**
- * Get the currently selected station from the provided stations array.
- */
-export function getSelectedStation(stations: Station[]): Station | null {
-	return stations.find((station) => station.id === selection.selectedStationId) ?? null;
 }

@@ -25,8 +25,8 @@ const config = {
 			fallback: 'index.html'
 		}),
 		prerender: {
-			entries: ['*'],
-			handleUnseenRoutes: () => {}
+			entries: ['/'],
+			handleUnseenRoutes: 'ignore'
 		}
 	}
 };

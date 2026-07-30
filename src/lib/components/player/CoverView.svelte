@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { MediaListItem } from '$lib/types/item';
-	import { getFeedById } from '$lib/state';
+	import { clearQueue } from '$lib/state';
 	import { getCoverTheme } from '$lib/state/playback.svelte';
 	import { playbackSettings } from '$lib/state/settings.svelte';
 	import { playbackState as globalPlaybackState } from '$lib/state/playback.svelte';
@@ -32,7 +32,8 @@
 
 	const artwork = useArtwork(
 		() => imageUrl,
-		() => (item ? getFeedById(item.feedId)?.imageUrl : undefined)
+		() => (item ? item.feedId : undefined),
+		true
 	);
 
 	useMediaSession(() => item, player.handleSkip, player.previousEpisode, player.nextEpisode);
@@ -122,7 +123,7 @@
 						</div>
 					{/snippet}
 
-					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4">
+					<div class="mx-auto flex min-h-0 w-full items-center justify-center p-4 pt-0">
 						<div
 							class="cover-view-artwork-frame flex min-h-0 items-center justify-center"
 							bind:offsetWidth={artworkFrameWidth}
@@ -203,8 +204,7 @@
 						<button
 							type="button"
 							class="rounded-lg px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-							onclick={async () => {
-								const { clearQueue } = await import('$lib/state');
+							onclick={() => {
 								clearQueue();
 							}}
 						>

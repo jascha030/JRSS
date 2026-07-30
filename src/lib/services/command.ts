@@ -1,5 +1,6 @@
 import {
 	closeInspector,
+	normalizeSearchTerm,
 	playbackState,
 	requestTogglePlayback,
 	requestNextEpisode,
@@ -38,10 +39,6 @@ const categoryOrder: Record<CommandCategory, number> = {
 	Feeds: 4,
 	Stations: 5
 };
-
-function normalizeTerm(value: string): string {
-	return value.trim().toLowerCase();
-}
 
 function withClose(action: () => void, onClose: () => void): () => void {
 	return () => {
@@ -330,7 +327,7 @@ function buildStationItems(
 }
 
 export function getCommandPaletteItems(options: BuildPaletteItemsOptions): CommandPaletteItem[] {
-	const term = normalizeTerm(options.term);
+	const term = normalizeSearchTerm(options.term);
 	const baseItems = buildBaseItems(options);
 	const matchedBaseItems = baseItems.filter((item) => matchesItem(term, item));
 	const feedItems = buildFeedItems(options.feeds, term, options.onClose);

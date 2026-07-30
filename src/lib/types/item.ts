@@ -10,6 +10,12 @@ export interface MediaEnclosure {
 	durationSeconds?: number;
 }
 
+export interface ItemLocalStatus {
+	itemId: string;
+	isCached: boolean;
+	isExported: boolean;
+}
+
 interface FeedListItemBase {
 	id: string;
 	feedId: string;
@@ -27,6 +33,8 @@ interface FeedListItemBase {
 	favorite: boolean;
 	playbackPositionSeconds: number;
 	imageUrl?: string;
+	episodeNumber?: number;
+	seasonNumber?: number;
 }
 
 export interface ArticleListItem extends FeedListItemBase {
@@ -59,10 +67,6 @@ export function isMediaItem<T extends FeedListItem>(item: T): item is T & MediaL
 	return item.itemType === 'media';
 }
 
-export function isFeed(item: import('./feed').Feed | FeedItem): item is import('./feed').Feed {
-	return !('feedId' in item);
-}
-
 export interface RawFeedListItem extends FeedListItemBase {
 	mediaEnclosure?: MediaEnclosure;
 }
@@ -78,6 +82,7 @@ export function mapRawFeedListItem(raw: RawFeedListItem): FeedListItem {
 
 export interface ItemPageQuery {
 	feedId?: string;
+	stationId?: string;
 	section: ItemListSection;
 	offset: number;
 	limit: number;

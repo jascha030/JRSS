@@ -24,6 +24,7 @@
 export type ColorScheme = 'system' | 'light' | 'dark';
 
 export const DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
+export const DEFAULT_MAX_IMAGE_CACHE_SIZE_BYTES = 200 * 1024 * 1024;
 export const DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP = false;
 export const DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES = 60;
 export const DEFAULT_COLOR_SCHEME: ColorScheme = 'system';
@@ -34,6 +35,7 @@ export const DEFAULT_SKIP_BACKWARD_SECONDS = 15;
 
 export interface AppSettings {
 	maxAudioCacheSizeBytes: number;
+	maxImageCacheSizeBytes: number;
 	miniPlayerAlwaysOnTop: boolean;
 	autoRefreshIntervalMinutes: number;
 	colorScheme: ColorScheme;

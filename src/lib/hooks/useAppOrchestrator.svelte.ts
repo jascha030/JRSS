@@ -1,11 +1,10 @@
 import { toast } from 'svelte-sonner';
 import {
 	getActiveQueryKey,
-	getReaderRequestSeq,
-	getReaderRequestItemId,
 	loadInitialItemsPage,
 	loadItemDetails,
 	selection,
+	readerState,
 	stationsState,
 	createFeed,
 	updateExistingStation,
@@ -27,7 +26,7 @@ export function useAppOrchestrator() {
 
 	const activeQueryKey = $derived(getActiveQueryKey());
 	const selectedItemId = $derived(selection.selectedItemId);
-	const readerRequestSeq = $derived(getReaderRequestSeq());
+	const readerRequestSeq = $derived(readerState.readerRequestSeq);
 
 	$effect(() => {
 		const queryKey = activeQueryKey;
@@ -63,7 +62,7 @@ export function useAppOrchestrator() {
 		}
 
 		lastConsumedReaderSeq = readerRequestSeq;
-		const itemId = getReaderRequestItemId();
+		const itemId = readerState.readerRequestItemId;
 
 		if (itemId) {
 			void switchToReaderView(itemId);

@@ -1,33 +1,11 @@
-export interface PlaybackState {
-	itemId: string;
-	positionSeconds: number;
-	durationSeconds: number;
-	isPlaying: boolean;
-	isBuffering: boolean;
-	volume: number;
-}
-
-export interface PlaybackContext {
-	contextType: 'feed' | 'station';
-	id: string;
-}
-
-export interface PlaybackSession {
-	currentItemId?: string;
-	positionSeconds: number;
-	durationSeconds: number;
-	historyQueue: string[];
-	manualQueue: string[];
-	autoQueue: string[];
-	playbackContext?: PlaybackContext;
-}
-
 export interface BackendPlaybackState {
 	itemId: string;
 	positionSeconds: number;
 	durationSeconds: number;
+	fileDurationSeconds: number | null;
 	isPlaying: boolean;
 	isBuffering: boolean;
+	isFullyDownloaded: boolean;
 	volume: number;
 }
 

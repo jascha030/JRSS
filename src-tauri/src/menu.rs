@@ -75,7 +75,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .accelerator("CmdOrCtrl+Down")
             .build(app)?;
 
-        // Create App submenu (first menu - shows as app name on macOS)
         let app_submenu = SubmenuBuilder::new(app, "JRSS")
             .item(&settings_item)
             .separator()
@@ -84,7 +83,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .quit()
             .build()?;
 
-        // Create File submenu
         let file_submenu = SubmenuBuilder::new(app, "File")
             .item(&add_feed_item)
             .item(&new_station_item)
@@ -93,7 +91,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .close_window()
             .build()?;
 
-        // Create Edit submenu
         let edit_submenu = SubmenuBuilder::new(app, "Edit")
             .undo()
             .redo()
@@ -106,7 +103,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&search_item)
             .build()?;
 
-        // Create View submenu
         let view_submenu = SubmenuBuilder::new(app, "View")
             .item(&go_to_feed_item)
             .item(&toggle_sidebar_item)
@@ -118,7 +114,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&toggle_mini_player_item)
             .build()?;
 
-        // Create Playback submenu
         let playback_submenu = SubmenuBuilder::new(app, "Playback")
             .item(&play_pause_item)
             .separator()
@@ -132,7 +127,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .item(&volume_down_item)
             .build()?;
 
-        // Create Window submenu with standard window controls
         let window_submenu = SubmenuBuilder::new(app, "Window")
             .minimize()
             .fullscreen()
@@ -140,7 +134,6 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .close_window()
             .build()?;
 
-        // Build the full menu
         let menu = MenuBuilder::new(app)
             .item(&app_submenu)
             .item(&file_submenu)
@@ -152,12 +145,11 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
         app.set_menu(menu)?;
 
-		// Handle menu events - forward to frontend (emit globally so all windows receive it)
-		app.on_menu_event(move |app_handle: &AppHandle, event| {
-			let event_id = event.id().0.as_str();
-			let event_name = format!("menu-{event_id}");
-			let _ = app_handle.emit(&event_name, ());
-		});
+        app.on_menu_event(move |app_handle: &AppHandle, event| {
+            let event_id = event.id().0.as_str();
+            let event_name = format!("menu-{event_id}");
+            let _ = app_handle.emit(&event_name, ());
+        });
 
         // Register global shortcuts for modifier-based shortcuts (work in mini-player too)
         // Space is handled separately via JS since it has no modifier
@@ -169,12 +161,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::ArrowRight,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-skip-forward", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-skip-forward", ());
+                }
+            },
+        )?;
 
         app.global_shortcut().on_shortcut(
             Shortcut::new(
@@ -184,12 +176,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::ArrowLeft,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-skip-backward", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-skip-backward", ());
+                }
+            },
+        )?;
 
         app.global_shortcut().on_shortcut(
             Shortcut::new(
@@ -199,12 +191,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::ArrowRight,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-next-episode", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-next-episode", ());
+                }
+            },
+        )?;
 
         app.global_shortcut().on_shortcut(
             Shortcut::new(
@@ -214,36 +206,36 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::ArrowLeft,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-prev-episode", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-prev-episode", ());
+                }
+            },
+        )?;
 
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(tauri_plugin_global_shortcut::Modifiers::META),
                 tauri_plugin_global_shortcut::Code::ArrowUp,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-volume-up", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-volume-up", ());
+                }
+            },
+        )?;
 
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(tauri_plugin_global_shortcut::Modifiers::META),
                 tauri_plugin_global_shortcut::Code::ArrowDown,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-volume-down", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-volume-down", ());
+                }
+            },
+        )?;
 
         // Settings shortcut (works in mini-player too)
         app.global_shortcut().on_shortcut(
@@ -251,12 +243,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 Some(tauri_plugin_global_shortcut::Modifiers::META),
                 tauri_plugin_global_shortcut::Code::Comma,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-settings", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-settings", ());
+                }
+            },
+        )?;
 
         // Sidebar shortcut
         app.global_shortcut().on_shortcut(
@@ -264,14 +256,13 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 Some(tauri_plugin_global_shortcut::Modifiers::META),
                 tauri_plugin_global_shortcut::Code::KeyB,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-toggle-sidebar", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-sidebar", ());
+                }
+            },
+        )?;
 
-        // Previous source shortcut
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(
@@ -280,14 +271,13 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::BracketLeft,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-prev-source", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-prev-source", ());
+                }
+            },
+        )?;
 
-        // Next source shortcut
         app.global_shortcut().on_shortcut(
             Shortcut::new(
                 Some(
@@ -296,12 +286,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::BracketRight,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-next-source", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-next-source", ());
+                }
+            },
+        )?;
 
         // Toggle cover view shortcut
         app.global_shortcut().on_shortcut(
@@ -312,12 +302,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::KeyC,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-toggle-cover", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-cover", ());
+                }
+            },
+        )?;
 
         // Toggle mini player shortcut
         app.global_shortcut().on_shortcut(
@@ -328,12 +318,12 @@ pub fn setup_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 tauri_plugin_global_shortcut::Code::KeyM,
             ),
-			|_app, _shortcut, event| {
-				if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-					let _ = _app.emit("menu-toggle-mini-player", ());
-				}
-			},
-		)?;
+            |_app, _shortcut, event| {
+                if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    let _ = _app.emit("menu-toggle-mini-player", ());
+                }
+            },
+        )?;
     }
 
     Ok(())

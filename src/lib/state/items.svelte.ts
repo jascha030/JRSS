@@ -4,15 +4,17 @@ import { isMediaItem } from '$lib/types/item';
 import {
 	getItemDetails,
 	getItemsByIds,
+	getItemsLocalStatus,
 	markFavorite,
 	markFavoriteBatch,
 	markRead,
 	markReadBatch,
-	queryItems,
-	type ItemsQuery
+	queryItems
 } from '$lib/services/item';
-import { measurePerfAsync } from '$lib/utils/perfDebug';
+import type { ItemPageQuery } from '$lib/types/item';
+import { measurePerfAsync } from '$lib/utils/performance-debug';
 import { selection } from './selection.svelte';
+import { PAGE_SIZE } from '$lib/constants/pagination';
 import {
 	getActiveQuerySpec,
 	getActiveQueryKey,
@@ -20,8 +22,6 @@ import {
 	normalizeSearchTerm,
 	type ItemsQuerySpec
 } from './query-context.svelte';
-
-const PAGE_SIZE = 100;
 const PAGE_PREFETCH = 1;
 
 type QueryKey = string;
@@ -35,7 +35,8 @@ export const itemsState = $state({
 	totalCountByQueryKey: {} as Record<QueryKey, number>,
 	loadedPageOffsetsByQueryKey: {} as Record<QueryKey, PageOffsets>,
 	loadingPageOffsetsByQueryKey: {} as Record<QueryKey, PageOffsets>,
-	initialLoadDoneByQueryKey: {} as Record<QueryKey, boolean>
+	initialLoadDoneByQueryKey: {} as Record<QueryKey, boolean>,
+	localStatusById: {} as Record<string, { isCached: boolean; isExported: boolean }>
 });
 
 export function resetItemsState(): void {
@@ -46,6 +47,7 @@ export function resetItemsState(): void {
 	itemsState.loadedPageOffsetsByQueryKey = {};
 	itemsState.loadingPageOffsetsByQueryKey = {};
 	itemsState.initialLoadDoneByQueryKey = {};
+	itemsState.localStatusById = {};
 }
 
 export function invalidateAllQueries(): void {
@@ -136,7 +138,7 @@ function toFeedListItem(item: FeedItem): FeedListItem {
 	return listItem;
 }
 
-export function storeItemDetails(item: FeedItem): void {
+function storeItemDetails(item: FeedItem): void {
 	itemsState.itemDetailsById[item.id] = {
 		id: item.id,
 		summaryText: item.summaryText,
@@ -184,6 +186,24 @@ export function mergeDetailedItem(item: FeedItem): void {
 	storeItemDetails(item);
 }
 
+async function loadLocalStatusForItems(itemIds: string[]): Promise<void> {
+	if (itemIds.length === 0) {
+		return;
+	}
+
+	try {
+		const statuses = await getItemsLocalStatus(itemIds);
+		for (const status of statuses) {
+			itemsState.localStatusById[status.itemId] = {
+				isCached: status.isCached,
+				isExported: status.isExported
+			};
+		}
+	} catch {
+		// Silently ignore local status failures
+	}
+}
+
 function mergeItemsPage(
 	queryKey: QueryKey,
 	offset: number,
@@ -201,6 +221,9 @@ function mergeItemsPage(
 	itemsState.totalCountByQueryKey[queryKey] = totalCount;
 	itemsState.loadedPageOffsetsByQueryKey[queryKey][offset] = true;
 	itemsState.initialLoadDoneByQueryKey[queryKey] = true;
+
+	const mediaItemIds = items.filter(isMediaItem).map((item) => item.id);
+	void loadLocalStatusForItems(mediaItemIds);
 }
 
 function getFirstLoadedItemId(queryKey: QueryKey): string | null {
@@ -253,31 +276,23 @@ async function loadPage(spec: ItemsQuerySpec, offset: number): Promise<void> {
 	itemsState.loadingPageOffsetsByQueryKey[spec.queryKey][safeOffset] = true;
 
 	try {
-		const query: ItemsQuery =
-			spec.kind === 'station-items'
-				? {
-						stationId: spec.stationId,
-						section: 'all',
-						offset: safeOffset,
-						limit: PAGE_SIZE,
-						search: spec.search,
-						sortOrder: spec.sortOrder
-					}
-				: {
-						feedId: spec.query.feedId,
-						section: spec.query.section,
-						offset: safeOffset,
-						limit: PAGE_SIZE,
-						search: spec.query.search,
-						sortOrder: spec.query.sortOrder ?? 'newest_first'
-					};
+		const page: ItemPageQuery = {
+			feedId: spec.kind === 'feed-items' ? spec.query.feedId : undefined,
+			stationId: spec.kind === 'station-items' ? spec.stationId : undefined,
+			section: spec.kind === 'station-items' ? 'all' : spec.query.section,
+			offset: safeOffset,
+			limit: PAGE_SIZE,
+			search: spec.kind === 'station-items' ? spec.search : spec.query.search,
+			sortOrder:
+				spec.kind === 'station-items' ? spec.sortOrder : (spec.query.sortOrder ?? 'newest_first')
+		};
 
-		const page = await measurePerfAsync('items.loadPage', async () => queryItems(query), {
+		const response = await measurePerfAsync('items.loadPage', async () => queryItems(page), {
 			queryKey: spec.queryKey,
 			offset: safeOffset
 		});
 
-		mergeItemsPage(spec.queryKey, safeOffset, page.items, page.totalCount);
+		mergeItemsPage(spec.queryKey, safeOffset, response.items, response.totalCount);
 
 		if (getActiveQueryKey() === spec.queryKey) {
 			ensureSelectionAfterPageLoad(spec.queryKey);

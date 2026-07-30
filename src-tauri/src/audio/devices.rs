@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![cfg_attr(target_os = "macos", allow(dead_code))]
 
 //! Audio output device management.
 

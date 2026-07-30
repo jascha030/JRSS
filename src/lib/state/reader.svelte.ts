@@ -53,17 +53,3 @@ export function requestOpenInReader(itemId: string): void {
 	readerState.readerRequestItemId = itemId;
 	readerState.readerRequestSeq += 1;
 }
-
-/**
- * Read the current reader-request sequence number (for the page to watch).
- */
-export function getReaderRequestSeq(): number {
-	return readerState.readerRequestSeq;
-}
-
-/**
- * Read the item ID from the last reader-open request.
- */
-export function getReaderRequestItemId(): string | null {
-	return readerState.readerRequestItemId;
-}

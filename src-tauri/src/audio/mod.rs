@@ -22,9 +22,7 @@ use crate::queue::{QueueState, QueuedItem};
 
 pub mod actor;
 #[cfg(target_os = "macos")]
-pub mod av_main_thread_actor;
-#[cfg(target_os = "macos")]
-pub mod av_proxy_engine;
+pub mod av_engine;
 pub mod cache;
 pub mod commands;
 pub mod devices;
@@ -67,10 +65,6 @@ impl AudioState {
         self.tx.clone()
     }
 }
-
-// ---------------------------------------------------------------------------
-// Public API — called from Tauri commands
-// ---------------------------------------------------------------------------
 
 pub fn play_url(
     app: &AppHandle,
@@ -248,8 +242,3 @@ pub fn set_output_device(app: &AppHandle, device_id: Option<String>) -> Result<(
         .map_err(|_| "Timed out waiting for audio device change".to_string())?
 }
 
-#[allow(dead_code)]
-pub fn prefetch_item(app: &AppHandle, item_id: String, url: String) -> Result<(), String> {
-    app.state::<AudioState>()
-        .send(AudioCommand::Prefetch { item_id, url })
-}

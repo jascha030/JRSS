@@ -2,8 +2,7 @@ use super::AppResult;
 use super::connection::open_connection;
 use super::rows::{map_item_list_row, map_item_row};
 use crate::models::{
-    FeedItemRecord, FeedListItemRecord, ItemListSection, ItemPageQueryRecord, ItemPageRecord,
-    ReaderContentRecord,
+    FeedItemRecord, FeedListItemRecord, ItemListSection, ItemPageRecord, ReaderContentRecord,
 };
 use chrono::Utc;
 use rusqlite::{OptionalExtension, params};
@@ -16,7 +15,7 @@ const ITEM_SELECT_QUERY: &str =
 			 i.reader_excerpt, i.reader_content_html, i.reader_content_text, i.reader_fetched_at,
 			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
-			 i.image_url
+			 i.image_url, i.episode_number, i.season_number
 		 FROM items i
 		 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -25,7 +24,7 @@ pub const ITEM_LIST_SELECT_QUERY: &str = "SELECT i.id, i.feed_id, i.title, i.url
 			 i.reader_status, i.reader_title, i.reader_byline, i.reader_excerpt, i.reader_fetched_at,
 			 i.published_at, i.read, i.favorite, i.enclosure_url, i.enclosure_mime_type,
 			 i.enclosure_size_bytes, i.enclosure_duration_seconds, COALESCE(p.position_seconds, 0),
-			 i.image_url
+			 i.image_url, i.episode_number, i.season_number
 			 FROM items i
 			 LEFT JOIN playback_state p ON p.item_id = i.id";
 
@@ -68,68 +67,49 @@ pub fn mark_favorite(db_path: &Path, item_id: &str, favorite: bool) -> AppResult
     Ok(())
 }
 
+fn batch_update_bool_column(
+    db_path: &Path,
+    item_ids: &[String],
+    column: &str,
+    value: bool,
+) -> AppResult<()> {
+    if item_ids.is_empty() {
+        return Ok(());
+    }
+
+    let mut connection = open_connection(db_path)?;
+    let tx = connection
+        .transaction()
+        .map_err(|error| format!("Failed to begin transaction: {error}"))?;
+
+    let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
+    let sql = format!(
+        "UPDATE items SET {column} = ?1 WHERE id IN ({})",
+        placeholders.join(", ")
+    );
+
+    let bool_value: i64 = if value { 1 } else { 0 };
+    let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+    params.push(&bool_value as &dyn rusqlite::ToSql);
+    for id in item_ids {
+        params.push(id as &dyn rusqlite::ToSql);
+    }
+
+    tx.execute(&sql, params.as_slice())
+        .map_err(|error| format!("Failed to batch update {column}: {error}"))?;
+
+    tx.commit()
+        .map_err(|error| format!("Failed to commit batch {column} update: {error}"))?;
+
+    Ok(())
+}
+
 pub fn mark_favorite_batch(db_path: &Path, item_ids: &[String], favorite: bool) -> AppResult<()> {
-	if item_ids.is_empty() {
-		return Ok(());
-	}
-
-	let mut connection = open_connection(db_path)?;
-	let tx = connection
-		.transaction()
-		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
-
-	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
-	let sql = format!(
-		"UPDATE items SET favorite = ?1 WHERE id IN ({})",
-		placeholders.join(", ")
-	);
-
-	let favorite_value = if favorite { 1_i64 } else { 0_i64 };
-	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-	params.push(&favorite_value as &dyn rusqlite::ToSql);
-	for id in item_ids {
-		params.push(id as &dyn rusqlite::ToSql);
-	}
-
-	tx.execute(&sql, params.as_slice())
-		.map_err(|error| format!("Failed to batch update favorite state: {error}"))?;
-
-	tx.commit()
-		.map_err(|error| format!("Failed to commit batch favorite update: {error}"))?;
-
-	Ok(())
+    batch_update_bool_column(db_path, item_ids, "favorite", favorite)
 }
 
 pub fn mark_read_batch(db_path: &Path, item_ids: &[String], read: bool) -> AppResult<()> {
-	if item_ids.is_empty() {
-		return Ok(());
-	}
-
-	let mut connection = open_connection(db_path)?;
-	let tx = connection
-		.transaction()
-		.map_err(|error| format!("Failed to begin transaction: {error}"))?;
-
-	let placeholders: Vec<String> = (2..=item_ids.len() + 1).map(|i| format!("?{i}")).collect();
-	let sql = format!(
-		"UPDATE items SET read = ?1 WHERE id IN ({})",
-		placeholders.join(", ")
-	);
-
-	let read_value = if read { 1_i64 } else { 0_i64 };
-	let mut params: Vec<&dyn rusqlite::ToSql> = Vec::new();
-	params.push(&read_value as &dyn rusqlite::ToSql);
-	for id in item_ids {
-		params.push(id as &dyn rusqlite::ToSql);
-	}
-
-	tx.execute(&sql, params.as_slice())
-		.map_err(|error| format!("Failed to batch update read state: {error}"))?;
-
-	tx.commit()
-		.map_err(|error| format!("Failed to commit batch read update: {error}"))?;
-
-	Ok(())
+    batch_update_bool_column(db_path, item_ids, "read", read)
 }
 
 pub fn save_playback(db_path: &Path, item_id: &str, position_seconds: i64) -> AppResult<()> {
@@ -246,99 +226,6 @@ pub fn get_items_by_ids(db_path: &Path, ids: &[String]) -> AppResult<Vec<FeedLis
     Ok(items)
 }
 
-/// Legacy query API — prefer `query_items` for new code.
-pub fn query_items_page(db_path: &Path, query: &ItemPageQueryRecord) -> AppResult<ItemPageRecord> {
-    let connection = open_connection(db_path)?;
-    let safe_limit = query.limit.clamp(1, 500);
-    let safe_offset = query.offset.max(0);
-
-    let search_term = query
-        .search
-        .as_deref()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| format!("%{s}%"));
-
-    const ITEM_LIST_FILTER_QUERY: &str = " WHERE (?1 IS NULL OR i.feed_id = ?1)
-        AND (?2 <> 'unread' OR i.read = 0)
-        AND (?2 <> 'media' OR i.enclosure_url IS NOT NULL)
-        AND (?2 <> 'favorites' OR i.favorite = 1)";
-
-    let search_clause = if search_term.is_some() {
-        " AND (i.title LIKE ?3 COLLATE NOCASE OR i.preview_text LIKE ?3 COLLATE NOCASE OR i.content_text LIKE ?3 COLLATE NOCASE)"
-    } else {
-        ""
-    };
-
-    let count_sql = format!("SELECT COUNT(*) FROM items i{ITEM_LIST_FILTER_QUERY}{search_clause}");
-    let total_count: i64 = if let Some(ref pattern) = search_term {
-        connection
-            .query_row(
-                &count_sql,
-                params![query.feed_id.as_deref(), query.section.as_str(), pattern],
-                |row| row.get(0),
-            )
-            .map_err(|error| format!("Failed to count items: {error}"))?
-    } else {
-        connection
-            .query_row(
-                &count_sql,
-                params![query.feed_id.as_deref(), query.section.as_str()],
-                |row| row.get(0),
-            )
-            .map_err(|error| format!("Failed to count items: {error}"))?
-    };
-
-    let order_by = query.sort_order.order_by_clause();
-
-    let page_sql = if search_term.is_some() {
-        format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY}{search_clause} ORDER BY {order_by} LIMIT ?4 OFFSET ?5"
-        )
-    } else {
-        format!(
-            "{ITEM_LIST_SELECT_QUERY}{ITEM_LIST_FILTER_QUERY} ORDER BY {order_by} LIMIT ?3 OFFSET ?4"
-        )
-    };
-
-    let mut statement = connection
-        .prepare(&page_sql)
-        .map_err(|error| format!("Failed to prepare paged item query: {error}"))?;
-
-    let items = if let Some(ref pattern) = search_term {
-        statement
-            .query_map(
-                params![
-                    query.feed_id.as_deref(),
-                    query.section.as_str(),
-                    pattern,
-                    safe_limit,
-                    safe_offset
-                ],
-                map_item_list_row,
-            )
-            .map_err(|error| format!("Failed to query item page: {error}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("Failed to read paged items: {error}"))?
-    } else {
-        statement
-            .query_map(
-                params![
-                    query.feed_id.as_deref(),
-                    query.section.as_str(),
-                    safe_limit,
-                    safe_offset
-                ],
-                map_item_list_row,
-            )
-            .map_err(|error| format!("Failed to query item page: {error}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| format!("Failed to read paged items: {error}"))?
-    };
-
-    Ok(ItemPageRecord { items, total_count })
-}
-
 /// Unified query for items that handles feed, station, and section views.
 pub fn query_items(
     db_path: &Path,
@@ -393,7 +280,6 @@ pub fn query_items(
         });
     }
 
-    // Build query clauses
     let placeholders: Vec<String> = (1..=feed_ids.len()).map(|i| format!("?{i}")).collect();
     let feed_filter = format!("i.feed_id IN ({})", placeholders.join(", "));
 
@@ -416,7 +302,6 @@ pub fn query_items(
         ""
     };
 
-    // Search clause
     let search_pattern = query
         .search
         .as_deref()
@@ -427,7 +312,6 @@ pub fn query_items(
     // Determine sort order
     let order_by = query.sort_order.order_by_clause();
 
-    // Build and execute count query
     let search_param_idx = feed_ids.len() + 1;
     let section_clauses = format!("{episode_clause}{media_clause}{favorites_clause}");
 
@@ -462,7 +346,6 @@ pub fn query_items(
             .map_err(|error| format!("Failed to count items: {error}"))?
     };
 
-    // Build and execute page query
     let limit_idx = if search_pattern.is_some() {
         feed_ids.len() + 2
     } else {
@@ -479,7 +362,6 @@ pub fn query_items(
             "{ITEM_LIST_SELECT_QUERY} WHERE {feed_filter}{section_clauses} ORDER BY {order_by} LIMIT ?{limit_idx} OFFSET ?{offset_idx}"
         )
     };
-
 
     let mut page_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
     for fid in &feed_ids {
@@ -521,11 +403,83 @@ pub fn get_unread_counts_by_feed(db_path: &Path) -> AppResult<HashMap<String, i6
 
     let mut result = HashMap::new();
     for row in rows {
-        let (feed_id, count) = row.map_err(|error| format!("Failed to read unread count: {error}"))?;
+        let (feed_id, count) =
+            row.map_err(|error| format!("Failed to read unread count: {error}"))?;
         result.insert(feed_id, count);
     }
 
     Ok(result)
+}
+
+pub fn get_exported_file_for_item(db_path: &Path, item_id: &str) -> AppResult<Option<String>> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .query_row(
+            "SELECT local_path FROM exported_files WHERE item_id = ?1",
+            [item_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| format!("Failed to query exported file: {error}"))
+}
+
+pub fn upsert_exported_file(
+    db_path: &Path,
+    item_id: &str,
+    feed_id: &str,
+    local_path: &str,
+) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "INSERT INTO exported_files (item_id, feed_id, local_path, exported_at)
+			 VALUES (?1, ?2, ?3, ?4)
+			 ON CONFLICT(item_id) DO UPDATE SET
+			 	feed_id = excluded.feed_id,
+			 	local_path = excluded.local_path,
+			 	exported_at = excluded.exported_at",
+            params![item_id, feed_id, local_path, Utc::now().to_rfc3339()],
+        )
+        .map_err(|error| format!("Failed to upsert exported file: {error}"))?;
+
+    Ok(())
+}
+
+pub fn delete_exported_files_for_feed(db_path: &Path, feed_id: &str) -> AppResult<()> {
+    let connection = open_connection(db_path)?;
+
+    connection
+        .execute(
+            "DELETE FROM exported_files WHERE feed_id = ?1",
+            [feed_id],
+        )
+        .map_err(|error| format!("Failed to delete exported files: {error}"))?;
+
+    Ok(())
+}
+
+pub fn get_feed_items_with_enclosures(
+    db_path: &Path,
+    feed_id: &str,
+) -> AppResult<Vec<FeedItemRecord>> {
+    let connection = open_connection(db_path)?;
+
+    let mut statement = connection
+        .prepare(&format!(
+            "{} WHERE i.feed_id = ?1 AND i.enclosure_url IS NOT NULL ORDER BY i.published_at DESC",
+            ITEM_SELECT_QUERY
+        ))
+        .map_err(|error| format!("Failed to prepare feed items query: {error}"))?;
+
+    let items = statement
+        .query_map([feed_id], map_item_row)
+        .map_err(|error| format!("Failed to query feed items: {error}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to read feed items: {error}"))?;
+
+    Ok(items)
 }
 
 #[cfg(test)]
@@ -544,25 +498,25 @@ mod tests {
     }
 
     /// Insert a feed with one article item; return the derived item ID.
-	fn insert_item(db_path: &Path) -> String {
-		insert_item_with_external_id(db_path, "ext-1", "Article 1")
-	}
+    fn insert_item(db_path: &Path) -> String {
+        insert_item_with_external_id(db_path, "ext-1", "Article 1")
+    }
 
-	fn insert_item_with_external_id(db_path: &Path, external_id: &str, title: &str) -> String {
-		let feed = upsert_feed_snapshot(
-			db_path,
-			"https://example.com/rss",
+    fn insert_item_with_external_id(db_path: &Path, external_id: &str, title: &str) -> String {
+        let feed = upsert_feed_snapshot(
+            db_path,
+            "https://example.com/rss",
             ParsedFeed {
                 title: "Feed".to_string(),
                 description: String::new(),
                 site_url: None,
-				image_url: None,
-				kind: "article".to_string(),
-				items: vec![ParsedFeedItem {
-					external_id: external_id.to_string(),
-					title: title.to_string(),
-					url: "https://example.com/1".to_string(),
-					summary: String::new(),
+                image_url: None,
+                kind: "article".to_string(),
+                items: vec![ParsedFeedItem {
+                    external_id: external_id.to_string(),
+                    title: title.to_string(),
+                    url: "https://example.com/1".to_string(),
+                    summary: String::new(),
                     preview_text: String::new(),
                     summary_text: None,
                     summary_html: None,
@@ -571,13 +525,18 @@ mod tests {
                     published_at: "2024-01-01T00:00:00Z".to_string(),
                     media_enclosure: None,
                     image_url: None,
+                    episode_number: None,
+                    season_number: None,
                 }],
             },
-		)
-		.unwrap();
-		// Mirror the stable_hash + build_item_id logic from feeds.rs.
-		format!("item-{}", sha1_smol::Sha1::from(format!("{}:{}", feed.id, external_id)).digest())
-	}
+        )
+        .unwrap();
+        // Mirror the stable_hash + build_item_id logic from feeds.rs.
+        format!(
+            "item-{}",
+            sha1_smol::Sha1::from(format!("{}:{}", feed.id, external_id)).digest()
+        )
+    }
 
     #[test]
     fn get_item_by_id_returns_item() {
@@ -638,9 +597,24 @@ mod tests {
         let (_dir, db_path) = tmpdb();
         let first_item_id = insert_item(&db_path);
         let second_item_id = insert_item_with_external_id(&db_path, "ext-2", "Article 2");
-        mark_favorite_batch(&db_path, &[first_item_id.clone(), second_item_id.clone()], true).unwrap();
-        assert!(get_item_by_id(&db_path, &first_item_id).unwrap().unwrap().favorite);
-        assert!(get_item_by_id(&db_path, &second_item_id).unwrap().unwrap().favorite);
+        mark_favorite_batch(
+            &db_path,
+            &[first_item_id.clone(), second_item_id.clone()],
+            true,
+        )
+        .unwrap();
+        assert!(
+            get_item_by_id(&db_path, &first_item_id)
+                .unwrap()
+                .unwrap()
+                .favorite
+        );
+        assert!(
+            get_item_by_id(&db_path, &second_item_id)
+                .unwrap()
+                .unwrap()
+                .favorite
+        );
     }
 
     #[test]

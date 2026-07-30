@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import type { MediaListItem } from '$lib/types/item';
-	import type { PlaybackState } from '$lib/types/playback';
+	import type { PlaybackState } from '$lib/state/playback.svelte';
 	import type { CoverTheme } from '$lib/state/playback.svelte';
 	import { requestTogglePlayback } from '$lib/state';
 	import { playbackSettings } from '$lib/state/settings.svelte';
@@ -22,6 +22,7 @@
 		onSkip: (deltaSeconds: number) => void;
 		onPreviousEpisode: () => void;
 		onNextEpisode: () => void;
+		onToggleCompactMode?: () => void;
 	};
 
 	let {
@@ -35,7 +36,8 @@
 		onArtworkError,
 		onSkip,
 		onPreviousEpisode,
-		onNextEpisode
+		onNextEpisode,
+		onToggleCompactMode
 	}: Props = $props();
 
 	let cardHeight = $state(0);
@@ -86,19 +88,19 @@
 
 	{#if overlayImageUrl}
 		<div
-			class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+			class="controls-image-blur pointer-events-none absolute inset-0 z-1 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100"
 			aria-hidden="true"
 		></div>
 	{:else}
 		<div
-			class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100"
+			class="pointer-events-none absolute inset-0 z-1 bg-linear-to-t from-black/70 via-black/35 to-transparent opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100"
 			aria-hidden="true"
 		></div>
 	{/if}
 
 	<div
 		bind:clientHeight={controlsHeight}
-		class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 xs:px-8"
+		class="cover-theme absolute right-0 bottom-0 left-0 z-10 flex flex-col p-4 opacity-0 transition-opacity duration-200 group-hover/container:opacity-100 group-hover/mini:opacity-100 xs:px-8"
 		style:--cover-fg={coverTheme.fg}
 		style:--cover-fg-muted={coverTheme.fgMuted}
 		style:--cover-fg-subtle={coverTheme.fgSubtle}
@@ -116,7 +118,7 @@
 				{item}
 				imageUrl={displayImageUrl}
 				showCover={false}
-				class="mb-4 w-full justify-center"
+				class="mb-2 flex-1 justify-center"
 			/>
 
 			<div class="min-w-0">
@@ -125,13 +127,10 @@
 		</div>
 
 		<div class="w-full">
-			<SeekBar
-				{playbackState}
-				durationSeconds={playbackState.durationSeconds || item.mediaEnclosure.durationSeconds || 0}
-			/>
+			<SeekBar {playbackState} durationSeconds={playbackState.durationSeconds} />
 		</div>
 
-		<div class="grid grid-cols-3">
+		<div class="mt-2 grid grid-cols-3">
 			<div class="col-start-2 flex items-center justify-center gap-4">
 				<Controls
 					isPlaying={playbackState.isPlaying}
@@ -144,6 +143,17 @@
 					{canSkipPrevious}
 					{canSkipNext}
 				/>
+			</div>
+
+			<div class="flex w-full justify-end">
+				<button
+					class="preset-icon-subtle btn-icon size-5 shrink-0 rounded-xl"
+					type="button"
+					onclick={onToggleCompactMode}
+					aria-label="Expand"
+				>
+					<Icon icon="lucide:minimize" class="size-5" />
+				</button>
 			</div>
 		</div>
 	</div>

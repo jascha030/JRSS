@@ -1,6 +1,7 @@
 import type { MenuIcon } from '@tauri-apps/api/image';
 import { IconMenuItem, Menu, MenuItem, NativeIcon, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { openFeedEditor, openStationEditor } from '$lib/hooks/useAppUi.svelte';
 import { navigateToFeed, navigateToStation } from '$lib/utils/navigation/app-router';
 
 import {
@@ -8,6 +9,7 @@ import {
 	deleteFeed,
 	deleteExistingStation,
 	enqueueAudioItem,
+	exportExistingFeed,
 	isAudioPlaying,
 	isItemCurrentAudio,
 	markItemRead,
@@ -416,6 +418,16 @@ export async function openFeedContextMenu(event: MouseEvent, feed: Feed): Promis
 
 	items.push(
 		await createActionMenuItem({
+			id: 'export-feed',
+			text: 'Export feed',
+			action: () => void exportExistingFeed(feed.id)
+		})
+	);
+
+	items.push(await PredefinedMenuItem.new({ item: 'Separator' }));
+
+	items.push(
+		await createActionMenuItem({
 			id: 'remove-feed',
 			text: 'Remove feed',
 			icon: NativeIcon.Remove,
@@ -449,6 +461,33 @@ export async function openStationContextMenu(event: MouseEvent, station: Station
 			text: 'Remove station',
 			icon: NativeIcon.Remove,
 			action: () => void deleteExistingStation(station.id)
+		})
+	);
+
+	const menu = await Menu.new({ items });
+	await menu.popup();
+}
+
+export async function openCreateMenu(event: MouseEvent): Promise<void> {
+	event.preventDefault();
+
+	const items: ContextMenuItem[] = [];
+
+	items.push(
+		await createActionMenuItem({
+			id: 'add-feed',
+			text: 'Add feed',
+			icon: NativeIcon.Add,
+			action: () => openFeedEditor()
+		})
+	);
+
+	items.push(
+		await createActionMenuItem({
+			id: 'create-station',
+			text: 'Create station',
+			icon: NativeIcon.Add,
+			action: () => openStationEditor()
 		})
 	);
 

@@ -20,7 +20,25 @@
 			"identifier": "shell:allow-open"
 		},
 		{
+			"identifier": "sharekit:allow-share-text"
+		},
+		{
 			"identifier": "core:window:allow-start-dragging"
+		},
+
+		{
+			"identifier": "opener:allow-open-url",
+			"allow": [
+				{
+					"url": "https://*"
+				},
+				{
+					"url": "http://*"
+				}
+			]
+		},
+		{
+			"identifier": "dialog:allow-open"
 		}
 	]
 }

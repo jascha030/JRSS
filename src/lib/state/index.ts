@@ -21,8 +21,6 @@ export {
 	setFeedSearchTerm,
 	setStationSearchTerm,
 	setSectionSearchTerm,
-	getSelectedFeed,
-	getSelectedStation,
 	type SidebarSection,
 	type RouteSelectionState
 } from './selection.svelte';
@@ -47,7 +45,11 @@ export {
 	getFeedById,
 	addSyncingFeed,
 	removeSyncingFeed,
-	setFeedSortOrder
+	setFeedSortOrder,
+	isExportingFeed,
+	exportExistingFeed,
+	feedImageUrls,
+	feedImageUrlsLarge
 } from './feeds.svelte';
 
 export {
@@ -88,9 +90,7 @@ export {
 	readerState,
 	resetReaderState,
 	loadReaderView,
-	requestOpenInReader,
-	getReaderRequestSeq,
-	getReaderRequestItemId
+	requestOpenInReader
 } from './reader.svelte';
 
 export {
@@ -134,7 +134,6 @@ export {
 	clearPlaybackHistory,
 	startPlaybackFromContext,
 	playStation,
-	handlePlaybackEnded,
 	restorePlaybackContext,
 	persistPlaybackContext,
 	getCurrentAudioItem,
@@ -153,7 +152,7 @@ import { isTauriRuntime } from '../services/tauri';
 import { loadAppSettings, loadTheme } from '../services/settings';
 import { markAppInitialized, resetAppState } from './app.svelte';
 import { resetSelectionState } from './selection.svelte';
-import { resetFeedsState, loadFeeds } from './feeds.svelte';
+import { resetFeedsState, loadFeeds, removeExportingFeed } from './feeds.svelte';
 import { resetStationsState, loadStations } from './stations.svelte';
 import { resetItemsState, invalidateAllQueries, loadInitialItemsPage } from './items.svelte';
 import { resetInspectorState } from './inspector.svelte';
@@ -167,6 +166,7 @@ import {
 import { initTheme, resetThemeState } from './theme.svelte';
 import { playbackSettings } from './settings.svelte';
 import { DEFAULT_SKIP_FORWARD_SECONDS, DEFAULT_SKIP_BACKWARD_SECONDS } from '$lib/types/settings';
+import { toast } from 'svelte-sonner';
 
 export async function initializeApp(): Promise<void> {
 	resetAppState();
@@ -223,9 +223,32 @@ export async function initializeApp(): Promise<void> {
 				.then(() => invalidateAllQueries())
 				.then(() => loadInitialItemsPage());
 		});
+
+		if (_unlistenExportProgress) {
+			_unlistenExportProgress();
+		}
+		_unlistenExportProgress = await listen('export-progress', (event) => {
+			const payload = event.payload as {
+				feed_id: string;
+				item_id: string;
+				status: string;
+				message?: string;
+			};
+
+			console.log(payload);
+
+			if (payload.status === 'done') {
+				removeExportingFeed(payload.feed_id);
+				toast.success(`Exported ${payload.message ?? 'feed'} successfully.`);
+			} else if (payload.status === 'error') {
+				removeExportingFeed(payload.feed_id);
+				toast.error(`Export failed: ${payload.message ?? 'Unknown error'}`);
+			}
+		});
 	}
 
 	markAppInitialized();
 }
 
 let _unlistenAutoRefresh: UnlistenFn | undefined;
+let _unlistenExportProgress: UnlistenFn | undefined;

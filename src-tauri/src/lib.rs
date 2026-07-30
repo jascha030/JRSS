@@ -5,7 +5,9 @@ mod auto_refresh;
 mod commands;
 mod cover_art;
 mod db;
+mod export;
 mod feed_ingest;
+mod image_cache;
 mod menu;
 mod mini_player;
 mod models;
@@ -23,9 +25,12 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_sharekit::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 // Hide window instead of closing on macOS
@@ -67,16 +72,19 @@ pub fn run() {
                 .map_err(Box::<dyn std::error::Error>::from)?;
             app.manage(audio_state);
 
+            let image_cache = image_cache::ImageCache::new(app.handle())?;
+            app.manage(image_cache);
+
             let mini_player_state = mini_player::MiniPlayerTransitionState::new();
             app.manage(mini_player_state);
 
             #[cfg(not(target_os = "macos"))]
             media_controls::install(app)?;
 
-            // On macOS, the AVPlayer actor owns MPNowPlayingInfoCenter (publishing
-            // from the main thread on every state transition), and we wire
-            // MPRemoteCommandCenter once here so Control Center / media keys
-            // forward into the same audio command queue.
+            // On macOS, AVPlayer publishes to MPNowPlayingInfoCenter on the main
+            // queue for every state transition, and we wire MPRemoteCommandCenter
+            // once here so Control Center / media keys forward into the same audio
+            // command queue.
             #[cfg(target_os = "macos")]
             audio::macos::remote_commands::install(app.state::<AudioState>().sender());
 
@@ -92,7 +100,8 @@ pub fn run() {
             commands::remove_feed,
             commands::search_podcasts,
             commands::fetch_feed_raw,
-            commands::query_items_page,
+            commands::export_feed,
+            commands::get_items_local_status,
             commands::get_item_details,
             commands::mark_read,
             commands::mark_read_batch,
@@ -144,7 +153,10 @@ pub fn run() {
             commands::load_playback_context,
             commands::extract_cover_palette,
             commands::clear_audio_cache,
-            commands::set_window_content_aspect_ratio,
+            commands::get_cached_image_path,
+            commands::get_cached_image_dimensions,
+            mini_player::set_window_content_aspect_ratio,
+            mini_player::resize_mini_player,
             mini_player::open_mini_player_native,
             mini_player::restore_main_window_native
         ]);

@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![cfg_attr(target_os = "macos", allow(dead_code))]
 
 //! Rodio-backed audio playback engine.
 //!
@@ -76,10 +76,6 @@ impl RodioEngine {
 }
 
 impl PlaybackEngine for RodioEngine {
-    // ------------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------------
-
     fn initialize(&mut self) {
         if let Err(e) = self.rebuild_sink() {
             log::error!("RodioEngine: failed to open initial audio output: {e}");
@@ -120,11 +116,10 @@ impl PlaybackEngine for RodioEngine {
         if config.start_position_seconds > 0.0 {
             let target = Duration::from_secs_f64(config.start_position_seconds);
             if player.try_seek(target).is_err() {
-                log::warn!(
-                    "RodioEngine: try_seek to {:.1}s failed (MP3 without seek table?), \
-                     starting from beginning",
+                return Err(EngineError::DecodeFailed(format!(
+                    "Failed to seek to {:.1}s — format may not support seeking",
                     config.start_position_seconds
-                );
+                )));
             }
         }
 
@@ -135,10 +130,6 @@ impl PlaybackEngine for RodioEngine {
     fn stop(&mut self) {
         self.stop_player();
     }
-
-    // ------------------------------------------------------------------
-    // Transport
-    // ------------------------------------------------------------------
 
     fn pause(&mut self) {
         if let Some(ref player) = self.player {
@@ -162,10 +153,6 @@ impl PlaybackEngine for RodioEngine {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Setters
-    // ------------------------------------------------------------------
-
     fn set_volume(&mut self, volume: f32) {
         if let Some(ref player) = self.player {
             player.set_volume(volume);
@@ -177,10 +164,6 @@ impl PlaybackEngine for RodioEngine {
             player.set_speed(speed);
         }
     }
-
-    // ------------------------------------------------------------------
-    // State queries
-    // ------------------------------------------------------------------
 
     fn position_seconds(&self) -> f64 {
         self.player
@@ -200,10 +183,6 @@ impl PlaybackEngine for RodioEngine {
     fn is_finished(&self) -> bool {
         self.player.as_ref().map(|p| p.empty()).unwrap_or(false)
     }
-
-    // ------------------------------------------------------------------
-    // Device management
-    // ------------------------------------------------------------------
 
     fn list_output_devices(&self) -> Vec<OutputDeviceInfo> {
         list_output_devices()

@@ -9,6 +9,18 @@ export default defineConfig({
 				conditions: ['browser']
 			}
 		: undefined,
+	build: {
+		cssMinify: true,
+		rolldownOptions: {
+			output: {
+				manualChunks(id) {
+					if (id.includes('monaco-editor')) {
+						return 'monaco';
+					}
+				}
+			}
+		}
+	},
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
 		globals: true,

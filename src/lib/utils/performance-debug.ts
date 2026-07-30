@@ -14,15 +14,11 @@ function hasStorageFlag(flag: string): boolean {
 	return window.localStorage.getItem(flag) === '1';
 }
 
-export function isPerfDebugEnabled(): boolean {
+function isPerfDebugEnabled(): boolean {
 	return hasQueryFlag('perf') || hasStorageFlag('jrss:perf');
 }
 
-export function isPerfDebugFlagEnabled(flag: string): boolean {
-	return hasQueryFlag(flag) || hasStorageFlag(`jrss:perf:${flag}`);
-}
-
-export function logPerf(label: string, details?: Record<string, unknown>): void {
+function logPerf(label: string, details?: Record<string, unknown>): void {
 	if (!isPerfDebugEnabled()) {
 		return;
 	}
@@ -33,20 +29,6 @@ export function logPerf(label: string, details?: Record<string, unknown>): void 
 	}
 
 	console.info(`[perf] ${label}`);
-}
-
-export function startPerfMeasure(label: string): () => void {
-	if (!isPerfDebugEnabled()) {
-		return () => {};
-	}
-
-	const startedAt = performance.now();
-
-	return () => {
-		logPerf(label, {
-			durationMs: Number((performance.now() - startedAt).toFixed(2))
-		});
-	};
 }
 
 export async function measurePerfAsync<T>(

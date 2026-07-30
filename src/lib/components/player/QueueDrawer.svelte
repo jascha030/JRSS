@@ -57,7 +57,7 @@
 	</div>
 
 	{#if queueItems.length > 0}
-		<div class="shrink-0 border-t border-border px-5 py-3">
+		<div class="h-16 shrink-0 border-t border-border px-5 py-3">
 			<button
 				type="button"
 				class="preset-outlined-subtle btn w-full justify-center rounded-xl"

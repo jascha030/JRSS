@@ -59,3 +59,7 @@ export async function getFeedsUnreadCounts(): Promise<Record<string, number>> {
 export async function searchPodcasts(term: string): Promise<PodcastSearchResult[]> {
 	return invokeCommand<PodcastSearchResult[]>('search_podcasts', { term });
 }
+
+export async function exportFeed(feedId: string): Promise<number> {
+	return invokeCommand<number>('export_feed', { feedId });
+}

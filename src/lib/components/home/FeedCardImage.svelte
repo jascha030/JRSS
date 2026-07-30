@@ -1,15 +1,24 @@
 <script lang="ts">
-	let { imageUrl, alt, letter }: { imageUrl?: string; alt: string; letter: string } = $props();
+	import { feedImageUrls } from '$lib/state';
+
+	let {
+		feedId,
+		imageUrl,
+		alt,
+		letter
+	}: { feedId: string; imageUrl?: string; alt: string; letter: string } = $props();
 
 	let loaded = $state(false);
 
 	function handleLoad() {
 		loaded = true;
 	}
+
+	const src = $derived(feedImageUrls[feedId] || imageUrl);
 </script>
 
 <div class="relative aspect-square w-full overflow-hidden rounded-xl bg-surface-elevated shadow-sm">
-	{#if imageUrl}
+	{#if src}
 		<div class="absolute inset-0 animate-pulse bg-surface-elevated" class:hidden={loaded}></div>
 
 		<img
@@ -22,7 +31,7 @@
 			loading="lazy"
 			oncontextmenu={(e) => e.preventDefault()}
 			onload={handleLoad}
-			src={imageUrl}
+			{src}
 			{alt}
 		/>
 	{:else}

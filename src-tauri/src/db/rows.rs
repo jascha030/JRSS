@@ -58,6 +58,8 @@ pub fn map_item_row(row: &Row<'_>) -> rusqlite::Result<FeedItemRecord> {
         playback_position_seconds: row.get(24)?,
         media_enclosure,
         image_url: row.get(25)?,
+        episode_number: row.get(26)?,
+        season_number: row.get(27)?,
     })
 }
 
@@ -95,6 +97,8 @@ pub fn map_item_list_row(row: &Row<'_>) -> rusqlite::Result<FeedListItemRecord> 
         playback_position_seconds: row.get(18)?,
         media_enclosure,
         image_url: row.get(19)?,
+        episode_number: row.get(20)?,
+        season_number: row.get(21)?,
     })
 }
 

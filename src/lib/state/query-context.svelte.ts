@@ -9,12 +9,12 @@
  */
 
 import type { ItemPageQuery, ItemSortOrder } from '$lib/types/item';
+import { PAGE_SIZE } from '$lib/constants/pagination';
 import { selection } from './selection.svelte';
 import { feedsState } from './feeds.svelte';
 import { stationsState } from './stations.svelte';
 
 const DEFAULT_SORT_ORDER: ItemSortOrder = 'newest_first';
-const PAGE_SIZE = 100;
 
 export type ItemsQuerySpec =
 	| {

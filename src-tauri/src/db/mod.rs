@@ -26,9 +26,10 @@ pub use feeds::{
     get_feed_by_id, list_feeds, remove_feed, set_feed_sort_order, upsert_feed_snapshot,
 };
 pub use items::{
-	get_item_by_id, get_items_by_ids, get_unread_counts_by_feed, mark_favorite,
-	mark_favorite_batch, mark_read, mark_read_batch, query_items, query_items_page,
-	save_playback, save_reader_content, save_reader_failure, update_item_duration,
+    get_exported_file_for_item, get_feed_items_with_enclosures,
+    get_item_by_id, get_items_by_ids, get_unread_counts_by_feed, mark_favorite,
+    mark_favorite_batch, mark_read, mark_read_batch, query_items, save_playback,
+    save_reader_content, save_reader_failure, update_item_duration, upsert_exported_file,
 };
 pub use playback::{
     clear_playback_session, load_playback_context, load_playback_session, save_playback_context,
@@ -36,8 +37,8 @@ pub use playback::{
 };
 pub use schema::initialize_database;
 pub use settings::{
-    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES, load_app_settings,
-    save_app_settings,
+    DEFAULT_AUTO_REFRESH_INTERVAL_MINUTES, DEFAULT_MAX_AUDIO_CACHE_SIZE_BYTES,
+    load_app_settings, save_app_settings,
 };
 pub use stations::{
     create_station, delete_station, list_stations, query_station_episodes, update_station,

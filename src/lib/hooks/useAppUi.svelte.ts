@@ -6,9 +6,7 @@ export type PlayerMode = 'default' | 'cover';
 export type ReaderPaneMode = 'feed' | 'reader';
 
 type DialogState =
-	| { kind: 'none' }
-	| { kind: 'feed-editor' }
-	| { kind: 'station-editor'; stationId: string | null };
+	{ kind: 'none' } | { kind: 'feed-editor' } | { kind: 'station-editor'; stationId: string | null };
 
 type ScrollToItemRequest = {
 	itemId: string;
@@ -86,15 +84,6 @@ export function closeCommandPalette() {
 export function requestScrollToItem(itemId: string) {
 	appUi.scrollRequestSeq += 1;
 	appUi.scrollToItemRequest = { itemId, seq: appUi.scrollRequestSeq };
-}
-
-export function clearScrollToItem() {
-	appUi.scrollToItemRequest = null;
-}
-
-export function resetScrollState() {
-	appUi.scrollRequestSeq = 0;
-	appUi.scrollToItemRequest = null;
 }
 
 export function toggleReaderMaximized() {

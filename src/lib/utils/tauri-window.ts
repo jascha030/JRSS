@@ -4,9 +4,9 @@ import { invokeCommand } from '$lib/services/tauri';
 import { DEFAULT_MINI_PLAYER_ALWAYS_ON_TOP } from '$lib/types/settings';
 import type { LogicalPosition } from '@tauri-apps/api/window';
 
-export const MAIN_WINDOW_LABEL = 'main';
+const MAIN_WINDOW_LABEL = 'main';
 export const MINI_WINDOW_LABEL = 'mini-player';
-export const MINI_WINDOW_URL = '/?window=mini';
+const MINI_WINDOW_URL = '/?window=mini';
 
 async function loadMiniPlayerAlwaysOnTop(): Promise<boolean> {
 	try {
@@ -34,6 +34,7 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			decorations: true,
 			height: 440,
 			maximizable: false,
+			minimizable: false,
 			maxHeight: 800,
 			maxWidth: 800,
 			minHeight: 340,
@@ -41,8 +42,8 @@ async function ensureMiniPlayerWindow(): Promise<WebviewWindow> {
 			alwaysOnTop: miniPlayerAlwaysOnTop,
 			width: 440,
 			trafficLightPosition: {
-				x: 16,
-				y: 28
+				x: 14,
+				y: 22
 			} as LogicalPosition,
 			resizable: true,
 			title: 'JRSS Mini Player',
@@ -96,5 +97,3 @@ export async function restoreMainWindow(): Promise<void> {
 		miniLabel: MINI_WINDOW_LABEL
 	});
 }
-
-export { ensureMiniPlayerWindow };

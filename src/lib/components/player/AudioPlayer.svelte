@@ -55,7 +55,7 @@
 				onNavigate={navigateToCurrentAudioItem}
 				onShowCover={handleShowCover}
 				compact={isCompact}
-				class="min-w-0 shrink-0 basis-35 xl:basis-56 3xl:basis-auto"
+				class="min-w-0 shrink-0 basis-35 xl:basis-56"
 			/>
 
 			<div class="flex min-w-0 flex-1 items-center gap-4 2xl:px-4 3xl:px-8">
